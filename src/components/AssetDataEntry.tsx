@@ -10,7 +10,6 @@ import { ColDef, CellValueChangedEvent } from 'ag-grid-community';
 import { Toast } from './Toast';
 import { useGridPreferences } from '../lib/useGridPreferences';
 import { processColumnHeader } from '../lib/gridHeaderUtils';
-import { detectAndApplyTextOverflow, setupTextOverflowObserver } from '../lib/textOverflowDetector';
 import { exportToExcel } from '../lib/excelExport';
 import { useUserRole } from '../contexts/UserRoleContext';
 interface AssetRow {
@@ -1588,19 +1587,9 @@ export const AssetDataEntry = forwardRef<AssetDataEntryRef, {}>((props, ref) => 
               if (filteredRowData.length > 0) {
                 params.api.setFocusedCell(0, 'building_number');
               }
-              setTimeout(() => {
-                detectAndApplyTextOverflow(params.api);
-              }, 200);
-            }}
-            onFirstDataRendered={async (params) => {
-              setTimeout(() => {
-                detectAndApplyTextOverflow(params.api);
-                setupTextOverflowObserver(params.api);
-              }, 200);
             }}
             onColumnResized={(params) => {
               gridPreferences.handleColumnResized();
-              setTimeout(() => detectAndApplyTextOverflow(params.api), 100);
             }}
             onColumnMoved={(params) => {
               // Prevent actions column from being moved - force it back to first position

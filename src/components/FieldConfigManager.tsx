@@ -6,7 +6,6 @@ import * as XLSX from 'xlsx';
 import { AgGridReact } from 'ag-grid-react';
 import { ColDef } from 'ag-grid-community';
 import { useGridPreferences } from '../lib/useGridPreferences';
-import { detectAndApplyTextOverflow, setupTextOverflowObserver } from '../lib/textOverflowDetector';
 import { exportToExcel } from '../lib/excelExport';
 
 export function FieldConfigManager() {
@@ -817,19 +816,9 @@ export function FieldConfigManager() {
             getRowId={(params) => `${params.data.grid_name}-${params.data.field_name}`}
             onGridReady={async (params) => {
               await gridPreferences.loadColumnState(params.api);
-              setTimeout(() => {
-                detectAndApplyTextOverflow(params.api);
-              }, 200);
-            }}
-            onFirstDataRendered={async (params) => {
-              setTimeout(() => {
-                detectAndApplyTextOverflow(params.api);
-                setupTextOverflowObserver(params.api);
-              }, 200);
             }}
             onColumnResized={(params) => {
               gridPreferences.handleColumnResized();
-              setTimeout(() => detectAndApplyTextOverflow(params.api), 100);
             }}
             onColumnMoved={gridPreferences.handleColumnMoved}
             onCellValueChanged={onCellValueChanged}

@@ -217,10 +217,6 @@ input[type="number"] {
   -webkit-user-select: text !important;
 }
 
-.ag-theme-alpine .ag-cell.text-overflow {
-  mask-image: linear-gradient(to left, black 0%, black calc(100% - 20px), transparent 100%);
-  -webkit-mask-image: linear-gradient(to left, black 0%, black calc(100% - 20px), transparent 100%);
-}
 
 .ag-theme-alpine .ag-cell-inline-editing input[type="text"],
 .ag-theme-alpine .ag-cell-inline-editing input[type="number"],
@@ -279,10 +275,6 @@ input[type="number"] {
   direction: rtl !important;
 }
 
-.ag-theme-alpine .ag-header-cell-label.text-overflow .ag-header-cell-text {
-  mask-image: linear-gradient(to left, black 0%, black calc(100% - 20px), transparent 100%);
-  -webkit-mask-image: linear-gradient(to left, black 0%, black calc(100% - 20px), transparent 100%);
-}
 
 .ag-theme-alpine .ag-row-selected {
   background-color: #e7f5ff !important;

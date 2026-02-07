@@ -3,7 +3,6 @@ import { AuditLog as AuditLogType, api } from '../lib/api';
 import { AgGridReact } from 'ag-grid-react';
 import { ColDef } from 'ag-grid-community';
 import { useGridPreferences } from '../lib/useGridPreferences';
-import { detectAndApplyTextOverflow, setupTextOverflowObserver } from '../lib/textOverflowDetector';
 import { RefreshCw, Loader2 } from 'lucide-react';
 
 interface ParsedAuditData {
@@ -423,19 +422,9 @@ export function AuditLog() {
             suppressHorizontalScroll={false}
             onGridReady={async (params) => {
               await masterGridPreferences.loadColumnState(params.api);
-              setTimeout(() => {
-                detectAndApplyTextOverflow(params.api);
-              }, 200);
-            }}
-            onFirstDataRendered={async (params) => {
-              setTimeout(() => {
-                detectAndApplyTextOverflow(params.api);
-                setupTextOverflowObserver(params.api);
-              }, 200);
             }}
             onColumnResized={(params) => {
               masterGridPreferences.handleColumnResized();
-              setTimeout(() => detectAndApplyTextOverflow(params.api), 100);
             }}
             onColumnMoved={masterGridPreferences.handleColumnMoved}
             singleClickEdit={true}
@@ -479,19 +468,9 @@ export function AuditLog() {
               suppressHorizontalScroll={false}
               onGridReady={async (params) => {
                 await detailGridPreferences.loadColumnState(params.api);
-                setTimeout(() => {
-                  detectAndApplyTextOverflow(params.api);
-                }, 200);
-              }}
-              onFirstDataRendered={async (params) => {
-                setTimeout(() => {
-                  detectAndApplyTextOverflow(params.api);
-                  setupTextOverflowObserver(params.api);
-                }, 200);
               }}
               onColumnResized={(params) => {
                 detailGridPreferences.handleColumnResized();
-                setTimeout(() => detectAndApplyTextOverflow(params.api), 100);
               }}
               onColumnMoved={detailGridPreferences.handleColumnMoved}
               singleClickEdit={true}

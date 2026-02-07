@@ -20,7 +20,6 @@ import { numericValueParser, numericValueParserInt } from '../lib/numberUtils';
 import { useGridPreferences } from '../lib/useGridPreferences';
 import { useFieldConfig } from '../lib/useFieldConfig';
 import { processColumnHeader } from '../lib/gridHeaderUtils';
-import { detectAndApplyTextOverflow, setupTextOverflowObserver } from '../lib/textOverflowDetector';
 import { exportToExcel } from '../lib/excelExport';
 import { useUserRole } from '../contexts/UserRoleContext';
 import { Toast } from './Toast';
@@ -4932,24 +4931,16 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
               // Scroll to left on grid ready using AG Grid API
               setTimeout(() => {
                 params.api.ensureColumnVisible('asset_id', 'start');
-                // Detect and apply text overflow fade
-                detectAndApplyTextOverflow(params.api);
               }, 100);
             }}
             onFirstDataRendered={async (params) => {
               // Scroll to left after data render using AG Grid API
               setTimeout(() => {
                 params.api.ensureColumnVisible('asset_id', 'start');
-                // Detect and apply text overflow fade
-                detectAndApplyTextOverflow(params.api);
-                // Set up observer for dynamic changes
-                setupTextOverflowObserver(params.api);
               }, 100);
             }}
             onColumnResized={(params) => {
               gridPreferences.handleColumnResized();
-              // Re-check overflow after column resize
-              setTimeout(() => detectAndApplyTextOverflow(params.api), 100);
             }}
             onColumnMoved={(params) => {
               // Prevent actions column from being moved - force it back to pinned right

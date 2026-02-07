@@ -11,7 +11,6 @@ import * as XLSX from 'xlsx';
 import { Toast } from './Toast';
 import { useGridPreferences } from '../lib/useGridPreferences';
 import { processColumnHeader } from '../lib/gridHeaderUtils';
-import { detectAndApplyTextOverflow, setupTextOverflowObserver } from '../lib/textOverflowDetector';
 import { exportToExcel } from '../lib/excelExport';
 import { useFieldConfig } from '../lib/useFieldConfig';
 
@@ -2215,19 +2214,9 @@ export const TransferAreas = forwardRef<TransferAreasRef, TransferAreasProps>(({
               }}
               onGridReady={async (params) => {
                 await gridPreferences.loadColumnState(params.api);
-                setTimeout(() => {
-                  detectAndApplyTextOverflow(params.api);
-                }, 200);
-              }}
-              onFirstDataRendered={async (params) => {
-                setTimeout(() => {
-                  detectAndApplyTextOverflow(params.api);
-                  setupTextOverflowObserver(params.api);
-                }, 200);
               }}
               onColumnResized={(params) => {
                 gridPreferences.handleColumnResized();
-                setTimeout(() => detectAndApplyTextOverflow(params.api), 100);
               }}
               onColumnMoved={gridPreferences.handleColumnMoved}
               onSortChanged={() => {}}

@@ -22,7 +22,6 @@ import { formatDateToDDMMYYYY, formatDateTimeToDDMMYYYYHHMM } from '../lib/dateU
 import { formatNumberToTwoDecimals, numericValueParserInt } from '../lib/numberUtils';
 import { useGridPreferences } from '../lib/useGridPreferences';
 import { processColumnHeader } from '../lib/gridHeaderUtils';
-import { detectAndApplyTextOverflow, setupTextOverflowObserver } from '../lib/textOverflowDetector';
 import { useFieldConfig } from '../lib/useFieldConfig';
 import { exportToExcel } from '../lib/excelExport';
 
@@ -3844,32 +3843,9 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
                 suppressHorizontalScroll={false}
                 onGridReady={async (params) => {
                   await gridPreferences.loadColumnState(params.api);
-                  // Delay text overflow detection to avoid blocking initial render
-                  // Use requestAnimationFrame for better performance
-                  requestAnimationFrame(() => {
-                    setTimeout(() => {
-                      detectAndApplyTextOverflow(params.api);
-                    }, 1000);
-                  });
-                }}
-                onFirstDataRendered={async (params) => {
-                  // Delay text overflow detection to avoid blocking initial render
-                  // Only run in development for performance
-                  if (process.env.NODE_ENV === 'development') {
-                    setTimeout(() => {
-                      detectAndApplyTextOverflow(params.api);
-                    }, 2000);
-                  }
                 }}
                 onColumnResized={(params) => {
                   gridPreferences.handleColumnResized();
-                  // Debounce text overflow detection to avoid excessive calls
-                  if (process.env.NODE_ENV === 'development') {
-                    clearTimeout((params.api as any)._textOverflowTimeout);
-                    (params.api as any)._textOverflowTimeout = setTimeout(() => {
-                      detectAndApplyTextOverflow(params.api);
-                    }, 500);
-                  }
                 }}
                 onColumnMoved={(params) => {
                   // Prevent structure drawing and asset_id columns from being moved - force them back to pinned right position
@@ -4038,10 +4014,6 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
                       if (structureDrawingCol && structureDrawingCol.hide) {
                         params.api.setColumnVisible('structure_drawing_url', true);
                       }
-                      // Delay text overflow detection to avoid blocking initial render
-                      setTimeout(() => {
-                        detectAndApplyTextOverflow(params.api);
-                      }, 500);
                     }}
                     onFirstDataRendered={async (params) => {
                       // Ensure actions column is visible
@@ -4049,22 +4021,6 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
                       const actionsCol = columnState.find((col: any) => col.colId === 'actions');
                       if (actionsCol && actionsCol.hide) {
                         params.api.setColumnVisible('actions', true);
-                      }
-                      // Delay text overflow detection - only in development
-                      if (process.env.NODE_ENV === 'development') {
-                        setTimeout(() => {
-                          detectAndApplyTextOverflow(params.api);
-                        }, 2000);
-                      }
-                    }}
-                    onColumnResized={(params) => {
-                      // Debounce text overflow detection to avoid excessive calls
-                      // Only run in development for performance
-                      if (process.env.NODE_ENV === 'development') {
-                        clearTimeout((params.api as any)._textOverflowTimeout);
-                        (params.api as any)._textOverflowTimeout = setTimeout(() => {
-                          detectAndApplyTextOverflow(params.api);
-                        }, 500);
                       }
                     }}
                     onColumnMoved={(params) => {

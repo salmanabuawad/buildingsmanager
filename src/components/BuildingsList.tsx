@@ -12,7 +12,6 @@ import { useGridPreferences } from '../lib/useGridPreferences';
 import { useFieldConfig } from '../lib/useFieldConfig';
 import { processColumnHeader } from '../lib/gridHeaderUtils';
 import { useFillHandle } from '../lib/useFillHandle';
-import { detectAndApplyTextOverflow, setupTextOverflowObserver } from '../lib/textOverflowDetector';
 import { exportToExcel, createExcelBlob } from '../lib/excelExport';
 import { createAndDownloadZip } from '../lib/zipExport';
 import { formatDateToDDMMYYYY } from '../lib/dateUtils';
@@ -3489,8 +3488,6 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
                   if (gridElement) {
                     gridElement.scrollLeft = 0;
                   }
-                  // Detect and apply text overflow fade
-                  detectAndApplyTextOverflow(params.api);
                 }, 200);
               }}
               onFirstDataRendered={async (params) => {
@@ -3499,16 +3496,10 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
                   if (gridElement) {
                     gridElement.scrollLeft = 0;
                   }
-                  // Detect and apply text overflow fade
-                  detectAndApplyTextOverflow(params.api);
-                  // Set up observer for dynamic changes
-                  setupTextOverflowObserver(params.api);
                 }, 200);
               }}
               onColumnResized={(params) => {
                 gridPreferences.handleColumnResized();
-                // Re-check overflow after column resize
-                setTimeout(() => detectAndApplyTextOverflow(params.api), 100);
               }}
               onColumnMoved={(params) => {
                 // Preserve column order, only ensure actions column is pinned to right

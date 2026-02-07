@@ -9,7 +9,6 @@ import { AgGridReact } from 'ag-grid-react';
 import { ColDef, CellValueChangedEvent, GridReadyEvent, ITooltipParams } from 'ag-grid-community';
 import { useGridPreferences } from '../lib/useGridPreferences';
 import { processColumnHeader } from '../lib/gridHeaderUtils';
-import { detectAndApplyTextOverflow, setupTextOverflowObserver } from '../lib/textOverflowDetector';
 import { useFillHandle } from '../lib/useFillHandle';
 import { useFieldConfig } from '../lib/useFieldConfig';
 import { exportToExcel } from '../lib/excelExport';
@@ -1705,19 +1704,9 @@ export function AssetTypes() {
                 onGridReady={async (params) => {
                   await gridPreferences.loadColumnState(params.api);
                   onGridReady(params);
-                  setTimeout(() => {
-                    detectAndApplyTextOverflow(params.api);
-                  }, 200);
-                }}
-                onFirstDataRendered={async (params) => {
-                  setTimeout(() => {
-                    detectAndApplyTextOverflow(params.api);
-                    setupTextOverflowObserver(params.api);
-                  }, 200);
                 }}
                 onColumnResized={(params) => {
                   gridPreferences.handleColumnResized();
-                  setTimeout(() => detectAndApplyTextOverflow(params.api), 100);
                 }}
                 onColumnMoved={gridPreferences.handleColumnMoved}
                 getRowId={(params: any) => String(params.data.id)}

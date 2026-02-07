@@ -7,7 +7,6 @@ import { AgGridReact } from 'ag-grid-react';
 import { ColDef } from 'ag-grid-community';
 import { useGridPreferences } from '../lib/useGridPreferences';
 import { processColumnHeader } from '../lib/gridHeaderUtils';
-import { detectAndApplyTextOverflow, setupTextOverflowObserver } from '../lib/textOverflowDetector';
 import { exportToExcel } from '../lib/excelExport';
 
 export function AddressListComponent() {
@@ -883,9 +882,6 @@ export function AddressListComponent() {
                 (params.api as any).__selectionObserver = observer;
               }
               
-              setTimeout(() => {
-                detectAndApplyTextOverflow(params.api);
-              }, 200);
             }}
             onFirstDataRendered={async (params) => {
               // Add listeners to cells after data is rendered
@@ -918,14 +914,9 @@ export function AddressListComponent() {
                 });
               }
               
-              setTimeout(() => {
-                detectAndApplyTextOverflow(params.api);
-                setupTextOverflowObserver(params.api);
-              }, 200);
             }}
             onColumnResized={(params) => {
               gridPreferences.handleColumnResized();
-              setTimeout(() => detectAndApplyTextOverflow(params.api), 100);
             }}
             onColumnMoved={gridPreferences.handleColumnMoved}
             onSortChanged={() => {}}

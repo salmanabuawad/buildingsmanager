@@ -174,11 +174,35 @@ input[type="number"] {
   -webkit-tap-highlight-color: transparent !important;
   -webkit-user-drag: none !important;
   -khtml-user-select: none !important;
+  padding: 0 var(--ag-cell-horizontal-padding) !important;
+  border-width: 1px !important;
+  box-sizing: border-box !important;
+  transition: none !important;
+  animation: none !important;
 }
 
 /* Prevent active/pressed state on cells */
 .ag-theme-alpine .ag-cell:active {
   box-shadow: none !important;
+  border: 1px solid #dee2e6 !important;
+  border-color: #dee2e6 !important;
+  padding: 0 var(--ag-cell-horizontal-padding) !important;
+  margin: 0 !important;
+  transform: none !important;
+}
+
+/* Completely disable all transitions and animations on all cell states */
+.ag-theme-alpine .ag-cell,
+.ag-theme-alpine .ag-cell *,
+.ag-theme-alpine .ag-cell:hover,
+.ag-theme-alpine .ag-cell:focus,
+.ag-theme-alpine .ag-cell:active,
+.ag-theme-alpine .ag-cell-focus,
+.ag-theme-alpine .ag-cell-range-selected,
+.ag-theme-alpine .ag-cell-range-single-cell {
+  transition: none !important;
+  animation: none !important;
+  transform: none !important;
 }
 
 /* Global rule to prevent selection on all AG Grid cells - use !important and be very specific */
@@ -273,7 +297,8 @@ input[type="number"] {
 
 /* Focused cell styling - no border on focus */
 .ag-theme-alpine .ag-cell-focus {
-  border: none !important;
+  border: 1px solid #dee2e6 !important;
+  border-color: #dee2e6 !important;
   box-shadow: none !important;
   outline: none !important;
   background-color: inherit !important;
@@ -283,6 +308,11 @@ input[type="number"] {
   -ms-user-select: none !important;
   -webkit-touch-callout: none !important;
   -webkit-tap-highlight-color: transparent !important;
+  padding: 0 var(--ag-cell-horizontal-padding) !important;
+  margin: 0 !important;
+  transform: none !important;
+  transition: none !important;
+  animation: none !important;
 }
 
 /* Prevent any visual change when cell is clicked or focused */
@@ -291,10 +321,16 @@ input[type="number"] {
 .ag-theme-alpine .ag-cell-focus:focus,
 .ag-theme-alpine .ag-cell-focus:active {
   background-color: inherit !important;
-  border: none !important;
+  border: 1px solid #dee2e6 !important;
+  border-color: #dee2e6 !important;
   box-shadow: none !important;
   outline: none !important;
   opacity: 1 !important;
+  padding: 0 var(--ag-cell-horizontal-padding) !important;
+  margin: 0 !important;
+  transform: none !important;
+  transition: none !important;
+  animation: none !important;
 }
 
 /* Prevent text selection on focused cell content */
@@ -340,8 +376,14 @@ input[type="number"] {
 
 /* Ensure focused cell has no border even when editing */
 .ag-theme-alpine .ag-cell-focus.ag-cell-inline-editing {
-  border: none !important;
+  border: 1px solid #dee2e6 !important;
+  border-color: #dee2e6 !important;
   box-shadow: none !important;
+  padding: 0 var(--ag-cell-horizontal-padding) !important;
+  margin: 0 !important;
+  transform: none !important;
+  transition: none !important;
+  animation: none !important;
 }
 
 /* Completely disable all cell range selection visual feedback */
@@ -354,10 +396,15 @@ input[type="number"] {
 .ag-theme-alpine .ag-cell-highlight,
 .ag-theme-alpine .ag-cell-highlight-animation {
   background-color: inherit !important;
-  border: none !important;
+  border: 1px solid #dee2e6 !important;
+  border-color: #dee2e6 !important;
   box-shadow: none !important;
   outline: none !important;
   animation: none !important;
+  padding: 0 var(--ag-cell-horizontal-padding) !important;
+  margin: 0 !important;
+  transform: none !important;
+  transition: none !important;
 }
 
 /* Ensure text in selected/range cells remains fully visible and readable */
@@ -379,11 +426,15 @@ input[type="number"] {
 .ag-theme-alpine .ag-cell-focus,
 .ag-theme-alpine .ag-cell:focus,
 .ag-theme-alpine .ag-cell:active {
-  padding-left: inherit !important;
-  padding-right: inherit !important;
+  padding: 0 var(--ag-cell-horizontal-padding) !important;
   line-height: 32px !important;
   text-align: right !important;
   direction: rtl !important;
+  border-width: 1px !important;
+  box-sizing: border-box !important;
+  transition: none !important;
+  animation: none !important;
+  transform: none !important;
 }
 
 /* Disable range handle */

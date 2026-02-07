@@ -621,8 +621,7 @@ input[type="submit"]:disabled {
   @apply text-blue-600;
 }
 
-/* Remove all cell selection visuals */
-.ag-theme-alpine .ag-cell-focus,
+/* Remove range selection visuals but keep focus border */
 .ag-theme-alpine .ag-cell-range-selected,
 .ag-theme-alpine .ag-cell-range-selected-1,
 .ag-theme-alpine .ag-cell-range-selected-2,
@@ -632,7 +631,7 @@ input[type="submit"]:disabled {
   box-shadow: none !important;
 }
 
-.ag-theme-alpine .ag-cell:focus-within {
+.ag-theme-alpine .ag-cell:focus-within:not(.ag-cell-focus) {
   outline: none !important;
 }
 

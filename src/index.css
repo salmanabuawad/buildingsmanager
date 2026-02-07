@@ -222,6 +222,9 @@ input[type="number"] {
   box-shadow: none !important;
   outline: none !important;
   background: transparent !important;
+  width: 100% !important;
+  min-width: 100% !important;
+  box-sizing: border-box !important;
 }
 
 /* Remove range selection styling during edit */
@@ -240,6 +243,13 @@ input[type="number"] {
 .ag-theme-alpine .ag-cell-editor {
   width: 100% !important;
   min-width: 100% !important;
+  box-sizing: border-box !important;
+}
+
+.ag-theme-alpine .ag-text-field-input {
+  width: 100% !important;
+  min-width: 100% !important;
+  box-sizing: border-box !important;
 }
 
 .ag-theme-alpine .ag-header-cell-label {

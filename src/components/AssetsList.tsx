@@ -4080,7 +4080,7 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
       headerClass: 'ag-right-aligned-header',
       cellStyle: (params: any) => getCellStyle(params),
       cellRenderer: penthouseCellRenderer,
-      hide: !isResidentTaxRegion // Hide penthouse for business assets (only show for residence)
+      hide: false // Always show penthouse checkbox for residence assets
     },
     {
       field: 'apartment_number',

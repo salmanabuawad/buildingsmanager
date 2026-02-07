@@ -2569,7 +2569,7 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
       colId: 'penthouse',
       field: 'penthouse',
       headerName: 'דירת גג',
-      hide: isBusinessAsset, // Hide penthouse for business assets (only show for residence)
+      hide: false, // Always show penthouse checkbox for residence assets
       editable: false,
       cellRenderer: (params: any) => {
         const isChecked = params.value === true || params.value === 'כן';

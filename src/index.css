@@ -185,7 +185,6 @@ input[type="number"] {
 .ag-theme-alpine .ag-cell:active {
   background-color: #eff6ff !important;
   border: 2px solid #2563eb !important;
-  box-shadow: 0 0 0 1px #2563eb inset !important;
   padding: 0 calc(var(--ag-cell-horizontal-padding) - 1px) !important;
   margin: 0 !important;
   transform: none !important;
@@ -298,7 +297,6 @@ input[type="number"] {
 /* Focused cell styling - prominent border on focus */
 .ag-theme-alpine .ag-cell-focus {
   border: 2px solid #2563eb !important;
-  box-shadow: 0 0 0 1px #2563eb inset !important;
   outline: none !important;
   background-color: #eff6ff !important;
   user-select: none !important;
@@ -321,7 +319,6 @@ input[type="number"] {
 .ag-theme-alpine .ag-cell-focus:active {
   background-color: #eff6ff !important;
   border: 2px solid #2563eb !important;
-  box-shadow: 0 0 0 1px #2563eb inset !important;
   outline: none !important;
   opacity: 1 !important;
   padding: 0 calc(var(--ag-cell-horizontal-padding) - 1px) !important;
@@ -376,7 +373,6 @@ input[type="number"] {
 .ag-theme-alpine .ag-cell-focus.ag-cell-inline-editing {
   border: 2px solid #2563eb !important;
   background-color: #eff6ff !important;
-  box-shadow: 0 0 0 1px #2563eb inset !important;
   padding: 0 calc(var(--ag-cell-horizontal-padding) - 1px) !important;
   margin: 0 !important;
   transform: none !important;

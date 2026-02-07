@@ -861,6 +861,18 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
     };
   }, [fetchExportToAutomationCount]);
 
+  // Listen for resetExportToAutomationSuccess event to refresh count
+  useEffect(() => {
+    const handleResetExportSuccess = () => {
+      fetchExportToAutomationCount();
+    };
+    
+    window.addEventListener('resetExportToAutomationSuccess', handleResetExportSuccess);
+    return () => {
+      window.removeEventListener('resetExportToAutomationSuccess', handleResetExportSuccess);
+    };
+  }, [fetchExportToAutomationCount]);
+
   // Clear selection when switching tabs (buildingNumber or taxRegion changes)
   useEffect(() => {
     setSelectedAssets(new Set());

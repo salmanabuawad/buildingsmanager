@@ -865,7 +865,7 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
     try {
       // Prepare asset data with all current values (including changes from dirtyAssets)
       // This must be done first so we validate the actual current state
-      const currentAssetData = { ...latestMeasurement, ...(dirtyAssets.get(String(latestMeasurement.asset_id)) || {}) };
+      const currentAssetData = { ...latestMeasurement, ...(dirtyAssets.get(latestMeasurement.asset_id) || {}) };
       
       // Handle new asset (asset_id === 0 or empty)
       if (!latestMeasurement.asset_id || latestMeasurement.asset_id === 0 || !assetId) {
@@ -1135,10 +1135,10 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
 
       const assetsToUpdate: any[] = [];
       for (const [dbId, changes] of dirtyAssets.entries()) {
-        // Find the asset by database id to get its full data
-        const asset = allMeasurements.find(a => a.id === dbId);
+        // Find the asset by asset_id (not database id) to get its full data
+        const asset = allMeasurements.find(a => a.asset_id === dbId);
         if (!asset) {
-          console.error(`[AssetDetails] Could not find asset with database id ${dbId}`);
+          console.error(`[AssetDetails] Could not find asset with asset_id ${dbId}`);
           continue;
         }
 
@@ -1351,8 +1351,8 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
     try {
       // Get the current measurement with all changes applied
       const currentAsset = latestMeasurement;
-      // Use currentAsset.id (database ID) to get dirty changes, not asset_id
-      const changes = dirtyAssets.get(currentAsset.id) || {};
+      // Use currentAsset.asset_id to get dirty changes (dirtyAssets uses asset_id as key)
+      const changes = dirtyAssets.get(currentAsset.asset_id) || {};
       
       // Merge current asset with changes
       const newAssetData = {

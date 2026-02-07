@@ -4911,6 +4911,7 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
               suppressScrollOnNewData: true,
               enableCellTextSelection: false,
               suppressAnimationFrame: false,
+              singleClickEdit: false, // Require double-click to edit
             }}
             rowSelection={{
               mode: 'singleRow',

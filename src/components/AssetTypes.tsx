@@ -29,9 +29,7 @@ const CustomTooltip = (params: ITooltipParams) => {
       textAlign: 'right'
     }}>
       {lines.map((line, index) => {
-        const isHeader = line.includes('🏛️') || line.includes('🏠') || line.includes('🏢') ||
-                        line.includes('⚙️') || line.includes('📏') || line.includes('📋') ||
-                        line.includes('🏷️') || line.includes('━━━') || line.includes('┈┈');
+        const isHeader = line.includes('━━━') || line.includes('┈┈');
         const isSeparator = line.includes('━━━') || line.includes('─────') || line.includes('┈┈');
 
         return (
@@ -896,12 +894,12 @@ export function AssetTypes() {
 
           // Description
           if (at.description) {
-            sections.push(`📋 תיאור: ${at.description}`);
+            sections.push(`תיאור: ${at.description}`);
           }
 
           // Tax region with area description
           if (at.tax_region) {
-            const taxInfo = [`🏛️ אזור מס: ${at.tax_region}`];
+            const taxInfo = [`אזור מס: ${at.tax_region}`];
             if (at.area_description_for_tab) {
               taxInfo.push(` (${at.area_description_for_tab})`);
             }
@@ -910,14 +908,14 @@ export function AssetTypes() {
 
           // Type classification
           if (at.business_residence && at.business_residence !== 'לא' && at.business_residence !== '') {
-            sections.push(`🏢 סיווג: ${at.business_residence}`);
+            sections.push(`סיווג: ${at.business_residence}`);
           }
 
           // Size constraints
           if (at.min_size || at.max_size) {
             const minSize = at.min_size ? at.min_size.toLocaleString('he-IL') : '0';
             const maxSize = at.max_size ? at.max_size.toLocaleString('he-IL') : '∞';
-            sections.push(`📏 טווח שטח: ${minSize} - ${maxSize} מ"ר`);
+            sections.push(`טווח שטח: ${minSize} - ${maxSize} מ"ר`);
           }
 
           // Property characteristics - compact inline format
@@ -929,7 +927,7 @@ export function AssetTypes() {
           if (at.townhouses === true || at.townhouses === 'כן') characteristics.push('טוריים');
 
           if (characteristics.length > 0) {
-            sections.push(`🏠 מאפיינים: ${characteristics.join(' • ')}`);
+            sections.push(`מאפיינים: ${characteristics.join(' • ')}`);
           }
 
           // Special accounting flags - compact inline format
@@ -940,42 +938,27 @@ export function AssetTypes() {
           if (at.use_shared_area === true) accountingFlags.push('משמש לפיזור שטח משותף');
 
           if (accountingFlags.length > 0) {
-            sections.push(`⚙️ כללי חישוב: ${accountingFlags.join(' • ')}`);
+            sections.push(`כללי חישוב: ${accountingFlags.join(' • ')}`);
           }
 
           return sections;
         };
         
-        // Build combined tooltip with name at the top
+        // Build combined tooltip
         const allTooltips: string[] = [];
-
-        // Header with asset type name
-        allTooltips.push(`🏷️  ${currentName}`);
 
         if (matchingAssetTypes.length === 1) {
           // Single asset type - show all details in compact format
           const tooltipFields = buildTooltipForAssetType(matchingAssetTypes[0].assetType);
           if (tooltipFields.length > 0) {
-            allTooltips.push('─'.repeat(40));
             tooltipFields.forEach(field => allTooltips.push(field));
           }
         } else {
-          // Multiple asset types with same name - show consolidated view
-          allTooltips.push(`─ ${matchingAssetTypes.length} גרסאות ─`);
-          allTooltips.push('');
-
-          matchingAssetTypes.forEach(({ assetType: at }, index) => {
-            allTooltips.push(`▪ גרסה ${index + 1}:`);
-            const tooltipFields = buildTooltipForAssetType(at);
-            if (tooltipFields.length > 0) {
-              tooltipFields.forEach(field => allTooltips.push(`  ${field}`));
-            } else {
-              allTooltips.push('  אין פרטים נוספים');
-            }
-            if (index < matchingAssetTypes.length - 1) {
-              allTooltips.push('');
-            }
-          });
+          // Multiple asset types with same name - show only the first one's details
+          const tooltipFields = buildTooltipForAssetType(matchingAssetTypes[0].assetType);
+          if (tooltipFields.length > 0) {
+            tooltipFields.forEach(field => allTooltips.push(field));
+          }
         }
 
         return allTooltips.length > 0 ? allTooltips.join('\n') : 'אין פרטים נוספים';

@@ -3067,6 +3067,20 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
         return isAssetNotAccountableForDistribution(asset);
       });
 
+      // Find the shared area asset type for business distribution
+      let sharedAreaAssetType = null;
+      if (assetTypes && assetTypes.length > 0) {
+        // First try to find by use_shared_area and business_residence
+        sharedAreaAssetType = assetTypes.find(at => 
+          at.use_shared_area === true && 
+          at.business_residence === 'עסקים'
+        );
+      }
+      if (!sharedAreaAssetType && assetTypes && assetTypes.length > 0) {
+        // Fallback: find any asset type with use_shared_area for business
+        sharedAreaAssetType = assetTypes.find(at => at.use_shared_area === true);
+      }
+
       // Track changes
       const updatedDirtyAssets = new Map(dirtyAssets);
       const updatedAssets = [...assets];
@@ -3121,6 +3135,68 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
         // Do NOT update asset_size, sub_asset_size_1, or any other sub-asset sizes
         // For clearing distribution (overloadRatio = 0), set to 0; otherwise set to new value
         changes.business_distribution_area = newDistributionArea;
+
+        // If clearing distribution and shared area asset type exists, remove it from sub_asset_types
+        if (isClearingDistribution && sharedAreaAssetType) {
+          const sharedAreaTypeName = String(sharedAreaAssetType.name).trim();
+          let foundAny = false;
+          
+          // Remove all occurrences of the shared area asset type from sub_asset_type fields
+          for (let i = 1; i <= 6; i++) {
+            const subTypeField = `sub_asset_type_${i}` as keyof Asset;
+            const subSizeField = `sub_asset_size_${i}` as keyof Asset;
+            const currentSubType = changes[subTypeField] !== undefined
+              ? changes[subTypeField]
+              : currentAsset?.[subTypeField];
+            
+            // Check if this subtype matches the shared area asset type
+            if (currentSubType && String(currentSubType).trim() === sharedAreaTypeName) {
+              // Delete this shared area subtype (set to null)
+              (changes as any)[subTypeField] = null;
+              (changes as any)[subSizeField] = null;
+              foundAny = true;
+            }
+          }
+
+          // If we found and removed shared area subtypes, compact the remaining subtypes
+          if (foundAny) {
+            // Collect all remaining non-null subtypes and sizes
+            const remainingSubtypes: Array<{ type: string | number; size: number }> = [];
+            for (let i = 1; i <= 6; i++) {
+              const subTypeField = `sub_asset_type_${i}` as keyof Asset;
+              const subSizeField = `sub_asset_size_${i}` as keyof Asset;
+              const subType = changes[subTypeField] !== undefined
+                ? changes[subTypeField]
+                : (currentAsset?.[subTypeField] || null);
+              const subSize = changes[subSizeField] !== undefined
+                ? changes[subSizeField]
+                : (currentAsset?.[subSizeField] || 0);
+
+              if (subType && subType !== '' && subType !== null) {
+                remainingSubtypes.push({
+                  type: subType,
+                  size: subSize ? Number(subSize) : 0
+                });
+              }
+            }
+
+            // Clear all subtype positions
+            for (let i = 1; i <= 6; i++) {
+              const subTypeField = `sub_asset_type_${i}` as keyof Asset;
+              const subSizeField = `sub_asset_size_${i}` as keyof Asset;
+              (changes as any)[subTypeField] = null;
+              (changes as any)[subSizeField] = null;
+            }
+
+            // Shift remaining subtypes to fill holes (compact to positions 1, 2, 3, etc.)
+            for (let i = 0; i < remainingSubtypes.length; i++) {
+              const subTypeField = `sub_asset_type_${i + 1}` as keyof Asset;
+              const subSizeField = `sub_asset_size_${i + 1}` as keyof Asset;
+              (changes as any)[subTypeField] = remainingSubtypes[i].type;
+              (changes as any)[subSizeField] = remainingSubtypes[i].size;
+            }
+          }
+        }
 
         updatedDirtyAssets.set(assetId, changes);
 

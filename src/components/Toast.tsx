@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { X, AlertCircle, CheckCircle, Info } from 'lucide-react';
 
 export interface ToastProps {
@@ -7,7 +8,22 @@ export interface ToastProps {
   duration?: number;
 }
 
-export function Toast({ message, type = 'error', onClose }: ToastProps) {
+export function Toast({ message, type = 'error', onClose, duration }: ToastProps) {
+  useEffect(() => {
+    // Error messages are persistent by default - don't auto-dismiss unless duration is explicitly provided
+    if (type === 'error' && duration === undefined) {
+      return;
+    }
+
+    // Success and info messages auto-dismiss after duration (default 3000ms)
+    const autoDismissDuration = duration !== undefined ? duration : (type === 'success' ? 3000 : 5000);
+
+    const timer = setTimeout(() => {
+      onClose();
+    }, autoDismissDuration);
+
+    return () => clearTimeout(timer);
+  }, [type, duration, onClose]);
 
   const styles = {
     error: {

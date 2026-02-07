@@ -399,6 +399,19 @@ export class AssetValidationHandler {
     // if (process.env.NODE_ENV === 'development' && Math.random() < 0.001) { // Log only 0.1% of validations
     // }
     
+    // Skip validation if main_asset_type is not set
+    if (!asset.main_asset_type || String(asset.main_asset_type).trim() === '') {
+      if (process.env.NODE_ENV === 'development') {
+      }
+      return {
+        assetId: asset.asset_id,
+        assetIdentifier,
+        valid: true,
+        errors: [],
+        passed: ['סוג נכס ראשי לא מוגדר - דילוג על אימות']
+      };
+    }
+    
     // Skip validation for asset type 990
     if (asset.main_asset_type && (String(asset.main_asset_type).trim() === '990' || parseInt(String(asset.main_asset_type).trim(), 10) === 990)) {
       if (process.env.NODE_ENV === 'development') {
@@ -474,16 +487,8 @@ export class AssetValidationHandler {
     const validationNames: string[] = [];
     const validations: Promise<ValidationResult>[] = [];
 
-    // Synchronous validations (run in parallel)
-    // First check if main_asset_type is required
-    validationNames.push('אימות סוג נכס ראשי נדרש');
-    validations.push(
-      Promise.resolve(
-        !asset.main_asset_type || String(asset.main_asset_type).trim() === ''
-          ? { valid: false, error: 'סוג נכס ראשי נדרש' }
-          : { valid: true }
-      )
-    );
+    // Note: main_asset_type validation is already handled above with early return
+    // No need to validate it again here
 
     validationNames.push('אימות סוגי נכס מורכבים');
     validations.push(

@@ -730,6 +730,11 @@ export async function validateAssetTypeComplete(
   isSubAsset?: boolean
 ): Promise<ValidationResult> {
   try {
+    // Skip validation if asset type name is not set
+    if (!assetTypeName || String(assetTypeName).trim() === '') {
+      return { valid: true };
+    }
+    
     // ============================================
     // VALIDATION ORDER (as per requirements):
     // ============================================

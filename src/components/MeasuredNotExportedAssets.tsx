@@ -915,6 +915,13 @@ export const MeasuredNotExportedAssets = ({ onSelectAsset }: MeasuredNotExported
 
       if (fetchError) {
         console.error('Error fetching exported assets:', fetchError);
+        console.error('Supabase request failed', {
+          message: fetchError.message,
+          details: fetchError.details,
+          hint: fetchError.hint,
+          code: fetchError.code,
+          assetIds: numericAssetIdsForQuery
+        });
         setToast({ message: 'הנכסים סומנו כייצאו אך לא ניתן היה לייצא אותם לקובץ Excel', type: 'error' });
         setTimeout(() => setToast(null), 5000);
         setLoading(false);

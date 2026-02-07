@@ -206,6 +206,36 @@ input[type="number"] {
   text-align: right !important;
 }
 
+/* Remove blue selection box/rectangle in cell editors */
+.ag-theme-alpine .ag-cell-inline-editing,
+.ag-theme-alpine .ag-cell-editing {
+  border: none !important;
+  box-shadow: none !important;
+  outline: none !important;
+}
+
+.ag-theme-alpine .ag-cell-inline-editing input,
+.ag-theme-alpine .ag-cell-editing input,
+.ag-theme-alpine .ag-cell-inline-editing textarea,
+.ag-theme-alpine .ag-cell-editing textarea {
+  border: none !important;
+  box-shadow: none !important;
+  outline: none !important;
+  background: transparent !important;
+}
+
+/* Remove range selection styling during edit */
+.ag-theme-alpine .ag-cell-range-selected:not(.ag-cell-focus) {
+  background-color: transparent !important;
+  border: none !important;
+}
+
+.ag-theme-alpine .ag-cell-range-selected.ag-cell-inline-editing,
+.ag-theme-alpine .ag-cell-range-selected.ag-cell-editing {
+  background-color: transparent !important;
+  border: none !important;
+}
+
 .ag-theme-alpine .ag-header-cell-label {
   justify-content: flex-start !important;
   align-items: flex-start !important;

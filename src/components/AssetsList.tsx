@@ -623,8 +623,42 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
         return assetSize || '';
       };
 
+      // Filter exported assets to only include assets from the current building and tax region for Excel export
+      // When exporting from AssetsList, we only want to export assets in this building/tab and tax region (if specified)
+      const assetsForExcel = exportedAssets.filter(asset => {
+        // Filter by building number
+        const assetBuildingNumber = typeof asset.building_number === 'string' 
+          ? parseInt(asset.building_number, 10) 
+          : (asset.building_number || 0);
+        if (assetBuildingNumber !== buildingNumber) {
+          return false;
+        }
+        
+        // Filter by tax region if specified
+        if (taxRegion && taxRegion.trim() !== '') {
+          const taxRegionNum = parseInt(taxRegion.trim(), 10);
+          const assetTaxRegion = asset.tax_region;
+          
+          if (assetTaxRegion == null) {
+            return false;
+          }
+          
+          // Check if the asset's tax_region matches the requested taxRegion
+          const assetTaxRegionNum = typeof assetTaxRegion === 'string' 
+            ? parseInt(assetTaxRegion, 10) 
+            : assetTaxRegion;
+          const taxRegionMatches = assetTaxRegionNum === taxRegionNum || String(assetTaxRegionNum) === taxRegion.trim();
+          
+          if (!taxRegionMatches) {
+            return false;
+          }
+        }
+        
+        return true;
+      });
+
       // Convert assets to rows - matching sample file format and column order
-      const rows = exportedAssets.map(asset => [
+      const rows = assetsForExcel.map(asset => [
         asset.payer_id || '',                                    // זיהוי משלם
         asset.asset_id != null ? String(asset.asset_id) : '',   // זיהוי נכס (convert to string)
         formatDateToDDMMYYYY(asset.discount_date_from) || '',  // תחילת שינוי
@@ -692,15 +726,57 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
         ]
       });
 
-      // Get all files for exported assets
-      // Ensure assetIds are numbers (not strings)
-      const numericAssetIdsForFiles = result.assetIds.map(id => typeof id === 'string' ? parseInt(id, 10) : id).filter(id => !isNaN(id));
-      const filesByAsset = await api.assets.files.getAllBulk(numericAssetIdsForFiles);
+      // Filter exported assets to only include assets from the current building and tax region
+      // When exporting from AssetsList, we only want files for assets in this building/tab and tax region (if specified)
+      const filteredExportedAssets = exportedAssets.filter(asset => {
+        // Filter by building number
+        const assetBuildingNumber = typeof asset.building_number === 'string' 
+          ? parseInt(asset.building_number, 10) 
+          : (asset.building_number || 0);
+        if (assetBuildingNumber !== buildingNumber) {
+          return false;
+        }
+        
+        // Filter by tax region if specified
+        if (taxRegion && taxRegion.trim() !== '') {
+          const taxRegionNum = parseInt(taxRegion.trim(), 10);
+          const assetTaxRegion = asset.tax_region;
+          
+          if (assetTaxRegion == null) {
+            return false;
+          }
+          
+          // Check if the asset's tax_region matches the requested taxRegion
+          const assetTaxRegionNum = typeof assetTaxRegion === 'string' 
+            ? parseInt(assetTaxRegion, 10) 
+            : assetTaxRegion;
+          const taxRegionMatches = assetTaxRegionNum === taxRegionNum || String(assetTaxRegionNum) === taxRegion.trim();
+          
+          if (!taxRegionMatches) {
+            return false;
+          }
+        }
+        
+        return true;
+      });
       
-      // Create a map of asset_id to asset data for lookup
+      // Get all files for exported assets in the current building only
+      // Ensure assetIds are numbers (not strings)
+      const numericAssetIdsForFiles = filteredExportedAssets
+        .map(asset => {
+          const assetId = typeof asset.asset_id === 'string' ? parseInt(asset.asset_id, 10) : Number(asset.asset_id);
+          return !isNaN(assetId) && assetId > 0 ? assetId : null;
+        })
+        .filter((id): id is number => id !== null);
+      
+      const filesByAsset = numericAssetIdsForFiles.length > 0 
+        ? await api.assets.files.getAllBulk(numericAssetIdsForFiles)
+        : new Map<number, any[]>();
+      
+      // Create a map of asset_id to asset data for lookup (only for assets in current building)
       // Ensure asset_id is converted to number for consistent key matching
       const assetMap = new Map<number, any>();
-      exportedAssets.forEach(asset => {
+      filteredExportedAssets.forEach(asset => {
         const assetId = typeof asset.asset_id === 'string' ? parseInt(asset.asset_id, 10) : Number(asset.asset_id);
         if (!isNaN(assetId) && assetId > 0) {
           assetMap.set(assetId, asset);

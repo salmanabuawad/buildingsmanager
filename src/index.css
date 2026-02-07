@@ -212,6 +212,9 @@ input[type="number"] {
   border: none !important;
   box-shadow: none !important;
   outline: none !important;
+  padding: var(--ag-cell-horizontal-padding) !important;
+  width: 100% !important;
+  min-width: 100% !important;
 }
 
 .ag-theme-alpine .ag-cell-inline-editing input,
@@ -222,6 +225,9 @@ input[type="number"] {
   box-shadow: none !important;
   outline: none !important;
   background: transparent !important;
+  width: 100% !important;
+  padding: 0 !important;
+  margin: 0 !important;
 }
 
 /* Remove range selection styling during edit */
@@ -234,6 +240,21 @@ input[type="number"] {
 .ag-theme-alpine .ag-cell-range-selected.ag-cell-editing {
   background-color: transparent !important;
   border: none !important;
+}
+
+/* Prevent cell width change during editing */
+.ag-theme-alpine .ag-cell-wrapper.ag-row-group {
+  width: 100% !important;
+}
+
+.ag-theme-alpine .ag-cell-edit-wrapper {
+  width: 100% !important;
+  height: 100% !important;
+}
+
+.ag-theme-alpine .ag-cell-editor {
+  width: 100% !important;
+  height: 100% !important;
 }
 
 .ag-theme-alpine .ag-header-cell-label {

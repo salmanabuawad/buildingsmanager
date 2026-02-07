@@ -4915,6 +4915,7 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
               suppressScrollOnNewData: true,
               enableCellTextSelection: false, // Disable text selection for better performance
               suppressAnimationFrame: false, // Use animation frame for smoother updates
+              enableRangeSelection: true, // Enable range selection for continuous border
               // Don't set rowHeight - let AG Grid use default for better performance
             }}
             rowSelection={{

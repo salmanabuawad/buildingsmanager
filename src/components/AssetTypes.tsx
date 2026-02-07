@@ -1732,6 +1732,7 @@ export function AssetTypes() {
                   tooltipHideDelay: 10000,
                   enableBrowserTooltips: false,
                   tooltipMouseTrack: false,
+                  enableRangeSelection: true,
                 }}
                 rowSelection={{
                   mode: 'singleRow',

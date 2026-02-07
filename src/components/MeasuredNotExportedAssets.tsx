@@ -1353,6 +1353,7 @@ export const MeasuredNotExportedAssets = ({ onSelectAsset }: MeasuredNotExported
               alwaysShowHorizontalScroll: true,
               suppressMovableColumns: true,
               suppressColumnMoveAnimation: true,
+              enableRangeSelection: true,
             }}
             suppressHorizontalScroll={false}
             enableRtl={true}

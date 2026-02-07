@@ -1733,6 +1733,17 @@ export function AssetTypes() {
                   enableBrowserTooltips: false,
                   tooltipMouseTrack: false,
                 }}
+                rowSelection={{
+                  mode: 'singleRow',
+                  enableClickSelection: false,
+                  checkboxes: false,
+                  hideDisabledCheckboxes: true
+                }}
+                cellSelection={{
+                  handle: {
+                    mode: 'fill'
+                  }
+                }}
                 singleClickEdit={true}
                 stopEditingWhenCellsLoseFocus={true}
               />

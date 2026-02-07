@@ -3582,6 +3582,17 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
                 }
                 return { background: '#f0f9ff' };
               }}
+              rowSelection={{
+                mode: 'singleRow',
+                enableClickSelection: false,
+                checkboxes: false,
+                hideDisabledCheckboxes: true
+              }}
+              cellSelection={{
+                handle: {
+                  mode: 'fill'
+                }
+              }}
               singleClickEdit={true}
               stopEditingWhenCellsLoseFocus={true}
             />

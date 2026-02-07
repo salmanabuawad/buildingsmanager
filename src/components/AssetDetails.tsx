@@ -4110,7 +4110,9 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
                     }}
                     rowSelection={{
                       mode: 'singleRow',
-                      enableClickSelection: true
+                      enableClickSelection: true,
+                      checkboxes: false,
+                      hideDisabledCheckboxes: true
                     }}
                     singleClickEdit={true}
                     stopEditingWhenCellsLoseFocus={true}

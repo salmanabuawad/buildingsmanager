@@ -803,7 +803,9 @@ export function AddressListComponent() {
             }}
             rowSelection={{
               mode: 'singleRow',
-              enableClickSelection: true
+              enableClickSelection: true,
+              checkboxes: false,
+              hideDisabledCheckboxes: true
             }}
             cellSelection={false}
             suppressHorizontalScroll={false}

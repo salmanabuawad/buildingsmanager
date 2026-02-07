@@ -1389,7 +1389,9 @@ export const MeasuredNotExportedAssets = ({ onSelectAsset }: MeasuredNotExported
           }}
           rowSelection={{
             mode: 'singleRow',
-            enableClickSelection: true
+            enableClickSelection: true,
+            checkboxes: false,
+            hideDisabledCheckboxes: true
           }}
           animateRows={false}
           localeText={{

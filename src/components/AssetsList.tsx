@@ -4,8 +4,9 @@ import { useTranslation } from 'react-i18next';
 import { Asset, Building, AssetType, AddressList, api, validateAndSaveBulkAssets } from '../lib/api';
 import { assetValidators, validateAll, inputValidators, validateEntity } from '../lib/validation';
 import { AssetValidationHandler } from '../lib/assetValidationHandler';
-import { EditableTable, ColumnDef, CellChangeEvent, CellEditStartEvent } from './table';
-import { useTableFieldConfig } from '../lib/useTableFieldConfig';
+import { AgGridReact } from 'ag-grid-react';
+import { ColDef, CellValueChangedEvent, CellEditingStartedEvent } from 'ag-grid-community';
+import { useFieldConfig } from '../lib/useFieldConfig';
 import { Building as BuildingIcon, AlertCircle, ChevronDown, ChevronRight, Loader2, Save, X, Plus, Trash2, CheckCircle2, Download, ArrowRightLeft, Upload, FileSpreadsheet, History, Share2, MapPin, MessageSquare, FileText, BarChart3 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { ValidationResultModal, BatchValidationResults, ValidationProgress } from './ValidationResultModal';
@@ -578,13 +579,14 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
     return val;
   }, [isNumericField]);
 
-  const onCellEditStart = useCallback((event: CellEditStartEvent<Asset>) => {
-    if (!event.field || !event.data) return;
+  const onCellEditingStarted = useCallback((event: CellEditingStartedEvent) => {
+    const field = event.column?.getColId();
+    if (!field || !event.data) return;
     const assetId = String(event.data.asset_id);
-    const cellKey = `${assetId}_${event.field}`;
+    const cellKey = `${assetId}_${field}`;
 
-    let initialValue = (event.data as any)[event.field];
-    if (isNumericField(event.field)) {
+    let initialValue = (event.data as any)[field];
+    if (isNumericField(field)) {
       if (initialValue == null || initialValue === '' || initialValue === undefined) {
         initialValue = 0;
       } else {
@@ -597,11 +599,14 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
     cellEditUserInteracted.current.set(cellKey, false);
   }, [isNumericField]);
 
-  const onCellChange = useCallback((event: CellChangeEvent<Asset>) => {
+  const onCellValueChanged = useCallback((event: CellValueChangedEvent) => {
     if (isRefreshingAfterSaveRef.current) return;
 
     try {
-      const { data, field, oldValue, newValue: rawNewValue } = event;
+      const data = event.data as Asset;
+      const field = event.column?.getColId() || '';
+      const oldValue = event.oldValue;
+      const rawNewValue = event.newValue;
       const assetId = String(data.asset_id);
       const isNew = newAssets.has(assetId);
       const cellKey = `${assetId}_${field}`;
@@ -2988,51 +2993,41 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
     fetchHistoryCounts();
   }, [buildingNumber, isResidentTaxRegion, isMultiTaxRegion]);
 
-  const tableColumnDefs: ColumnDef<Asset>[] = useMemo(() => {
-    const defs: ColumnDef<Asset>[] = [
+  const tableColumnDefs: ColDef<Asset>[] = useMemo(() => {
+    const defs: ColDef<Asset>[] = [
     {
-      id: 'actions',
-      header: t('actions'),
+      colId: 'actions',
+      headerName: t('actions'),
       editable: false,
       pinned: 'right',
-      render: ({ data: asset }) => {
+      cellRenderer: (params: any) => {
+        const asset = params.data as Asset;
         if (!asset) return null;
-        
+
         const assetId = String(asset.asset_id);
-        // Allow temporary IDs for new assets (e.g., "temp-1234567890")
         if (!assetId || assetId === 'undefined' || assetId === 'null') return null;
-        
-        // Safety checks for state variables - use empty defaults if undefined
+
         const safeNewAssets = newAssets || new Set<string>();
         const safeDeletedAssets = deletedAssets || new Set<string>();
         const safeValidationErrors = validationErrors || new Map<string, string>();
         const safeSelectedAssets = selectedAssets || new Set<string>();
-        
+
         const isNew = safeNewAssets.has(assetId);
         const isDeleted = safeDeletedAssets.has(assetId);
         const hasValidationError = safeValidationErrors.has(assetId);
-        
-        // Debug logging for validation errors
+
         if (process.env.NODE_ENV === 'development' && hasValidationError) {
         }
-        
-        // Show delete button only if a specific tax region is selected (same visibility logic as "Save All" and "Cancel" buttons)
-        // Delete button should be visible for all assets (new and existing), same as view asset button
-        // Hide delete button in error fixing mode
+
         const hasMultipleTaxRegions = building?.tax_region && building.tax_region.includes(',');
-        // If building has multiple tax regions, only show delete button when a specific taxRegion is selected
-        // If building has only one tax region, show delete button (taxRegion may or may not be set)
         const shouldShowDeleteButton = !isErrorFixingMode && (!hasMultipleTaxRegions || taxRegion);
-        
-        // Show checkbox in multi-tax-region mode (all assets view) or single tax region tab
-        // Checkbox should be hidden for new assets, same as view icon
-        // Hide checkbox in error fixing mode
+
         const shouldShowCheckbox = !isErrorFixingMode && !isNew && (
-          (!taxRegion && hasMultipleTaxRegions) || // All assets view when building has multiple tax regions
-          !!taxRegion // Specific tax region tab
+          (!taxRegion && hasMultipleTaxRegions) ||
+          !!taxRegion
         );
         const isSelected = safeSelectedAssets.has(assetId);
-        
+
         return (
           <div className="flex items-center justify-center gap-1 h-full">
             {shouldShowCheckbox && (
@@ -3056,7 +3051,6 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
               />
             )}
             {hasValidationError && safeValidationErrors && safeValidationErrors.has(assetId) && (() => {
-              // Validation tooltip component
               const ValidationTooltipButton = ({ errorMessage, onErrorClick }: { errorMessage: string, onErrorClick: () => void }) => {
                 const [isHovered, setIsHovered] = useState(false);
                 const [position, setPosition] = useState({ top: 0, right: 0 });
@@ -3143,17 +3137,18 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
       }
     },
     {
-      header: t('structureDrawing') || 'שרטוט מבנה',
+      headerName: t('structureDrawing') || 'שרטוט מבנה',
       field: 'structure_drawing_url',
       pinned: 'right',
       editable: false,
-      render: ({ data: asset }) => {
+      cellRenderer: (params: any) => {
+        const asset = params.data as Asset;
         if (!asset) return null;
-        
+
         const assetId = String(asset.asset_id);
         const isNew = newAssets.has(assetId);
         const isUploading = uploadingAssetId === asset.asset_id;
-        
+
         return (
           <div className="flex items-center justify-center gap-1 h-full">
             {!isErrorFixingMode && !isNew && taxRegion && (
@@ -3212,15 +3207,16 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
     },
     {
       field: 'asset_id',
-      header: t('assetId'),
+      headerName: t('assetId'),
       pinned: 'right',
-      editable: (row) => isFieldEditable(row, 'asset_id'),
-      cellStyle: (row) => {
+      editable: (params: any) => isFieldEditable(params.data, 'asset_id'),
+      cellStyle: (params: any) => {
+        const row = params.data as Asset;
         const baseStyle = getCellStyle(row);
         if (row && !newAssets.has(String(row.asset_id))) {
           return {
             ...baseStyle,
-            cursor: 'default',
+            cursor: 'pointer',
             color: '#059669',
             fontWeight: '600',
             textDecoration: 'underline',
@@ -3230,10 +3226,11 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
         }
         return baseStyle;
       },
-      render: ({ data: asset, value }) => {
+      cellRenderer: (params: any) => {
+        const asset = params.data as Asset;
         if (!asset) return '';
         const isClickable = !newAssets.has(String(asset.asset_id));
-        const display = value != null ? String(value) : '';
+        const display = params.value != null ? String(params.value) : '';
         if (isClickable) {
           return (
             <span
@@ -3243,7 +3240,7 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
                 textDecoration: 'underline',
                 textDecorationColor: '#10b981',
                 textUnderlineOffset: '2px',
-                cursor: 'default',
+                cursor: 'pointer',
                 transition: 'all 0.2s ease'
               }}
               className="hover:text-emerald-700 hover:decoration-emerald-600"
@@ -3255,7 +3252,8 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
         }
         return display;
       },
-      onCellClick: (row) => {
+      onCellClicked: (params: any) => {
+        const row = params.data as Asset;
         if (row && !newAssets.has(String(row.asset_id))) {
           const assetId = String(row.asset_id);
           onSelectAsset(assetId, assetId, buildingNumber, validationTaxRegion);
@@ -3264,9 +3262,10 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
     },
     {
       field: 'measurement_date',
-      header: t('measurementDate'),
-      editable: (row) => isFieldEditable(row, 'measurement_date'),
-      cellStyle: (row) => {
+      headerName: t('measurementDate'),
+      editable: (params: any) => isFieldEditable(params.data, 'measurement_date'),
+      cellStyle: (params: any) => {
+        const row = params.data as Asset;
         if (!row) return { textAlign: 'right' };
         const assetId = String(row.asset_id);
         if (!assetId || assetId === 'undefined' || assetId === 'null') return { textAlign: 'right' };
@@ -3282,85 +3281,91 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
           cursor: 'default'
         };
       },
-      formatValue: (val) => formatDateToDDMMYYYY(val)
+      valueFormatter: (params: any) => formatDateToDDMMYYYY(params.value)
     },
     {
       field: 'payer_id',
-      header: t('payerId'),
-      editable: (row) => isFieldEditable(row, 'payer_id'),
-      cellStyle: getCellStyle
+      headerName: t('payerId'),
+      editable: (params: any) => isFieldEditable(params.data, 'payer_id'),
+      cellStyle: (params: any) => getCellStyle(params.data)
     },
     {
       field: 'tax_region',
-      header: 'אזור מס',
+      headerName: 'אזור מס',
       headerTooltip: 'אזור מס',
-      tooltip: (val) => val == null ? '' : getAreaDescriptionForTaxRegion(val),
-      editable: (row) => isFieldEditable(row, 'tax_region'),
-      type: 'number',
-      editor: 'number',
-      parseValue: (val) => { const n = parseInt(val, 10); return isNaN(n) ? 0 : n; },
-      cellStyle: getCellStyle
+      tooltipValueGetter: (params: any) => params.value == null ? '' : getAreaDescriptionForTaxRegion(params.value),
+      editable: (params: any) => isFieldEditable(params.data, 'tax_region'),
+      type: 'numericColumn',
+      valueSetter: (params: any) => {
+        const n = parseInt(params.newValue, 10);
+        params.data.tax_region = isNaN(n) ? 0 : n;
+        return true;
+      },
+      cellStyle: (params: any) => getCellStyle(params.data)
     },
     {
-      id: 'penthouse',
+      colId: 'penthouse',
       field: 'penthouse',
-      header: 'דירת גג',
+      headerName: 'דירת גג',
       editable: false,
-      cellStyle: getCellStyle,
-      render: ({ data: asset }) => penthouseRenderer(asset),
-      hidden: !isResidentTaxRegion
+      cellStyle: (params: any) => getCellStyle(params.data),
+      cellRenderer: (params: any) => penthouseRenderer(params.data),
+      hide: !isResidentTaxRegion
     },
     {
       field: 'apartment_number',
-      header: 'מספר דירה',
-      editable: (row) => isFieldEditable(row, 'apartment_number'),
-      cellStyle: getCellStyle
+      headerName: 'מספר דירה',
+      editable: (params: any) => isFieldEditable(params.data, 'apartment_number'),
+      cellStyle: (params: any) => getCellStyle(params.data)
     },
     {
       field: 'apartment_floor',
-      header: 'קומת דירה',
-      editable: (row) => isFieldEditable(row, 'apartment_floor'),
-      cellStyle: getCellStyle
+      headerName: 'קומת דירה',
+      editable: (params: any) => isFieldEditable(params.data, 'apartment_floor'),
+      cellStyle: (params: any) => getCellStyle(params.data)
     },
     {
       field: 'storage_number',
-      header: 'מספר מחסן',
-      editable: (row) => isFieldEditable(row, 'storage_number'),
-      cellStyle: getCellStyle
+      headerName: 'מספר מחסן',
+      editable: (params: any) => isFieldEditable(params.data, 'storage_number'),
+      cellStyle: (params: any) => getCellStyle(params.data)
     },
     {
       field: 'storage_floor',
-      header: 'קומת מחסן',
-      editable: (row) => isFieldEditable(row, 'storage_floor'),
-      cellStyle: getCellStyle
+      headerName: 'קומת מחסן',
+      editable: (params: any) => isFieldEditable(params.data, 'storage_floor'),
+      cellStyle: (params: any) => getCellStyle(params.data)
     },
     {
       field: 'discount_type',
-      header: 'סוג הנחה',
-      editable: (row) => isFieldEditable(row, 'discount_type'),
-      cellStyle: getCellStyle
+      headerName: 'סוג הנחה',
+      editable: (params: any) => isFieldEditable(params.data, 'discount_type'),
+      cellStyle: (params: any) => getCellStyle(params.data)
     },
     {
       field: 'discount_date_from',
-      header: 'תאריך הנחה מ',
-      editable: (row) => isFieldEditable(row, 'discount_date_from'),
-      cellStyle: getCellStyle,
-      formatValue: (val) => formatDateToDDMMYYYY(val)
+      headerName: 'תאריך הנחה מ',
+      editable: (params: any) => isFieldEditable(params.data, 'discount_date_from'),
+      cellStyle: (params: any) => getCellStyle(params.data),
+      valueFormatter: (params: any) => formatDateToDDMMYYYY(params.value)
     },
     {
       field: 'discount_date_to',
-      header: 'תאריך הנחה עד',
-      editable: (row) => isFieldEditable(row, 'discount_date_to'),
-      cellStyle: getCellStyle,
-      formatValue: (val) => formatDateToDDMMYYYY(val)
+      headerName: 'תאריך הנחה עד',
+      editable: (params: any) => isFieldEditable(params.data, 'discount_date_to'),
+      cellStyle: (params: any) => getCellStyle(params.data),
+      valueFormatter: (params: any) => formatDateToDDMMYYYY(params.value)
     },
     {
       field: 'comment',
-      header: 'הערה',
-      editable: (row) => isFieldEditable(row, 'comment'),
-      editor: 'largeText',
-      editorParams: { maxLength: 1000, rows: 5 },
-      render: ({ data: asset, value }) => {
+      headerName: 'הערה',
+      editable: (params: any) => isFieldEditable(params.data, 'comment'),
+      cellEditor: 'agLargeTextCellEditor',
+      cellEditorParams: { maxLength: 1000, rows: 5, cols: 50 },
+      cellEditorPopup: true,
+      cellEditorPopupPosition: 'over',
+      cellRenderer: (params: any) => {
+        const value = params.value;
         const hasValue = value && String(value).trim() !== '';
         return (
           <div
@@ -3381,103 +3386,113 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
           </div>
         );
       },
-      cellStyle: getCellStyle,
-      tooltip: (val) => val || ''
+      cellStyle: (params: any) => getCellStyle(params.data),
+      tooltipValueGetter: (params: any) => params.value || ''
     },
     {
       field: 'main_asset_type',
-      header: t('mainAssetType'),
+      headerName: t('mainAssetType'),
       headerTooltip: t('mainAssetType'),
-      editable: (row) => isFieldEditable(row, 'main_asset_type'),
-      tooltip: (val) => {
-        if (!val) return '';
-        const assetType = assetTypes.find(at => at.name === val);
-        return assetType?.description || val;
+      editable: (params: any) => isFieldEditable(params.data, 'main_asset_type'),
+      tooltipValueGetter: (params: any) => {
+        if (!params.value) return '';
+        const assetType = assetTypes.find(at => at.name === params.value);
+        return assetType?.description || params.value;
       },
-      cellStyle: getCellStyle
+      cellStyle: (params: any) => getCellStyle(params.data)
     },
     {
       field: 'asset_size',
-      header: !isResidentTaxRegion ? 'גודל נכס ללא שטח משותף' : t('mainAssetSize'),
-      editable: (row) => isFieldEditable(row, 'asset_size'),
-      type: 'number',
-      editor: 'number',
-      parseValue: (val) => { const n = Number(val); return isNaN(n) ? 0 : n; },
-      formatValue: (val) => {
+      headerName: !isResidentTaxRegion ? 'גודל נכס ללא שטח משותף' : t('mainAssetSize'),
+      editable: (params: any) => isFieldEditable(params.data, 'asset_size'),
+      type: 'numericColumn',
+      valueSetter: (params: any) => {
+        const n = Number(params.newValue);
+        params.data.asset_size = isNaN(n) ? 0 : n;
+        return true;
+      },
+      valueFormatter: (params: any) => {
+        const val = params.value;
         if (val === null || val === undefined || val === '' || val === 0) return '';
         const num = typeof val === 'number' ? val : parseFloat(val);
         return isNaN(num) || num === 0 ? '' : num.toFixed(2);
       },
-      cellStyle: getCellStyle
+      cellStyle: (params: any) => getCellStyle(params.data)
     },
     ...([1,2,3,4,5,6] as const).flatMap(i => [
       {
-        field: `sub_asset_type_${i}` as keyof Asset,
-        header: t(`subAssetType${i}`),
-        editable: (row: Asset) => isFieldEditable(row, `sub_asset_type_${i}`),
-        tooltip: (val: any) => {
-          if (!val) return '';
-          const at = assetTypes.find(a => a.name === val);
-          return at?.description || val;
+        field: `sub_asset_type_${i}`,
+        headerName: t(`subAssetType${i}`),
+        editable: (params: any) => isFieldEditable(params.data, `sub_asset_type_${i}`),
+        tooltipValueGetter: (params: any) => {
+          if (!params.value) return '';
+          const at = assetTypes.find(a => a.name === params.value);
+          return at?.description || params.value;
         },
-        cellStyle: getCellStyle
-      } as ColumnDef<Asset>,
+        cellStyle: (params: any) => getCellStyle(params.data)
+      } as ColDef<Asset>,
       {
-        field: `sub_asset_size_${i}` as keyof Asset,
-        header: t(`subAssetSize${i}`),
-        editable: (row: Asset) => isFieldEditable(row, `sub_asset_size_${i}`),
-        type: 'number' as const,
-        editor: 'number' as const,
-        parseValue: (val: string) => { const n = Number(val); return isNaN(n) ? 0 : n; },
-        formatValue: (val: any) => {
+        field: `sub_asset_size_${i}`,
+        headerName: t(`subAssetSize${i}`),
+        editable: (params: any) => isFieldEditable(params.data, `sub_asset_size_${i}`),
+        type: 'numericColumn',
+        valueSetter: (params: any) => {
+          const n = Number(params.newValue);
+          params.data[`sub_asset_size_${i}`] = isNaN(n) ? 0 : n;
+          return true;
+        },
+        valueFormatter: (params: any) => {
+          const val = params.value;
           if (val === null || val === undefined || val === '' || val === 0) return '';
           const num = typeof val === 'number' ? val : parseFloat(val);
           return isNaN(num) || num === 0 ? '' : num.toFixed(2);
         },
-        cellStyle: getCellStyle
-      } as ColumnDef<Asset>,
+        cellStyle: (params: any) => getCellStyle(params.data)
+      } as ColDef<Asset>,
     ]),
     {
       field: 'business_distribution_area',
-      header: 'גודל שטח משותף',
+      headerName: 'גודל שטח משותף',
       editable: false,
-      type: 'number',
-      formatValue: (val) => {
+      type: 'numericColumn',
+      valueFormatter: (params: any) => {
+        const val = params.value;
         if (val === null || val === undefined || val === '' || val === 0) return '';
         const num = typeof val === 'number' ? val : parseFloat(val);
         return isNaN(num) || num === 0 ? '' : num.toFixed(2);
       },
-      cellStyle: getCellStyle,
-      hidden: isResidentTaxRegion
+      cellStyle: (params: any) => getCellStyle(params.data),
+      hide: isResidentTaxRegion
     },
     {
       field: 'business_total_area',
-      header: 'סה"כ שטח עסקים',
+      headerName: 'סה"כ שטח עסקים',
       editable: false,
-      type: 'number',
-      formatValue: (val) => {
+      type: 'numericColumn',
+      valueFormatter: (params: any) => {
+        const val = params.value;
         if (val === null || val === undefined || val === '' || val === 0) return '';
         const num = typeof val === 'number' ? val : parseFloat(val);
         return isNaN(num) || num === 0 ? '' : num.toFixed(2);
       },
-      cellStyle: getCellStyle,
-      hidden: isResidentTaxRegion
+      cellStyle: (params: any) => getCellStyle(params.data),
+      hide: isResidentTaxRegion
     },
     {
       field: 'extra_field',
-      header: '',
-      editable: (row) => isFieldEditable(row, 'extra_field'),
-      cellStyle: getCellStyle
+      headerName: '',
+      editable: (params: any) => isFieldEditable(params.data, 'extra_field'),
+      cellStyle: (params: any) => getCellStyle(params.data)
     },
     {
       field: 'extra_field_1',
-      header: '',
+      headerName: '',
       editable: false,
       cellStyle: { textAlign: 'right' as const }
     },
     {
       field: 'extra_field_2',
-      header: '',
+      headerName: '',
       editable: false,
       cellStyle: { textAlign: 'right' as const }
     }
@@ -3485,11 +3500,11 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
 
     return defs.map(colDef => ({
       ...colDef,
-      headerTooltip: colDef.headerTooltip || colDef.header
+      headerTooltip: colDef.headerTooltip || colDef.headerName
     }));
   }, [t, onSelectAsset, buildingNumber, assetTypes, newAssets, dirtyAssets, building, taxRegion, selectedAssets, deletedAssets, validationErrors, getCellStyle, isResidentTaxRegion, isFieldEditable, penthouseRenderer, assetsWithFiles]);
 
-  const configuredColumnDefs = useTableFieldConfig(tableColumnDefs, 'assets-list');
+  const configuredColumnDefs = useFieldConfig(tableColumnDefs, 'assets-list');
 
   // Check if all visible assets are residential assets (מגורים)
   // Sort assets to put errored rows first
@@ -4000,17 +4015,41 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
         
         {/* Tab Content */}
         {activeTab === 'assets' && (
-          <EditableTable
-            data={sortedAssets}
-            columns={configuredColumnDefs}
-            getRowId={(row) => String(row.asset_id)}
-            getRowStyle={getRowStyle}
-            onCellChange={onCellChange}
-            onCellEditStart={onCellEditStart}
-            height="60vh"
-            rtl={true}
-            className="rounded-xl shadow-lg hover:shadow-xl transition-shadow duration-200 border border-blue-100"
-          />
+          <div className="ag-theme-alpine rounded-xl shadow-lg hover:shadow-xl transition-shadow duration-200 border border-blue-100" style={{ height: '60vh', width: '100%' }}>
+            <AgGridReact
+              rowData={sortedAssets}
+              columnDefs={configuredColumnDefs}
+              getRowId={(params) => String(params.data.asset_id)}
+              getRowStyle={(params) => {
+                if (!params.data) return undefined;
+                return getRowStyle(params.data) || undefined;
+              }}
+              defaultColDef={{
+                resizable: true,
+                wrapHeaderText: true,
+                autoHeaderHeight: true,
+                wrapText: true,
+                autoHeight: false,
+                cellStyle: { textAlign: 'right' },
+                minWidth: 40
+              }}
+              gridOptions={{
+                suppressColumnVirtualisation: true,
+                alwaysShowHorizontalScroll: true,
+                suppressMovableColumns: true,
+                suppressColumnMoveAnimation: true,
+              }}
+              onCellValueChanged={onCellValueChanged}
+              onCellEditingStarted={onCellEditingStarted}
+              stopEditingWhenCellsLoseFocus={true}
+              enterNavigatesVertically={true}
+              enterNavigatesVerticallyAfterEdit={true}
+              suppressScrollOnNewData={true}
+              enableRtl={true}
+              animateRows={false}
+              theme="legacy"
+            />
+          </div>
         )}
         
         {/* Distribution and Transfer History tabs - only show for single tax region tabs (not multi-tax) */}

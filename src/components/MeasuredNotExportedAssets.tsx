@@ -4,7 +4,6 @@ import { useTranslation } from 'react-i18next';
 import { Asset, Building, AssetType, api } from '../lib/api';
 import { AgGridReact } from 'ag-grid-react';
 import { ColDef } from 'ag-grid-community';
-import 'ag-grid-community/styles/ag-grid.css';
 import 'ag-grid-community/styles/ag-theme-alpine.css';
 import { Building as BuildingIcon, AlertCircle, Loader2, Download, RefreshCw, MessageSquare } from 'lucide-react';
 import * as XLSX from 'xlsx';
@@ -1359,7 +1358,7 @@ export const MeasuredNotExportedAssets = ({ onSelectAsset }: MeasuredNotExported
             enableRtl={true}
             domLayout="normal"
             suppressMenuHide={true}
-            enableRangeSelection={false}
+            cellSelection={false}
             getRowStyle={getRowStyle}
           onGridReady={async (params) => {
             await gridPreferences.loadColumnState(params.api);
@@ -1388,8 +1387,10 @@ export const MeasuredNotExportedAssets = ({ onSelectAsset }: MeasuredNotExported
               );
             }
           }}
-          rowSelection="single"
-          suppressRowClickSelection={false}
+          rowSelection={{
+            mode: 'singleRow',
+            enableClickSelection: true
+          }}
           animateRows={false}
           localeText={{
             noRowsToShow: 'אין נכסים להצגה',

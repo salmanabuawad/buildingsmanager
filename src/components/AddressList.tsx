@@ -797,23 +797,20 @@ export function AddressListComponent() {
               debounceVerticalScrollbar: true,
               suppressRowVirtualisation: false, // Keep row virtualization enabled for better performance
               suppressCellFocus: false, // Allow cell focus for keyboard navigation
-              suppressRowClickSelection: false,
               suppressScrollOnNewData: true,
               enableCellTextSelection: false, // Disable text selection to prevent selection rectangle
               suppressAnimationFrame: false, // Use animation frame for smoother updates
-              enableRangeSelection: false, // Disable range selection for better keyboard navigation
-              enableRangeHandle: false, // Disable range handle for better keyboard navigation
             }}
+            rowSelection={{
+              mode: 'singleRow',
+              enableClickSelection: true
+            }}
+            cellSelection={false}
             suppressHorizontalScroll={false}
             suppressRowVirtualisation={false}
             getRowId={(params) => String(params.data.street_code)}
             enterNavigatesVertically={true}
             enterNavigatesVerticallyAfterEdit={true}
-            suppressKeyboardEvent={(params) => {
-              // Allow arrow keys to navigate between cells
-              // Don't suppress any keyboard events - let AG Grid handle navigation
-              return false;
-            }}
             onGridReady={async (params) => {
               await gridPreferences.loadColumnState(params.api);
               

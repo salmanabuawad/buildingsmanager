@@ -386,10 +386,13 @@ export function useFillHandle<T = any>({ gridRef, onFillComplete, enabled = true
     api.addEventListener('selectionChanged', onSelectionChanged);
 
     return () => {
-      api.removeEventListener('cellFocused', onCellFocusChanged);
-      api.removeEventListener('bodyScroll', onBodyScroll);
-      api.removeEventListener('cellClicked', onCellClicked);
-      api.removeEventListener('selectionChanged', onSelectionChanged);
+      // Check if grid is still alive before removing listeners
+      if (api && !api.isDestroyed()) {
+        api.removeEventListener('cellFocused', onCellFocusChanged);
+        api.removeEventListener('bodyScroll', onBodyScroll);
+        api.removeEventListener('cellClicked', onCellClicked);
+        api.removeEventListener('selectionChanged', onSelectionChanged);
+      }
     };
   }, [enabled, gridRef, isGridReady, updateHandlePosition]);
 

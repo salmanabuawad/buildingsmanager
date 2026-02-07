@@ -4108,7 +4108,10 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
                     onRowClicked={(event: any) => {
                       // Handle single click for audit details
                     }}
-                    suppressRowClickSelection={false}
+                    rowSelection={{
+                      mode: 'singleRow',
+                      enableClickSelection: true
+                    }}
                     singleClickEdit={true}
                     stopEditingWhenCellsLoseFocus={true}
                     enableRtl={true}

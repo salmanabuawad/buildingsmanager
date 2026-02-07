@@ -2,7 +2,6 @@ import { useEffect, useState, useMemo } from 'react';
 import { api } from '../lib/api';
 import { AgGridReact } from 'ag-grid-react';
 import { ColDef } from 'ag-grid-community';
-import 'ag-grid-community/styles/ag-grid.css';
 import 'ag-grid-community/styles/ag-theme-alpine.css';
 import { BarChart3, Calendar, Loader2, AlertCircle, RefreshCw } from 'lucide-react';
 import { formatDateToDDMMYYYY, parseDateFromDDMMYYYY } from '../lib/dateUtils';

@@ -571,14 +571,28 @@ input[type="submit"]:disabled {
 .ag-theme-alpine .ag-cell-focus:not(.ag-cell-range-selected):not(.ag-cell-inline-editing),
 .ag-theme-alpine .ag-cell:focus:not(.ag-cell-range-selected),
 .ag-theme-alpine .ag-cell.ag-cell-focus:not(.ag-cell-range-selected),
-.ag-theme-alpine .ag-cell.ag-cell-not-inline-editing:focus {
+.ag-theme-alpine .ag-cell.ag-cell-not-inline-editing:focus,
+.ag-theme-alpine .ag-cell-focus,
+.ag-theme-alpine .ag-cell.ag-cell-focus {
   border: none !important;
+  border-top: none !important;
+  border-bottom: none !important;
+  border-left: none !important;
+  border-right: none !important;
   outline: none !important;
   box-shadow: none !important;
 }
 
 .ag-theme-alpine .ag-cell-focus::before,
-.ag-theme-alpine .ag-cell-focus::after {
+.ag-theme-alpine .ag-cell-focus::after,
+.ag-theme-alpine .ag-cell:focus::before,
+.ag-theme-alpine .ag-cell:focus::after {
   display: none !important;
   content: none !important;
+  border: none !important;
+  outline: none !important;
+}
+
+.ag-theme-alpine {
+  --ag-range-selection-border-color: transparent !important;
 }

@@ -306,16 +306,13 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
           errorAssetIds: Array.from(validationErrors.keys())
         });
       }
-      // Small delay to ensure grid is ready
+      // Lightweight refresh to update cell styling for validation errors
       setTimeout(() => {
         if (gridRef.current?.api) {
-          // Force refresh all cells and rows to show error styling
-          gridRef.current.api.refreshCells({ force: true });
-          gridRef.current.api.redrawRows();
-          // Also refresh the entire grid to ensure styling is applied
-          gridRef.current.api.refreshClientSideRowModel('filter');
+          // Refresh cells without forcing - preserves cache and scroll position
+          gridRef.current.api.refreshCells({ force: false });
         }
-      }, 100);
+      }, 50);
     }
   }, [validationErrors]);
   async function fetchData(showLoading = true, skipBuildingFetch = false) {
@@ -1469,17 +1466,17 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
 
         // Refresh grid to show the validation errors - specifically refresh actions column and row styling
         if (gridRef.current?.api) {
-          // Force refresh of all cells, especially actions column
-          gridRef.current.api.refreshCells({ 
+          // Refresh actions column and cells with validation errors
+          gridRef.current.api.refreshCells({
             columns: ['actions'],
-            force: true 
+            force: false
           });
-          // Also refresh all cells to update row styling
+          // Lightweight refresh to update cell styling for validation errors
           setTimeout(() => {
             if (gridRef.current?.api) {
-              gridRef.current.api.refreshCells({ force: true });
+              gridRef.current.api.refreshCells({ force: false });
             }
-          }, 100);
+          }, 50);
         }
       } else {
         // Clear validation errors if all assets are valid
@@ -1597,10 +1594,9 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
                 });
               }
               
-              // Force full grid refresh to show validation errors on rows
-              gridRef.current.api.refreshCells({ force: true });
-              gridRef.current.api.redrawRows();
-              
+              // Lightweight refresh to show validation errors on rows
+              gridRef.current.api.refreshCells({ force: false });
+
               // Scroll to first error row if possible
               setTimeout(() => {
                 if (gridRef.current?.api && validationErrors.size > 0) {
@@ -2319,7 +2315,7 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
         
         // Refresh grid to show validation errors
         if (gridRef.current?.api) {
-          gridRef.current.api.refreshCells({ force: true });
+          gridRef.current.api.refreshCells({ force: false });
         }
       }
     }).catch(err => {
@@ -2349,7 +2345,7 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
     
     // Refresh the grid to update row styling
     if (gridRef.current?.api) {
-      gridRef.current.api.refreshCells({ force: true });
+      gridRef.current.api.refreshCells({ force: false });
     }
   }, []);
 
@@ -2371,8 +2367,7 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
     // Refresh the grid to show restored values
     setTimeout(() => {
       if (gridRef.current?.api) {
-        gridRef.current.api.refreshCells({ force: true });
-        gridRef.current.api.redrawRows();
+        gridRef.current.api.refreshCells({ force: false });
       }
     }, 0);
   };
@@ -2941,8 +2936,7 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
 
       // Refresh grid
       if (gridRef.current?.api) {
-        gridRef.current.api.refreshCells({ force: true });
-        gridRef.current.api.redrawRows();
+        gridRef.current.api.refreshCells({ force: false });
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'שגיאה בפיזור שטח משותף');
@@ -3226,8 +3220,7 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
 
       // Refresh grid
       if (gridRef.current?.api) {
-        gridRef.current.api.refreshCells({ force: true });
-        gridRef.current.api.redrawRows();
+        gridRef.current.api.refreshCells({ force: false });
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'שגיאה בפיזור שטח משותף עסקים');
@@ -3764,10 +3757,10 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
             
             // Refresh only this specific cell
             if (gridRef.current) {
-              gridRef.current.api.refreshCells({ 
-                rowNodes: [params.node], 
+              gridRef.current.api.refreshCells({
+                rowNodes: [params.node],
                 columns: ['penthouse'],
-                force: true 
+                force: false
               });
             }
           }}
@@ -5132,12 +5125,12 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
               minWidth: 40
             }}
             gridOptions={{
-              suppressColumnVirtualisation: true,
+              suppressColumnVirtualisation: false, // Enable column virtualization for better horizontal scrolling
               alwaysShowHorizontalScroll: true,
               suppressMovableColumns: true,
               suppressColumnMoveAnimation: true,
-              rowBuffer: 20, // Increase buffer for smoother vertical scrolling
-              debounceVerticalScrollbar: true,
+              rowBuffer: 10, // Use AG Grid default for optimal performance
+              debounceVerticalScrollbar: false, // No delay for responsive scrolling
               suppressRowVirtualisation: false, // Keep row virtualization enabled for better performance
               suppressCellFocus: false,
               suppressRowClickSelection: false,
@@ -5149,7 +5142,6 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
               enableRangeHandle: false, // Disable range handle for better keyboard navigation
             }}
             domLayout="normal"
-            suppressRowVirtualisation={false}
             getRowId={(params) => String(params.data.asset_id)}
             onCellValueChanged={onCellValueChanged}
             onCellEditingStopped={onCellEditingStopped}
@@ -5158,29 +5150,23 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
               // Load saved column state first
               await gridPreferences.loadColumnState(params.api);
               // Ensure all columns are visible and grid calculates proper width
-              params.api.refreshCells({ force: true });
-              // Scroll to left on grid ready
+              params.api.refreshCells({ force: false });
+              // Scroll to left on grid ready using AG Grid API
               setTimeout(() => {
-                const gridElement = document.querySelector('.ag-body-horizontal-scroll-viewport');
-                if (gridElement) {
-                  gridElement.scrollLeft = 0;
-                }
+                params.api.ensureColumnVisible('asset_id', 'start');
                 // Detect and apply text overflow fade
                 detectAndApplyTextOverflow(params.api);
-              }, 300);
+              }, 100);
             }}
             onFirstDataRendered={async (params) => {
-              // Scroll to left after data render
+              // Scroll to left after data render using AG Grid API
               setTimeout(() => {
-                const gridElement = document.querySelector('.ag-body-horizontal-scroll-viewport');
-                if (gridElement) {
-                  gridElement.scrollLeft = 0;
-                }
+                params.api.ensureColumnVisible('asset_id', 'start');
                 // Detect and apply text overflow fade
                 detectAndApplyTextOverflow(params.api);
                 // Set up observer for dynamic changes
                 setupTextOverflowObserver(params.api);
-              }, 200);
+              }, 100);
             }}
             onColumnResized={(params) => {
               gridPreferences.handleColumnResized();

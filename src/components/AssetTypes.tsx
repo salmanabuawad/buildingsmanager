@@ -930,11 +930,8 @@ export function AssetTypes() {
             sections.push(`מאפיינים: ${characteristics.join(' • ')}`);
           }
 
-          // Special accounting flags - compact inline format
+          // Special accounting flags - compact inline format (excluding "לא נספר" fields)
           const accountingFlags: string[] = [];
-          if (at.non_accountable_for_total_area === true) accountingFlags.push('לא נספר בשטח מבנה');
-          if (at.non_accountable_for_distribution === true) accountingFlags.push('לא נכלל בפיזור');
-          if (at.not_accountable_for_statistics === true) accountingFlags.push('לא נכלל בסטטיסטיקה');
           if (at.use_shared_area === true) accountingFlags.push('משמש לפיזור שטח משותף');
 
           if (accountingFlags.length > 0) {

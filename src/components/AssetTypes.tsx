@@ -833,35 +833,51 @@ export function AssetTypes() {
         // Helper function to build tooltip text for a single asset type
         const buildTooltipForAssetType = (at: AssetType): string[] => {
           const fields: string[] = [];
-          
+
           // Description
           if (at.description) {
             fields.push(`תיאור: ${at.description}`);
           }
-          
-          // Checkbox fields (show only if checked)
-          if (at.elevator === 'כן') {
-            fields.push('מעלית: כן');
+
+          // Tax region
+          if (at.tax_region) {
+            fields.push(`אזור מס: ${at.tax_region}`);
           }
-          if (at.single_double_family === 'כן') {
-            fields.push('בית פרטי: כן');
+
+          // Checkbox fields (show value - 'כן' or 'לא')
+          if (at.elevator) {
+            fields.push(`מעלית: ${at.elevator}`);
           }
-          if (at.penthouse === 'כן') {
-            fields.push('דירת גג: כן');
+          if (at.single_double_family) {
+            fields.push(`בית פרטי: ${at.single_double_family}`);
           }
-          if (at.condo === 'כן') {
-            fields.push('בית משותף: כן');
+          if (at.penthouse) {
+            fields.push(`דירת גג: ${at.penthouse}`);
           }
-          if (at.townhouses === 'כן') {
-            fields.push('טוריים: כן');
+          if (at.condo) {
+            fields.push(`בית משותף: ${at.condo}`);
           }
+          if (at.townhouses) {
+            fields.push(`טוריים: ${at.townhouses}`);
+          }
+          if (at.business_residence) {
+            fields.push(`מגורים/עסקי: ${at.business_residence}`);
+          }
+
+          // Boolean fields
           if (at.non_accountable_for_total_area === true) {
             fields.push('לא נספר בחישוב שטח מבנה: כן');
           }
           if (at.non_accountable_for_distribution === true) {
             fields.push('לא נספר בפיזור: כן');
           }
-          
+          if (at.not_accountable_for_statistics === true) {
+            fields.push('לא נספר בסטטיסטיקה: כן');
+          }
+          if (at.use_shared_area === true) {
+            fields.push('שימוש בשטח משותף: כן');
+          }
+
           // Size range
           if (at.min_size || at.max_size) {
             const minSize = at.min_size ? at.min_size.toLocaleString('he-IL') : '';
@@ -874,25 +890,38 @@ export function AssetTypes() {
               fields.push(`שטח מקסימלי: ${maxSize}`);
             }
           }
-          
+
           return fields;
         };
         
         // Build combined tooltip with name at the top
         const allTooltips: string[] = [];
         // Put name once at the top
-        allTooltips.push(`סוג: ${currentName}`);
-        
+        allTooltips.push(`סוג נכס: ${currentName}`);
+        allTooltips.push(''); // Empty line for spacing
+
+        // If multiple rows with same name, show each variant
+        if (matchingAssetTypes.length > 1) {
+          allTooltips.push(`נמצאו ${matchingAssetTypes.length} וריאנטים:`);
+          allTooltips.push(''); // Empty line for spacing
+        }
+
         // Then list each matching asset type's details
         matchingAssetTypes.forEach(({ assetType: at, originalIndex }, index) => {
           const tooltipFields = buildTooltipForAssetType(at);
+          if (matchingAssetTypes.length > 1) {
+            allTooltips.push(`--- וריאנט ${index + 1} ---`);
+          }
           if (tooltipFields.length > 0) {
-            allTooltips.push(`${index + 1}. ${tooltipFields.join(', ')}`);
+            tooltipFields.forEach(field => allTooltips.push(field));
           } else {
-            allTooltips.push(`${index + 1}. אין פרטים נוספים`);
+            allTooltips.push('אין פרטים נוספים');
+          }
+          if (index < matchingAssetTypes.length - 1) {
+            allTooltips.push(''); // Empty line between variants
           }
         });
-        
+
         return allTooltips.length > 0 ? allTooltips.join('\n') : 'אין פרטים נוספים';
       },
       tooltipComponent: CustomTooltip,

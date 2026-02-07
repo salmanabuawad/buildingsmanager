@@ -5,8 +5,7 @@ import { Asset, Building, AssetType, AddressList, api, validateAndSaveBulkAssets
 import { assetValidators, validateAll, inputValidators, validateEntity } from '../lib/validation';
 import { AssetValidationHandler } from '../lib/assetValidationHandler';
 import { AgGridReact } from 'ag-grid-react';
-import { ColDef, CellValueChangedEvent, CellEditingStartedEvent } from 'ag-grid-community';
-import { useFieldConfig } from '../lib/useFieldConfig';
+import { ColDef, IDetailCellRendererParams } from 'ag-grid-community';
 import { Building as BuildingIcon, AlertCircle, ChevronDown, ChevronRight, Loader2, Save, X, Plus, Trash2, CheckCircle2, Download, ArrowRightLeft, Upload, FileSpreadsheet, History, Share2, MapPin, MessageSquare, FileText, BarChart3 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { ValidationResultModal, BatchValidationResults, ValidationProgress } from './ValidationResultModal';
@@ -17,6 +16,10 @@ import { useValidationRules } from '../contexts/ValidationContext';
 import { supabase } from '../lib/supabase';
 import { compressFile } from '../lib/fileCompression';
 import { formatDateToDDMMYYYY } from '../lib/dateUtils';
+import { numericValueParser, numericValueParserInt } from '../lib/numberUtils';
+import { useGridPreferences } from '../lib/useGridPreferences';
+import { useFieldConfig } from '../lib/useFieldConfig';
+import { processColumnHeader } from '../lib/gridHeaderUtils';
 import { exportToExcel } from '../lib/excelExport';
 import { useUserRole } from '../contexts/UserRoleContext';
 import { Toast } from './Toast';
@@ -61,6 +64,14 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
   // Any edit resets this back to false.
   const [isValidatedForSave, setIsValidatedForSave] = useState(false);
   const [selectedAssets, setSelectedAssets] = useState<Set<string>>(new Set());
+  const gridRef = useRef<AgGridReact<Asset>>(null);
+  
+  // Grid preferences hook for saving/loading column state
+  const gridPreferences = useGridPreferences(
+    gridRef,
+    'assets-list',
+    'default'
+  );
 
 
   const [showBatchValidationModal, setShowBatchValidationModal] = useState(false);
@@ -187,16 +198,18 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
 
   // Helper function to check if a field should be editable
   // For non-accountable assets, all fields are readonly (main_asset_type is readonly in all tabs except TransferAreas)
-  const isFieldEditable = useCallback((row: Asset, _fieldName?: string): boolean => {
+  const isFieldEditable = useCallback((params: any, fieldName: string): boolean => {
     if (isReadOnly) return false;
-    if (!row) return false;
-    const assetId = String(row.asset_id);
+    if (!params || !params.data) return false;
+    const asset = params.data as Asset;
+    const assetId = String(asset.asset_id);
     const baseEditable = newAssets.has(assetId) || !!taxRegion;
-
-    if (isAssetNotAccountableForTotalArea(row)) {
+    
+    // For non-accountable assets, all fields are readonly (including main_asset_type)
+    if (isAssetNotAccountableForTotalArea(asset)) {
       return false;
     }
-
+    
     return baseEditable;
   }, [isAssetNotAccountableForTotalArea, newAssets, taxRegion, isReadOnly]);
 
@@ -283,6 +296,20 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
     setSelectedAssets(new Set());
   }, [buildingNumber, taxRegion]);
 
+  // Refresh grid when validation errors change to show error styling
+  useEffect(() => {
+    if (validationErrors.size > 0 && gridRef.current?.api) {
+      if (process.env.NODE_ENV === 'development') {
+      }
+      // Lightweight refresh to update cell styling for validation errors
+      setTimeout(() => {
+        if (gridRef.current?.api) {
+          // Refresh cells without forcing - preserves cache and scroll position
+          gridRef.current.api.refreshCells({ force: false });
+        }
+      }, 50);
+    }
+  }, [validationErrors]);
   async function fetchData(showLoading = true, skipBuildingFetch = false) {
     try {
       if (showLoading) setLoading(true);
@@ -456,6 +483,121 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
       const mergedAssets = [...validFilteredAssets, ...existingNewAssets];
       
       
+      // Update assets state - use AG Grid transaction API for smoother updates when refreshing after save
+      // This preserves scroll position and selection better than full rowData replacement
+      if (gridRef.current?.api && isRefreshingAfterSaveRef.current && assets.length > 0) {
+        // Use transaction API for incremental updates after save
+        // This is smoother and preserves UI state better
+        const currentAssetIds = new Set(assets.map(a => String(a.asset_id)));
+        const newAssetIds = new Set(mergedAssets.map(a => String(a.asset_id)));
+        
+        // Find added, updated, and removed assets
+        const toAdd = mergedAssets.filter(a => !currentAssetIds.has(String(a.asset_id)));
+        const toUpdate = mergedAssets.filter(a => {
+          const existing = assets.find(ca => String(ca.asset_id) === String(a.asset_id));
+          return existing && JSON.stringify(existing) !== JSON.stringify(a);
+        });
+        const toRemove = assets.filter(a => !newAssetIds.has(String(a.asset_id)));
+        
+        // Apply transaction for smoother update (only if there are actual changes)
+        if (toAdd.length > 0 || toUpdate.length > 0 || toRemove.length > 0) {
+          try {
+            gridRef.current.api.applyTransaction({
+              add: toAdd,
+              update: toUpdate,
+              remove: toRemove
+            });
+            // Still update state for consistency
+            setAssets(mergedAssets);
+            
+            // Check which assets have files
+            if (mergedAssets.length > 0) {
+              const assetIds = mergedAssets.map(a => a.asset_id).filter(id => id != null).map(id => Number(id)).filter(id => !isNaN(id));
+              const filesMap = new Set<number>();
+              
+              // Bulk fetch files for all assets in a single API call
+              if (assetIds.length > 0) {
+                try {
+                  const filesByAsset = await api.assets.files.getAllBulk(assetIds);
+                  filesByAsset.forEach((files, assetId) => {
+                    if (files && files.length > 0) {
+                      filesMap.add(assetId);
+                    }
+                  });
+                } catch (err) {
+                  console.warn('[AssetsList] Error bulk fetching asset files:', err);
+                  // Fallback: if bulk fails, try individual fetches
+                  await Promise.all(
+                    assetIds.map(async (assetId) => {
+                      try {
+                        const files = await api.assets.files.getAll(assetId);
+                        if (files && files.length > 0) {
+                          filesMap.add(assetId);
+                        }
+                      } catch (err) {
+                        // Ignore errors - asset might not have files
+                      }
+                    })
+                  );
+                }
+              }
+              
+              setAssetsWithFiles(filesMap);
+            } else {
+              setAssetsWithFiles(new Set());
+            }
+            
+            return; // Early return to skip the setAssets call below
+          } catch (err) {
+            console.warn('[AssetsList] Transaction API failed, falling back to full update:', err);
+            // Fall through to regular setAssets
+          }
+        } else {
+          // No changes detected, just update state
+          setAssets(mergedAssets);
+          
+          // Check which assets have files
+          if (mergedAssets.length > 0) {
+            const assetIds = mergedAssets.map(a => a.asset_id).filter(id => id != null).map(id => Number(id)).filter(id => !isNaN(id));
+            const filesMap = new Set<number>();
+            
+            // Bulk fetch files for all assets in a single API call
+            if (assetIds.length > 0) {
+              try {
+                const filesByAsset = await api.assets.files.getAllBulk(assetIds);
+                filesByAsset.forEach((files, assetId) => {
+                  if (files && files.length > 0) {
+                    filesMap.add(assetId);
+                  }
+                });
+              } catch (err) {
+                console.warn('[AssetsList] Error bulk fetching asset files:', err);
+                // Fallback: if bulk fails, try individual fetches
+                await Promise.all(
+                  assetIds.map(async (assetId) => {
+                    try {
+                      const files = await api.assets.files.getAll(assetId);
+                      if (files && files.length > 0) {
+                        filesMap.add(assetId);
+                      }
+                    } catch (err) {
+                      // Ignore errors - asset might not have files
+                    }
+                  })
+                );
+              }
+            }
+            
+            setAssetsWithFiles(filesMap);
+          } else {
+            setAssetsWithFiles(new Set());
+          }
+          
+          return;
+        }
+      }
+      
+      // Regular update for initial load or when transaction API isn't available
       setAssets(mergedAssets);
       
       // Check which assets have files
@@ -555,102 +697,162 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
     return errors;
   }, []);
 
-  const getRowStyle = useCallback((row: Asset) => {
-    if (!row) return null;
-    const assetId = String(row.asset_id);
+  const getRowStyle = useCallback((params: { data?: { asset_id?: unknown }; } | null) => {
+    if (!params?.data) return null;
+    const assetId = String(params.data.asset_id);
     if (deletedAssets.has(assetId)) {
       return { backgroundColor: '#fee2e2', opacity: 0.7 };
     }
     return null;
   }, [deletedAssets]);
 
-  const isNumericField = useCallback((field: string): boolean => {
-    return field === 'asset_size' || field === 'tax_region' ||
-      field.startsWith('sub_asset_size_') ||
-      field === 'business_distribution_area' || field === 'business_total_area';
-  }, []);
+  const onCellValueChanged = useCallback(async (event: any) => {
+    // Skip validation if we're currently refreshing after save (prevents unnecessary API calls)
+    // This is critical - when fetchData updates assets state, AG Grid may trigger this event
+    // for cells that have changed values, even though the user didn't edit them
+    if (isRefreshingAfterSaveRef.current) {
+      // Still update the local state to reflect the change, but skip validation
+      const { data, colDef } = event;
+      const field = colDef.field;
+      const assetId = String(data.asset_id);
+      let newValue = event.newValue;
 
-  const normalizeValue = useCallback((val: any, field: string): any => {
-    if (val == null || val === '') {
-      return isNumericField(field) ? 0 : null;
-    }
-    if (typeof val === 'number') return isNaN(val) ? null : val;
-    if (typeof val === 'string') return val.trim() || null;
-    return val;
-  }, [isNumericField]);
-
-  const onCellEditingStarted = useCallback((event: CellEditingStartedEvent) => {
-    const field = event.column?.getColId();
-    if (!field || !event.data) return;
-    const assetId = String(event.data.asset_id);
-    const cellKey = `${assetId}_${field}`;
-
-    let initialValue = (event.data as any)[field];
-    if (isNumericField(field)) {
-      if (initialValue == null || initialValue === '' || initialValue === undefined) {
-        initialValue = 0;
-      } else {
-        const num = Number(initialValue);
-        initialValue = isNaN(num) ? 0 : num;
+      // Normalize empty values: set to null for strings, 0 for numbers
+      if (newValue === '' || newValue === null || newValue === undefined) {
+        // Check if this is a numeric field based on column type
+        const isNumericField = colDef.type === 'numericColumn' || 
+          field === 'asset_size' || 
+          field?.startsWith('sub_asset_size_') || 
+          field === 'tax_region';
+        
+        if (isNumericField) {
+          newValue = 0;
+        } else {
+          newValue = null;
+        }
       }
+
+      const updatedAsset = { ...data, [field]: newValue };
+      
+      // Even during refresh, if user manually changes a field, mark it as dirty
+      // This ensures user edits are not lost during refresh
+      setDirtyAssets(prev => {
+        const newMap = new Map(prev);
+        const existing = newMap.get(assetId) || {};
+        const changesToStore = { ...existing, [field]: newValue };
+        newMap.set(assetId, changesToStore);
+        return newMap;
+      });
+      
+      // Update assets state without triggering validation
+      setAssets(prevAssets =>
+        prevAssets.map(asset =>
+          String(asset.asset_id) === String(assetId) ? updatedAsset : asset
+        )
+      );
+      return;
     }
-
-    cellEditStartValues.current.set(cellKey, initialValue);
-    cellEditUserInteracted.current.set(cellKey, false);
-  }, [isNumericField]);
-
-  const onCellValueChanged = useCallback((event: CellValueChangedEvent) => {
-    if (isRefreshingAfterSaveRef.current) return;
-
+    
     try {
-      const data = event.data as Asset;
-      const field = event.column?.getColId() || '';
-      const oldValue = event.oldValue;
-      const rawNewValue = event.newValue;
+      const { data, colDef } = event;
+      const field = colDef.field;
       const assetId = String(data.asset_id);
       const isNew = newAssets.has(assetId);
+      const oldValue = event.oldValue;
+      let newValue = event.newValue;
+      
       const cellKey = `${assetId}_${field}`;
+      const editStartValue = cellEditStartValues.current.get(cellKey);
+      const userInteracted = cellEditUserInteracted.current.get(cellKey);
 
-      let newValue = rawNewValue;
+      // Normalize empty values: set to null for strings, 0 for numbers
       if (newValue === '' || newValue === null || newValue === undefined) {
-        newValue = isNumericField(field) ? 0 : null;
+        // Check if this is a numeric field based on column type
+        const isNumericField = colDef.type === 'numericColumn' || 
+          field === 'asset_size' || 
+          field?.startsWith('sub_asset_size_') || 
+          field === 'tax_region';
+        
+        if (isNumericField) {
+          newValue = 0;
+        } else {
+          newValue = null;
+        }
       }
 
-      const normOld = normalizeValue(oldValue, field);
-      const normNew = normalizeValue(newValue, field);
+      // Quick normalization for comparison
+      const normalizeQuick = (val: any): any => {
+        if (val == null || val === '') {
+          const isNumericField = colDef.type === 'numericColumn' || 
+            field === 'asset_size' || 
+            field?.startsWith('sub_asset_size_') || 
+            field === 'tax_region';
+          return isNumericField ? 0 : null;
+        }
+        if (typeof val === 'string') return val.trim() || null;
+        if (typeof val === 'number') return isNaN(val) ? null : val;
+        return val;
+      };
+      
+      const normOld = normalizeQuick(oldValue);
+      const normNew = normalizeQuick(newValue);
       const valuesAreSame = normOld === normNew || (normOld == null && normNew == null);
+      
+      // CRITICAL: If user didn't interact and values are the same, skip entirely
+      // This prevents dirty state from being set when just clicking a cell without editing
+      if (userInteracted === false && valuesAreSame && !isNew) {
+        cellEditStartValues.current.delete(cellKey);
+        cellEditUserInteracted.current.delete(cellKey);
+        return; // EARLY RETURN - don't mark dirty, don't update state
+      }
+      
+      // If onCellValueChanged is called AND values are different, mark as interacted
+      // This means the user actually typed something that changed the value
+      if (!valuesAreSame && editStartValue !== undefined) {
+        cellEditUserInteracted.current.set(cellKey, true);
+      }
 
-      cellEditStartValues.current.delete(cellKey);
-      cellEditUserInteracted.current.delete(cellKey);
-
+      // Create updated asset with new value
       let updatedAsset = { ...data, [field]: newValue };
 
+      // Handle main_asset_type changes (no online validation; only apply safe auto-fixes)
       if (field === 'main_asset_type' && newValue) {
         const newAssetTypeName = String(newValue).trim();
-        const newAssetType = assetTypes?.find(at => String(at.name).trim() === newAssetTypeName);
+        const newAssetType = assetTypes?.find(at => {
+          const atNameStr = String(at.name).trim();
+          return atNameStr === newAssetTypeName;
+        });
+        
+        // If asset type not found, try numeric comparison
         const newAssetTypeFinal = newAssetType || assetTypes?.find(at => {
           const atNameNum = parseInt(String(at.name).trim(), 10);
           const newTypeNum = parseInt(newAssetTypeName, 10);
           return !isNaN(atNameNum) && !isNaN(newTypeNum) && atNameNum === newTypeNum;
         });
 
-        if (newAssetTypeFinal?.non_accountable_for_distribution === true) {
-          const currentArea = updatedAsset.business_distribution_area || 0;
-          if (currentArea > 0) {
-            updatedAsset = { ...updatedAsset, business_distribution_area: 0 };
+        if (newAssetTypeFinal) {
+          // If new asset type has non_accountable_for_distribution = true and asset has business_distribution_area > 0, set it to 0
+          if (newAssetTypeFinal.non_accountable_for_distribution === true) {
+            const currentAreaFromDistribution = updatedAsset.business_distribution_area || 0;
+            if (currentAreaFromDistribution > 0) {
+              updatedAsset = { ...updatedAsset, business_distribution_area: 0 };
+            }
           }
         }
       }
 
-      const shouldMarkAsDirty = isNew
-        ? (newValue != null && newValue !== '')
-        : !valuesAreSame;
-
+      // Only mark as dirty if value actually changed (or if it's a new asset with a value)
+      const shouldMarkAsDirty = isNew 
+        ? (newValue != null && newValue !== '') // New assets: mark if has value
+        : !valuesAreSame; // Existing assets: mark only if changed
+      
       if (shouldMarkAsDirty) {
+        // Track the change in dirtyAssets immediately (no debounce)
         setDirtyAssets(prev => {
           const newMap = new Map(prev);
           const existing = newMap.get(assetId) || {};
           const changesToStore = { ...existing, [field]: newValue };
+          // Also include business_distribution_area change if it was set to 0
           if (updatedAsset.business_distribution_area !== data.business_distribution_area) {
             changesToStore.business_distribution_area = updatedAsset.business_distribution_area;
           }
@@ -658,6 +860,7 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
           return newMap;
         });
       } else {
+        // Value didn't change, remove from dirty if it was there
         setDirtyAssets(prev => {
           const newMap = new Map(prev);
           const existing = newMap.get(assetId) || {};
@@ -674,10 +877,14 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
         });
       }
 
+      // Don't update assets state here - wait until editing stops to prevent re-renders on every keystroke
+      // The grid will show the updated value immediately via its internal state
+      // We'll update our state in onCellEditingStopped
+      // Also don't refresh cells here - wait until editing stops to prevent re-renders during typing
+
+      // No online validation on edit: user must click Validate.
+      // Use startTransition to prevent blocking the UI during typing
       startTransition(() => {
-        setAssets(prev => prev.map(a =>
-          String(a.asset_id) === assetId ? updatedAsset : a
-        ));
         setIsValidatedForSave(false);
         setValidationErrors(new Map());
       });
@@ -687,7 +894,124 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
       setToast({ message: 'Failed to track change', type: 'error' });
       setTimeout(() => setToast(null), 3000);
     }
-  }, [assetTypes, newAssets, isNumericField, normalizeValue]);
+  }, [validationTaxRegion, assetTypes, building, setAssets, taxRegion, newAssets, originalAssets]);
+
+  // Track when cell editing starts - store initial value
+  const onCellEditingStarted = useCallback((event: any) => {
+    if (!event || !event.data || !event.colDef) return;
+    
+    const field = event.colDef?.field;
+    const asset = event.data as Asset;
+    if (!field || !asset) return;
+    
+    const assetId = String(asset.asset_id);
+    const cellKey = `${assetId}_${field}`;
+    
+    // Check if this is a numeric field
+    const isNumericField = event.colDef?.type === 'numericColumn' ||
+      field === 'asset_size' || 
+      field?.startsWith('sub_asset_size_') || 
+      field === 'tax_region';
+    
+    // Get initial value from the asset data
+    let initialValue = (asset as any)[field];
+    
+    // Normalize initial value for numeric fields - treat null/undefined/empty as 0
+    if (isNumericField) {
+      if (initialValue == null || initialValue === '' || initialValue === undefined) {
+        initialValue = 0;
+      } else {
+        const num = Number(initialValue);
+        initialValue = isNaN(num) ? 0 : num;
+      }
+    }
+    
+    // Store initial value and mark that editing started (but user hasn't interacted yet)
+    cellEditStartValues.current.set(cellKey, initialValue);
+    cellEditUserInteracted.current.set(cellKey, false); // User hasn't interacted yet
+  }, []);
+
+  // Ensure clearing a cell (e.g. numeric → 0) always triggers dirty. onCellValueChanged may not
+  // fire when parsed value equals current (e.g. 0→0). onCellEditingStopped always fires when edit ends.
+  const onCellEditingStopped = useCallback((event: any) => {
+    if (isRefreshingAfterSaveRef.current) return;
+    const { data, column, colDef } = event;
+    const field = colDef?.field ?? column?.getColDef?.()?.field;
+    if (!data?.asset_id || !field) return;
+    const assetId = String(data.asset_id);
+    const isNew = newAssets.has(assetId);
+    const cellKey = `${assetId}_${field}`;
+    const editStartValue = cellEditStartValues.current.get(cellKey);
+    const userInteracted = cellEditUserInteracted.current.get(cellKey);
+    
+    let newValue = event.newValue ?? event.node?.data?.[field];
+    if (newValue === '' || newValue === null || newValue === undefined) {
+      const isNumericField = colDef?.type === 'numericColumn' ||
+        field === 'asset_size' || field?.startsWith('sub_asset_size_') ||
+        field === 'tax_region';
+      newValue = isNumericField ? 0 : null;
+    }
+    
+    // Normalize for comparison
+    const normalizeForCompare = (val: any): any => {
+      if (val == null || val === '') {
+        const isNumericField = colDef?.type === 'numericColumn' ||
+          field === 'asset_size' || field?.startsWith('sub_asset_size_') ||
+          field === 'tax_region';
+        return isNumericField ? 0 : null;
+      }
+      if (typeof val === 'number') return isNaN(val) ? null : val;
+      if (typeof val === 'string') return val.trim() || null;
+      return val;
+    };
+    
+    const normalizedNewValue = normalizeForCompare(newValue);
+    const normalizedStartValue = normalizeForCompare(editStartValue);
+    
+    // If we have a tracked start value, compare with it
+    let valueChanged = false;
+    if (editStartValue !== undefined) {
+      valueChanged = normalizedNewValue !== normalizedStartValue;
+    } else {
+      // Fallback: compare with original asset value
+      const originalAsset = !isNew ? originalAssets.find(a => String(a.asset_id) === assetId) : null;
+      const originalValue = originalAsset ? (originalAsset as any)[field] : undefined;
+      let normalizedOriginalValue = normalizeForCompare(originalValue);
+      valueChanged = normalizedNewValue !== normalizedOriginalValue;
+    }
+    
+    // CRITICAL: If user didn't interact (just clicked without typing) OR value didn't change, skip entirely
+    if (!isNew && (userInteracted === false || !valueChanged)) {
+      // Clean up tracking
+      cellEditStartValues.current.delete(cellKey);
+      cellEditUserInteracted.current.delete(cellKey);
+      return; // EARLY RETURN - don't mark dirty, don't update state
+    }
+    
+    // Clean up tracking
+    cellEditStartValues.current.delete(cellKey);
+    cellEditUserInteracted.current.delete(cellKey);
+    
+    // Only update if value changed (or if it's a new asset)
+    if (isNew || valueChanged) {
+      setDirtyAssets(prev => {
+        const next = new Map(prev);
+        const existing = next.get(assetId) || {};
+        next.set(assetId, { ...existing, [field]: newValue });
+        return next;
+      });
+      // Update assets state only when editing stops (not on every keystroke)
+      // This prevents re-renders during typing and improves performance
+      // Use startTransition to prevent blocking the UI
+      startTransition(() => {
+        setAssets(prev => prev.map(a =>
+          String(a.asset_id) === assetId ? { ...a, [field]: newValue } : a
+        ));
+        setIsValidatedForSave(false);
+        setValidationErrors(new Map());
+      });
+    }
+  }, [newAssets, originalAssets]);
 
   // Helper function to run validation programmatically (without modal)
   async function runValidationProgrammatically(): Promise<{ hasErrors: boolean; errorMessage?: string }> {
@@ -1041,6 +1365,20 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
         setValidationErrors(newValidationErrors);
         setIsValidatedForSave(false);
 
+        // Refresh grid to show the validation errors - specifically refresh actions column and row styling
+        if (gridRef.current?.api) {
+          // Refresh actions column and cells with validation errors
+          gridRef.current.api.refreshCells({
+            columns: ['actions'],
+            force: false
+          });
+          // Lightweight refresh to update cell styling for validation errors
+          setTimeout(() => {
+            if (gridRef.current?.api) {
+              gridRef.current.api.refreshCells({ force: false });
+            }
+          }, 50);
+        }
       } else {
         // Clear validation errors if all assets are valid
         setValidationErrors(new Map());
@@ -1142,6 +1480,36 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
         });
         setTimeout(() => setToast(null), 8000);
         
+        // Force immediate grid refresh to show validation errors
+        // The validationErrors state is set inside runValidationProgrammatically
+        // Use requestAnimationFrame to ensure React has processed the state update
+        requestAnimationFrame(() => {
+          setTimeout(() => {
+            if (gridRef.current?.api) {
+              if (process.env.NODE_ENV === 'development') {
+              }
+              
+              // Lightweight refresh to show validation errors on rows
+              gridRef.current.api.refreshCells({ force: false });
+
+              // Scroll to first error row if possible
+              setTimeout(() => {
+                if (gridRef.current?.api && validationErrors.size > 0) {
+                  const firstErrorAssetId = Array.from(validationErrors.keys())[0];
+                  if (process.env.NODE_ENV === 'development') {
+                  }
+                  gridRef.current.api.forEachNode(node => {
+                    const assetId = String(node.data?.asset_id);
+                    if (assetId === firstErrorAssetId) {
+                      node.setSelected(true);
+                      gridRef.current.api.ensureNodeVisible(node, 'top');
+                    }
+                  });
+                }
+              }, 200);
+            }
+          }, 200); // Give React time to update state
+        });
         
         return; // Stop here - don't proceed to save
       }
@@ -1501,7 +1869,21 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
       // This is especially important in error fixing mode where fetchData would re-mark them
       recentlySavedAssetsRef.current = new Set(successfullySaved);
       
+      // Set flag to prevent onCellValueChanged from triggering validations during refresh
+      // Set this BEFORE fetchData to prevent any cell change events during the refresh
       isRefreshingAfterSaveRef.current = true;
+      
+      // Preserve scroll position and selection before refresh
+      let scrollPosition = { top: 0, left: 0 };
+      let selectedRows: any[] = [];
+      if (gridRef.current?.api) {
+        const scrollInfo = gridRef.current.api.getVerticalPixelRange();
+        scrollPosition = {
+          top: scrollInfo.top || 0,
+          left: gridRef.current.api.getHorizontalPixelRange()?.left || 0
+        };
+        selectedRows = gridRef.current.api.getSelectedRows();
+      }
       
       // Check if distribution flags might have changed due to asset saves
       // Distribution flags can change when:
@@ -1632,6 +2014,29 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
         // This ensures no loading overlay appears during data refresh
       }
       
+      // Restore scroll position and selection after a brief delay to allow grid to update
+      if (gridRef.current?.api && (scrollPosition.top > 0 || selectedRows.length > 0)) {
+        setTimeout(() => {
+          if (gridRef.current?.api) {
+            // Restore scroll position
+            gridRef.current.api.ensureIndexVisible(
+              Math.floor(scrollPosition.top / 24) // Approximate row index (24px per row)
+            );
+            // Restore selection if possible
+            if (selectedRows.length > 0) {
+              const assetIds = selectedRows.map(r => String(r.asset_id)).filter(Boolean);
+              gridRef.current.api.forEachNode(node => {
+                if (assetIds.includes(String(node.data?.asset_id))) {
+                  node.setSelected(true);
+                }
+              });
+            }
+          }
+        }, 100);
+      }
+      
+      // Keep the flag set for a longer period to ensure all grid updates complete
+      // AG Grid may batch updates, so we need to wait for all re-renders to finish
       setTimeout(() => {
         isRefreshingAfterSaveRef.current = false;
         // Clear the recently saved assets after a delay to allow fetchData to complete
@@ -1765,12 +2170,23 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
           return newMap;
         });
         
+        // Refresh grid to show validation errors
+        if (gridRef.current?.api) {
+          gridRef.current.api.refreshCells({ force: false });
+        }
       }
     }).catch(err => {
       console.error('[AssetsList] Error validating new asset:', err);
       // Don't block adding the asset if validation fails
     });
 
+    setTimeout(() => {
+      if (gridRef.current) {
+        const rowIndex = 0;
+        gridRef.current.api.setFocusedCell(rowIndex, 'asset_id');
+        gridRef.current.api.startEditingCell({ rowIndex, colKey: 'asset_id' });
+      }
+    }, 100);
   };
 
   const toggleDelete = useCallback((assetId: string) => {
@@ -1784,6 +2200,10 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
       return newSet;
     });
     
+    // Refresh the grid to update row styling
+    if (gridRef.current?.api) {
+      gridRef.current.api.refreshCells({ force: false });
+    }
   }, []);
 
   const handleCancelAll = () => {
@@ -1800,6 +2220,12 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
     setToast({ message: 'השינויים בוטלו', type: 'info' });
     setTimeout(() => setToast(null), 3000);
 
+    // Refresh the grid to show restored values
+    setTimeout(() => {
+      if (gridRef.current?.api) {
+        gridRef.current.api.refreshCells({ force: false });
+      }
+    }, 0);
   };
 
   // Distribute shared area to all residential assets
@@ -2329,6 +2755,10 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
       });
       setTimeout(() => setToast(null), 5000);
 
+      // Refresh grid
+      if (gridRef.current?.api) {
+        gridRef.current.api.refreshCells({ force: false });
+      }
     } catch (err) {
       setToast({ message: err instanceof Error ? err.message : 'שגיאה בפיזור שטח משותף', type: 'error' });
       setTimeout(() => setToast(null), 5000);
@@ -2592,6 +3022,10 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
       });
       setTimeout(() => setToast(null), 5000);
 
+      // Refresh grid
+      if (gridRef.current?.api) {
+        gridRef.current.api.refreshCells({ force: false });
+      }
     } catch (err) {
       setToast({ message: err instanceof Error ? err.message : 'שגיאה בפיזור שטח משותף עסקים', type: 'error' });
       setTimeout(() => setToast(null), 5000);
@@ -2733,22 +3167,24 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
   }, [assets, dirtyAssets, deletedAssets, buildingNumber, taxRegion]);
 
   // Helper function to get cell style for validation errors and read-only indication
-  const getCellStyle = useCallback((row: Asset): React.CSSProperties => {
-    if (!row) return { textAlign: 'right' };
+  const getCellStyle = useCallback((params: any) => {
+    if (!params || !params.data) return { textAlign: 'right' };
 
-    const assetId = String(row.asset_id);
+    const assetId = String(params.data?.asset_id);
     if (!assetId || assetId === 'undefined' || assetId === 'null') return { textAlign: 'right' };
 
+    // Safety check: ensure validationErrors and newAssets are defined
     if (!validationErrors || !newAssets) return { textAlign: 'right' };
 
     const isNewAsset = newAssets.has(assetId);
-    const isEditableRow = isNewAsset || !!taxRegion;
+    const isEditable = isNewAsset || !!taxRegion; // Editable if new asset OR tax region is selected
 
-    if (!isEditableRow) {
+    // Add visual indication for read-only cells (existing assets when no tax region)
+    if (!isEditable) {
       return {
         textAlign: 'right',
-        backgroundColor: '#f9fafb',
-        opacity: 0.8,
+        backgroundColor: '#f9fafb', // Light gray background for read-only
+        opacity: 0.8, // Slightly faded
         cursor: 'default'
       };
     }
@@ -2908,47 +3344,226 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
     return !taxRegion || (taxRegion && taxRegion.includes(','));
   }, [taxRegion]);
 
+  const detailColumnDefs: ColDef<Asset>[] = useMemo(() => {
+    const defs: ColDef<Asset>[] = [
+    {
+      field: 'measurement_date',
+      headerName: t('measurementDate'),
+      cellStyle: { textAlign: 'right', backgroundColor: '#fef3c7', fontWeight: '600' }
+    },
+    {
+      field: 'main_asset_type',
+      headerName: t('mainAssetType'),
+      tooltipValueGetter: (params) => {
+        if (!params.value) return '';
+        const assetType = assetTypes.find(at => at.name === params.value);
+        return assetType?.description || params.value;
+      },
+      cellStyle: (params: any) => getCellStyle(params)
+    },
+    {
+      field: 'asset_size',
+      headerName: !isResidentTaxRegion ? 'גודל נכס ללא שטח משותף' : t('mainAssetSize'),
+      valueFormatter: (params) => params.value ? params.value.toLocaleString() : '',
+      cellStyle: (params: any) => getCellStyle(params)
+    },
+    {
+      field: 'sub_asset_type_1',
+      headerName: t('subAssetType1'),
+      tooltipValueGetter: (params) => {
+        if (!params.value) return '';
+        const assetType = assetTypes.find(at => at.name === params.value);
+        return assetType?.description || params.value;
+      },
+      cellStyle: (params: any) => getCellStyle(params)
+    },
+    {
+      field: 'sub_asset_size_1',
+      headerName: t('subAssetSize1'),
+      valueFormatter: (params) => params.value ? params.value.toLocaleString() : '',
+      cellStyle: (params: any) => getCellStyle(params)
+    },
+    {
+      field: 'sub_asset_type_2',
+      headerName: t('subAssetType2'),
+      tooltipValueGetter: (params) => {
+        if (!params.value) return '';
+        const assetType = assetTypes.find(at => at.name === params.value);
+        return assetType?.description || params.value;
+      },
+      cellStyle: (params: any) => getCellStyle(params)
+    },
+    {
+      field: 'sub_asset_size_2',
+      headerName: t('subAssetSize2'),
+      valueFormatter: (params) => params.value ? params.value.toLocaleString() : '',
+      cellStyle: (params: any) => getCellStyle(params)
+    },
+    {
+      field: 'apartment_number',
+      headerName: 'מספר דירה',
+      cellStyle: { textAlign: 'right' }
+    },
+    {
+      field: 'apartment_floor',
+      headerName: 'קומת דירה',
+      cellStyle: { textAlign: 'right' }
+    },
+    {
+      field: 'storage_number',
+      headerName: 'מספר מחסן',
+      cellStyle: { textAlign: 'right' }
+    },
+    {
+      field: 'storage_floor',
+      headerName: 'קומת מחסן',
+      cellStyle: { textAlign: 'right' }
+    },
+    {
+      field: 'discount_type',
+      headerName: 'סוג הנחה',
+      cellStyle: { textAlign: 'right' }
+    },
+    {
+      field: 'discount_date_from',
+      headerName: 'תאריך הנחה מ',
+      cellStyle: { textAlign: 'right' },
+      valueFormatter: (params) => formatDateToDDMMYYYY(params.value)
+    },
+    {
+      field: 'discount_date_to',
+      headerName: 'תאריך הנחה עד',
+      cellStyle: { textAlign: 'right' },
+      valueFormatter: (params) => formatDateToDDMMYYYY(params.value)
+    },
+    {
+      field: 'comment',
+      headerName: 'הערה',
+      editable: (params) => {
+        const fieldName = params.colDef?.field || '';
+        return isFieldEditable(params, fieldName);
+      },
+      cellEditor: 'agLargeTextCellEditor',
+      cellEditorParams: {
+        maxLength: 1000,
+        rows: 5,
+        cols: 50
+      },
+      cellEditorPopup: true,
+      cellEditorPopupPosition: 'over',
+      cellRenderer: (params: any) => {
+        const hasValue = params.value && params.value.trim() !== '';
+        const isEditable = isFieldEditable(params, 'comment');
+        return (
+          <div 
+            style={{ 
+              display: 'flex', 
+              alignItems: 'center', 
+              justifyContent: hasValue ? 'flex-end' : 'center', 
+              gap: '4px', 
+              direction: 'rtl', 
+              width: '100%', 
+              paddingRight: hasValue ? '4px' : '0', 
+              cursor: 'default', 
+              height: '100%' 
+            }}
+            onClick={(e) => {
+              if (!isEditable) {
+                e.stopPropagation();
+              }
+            }}
+          >
+            {hasValue && <span style={{ flex: 1, textAlign: 'right', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{params.value}</span>}
+            <MessageSquare size={16} style={{ color: hasValue ? '#2563eb' : '#94a3b8', flexShrink: 0 }} />
+          </div>
+        );
+      },
+      headerClass: 'ag-right-aligned-header',
+      cellStyle: (params: any) => getCellStyle(params),
+      tooltipValueGetter: (params) => params.value || ''
+    }
+    ];
+    
+    // Process all headers to add icons for long headers (>3 words)
+    return defs.map(colDef => {
+      if (colDef.headerName && typeof colDef.headerName === 'string') {
+        const processed = processColumnHeader(colDef.headerName);
+        return { ...colDef, ...processed };
+      }
+      return colDef;
+    });
+  }, [t, assetTypes, getCellStyle, isResidentTaxRegion]);
 
 
 
 
   // Create stable penthouse checkbox cellRenderer
-  const penthouseRenderer = useCallback((asset: Asset) => {
-    if (!asset) return null;
-
-    const assetIdStr = String(asset.asset_id);
-    if (!assetIdStr || assetIdStr === 'undefined' || assetIdStr === 'null') return null;
+  const penthouseCellRenderer = useCallback((params: any) => {
+    if (!params || !params.data) return null;
+    
+    const assetId = params.data?.asset_id;
+    if (!assetId || assetId === 'undefined' || assetId === 'null') return null;
+    
+    // Safety check: ensure newAssets and dirtyAssets are defined
     if (!newAssets || !dirtyAssets) return null;
-
+    
+    const assetIdStr = String(assetId);
+    const isNewAsset = newAssets.has(assetIdStr);
     const dirtyChanges = dirtyAssets.get(assetIdStr);
-    const currentValue = dirtyChanges && 'penthouse' in dirtyChanges
-      ? dirtyChanges.penthouse
-      : asset.penthouse;
+    const currentValue = dirtyChanges && 'penthouse' in dirtyChanges 
+      ? dirtyChanges.penthouse 
+      : params.data?.penthouse;
     const isChecked = currentValue === true || currentValue === 'כן';
-
+    
+    // Always show checkbox for both new and existing assets
     return (
       <div className="flex items-center justify-center h-full">
         <input
           type="checkbox"
           checked={isChecked}
           onChange={(e) => {
-            const newValue = e.target.checked;
-            setDirtyAssets(prev => {
-              const next = new Map(prev);
-              const existing = next.get(assetIdStr) || {};
-              next.set(assetIdStr, { ...existing, penthouse: newValue });
-              return next;
-            });
-            setAssets(prev => prev.map(a =>
+            const newValue = e.target.checked ? true : false;
+            
+            if (isNewAsset) {
+              // Track the change in dirtyAssets for new assets
+              setDirtyAssets(prev => {
+                const next = new Map(prev);
+                const existing = next.get(assetIdStr) || {};
+                next.set(assetIdStr, { ...existing, penthouse: newValue });
+                return next;
+              });
+            } else {
+              // Track the change in dirtyAssets for existing assets
+              setDirtyAssets(prev => {
+                const next = new Map(prev);
+                const existing = next.get(assetIdStr) || {};
+                next.set(assetIdStr, { ...existing, penthouse: newValue });
+                return next;
+              });
+            }
+            
+            // Update grid cell data directly
+            params.node.setDataValue('penthouse', newValue);
+            
+            // Update assets state
+            setAssets(prev => prev.map(a => 
               String(a.asset_id) === assetIdStr ? { ...a, penthouse: newValue } : a
             ));
-            setIsValidatedForSave(false);
+            
+            // Refresh only this specific cell
+            if (gridRef.current) {
+              gridRef.current.api.refreshCells({
+                rowNodes: [params.node],
+                columns: ['penthouse'],
+                force: false
+              });
+            }
           }}
           className="w-4 h-4 text-blue-600 rounded focus:ring-2 focus:ring-blue-500 cursor-pointer"
         />
       </div>
     );
-  }, [newAssets, dirtyAssets, setDirtyAssets, setAssets]);
+  }, [newAssets, dirtyAssets, setDirtyAssets, setAssets, gridRef]);
 
   // Switch to assets tab if transfer-history or distribution-history is active in residence tabs or multi-tax tabs
   useEffect(() => {
@@ -2993,41 +3608,59 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
     fetchHistoryCounts();
   }, [buildingNumber, isResidentTaxRegion, isMultiTaxRegion]);
 
-  const tableColumnDefs: ColDef<Asset>[] = useMemo(() => {
+  const columnDefs: ColDef<Asset>[] = useMemo(() => {
     const defs: ColDef<Asset>[] = [
     {
       colId: 'actions',
       headerName: t('actions'),
       editable: false,
       pinned: 'right',
+      lockPosition: true,
+      lockPinned: true,
+      suppressMovable: true,
+      suppressHeaderMenuButton: true,
+      sortable: false,
+      filter: false,
+      headerClass: 'ag-right-aligned-header',
       cellRenderer: (params: any) => {
         const asset = params.data as Asset;
         if (!asset) return null;
-
+        
         const assetId = String(asset.asset_id);
+        // Allow temporary IDs for new assets (e.g., "temp-1234567890")
         if (!assetId || assetId === 'undefined' || assetId === 'null') return null;
-
+        
+        // Safety checks for state variables - use empty defaults if undefined
         const safeNewAssets = newAssets || new Set<string>();
         const safeDeletedAssets = deletedAssets || new Set<string>();
         const safeValidationErrors = validationErrors || new Map<string, string>();
         const safeSelectedAssets = selectedAssets || new Set<string>();
-
+        
         const isNew = safeNewAssets.has(assetId);
         const isDeleted = safeDeletedAssets.has(assetId);
         const hasValidationError = safeValidationErrors.has(assetId);
-
+        
+        // Debug logging for validation errors
         if (process.env.NODE_ENV === 'development' && hasValidationError) {
         }
-
+        
+        // Show delete button only if a specific tax region is selected (same visibility logic as "Save All" and "Cancel" buttons)
+        // Delete button should be visible for all assets (new and existing), same as view asset button
+        // Hide delete button in error fixing mode
         const hasMultipleTaxRegions = building?.tax_region && building.tax_region.includes(',');
+        // If building has multiple tax regions, only show delete button when a specific taxRegion is selected
+        // If building has only one tax region, show delete button (taxRegion may or may not be set)
         const shouldShowDeleteButton = !isErrorFixingMode && (!hasMultipleTaxRegions || taxRegion);
-
+        
+        // Show checkbox in multi-tax-region mode (all assets view) or single tax region tab
+        // Checkbox should be hidden for new assets, same as view icon
+        // Hide checkbox in error fixing mode
         const shouldShowCheckbox = !isErrorFixingMode && !isNew && (
-          (!taxRegion && hasMultipleTaxRegions) ||
-          !!taxRegion
+          (!taxRegion && hasMultipleTaxRegions) || // All assets view when building has multiple tax regions
+          !!taxRegion // Specific tax region tab
         );
         const isSelected = safeSelectedAssets.has(assetId);
-
+        
         return (
           <div className="flex items-center justify-center gap-1 h-full">
             {shouldShowCheckbox && (
@@ -3051,6 +3684,7 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
               />
             )}
             {hasValidationError && safeValidationErrors && safeValidationErrors.has(assetId) && (() => {
+              // Validation tooltip component
               const ValidationTooltipButton = ({ errorMessage, onErrorClick }: { errorMessage: string, onErrorClick: () => void }) => {
                 const [isHovered, setIsHovered] = useState(false);
                 const [position, setPosition] = useState({ top: 0, right: 0 });
@@ -3140,15 +3774,22 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
       headerName: t('structureDrawing') || 'שרטוט מבנה',
       field: 'structure_drawing_url',
       pinned: 'right',
+      sortable: false,
+      filter: false,
       editable: false,
+      lockPosition: true,
+      lockPinned: true,
+      suppressMovable: true,
+      suppressHeaderMenuButton: true,
+      headerClass: 'ag-right-aligned-header',
       cellRenderer: (params: any) => {
         const asset = params.data as Asset;
         if (!asset) return null;
-
+        
         const assetId = String(asset.asset_id);
         const isNew = newAssets.has(assetId);
         const isUploading = uploadingAssetId === asset.asset_id;
-
+        
         return (
           <div className="flex items-center justify-center gap-1 h-full">
             {!isErrorFixingMode && !isNew && taxRegion && (
@@ -3209,14 +3850,21 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
       field: 'asset_id',
       headerName: t('assetId'),
       pinned: 'right',
-      editable: (params: any) => isFieldEditable(params.data, 'asset_id'),
+      lockPosition: true,
+      lockPinned: true,
+      suppressMovable: true,
+      editable: (params) => {
+        const fieldName = params.colDef?.field || '';
+        return isFieldEditable(params, fieldName);
+      },
+      headerClass: 'ag-right-aligned-header',
       cellStyle: (params: any) => {
-        const row = params.data as Asset;
-        const baseStyle = getCellStyle(row);
-        if (row && !newAssets.has(String(row.asset_id))) {
+        const baseStyle = getCellStyle(params);
+        const asset = params.data as Asset;
+        if (asset && !newAssets.has(String(asset.asset_id))) {
           return {
             ...baseStyle,
-            cursor: 'pointer',
+            cursor: 'default',
             color: '#059669',
             fontWeight: '600',
             textDecoration: 'underline',
@@ -3230,32 +3878,33 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
         const asset = params.data as Asset;
         if (!asset) return '';
         const isClickable = !newAssets.has(String(asset.asset_id));
-        const display = params.value != null ? String(params.value) : '';
+        const value = params.value != null ? String(params.value) : '';
+        
         if (isClickable) {
           return (
-            <span
+            <span 
               style={{
                 color: '#059669',
                 fontWeight: '600',
                 textDecoration: 'underline',
                 textDecorationColor: '#10b981',
                 textUnderlineOffset: '2px',
-                cursor: 'pointer',
+                cursor: 'default',
                 transition: 'all 0.2s ease'
               }}
               className="hover:text-emerald-700 hover:decoration-emerald-600"
               title={t('viewDetails') || 'לחץ לצפייה בפרטים'}
             >
-              {display}
+              {value}
             </span>
           );
         }
-        return display;
+        return value;
       },
       onCellClicked: (params: any) => {
-        const row = params.data as Asset;
-        if (row && !newAssets.has(String(row.asset_id))) {
-          const assetId = String(row.asset_id);
+        const asset = params.data as Asset;
+        if (asset && !newAssets.has(String(asset.asset_id))) {
+          const assetId = String(asset.asset_id);
           onSelectAsset(assetId, assetId, buildingNumber, validationTaxRegion);
         }
       }
@@ -3263,248 +3912,463 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
     {
       field: 'measurement_date',
       headerName: t('measurementDate'),
-      editable: (params: any) => isFieldEditable(params.data, 'measurement_date'),
+      editable: (params) => isFieldEditable(params, 'measurement_date'),
       cellStyle: (params: any) => {
-        const row = params.data as Asset;
-        if (!row) return { textAlign: 'right' };
-        const assetId = String(row.asset_id);
-        if (!assetId || assetId === 'undefined' || assetId === 'null') return { textAlign: 'right' };
-        if (!newAssets) return { textAlign: 'right' };
+        if (!params || !params.data) {
+          return { textAlign: 'right' };
+        }
+        
+        const assetId = String(params.data?.asset_id);
+        if (!assetId || assetId === 'undefined' || assetId === 'null') {
+          return { textAlign: 'right' };
+        }
+        
+        // Safety check: ensure newAssets is defined
+        if (!newAssets) {
+          return { textAlign: 'right' };
+        }
+        
         const isNewAsset = newAssets.has(assetId);
-        if (isNewAsset) return getCellStyle(row);
-        return {
-          textAlign: 'right',
-          backgroundColor: '#ecfdf5',
-          fontWeight: '700',
+        
+        // For new assets, use the standard cell style (with validation/read-only indication)
+        if (isNewAsset) {
+          return getCellStyle(params);
+        }
+        
+        // For existing assets, use the special green background style (read-only)
+        return { 
+          textAlign: 'right', 
+          backgroundColor: '#ecfdf5', 
+          fontWeight: '700', 
           color: '#065f46',
           opacity: 0.8,
           cursor: 'default'
         };
       },
-      valueFormatter: (params: any) => formatDateToDDMMYYYY(params.value)
+      headerClass: 'ag-right-aligned-header',
+      valueFormatter: (params) => formatDateToDDMMYYYY(params.value)
     },
     {
       field: 'payer_id',
       headerName: t('payerId'),
-      editable: (params: any) => isFieldEditable(params.data, 'payer_id'),
-      cellStyle: (params: any) => getCellStyle(params.data)
+      editable: (params) => isFieldEditable(params, 'payer_id'),
+      headerClass: 'ag-right-aligned-header',
+      cellStyle: (params: any) => getCellStyle(params)
     },
     {
       field: 'tax_region',
       headerName: 'אזור מס',
       headerTooltip: 'אזור מס',
-      tooltipValueGetter: (params: any) => params.value == null ? '' : getAreaDescriptionForTaxRegion(params.value),
-      editable: (params: any) => isFieldEditable(params.data, 'tax_region'),
-      type: 'numericColumn',
-      valueSetter: (params: any) => {
-        const n = parseInt(params.newValue, 10);
-        params.data.tax_region = isNaN(n) ? 0 : n;
-        return true;
+      tooltipValueGetter: (params) => {
+        if (params.value == null) return '';
+        return getAreaDescriptionForTaxRegion(params.value);
       },
-      cellStyle: (params: any) => getCellStyle(params.data)
+      editable: (params) => isFieldEditable(params, 'tax_region'),
+      type: 'numericColumn',
+      valueParser: (params) => numericValueParserInt(params, 10),
+      headerClass: 'ag-right-aligned-header',
+      cellStyle: (params: any) => getCellStyle(params)
     },
     {
       colId: 'penthouse',
       field: 'penthouse',
       headerName: 'דירת גג',
       editable: false,
-      cellStyle: (params: any) => getCellStyle(params.data),
-      cellRenderer: (params: any) => penthouseRenderer(params.data),
-      hide: !isResidentTaxRegion
+      headerClass: 'ag-right-aligned-header',
+      cellStyle: (params: any) => getCellStyle(params),
+      cellRenderer: penthouseCellRenderer,
+      hide: !isResidentTaxRegion // Hide penthouse for business assets (only show for residence)
     },
     {
       field: 'apartment_number',
       headerName: 'מספר דירה',
-      editable: (params: any) => isFieldEditable(params.data, 'apartment_number'),
-      cellStyle: (params: any) => getCellStyle(params.data)
+      editable: (params) => isFieldEditable(params, 'apartment_number'),
+      headerClass: 'ag-right-aligned-header',
+      cellStyle: (params: any) => getCellStyle(params)
     },
     {
       field: 'apartment_floor',
       headerName: 'קומת דירה',
-      editable: (params: any) => isFieldEditable(params.data, 'apartment_floor'),
-      cellStyle: (params: any) => getCellStyle(params.data)
+      editable: (params) => isFieldEditable(params, 'apartment_floor'),
+      headerClass: 'ag-right-aligned-header',
+      cellStyle: (params: any) => getCellStyle(params)
     },
     {
       field: 'storage_number',
       headerName: 'מספר מחסן',
-      editable: (params: any) => isFieldEditable(params.data, 'storage_number'),
-      cellStyle: (params: any) => getCellStyle(params.data)
+      editable: (params) => isFieldEditable(params, 'storage_number'),
+      headerClass: 'ag-right-aligned-header',
+      cellStyle: (params: any) => getCellStyle(params)
     },
     {
       field: 'storage_floor',
       headerName: 'קומת מחסן',
-      editable: (params: any) => isFieldEditable(params.data, 'storage_floor'),
-      cellStyle: (params: any) => getCellStyle(params.data)
+      editable: (params) => isFieldEditable(params, 'storage_floor'),
+      headerClass: 'ag-right-aligned-header',
+      cellStyle: (params: any) => getCellStyle(params)
     },
     {
       field: 'discount_type',
       headerName: 'סוג הנחה',
-      editable: (params: any) => isFieldEditable(params.data, 'discount_type'),
-      cellStyle: (params: any) => getCellStyle(params.data)
+      editable: (params) => isFieldEditable(params, 'discount_type'),
+      headerClass: 'ag-right-aligned-header',
+      cellStyle: (params: any) => getCellStyle(params)
     },
     {
       field: 'discount_date_from',
       headerName: 'תאריך הנחה מ',
-      editable: (params: any) => isFieldEditable(params.data, 'discount_date_from'),
-      cellStyle: (params: any) => getCellStyle(params.data),
-      valueFormatter: (params: any) => formatDateToDDMMYYYY(params.value)
+      editable: (params) => isFieldEditable(params, 'discount_date_from'),
+      headerClass: 'ag-right-aligned-header',
+      cellStyle: (params: any) => getCellStyle(params),
+      valueFormatter: (params) => formatDateToDDMMYYYY(params.value)
     },
     {
       field: 'discount_date_to',
       headerName: 'תאריך הנחה עד',
-      editable: (params: any) => isFieldEditable(params.data, 'discount_date_to'),
-      cellStyle: (params: any) => getCellStyle(params.data),
-      valueFormatter: (params: any) => formatDateToDDMMYYYY(params.value)
+      editable: (params) => isFieldEditable(params, 'discount_date_to'),
+      headerClass: 'ag-right-aligned-header',
+      cellStyle: (params: any) => getCellStyle(params),
+      valueFormatter: (params) => formatDateToDDMMYYYY(params.value)
     },
     {
       field: 'comment',
       headerName: 'הערה',
-      editable: (params: any) => isFieldEditable(params.data, 'comment'),
+      editable: (params) => {
+        const fieldName = params.colDef?.field || '';
+        return isFieldEditable(params, fieldName);
+      },
       cellEditor: 'agLargeTextCellEditor',
-      cellEditorParams: { maxLength: 1000, rows: 5, cols: 50 },
+      cellEditorParams: {
+        maxLength: 1000,
+        rows: 5,
+        cols: 50
+      },
       cellEditorPopup: true,
       cellEditorPopupPosition: 'over',
       cellRenderer: (params: any) => {
-        const value = params.value;
-        const hasValue = value && String(value).trim() !== '';
+        const hasValue = params.value && params.value.trim() !== '';
+        const isEditable = isFieldEditable(params, 'comment');
         return (
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: hasValue ? 'flex-end' : 'center',
-              gap: '4px',
-              direction: 'rtl',
-              width: '100%',
-              paddingRight: hasValue ? '4px' : '0',
-              cursor: 'default',
-              height: '100%'
+          <div 
+            style={{ 
+              display: 'flex', 
+              alignItems: 'center', 
+              justifyContent: hasValue ? 'flex-end' : 'center', 
+              gap: '4px', 
+              direction: 'rtl', 
+              width: '100%', 
+              paddingRight: hasValue ? '4px' : '0', 
+              cursor: 'default', 
+              height: '100%' 
+            }}
+            onClick={(e) => {
+              if (!isEditable) {
+                e.stopPropagation();
+              }
             }}
           >
-            {hasValue && <span style={{ flex: 1, textAlign: 'right', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{value}</span>}
+            {hasValue && <span style={{ flex: 1, textAlign: 'right', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{params.value}</span>}
             <MessageSquare size={16} style={{ color: hasValue ? '#2563eb' : '#94a3b8', flexShrink: 0 }} />
           </div>
         );
       },
-      cellStyle: (params: any) => getCellStyle(params.data),
-      tooltipValueGetter: (params: any) => params.value || ''
+      headerClass: 'ag-right-aligned-header',
+      cellStyle: (params: any) => getCellStyle(params),
+      tooltipValueGetter: (params) => params.value || ''
     },
     {
       field: 'main_asset_type',
-      headerName: t('mainAssetType'),
-      headerTooltip: t('mainAssetType'),
-      editable: (params: any) => isFieldEditable(params.data, 'main_asset_type'),
-      tooltipValueGetter: (params: any) => {
+      ...processColumnHeader(t('mainAssetType')),
+      editable: (params) => isFieldEditable(params, 'main_asset_type'),
+      tooltipValueGetter: (params) => {
         if (!params.value) return '';
         const assetType = assetTypes.find(at => at.name === params.value);
         return assetType?.description || params.value;
       },
-      cellStyle: (params: any) => getCellStyle(params.data)
+      headerClass: 'ag-right-aligned-header',
+      cellStyle: (params: any) => getCellStyle(params)
     },
     {
       field: 'asset_size',
       headerName: !isResidentTaxRegion ? 'גודל נכס ללא שטח משותף' : t('mainAssetSize'),
-      editable: (params: any) => isFieldEditable(params.data, 'asset_size'),
+      editable: (params) => isFieldEditable(params, 'asset_size'),
       type: 'numericColumn',
-      valueSetter: (params: any) => {
-        const n = Number(params.newValue);
-        params.data.asset_size = isNaN(n) ? 0 : n;
-        return true;
-      },
-      valueFormatter: (params: any) => {
+      valueParser: (params) => numericValueParser(params),
+      valueFormatter: (params) => {
         const val = params.value;
         if (val === null || val === undefined || val === '' || val === 0) return '';
         const num = typeof val === 'number' ? val : parseFloat(val);
         return isNaN(num) || num === 0 ? '' : num.toFixed(2);
       },
-      cellStyle: (params: any) => getCellStyle(params.data)
+      headerClass: 'ag-right-aligned-header',
+      cellStyle: (params: any) => getCellStyle(params)
     },
-    ...([1,2,3,4,5,6] as const).flatMap(i => [
-      {
-        field: `sub_asset_type_${i}`,
-        headerName: t(`subAssetType${i}`),
-        editable: (params: any) => isFieldEditable(params.data, `sub_asset_type_${i}`),
-        tooltipValueGetter: (params: any) => {
-          if (!params.value) return '';
-          const at = assetTypes.find(a => a.name === params.value);
-          return at?.description || params.value;
-        },
-        cellStyle: (params: any) => getCellStyle(params.data)
-      } as ColDef<Asset>,
-      {
-        field: `sub_asset_size_${i}`,
-        headerName: t(`subAssetSize${i}`),
-        editable: (params: any) => isFieldEditable(params.data, `sub_asset_size_${i}`),
-        type: 'numericColumn',
-        valueSetter: (params: any) => {
-          const n = Number(params.newValue);
-          params.data[`sub_asset_size_${i}`] = isNaN(n) ? 0 : n;
-          return true;
-        },
-        valueFormatter: (params: any) => {
-          const val = params.value;
-          if (val === null || val === undefined || val === '' || val === 0) return '';
-          const num = typeof val === 'number' ? val : parseFloat(val);
-          return isNaN(num) || num === 0 ? '' : num.toFixed(2);
-        },
-        cellStyle: (params: any) => getCellStyle(params.data)
-      } as ColDef<Asset>,
-    ]),
+    {
+      field: 'sub_asset_type_1',
+      headerName: t('subAssetType1'),
+      editable: (params) => {
+        const fieldName = params.colDef?.field || '';
+        return isFieldEditable(params, fieldName);
+      },
+      tooltipValueGetter: (params) => {
+        if (!params.value) return '';
+        const assetType = assetTypes.find(at => at.name === params.value);
+        return assetType?.description || params.value;
+      },
+      headerClass: 'ag-right-aligned-header',
+      cellStyle: (params: any) => getCellStyle(params)
+    },
+    {
+      field: 'sub_asset_size_1',
+      headerName: t('subAssetSize1'),
+      editable: (params) => {
+        const fieldName = params.colDef?.field || '';
+        return isFieldEditable(params, fieldName);
+      },
+      type: 'numericColumn',
+      valueParser: (params) => numericValueParser(params),
+      valueFormatter: (params) => {
+        const val = params.value;
+        if (val === null || val === undefined || val === '' || val === 0) return '';
+        const num = typeof val === 'number' ? val : parseFloat(val);
+        return isNaN(num) || num === 0 ? '' : num.toFixed(2);
+      },
+      headerClass: 'ag-right-aligned-header',
+      cellStyle: (params: any) => getCellStyle(params)
+    },
+    {
+      field: 'sub_asset_type_2',
+      headerName: t('subAssetType2'),
+      editable: (params) => {
+        const fieldName = params.colDef?.field || '';
+        return isFieldEditable(params, fieldName);
+      },
+      tooltipValueGetter: (params) => {
+        if (!params.value) return '';
+        const assetType = assetTypes.find(at => at.name === params.value);
+        return assetType?.description || params.value;
+      },
+      headerClass: 'ag-right-aligned-header',
+      cellStyle: (params: any) => getCellStyle(params)
+    },
+    {
+      field: 'sub_asset_size_2',
+      headerName: t('subAssetSize2'),
+      editable: (params) => {
+        const fieldName = params.colDef?.field || '';
+        return isFieldEditable(params, fieldName);
+      },
+      type: 'numericColumn',
+      valueParser: (params) => numericValueParser(params),
+      valueFormatter: (params) => {
+        const val = params.value;
+        if (val === null || val === undefined || val === '' || val === 0) return '';
+        const num = typeof val === 'number' ? val : parseFloat(val);
+        return isNaN(num) || num === 0 ? '' : num.toFixed(2);
+      },
+      headerClass: 'ag-right-aligned-header',
+      cellStyle: (params: any) => getCellStyle(params)
+    },
+    {
+      field: 'sub_asset_type_3',
+      headerName: t('subAssetType3'),
+      editable: (params) => {
+        const fieldName = params.colDef?.field || '';
+        return isFieldEditable(params, fieldName);
+      },
+      tooltipValueGetter: (params) => {
+        if (!params.value) return '';
+        const assetType = assetTypes.find(at => at.name === params.value);
+        return assetType?.description || params.value;
+      },
+      headerClass: 'ag-right-aligned-header',
+      cellStyle: (params: any) => getCellStyle(params)
+    },
+    {
+      field: 'sub_asset_size_3',
+      headerName: t('subAssetSize3'),
+      editable: (params) => {
+        const fieldName = params.colDef?.field || '';
+        return isFieldEditable(params, fieldName);
+      },
+      type: 'numericColumn',
+      valueParser: (params) => numericValueParser(params),
+      valueFormatter: (params) => {
+        const val = params.value;
+        if (val === null || val === undefined || val === '' || val === 0) return '';
+        const num = typeof val === 'number' ? val : parseFloat(val);
+        return isNaN(num) || num === 0 ? '' : num.toFixed(2);
+      },
+      headerClass: 'ag-right-aligned-header',
+      cellStyle: (params: any) => getCellStyle(params)
+    },
+    {
+      field: 'sub_asset_type_4',
+      headerName: t('subAssetType4'),
+      editable: (params) => {
+        const fieldName = params.colDef?.field || '';
+        return isFieldEditable(params, fieldName);
+      },
+      tooltipValueGetter: (params) => {
+        if (!params.value) return '';
+        const assetType = assetTypes.find(at => at.name === params.value);
+        return assetType?.description || params.value;
+      },
+      headerClass: 'ag-right-aligned-header',
+      cellStyle: (params: any) => getCellStyle(params)
+    },
+    {
+      field: 'sub_asset_size_4',
+      headerName: t('subAssetSize4'),
+      editable: (params) => {
+        const fieldName = params.colDef?.field || '';
+        return isFieldEditable(params, fieldName);
+      },
+      type: 'numericColumn',
+      valueParser: (params) => numericValueParser(params),
+      valueFormatter: (params) => {
+        const val = params.value;
+        if (val === null || val === undefined || val === '' || val === 0) return '';
+        const num = typeof val === 'number' ? val : parseFloat(val);
+        return isNaN(num) || num === 0 ? '' : num.toFixed(2);
+      },
+      headerClass: 'ag-right-aligned-header',
+      cellStyle: (params: any) => getCellStyle(params)
+    },
+    {
+      field: 'sub_asset_type_5',
+      headerName: t('subAssetType5'),
+      editable: (params) => {
+        const fieldName = params.colDef?.field || '';
+        return isFieldEditable(params, fieldName);
+      },
+      tooltipValueGetter: (params) => {
+        if (!params.value) return '';
+        const assetType = assetTypes.find(at => at.name === params.value);
+        return assetType?.description || params.value;
+      },
+      headerClass: 'ag-right-aligned-header',
+      cellStyle: (params: any) => getCellStyle(params)
+    },
+    {
+      field: 'sub_asset_size_5',
+      headerName: t('subAssetSize5'),
+      editable: (params) => {
+        const fieldName = params.colDef?.field || '';
+        return isFieldEditable(params, fieldName);
+      },
+      type: 'numericColumn',
+      valueParser: (params) => numericValueParser(params),
+      valueFormatter: (params) => {
+        const val = params.value;
+        if (val === null || val === undefined || val === '' || val === 0) return '';
+        const num = typeof val === 'number' ? val : parseFloat(val);
+        return isNaN(num) || num === 0 ? '' : num.toFixed(2);
+      },
+      headerClass: 'ag-right-aligned-header',
+      cellStyle: (params: any) => getCellStyle(params)
+    },
+    {
+      field: 'sub_asset_type_6',
+      headerName: t('subAssetType6'),
+      editable: (params) => {
+        const fieldName = params.colDef?.field || '';
+        return isFieldEditable(params, fieldName);
+      },
+      tooltipValueGetter: (params) => {
+        if (!params.value) return '';
+        const assetType = assetTypes.find(at => at.name === params.value);
+        return assetType?.description || params.value;
+      },
+      headerClass: 'ag-right-aligned-header',
+      cellStyle: (params: any) => getCellStyle(params)
+    },
+    {
+      field: 'sub_asset_size_6',
+      headerName: t('subAssetSize6'),
+      editable: (params) => {
+        const fieldName = params.colDef?.field || '';
+        return isFieldEditable(params, fieldName);
+      },
+      type: 'numericColumn',
+      valueParser: (params) => numericValueParser(params),
+      valueFormatter: (params) => {
+        const val = params.value;
+        if (val === null || val === undefined || val === '' || val === 0) return '';
+        const num = typeof val === 'number' ? val : parseFloat(val);
+        return isNaN(num) || num === 0 ? '' : num.toFixed(2);
+      },
+      headerClass: 'ag-right-aligned-header',
+      cellStyle: (params: any) => getCellStyle(params)
+    },
     {
       field: 'business_distribution_area',
       headerName: 'גודל שטח משותף',
-      editable: false,
+      editable: false, // Always readonly - only updated through distribution functions
       type: 'numericColumn',
-      valueFormatter: (params: any) => {
+      valueFormatter: (params) => {
         const val = params.value;
         if (val === null || val === undefined || val === '' || val === 0) return '';
         const num = typeof val === 'number' ? val : parseFloat(val);
         return isNaN(num) || num === 0 ? '' : num.toFixed(2);
       },
-      cellStyle: (params: any) => getCellStyle(params.data),
-      hide: isResidentTaxRegion
+      headerClass: 'ag-right-aligned-header',
+      cellStyle: (params: any) => getCellStyle(params),
+      hide: isResidentTaxRegion // Hide for residence assets (business_distribution_area is only for business distribution)
     },
     {
       field: 'business_total_area',
       headerName: 'סה"כ שטח עסקים',
-      editable: false,
+      editable: false, // Always readonly - calculated field
       type: 'numericColumn',
-      valueFormatter: (params: any) => {
+      valueFormatter: (params) => {
         const val = params.value;
         if (val === null || val === undefined || val === '' || val === 0) return '';
         const num = typeof val === 'number' ? val : parseFloat(val);
         return isNaN(num) || num === 0 ? '' : num.toFixed(2);
       },
-      cellStyle: (params: any) => getCellStyle(params.data),
-      hide: isResidentTaxRegion
+      headerClass: 'ag-right-aligned-header',
+      cellStyle: (params: any) => getCellStyle(params),
+      hide: isResidentTaxRegion // Hide for residence assets (business_total_area is only for business assets)
     },
     {
       field: 'extra_field',
       headerName: '',
-      editable: (params: any) => isFieldEditable(params.data, 'extra_field'),
-      cellStyle: (params: any) => getCellStyle(params.data)
+      editable: (params) => {
+        const fieldName = params.colDef?.field || '';
+        return isFieldEditable(params, fieldName);
+      },
+      headerClass: 'ag-right-aligned-header',
+      cellStyle: (params: any) => getCellStyle(params)
     },
     {
       field: 'extra_field_1',
       headerName: '',
       editable: false,
-      cellStyle: { textAlign: 'right' as const }
+      headerClass: 'ag-right-aligned-header',
+      cellStyle: { textAlign: 'right' }
     },
     {
       field: 'extra_field_2',
       headerName: '',
       editable: false,
-      cellStyle: { textAlign: 'right' as const }
+      headerClass: 'ag-right-aligned-header',
+      cellStyle: { textAlign: 'right' }
     }
     ];
+    
+    // Process all headers to add icons for long headers (>2 words)
+    return defs.map(colDef => {
+      if (colDef.headerName && typeof colDef.headerName === 'string') {
+        const processed = processColumnHeader(colDef.headerName);
+        return { ...colDef, ...processed };
+      }
+      return colDef;
+    });
+  }, [t, onSelectAsset, buildingNumber, assetTypes, newAssets, dirtyAssets, building, taxRegion, selectedAssets, deletedAssets, validationErrors, getCellStyle, isResidentTaxRegion, isFieldEditable, penthouseCellRenderer, assetsWithFiles]);
 
-    return defs.map(colDef => ({
-      ...colDef,
-      headerTooltip: colDef.headerTooltip || colDef.headerName
-    }));
-  }, [t, onSelectAsset, buildingNumber, assetTypes, newAssets, dirtyAssets, building, taxRegion, selectedAssets, deletedAssets, validationErrors, getCellStyle, isResidentTaxRegion, isFieldEditable, penthouseRenderer, assetsWithFiles]);
-
-  const configuredColumnDefs = useFieldConfig(tableColumnDefs, 'assets-list');
+  // Apply field configurations to column definitions (must be after columnDefs is defined)
+  const configuredColumnDefs = useFieldConfig(columnDefs, 'assets-list');
 
   // Check if all visible assets are residential assets (מגורים)
   // Sort assets to put errored rows first
@@ -4015,40 +4879,110 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
         
         {/* Tab Content */}
         {activeTab === 'assets' && (
-          <div className="ag-theme-alpine rounded-xl shadow-lg hover:shadow-xl transition-shadow duration-200 border border-blue-100" style={{ height: '60vh', width: '100%' }}>
-            <AgGridReact
-              rowData={sortedAssets}
-              columnDefs={configuredColumnDefs}
-              getRowId={(params) => String(params.data.asset_id)}
-              getRowStyle={(params) => {
-                if (!params.data) return undefined;
-                return getRowStyle(params.data) || undefined;
-              }}
-              defaultColDef={{
-                resizable: true,
-                wrapHeaderText: true,
-                autoHeaderHeight: true,
-                wrapText: true,
-                autoHeight: false,
-                cellStyle: { textAlign: 'right' },
-                minWidth: 40
-              }}
-              gridOptions={{
-                suppressColumnVirtualisation: true,
-                alwaysShowHorizontalScroll: true,
-                suppressMovableColumns: true,
-                suppressColumnMoveAnimation: true,
-              }}
-              onCellValueChanged={onCellValueChanged}
-              onCellEditingStarted={onCellEditingStarted}
-              stopEditingWhenCellsLoseFocus={true}
-              enterNavigatesVertically={true}
-              enterNavigatesVerticallyAfterEdit={true}
-              suppressScrollOnNewData={true}
-              enableRtl={true}
-              animateRows={false}
-              theme="legacy"
-            />
+          <div className="ag-theme-alpine rounded-xl shadow-lg hover:shadow-xl transition-shadow duration-200 border border-blue-100" style={{ height: '60vh', width: '100%', minWidth: '100%' }}>
+          <AgGridReact
+            ref={gridRef}
+            rowData={sortedAssets}
+            columnDefs={configuredColumnDefs}
+            getRowStyle={getRowStyle}
+            defaultColDef={{
+              resizable: false, // Disabled - use field configurations instead
+              wrapHeaderText: true,
+              autoHeaderHeight: true,
+              wrapText: true,
+              autoHeight: false,
+              headerClass: 'ag-right-aligned-header',
+              headerStyle: { fontSize: '11px', textAlign: 'right', fontWeight: 'normal', WebkitFontSmoothing: 'antialiased', MozOsxFontSmoothing: 'grayscale' },
+              cellStyle: { textAlign: 'right' },
+              minWidth: 40
+            }}
+            cellSelection={{
+              handle: { mode: 'fill' },
+            }}
+            gridOptions={{
+              suppressColumnVirtualisation: false,
+              alwaysShowHorizontalScroll: true,
+              suppressMovableColumns: true,
+              suppressColumnMoveAnimation: true,
+              rowBuffer: 10,
+              debounceVerticalScrollbar: false,
+              suppressRowVirtualisation: false,
+              suppressCellFocus: false,
+              suppressScrollOnNewData: true,
+              enableCellTextSelection: false,
+              suppressAnimationFrame: false,
+            }}
+            rowSelection={{
+              mode: 'singleRow',
+              enableClickSelection: true,
+              checkboxes: false,
+              hideDisabledCheckboxes: true
+            }}
+            domLayout="normal"
+            getRowId={(params) => String(params.data.asset_id)}
+            onCellValueChanged={onCellValueChanged}
+            onCellEditingStopped={onCellEditingStopped}
+            onCellEditingStarted={onCellEditingStarted}
+            onGridReady={async (params) => {
+              // Load saved column state first
+              await gridPreferences.loadColumnState(params.api);
+              // Ensure all columns are visible and grid calculates proper width
+              params.api.refreshCells({ force: false });
+              // Scroll to left on grid ready using AG Grid API
+              setTimeout(() => {
+                params.api.ensureColumnVisible('asset_id', 'start');
+              }, 100);
+            }}
+            onFirstDataRendered={async (params) => {
+              // Scroll to left after data render using AG Grid API
+              setTimeout(() => {
+                params.api.ensureColumnVisible('asset_id', 'start');
+              }, 100);
+            }}
+            onColumnResized={(params) => {
+              gridPreferences.handleColumnResized();
+            }}
+            onColumnMoved={(params) => {
+              // Prevent actions column from being moved - force it back to pinned right
+              try {
+                const columnApi = (params as any).columnApi || params.api;
+                if (columnApi && columnApi.getColumn) {
+                  const actionsColumn = columnApi.getColumn('actions');
+                  if (actionsColumn) {
+                    const allColumns = columnApi.getAllColumns ? columnApi.getAllColumns() : [];
+                    const actionsIndex = allColumns.findIndex((col: any) => col.getColId() === 'actions');
+                    if (actionsIndex !== 0) {
+                      setTimeout(() => {
+                        if (gridRef.current?.api) {
+                          const columnState = gridRef.current.api.getColumnState();
+                          const actionsCol = columnState.find((col: any) => col.colId === 'actions');
+                          const otherCols = columnState.filter((col: any) => col.colId !== 'actions');
+                          if (actionsCol) {
+                            gridRef.current.api.applyColumnState({
+                              state: [{ ...actionsCol, pinned: 'right', lockPosition: true }, ...otherCols],
+                              applyOrder: true
+                            });
+                          }
+                        }
+                      }, 0);
+                      return;
+                    }
+                  }
+                }
+              } catch (error) {
+                console.warn('Error in onColumnMoved:', error);
+              }
+              // Save column state after move
+              gridPreferences.handleColumnMoved();
+            }}
+            onSortChanged={() => {}}
+            animateRows={false}
+            enableRtl={true}
+            suppressHorizontalScroll={false}
+            stopEditingWhenCellsLoseFocus={true}
+            enterNavigatesVertically={true}
+            enterNavigatesVerticallyAfterEdit={true}
+          />
           </div>
         )}
         

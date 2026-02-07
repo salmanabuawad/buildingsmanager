@@ -622,11 +622,11 @@ input[type="submit"]:disabled {
 }
 
 /* Remove range selection visuals but keep focus border */
-.ag-theme-alpine .ag-cell-range-selected,
-.ag-theme-alpine .ag-cell-range-selected-1,
-.ag-theme-alpine .ag-cell-range-selected-2,
-.ag-theme-alpine .ag-cell-range-selected-3,
-.ag-theme-alpine .ag-cell-range-selected-4 {
+.ag-theme-alpine .ag-cell-range-selected:not(.ag-cell-focus),
+.ag-theme-alpine .ag-cell-range-selected-1:not(.ag-cell-focus),
+.ag-theme-alpine .ag-cell-range-selected-2:not(.ag-cell-focus),
+.ag-theme-alpine .ag-cell-range-selected-3:not(.ag-cell-focus),
+.ag-theme-alpine .ag-cell-range-selected-4:not(.ag-cell-focus) {
   border: none !important;
   box-shadow: none !important;
 }

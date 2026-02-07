@@ -175,14 +175,12 @@ input[type="number"] {
   border: none !important;
 }
 
-.ag-theme-alpine .ag-fill-handle {
-  position: absolute !important;
-  width: 8px !important;
-  height: 8px !important;
-  background-color: #2563eb !important;
-  border: 1px solid #fff !important;
-  cursor: crosshair !important;
-  z-index: 10 !important;
+.ag-theme-alpine .ag-fill-handle,
+.ag-theme-alpine .ag-range-handle {
+  display: none !important;
+  visibility: hidden !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
 }
 
 .ag-theme-alpine .ag-cell:not(.ag-cell-inline-editing):not(.ag-cell-editing) {
@@ -577,9 +575,32 @@ input[type="submit"]:disabled {
 .ag-theme-alpine .ag-cell:focus::before,
 .ag-theme-alpine .ag-cell:focus::after,
 .ag-theme-alpine .ag-cell-range-selected::before,
-.ag-theme-alpine .ag-cell-range-selected::after {
+.ag-theme-alpine .ag-cell-range-selected::after,
+.ag-theme-alpine .ag-fill-handle::before,
+.ag-theme-alpine .ag-fill-handle::after,
+.ag-theme-alpine .ag-range-handle::before,
+.ag-theme-alpine .ag-range-handle::after {
   display: none !important;
   content: none !important;
   border: none !important;
   outline: none !important;
+}
+
+.ag-theme-alpine .ag-cell-range-handle,
+.ag-theme-alpine .ag-cell-range-handle-1,
+.ag-theme-alpine .ag-cell-range-handle-2,
+.ag-theme-alpine .ag-cell-range-handle-3,
+.ag-theme-alpine .ag-cell-range-handle-4 {
+  display: none !important;
+  visibility: hidden !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+}
+
+.ag-theme-alpine *[class*="range-handle"],
+.ag-theme-alpine *[class*="fill-handle"] {
+  display: none !important;
+  visibility: hidden !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
 }

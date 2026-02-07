@@ -844,23 +844,23 @@ export function AssetTypes() {
             fields.push(`אזור מס: ${at.tax_region}`);
           }
 
-          // Checkbox fields (show value - 'כן' or 'לא')
-          if (at.elevator) {
-            fields.push(`מעלית: ${at.elevator}`);
+          // Checkbox fields (only show if value is true or 'כן')
+          if (at.elevator === true || at.elevator === 'כן') {
+            fields.push('מעלית');
           }
-          if (at.single_double_family) {
-            fields.push(`בית פרטי: ${at.single_double_family}`);
+          if (at.single_double_family === true || at.single_double_family === 'כן') {
+            fields.push('בית פרטי');
           }
-          if (at.penthouse) {
-            fields.push(`דירת גג: ${at.penthouse}`);
+          if (at.penthouse === true || at.penthouse === 'כן') {
+            fields.push('דירת גג');
           }
-          if (at.condo) {
-            fields.push(`בית משותף: ${at.condo}`);
+          if (at.condo === true || at.condo === 'כן') {
+            fields.push('בית משותף');
           }
-          if (at.townhouses) {
-            fields.push(`טוריים: ${at.townhouses}`);
+          if (at.townhouses === true || at.townhouses === 'כן') {
+            fields.push('טוריים');
           }
-          if (at.business_residence) {
+          if (at.business_residence === 'עסק' || at.business_residence === 'מגורים' || (at.business_residence && at.business_residence !== 'לא' && at.business_residence !== '')) {
             fields.push(at.business_residence);
           }
 
@@ -910,7 +910,7 @@ export function AssetTypes() {
         matchingAssetTypes.forEach(({ assetType: at, originalIndex }, index) => {
           const tooltipFields = buildTooltipForAssetType(at);
           if (matchingAssetTypes.length > 1) {
-            allTooltips.push(`--- ${index + 1} ---`);
+            allTooltips.push(`${index + 1}`);
           }
           if (tooltipFields.length > 0) {
             tooltipFields.forEach(field => allTooltips.push(field));

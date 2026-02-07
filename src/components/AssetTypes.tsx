@@ -954,11 +954,17 @@ export function AssetTypes() {
             tooltipFields.forEach(field => allTooltips.push(field));
           }
         } else {
-          // Multiple asset types with same name - show only the first one's details
-          const tooltipFields = buildTooltipForAssetType(matchingAssetTypes[0].assetType);
-          if (tooltipFields.length > 0) {
-            tooltipFields.forEach(field => allTooltips.push(field));
-          }
+          // Multiple asset types with same name - show all with clear separation
+          matchingAssetTypes.forEach((item, index) => {
+            const tooltipFields = buildTooltipForAssetType(item.assetType);
+            if (tooltipFields.length > 0) {
+              // Add separator before each entry except the first
+              if (index > 0) {
+                allTooltips.push('━━━━━━━━━━━━━━━━━━━━━━━━');
+              }
+              tooltipFields.forEach(field => allTooltips.push(field));
+            }
+          });
         }
 
         return allTooltips.length > 0 ? allTooltips.join('\n') : 'אין פרטים נוספים';

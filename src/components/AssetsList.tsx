@@ -511,10 +511,10 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
       }
 
       // Mark only the filtered assets as exported (not all assets in the system)
-      const now = new Date();
-      const day = String(now.getDate()).padStart(2, '0');
-      const month = String(now.getMonth() + 1).padStart(2, '0');
-      const year = now.getFullYear();
+      const exportDate = new Date();
+      const day = String(exportDate.getDate()).padStart(2, '0');
+      const month = String(exportDate.getMonth() + 1).padStart(2, '0');
+      const year = exportDate.getFullYear();
       const exportDateStr = `${day}/${month}/${year}`;
 
       // Update each asset individually to avoid type mismatch issues with .in() operator

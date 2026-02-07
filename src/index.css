@@ -212,6 +212,7 @@ input[type="number"] {
   border: none !important;
   box-shadow: none !important;
   outline: none !important;
+  padding: 0 !important;
 }
 
 .ag-theme-alpine .ag-cell-inline-editing input,
@@ -224,7 +225,11 @@ input[type="number"] {
   background: transparent !important;
   width: 100% !important;
   min-width: 100% !important;
+  height: 100% !important;
   box-sizing: border-box !important;
+  padding: 0 8px !important;
+  color: #000000 !important;
+  line-height: normal !important;
 }
 
 /* Remove range selection styling during edit */
@@ -243,13 +248,30 @@ input[type="number"] {
 .ag-theme-alpine .ag-cell-editor {
   width: 100% !important;
   min-width: 100% !important;
+  height: 100% !important;
   box-sizing: border-box !important;
+  padding: 0 !important;
 }
 
 .ag-theme-alpine .ag-text-field-input {
   width: 100% !important;
   min-width: 100% !important;
+  height: 100% !important;
   box-sizing: border-box !important;
+  color: #000000 !important;
+  padding: 0 8px !important;
+  background: transparent !important;
+  line-height: normal !important;
+}
+
+.ag-theme-alpine .ag-input-field-input {
+  color: #000000 !important;
+  padding: 0 8px !important;
+  background: transparent !important;
+  width: 100% !important;
+  height: 100% !important;
+  box-sizing: border-box !important;
+  line-height: normal !important;
 }
 
 .ag-theme-alpine .ag-header-cell-label {

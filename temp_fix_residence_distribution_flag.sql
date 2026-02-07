@@ -63,15 +63,17 @@ BEGIN
 
     v_final_updates := v_updates;
 
-    -- Set residence distribution flag when residence_shared_area changes AND new value > 0
-    IF v_old_residence_area IS DISTINCT FROM v_new_residence_area AND COALESCE(v_new_residence_area, 0) > 0 THEN
+    -- Set residence distribution flag when residence_shared_area changes
+    -- Always set to true when value changes (regardless of new value)
+    IF v_old_residence_area IS DISTINCT FROM v_new_residence_area THEN
       v_final_updates := v_final_updates || jsonb_build_object('need_residence_distribution', true);
       RAISE NOTICE 'Setting need_residence_distribution=true for building % (residence_shared_area changed from % to %)', 
         v_building_number, v_old_residence_area, v_new_residence_area;
     END IF;
 
-    -- Set business distribution flag when business_shared_area changes AND new value > 0
-    IF v_old_business_area IS DISTINCT FROM v_new_business_area AND COALESCE(v_new_business_area, 0) > 0 THEN
+    -- Set business distribution flag when business_shared_area changes
+    -- Always set to true when value changes (regardless of new value)
+    IF v_old_business_area IS DISTINCT FROM v_new_business_area THEN
       v_final_updates := v_final_updates || jsonb_build_object('need_business_distribution', true);
       RAISE NOTICE 'Setting need_business_distribution=true for building % (business_shared_area changed from % to %)', 
         v_building_number, v_old_business_area, v_new_business_area;

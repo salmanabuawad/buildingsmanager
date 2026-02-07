@@ -2431,6 +2431,36 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
             throw new Error(updateResult.error || 'שגיאה בעדכון מבנים');
           }
           savedCount += updateResult.count;
+          
+          // Update building state with returned buildings (includes updated distribution flags)
+          if (updateResult.buildings && updateResult.buildings.length > 0) {
+            setBuildings(prevBuildings => {
+              const updated = [...prevBuildings];
+              for (const updatedBuilding of updateResult.buildings!) {
+                const index = updated.findIndex(b => 
+                  getBuildingKey(b) === getBuildingKey(updatedBuilding)
+                );
+                if (index >= 0) {
+                  updated[index] = updatedBuilding;
+                }
+              }
+              return updated;
+            });
+            
+            // Also update originalBuildings to reflect the new state
+            setOriginalBuildings(prevOriginal => {
+              const updated = [...prevOriginal];
+              for (const updatedBuilding of updateResult.buildings!) {
+                const index = updated.findIndex(b => 
+                  getBuildingKey(b) === getBuildingKey(updatedBuilding)
+                );
+                if (index >= 0) {
+                  updated[index] = updatedBuilding;
+                }
+              }
+              return updated;
+            });
+          }
         }
       } catch (err) {
         errors.push(err instanceof Error ? err.message : 'שגיאה בשמירה');

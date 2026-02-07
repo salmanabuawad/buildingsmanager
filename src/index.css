@@ -383,19 +383,22 @@ input[type="number"] {
   outline: none !important;
 }
 
-/* Prominent focused cell border when editing */
+/* Prominent focused cell border when editing - minimal styling */
 .ag-theme-alpine .ag-cell-focus.ag-cell-inline-editing {
   border: 2px solid #2563eb !important;
   box-shadow: none !important;
+  -webkit-box-shadow: none !important;
+  -moz-box-shadow: none !important;
   background-color: #eff6ff !important;
   padding: 0 calc(var(--ag-cell-horizontal-padding) - 1px) !important;
   margin: 0 !important;
   transform: none !important;
   transition: none !important;
   animation: none !important;
+  outline: none !important;
 }
 
-/* Cell range selection with continuous border around selection */
+/* Cell range selection - NO special styling to prevent rectangles */
 .ag-theme-alpine .ag-cell-range-selected,
 .ag-theme-alpine .ag-cell-range-single-cell,
 .ag-theme-alpine .ag-cell-range-selected-1,
@@ -403,9 +406,17 @@ input[type="number"] {
 .ag-theme-alpine .ag-cell-range-selected-3,
 .ag-theme-alpine .ag-cell-range-selected-4,
 .ag-theme-alpine .ag-cell-highlight,
-.ag-theme-alpine .ag-cell-highlight-animation {
+.ag-theme-alpine .ag-cell-highlight-animation,
+.ag-theme-alpine .ag-cell-range-top,
+.ag-theme-alpine .ag-cell-range-bottom,
+.ag-theme-alpine .ag-cell-range-left,
+.ag-theme-alpine .ag-cell-range-right {
   background-color: inherit !important;
-  border: 1px solid #dee2e6 !important;
+  border: none !important;
+  border-top: 1px solid #dee2e6 !important;
+  border-bottom: 1px solid #dee2e6 !important;
+  border-left: 1px solid #dee2e6 !important;
+  border-right: 1px solid #dee2e6 !important;
   box-shadow: none !important;
   outline: none !important;
   animation: none !important;
@@ -413,23 +424,18 @@ input[type="number"] {
   margin: 0 !important;
   transform: none !important;
   transition: none !important;
+  -webkit-box-shadow: none !important;
+  -moz-box-shadow: none !important;
 }
 
-/* Range border styles - continuous border around entire selection */
-.ag-theme-alpine .ag-cell-range-top {
-  border-top: 3px solid #2563eb !important;
-}
-
-.ag-theme-alpine .ag-cell-range-bottom {
-  border-bottom: 3px solid #2563eb !important;
-}
-
-.ag-theme-alpine .ag-cell-range-left {
-  border-left: 3px solid #2563eb !important;
-}
-
+/* Range border styles - DISABLED to prevent internal rectangles */
+.ag-theme-alpine .ag-cell-range-top,
+.ag-theme-alpine .ag-cell-range-bottom,
+.ag-theme-alpine .ag-cell-range-left,
 .ag-theme-alpine .ag-cell-range-right {
-  border-right: 3px solid #2563eb !important;
+  border: none !important;
+  box-shadow: none !important;
+  outline: none !important;
 }
 
 /* Ensure text in selected/range cells remains fully visible and readable */
@@ -451,17 +457,20 @@ input[type="number"] {
 .ag-theme-alpine .ag-cell-focus,
 .ag-theme-alpine .ag-cell:focus,
 .ag-theme-alpine .ag-cell:active {
-  padding: 0 calc(var(--ag-cell-horizontal-padding) - 1px) !important;
+  padding: 0 var(--ag-cell-horizontal-padding) !important;
   line-height: 32px !important;
   text-align: right !important;
   direction: rtl !important;
-  border-width: 2px !important;
-  border-color: #2563eb !important;
-  background-color: #eff6ff !important;
+  border: 1px solid #dee2e6 !important;
+  background-color: inherit !important;
   box-sizing: border-box !important;
   transition: none !important;
   animation: none !important;
   transform: none !important;
+  box-shadow: none !important;
+  -webkit-box-shadow: none !important;
+  -moz-box-shadow: none !important;
+  outline: none !important;
 }
 
 /* Disable range handle */
@@ -935,6 +944,18 @@ input[type="submit"]:disabled {
   border: 1px solid rgba(25, 118, 210, 0.3) !important;
 }
 
+/* CRITICAL: Nuclear option - remove ALL box-shadows from EVERYTHING in grid */
+.ag-theme-alpine *,
+.ag-theme-alpine *::before,
+.ag-theme-alpine *::after,
+.ag-theme-alpine [class*="ag-"],
+.ag-theme-alpine [class*="ag-"]::before,
+.ag-theme-alpine [class*="ag-"]::after {
+  box-shadow: none !important;
+  -webkit-box-shadow: none !important;
+  -moz-box-shadow: none !important;
+}
+
 /* CRITICAL: Remove all box-shadows from all cell states - final override */
 .ag-theme-alpine .ag-cell,
 .ag-theme-alpine .ag-cell *,
@@ -956,4 +977,6 @@ input[type="submit"]:disabled {
 .ag-theme-alpine .ag-cell-value,
 .ag-theme-alpine [class*="ag-cell"] {
   box-shadow: none !important;
+  -webkit-box-shadow: none !important;
+  -moz-box-shadow: none !important;
 }

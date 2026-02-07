@@ -1770,13 +1770,13 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
             assetData.building_number = buildingNumberValue;
             assetsToSave.push(assetData);
           } else {
-            // For updates, ensure building_number is included
+            // For updates, send full asset data merged with changes to ensure all fields (including sub_asset_type fields) are present
             // Note: is_new_measurement should only be set for explicit "save as new measurement" operations,
             // not for distribution saves. Distribution saves update assets in place without creating history.
             assetsToSave.push({
+              ...updatedData,
               asset_id: assetId,
-              building_number: buildingNumberValue,
-              ...changes
+              building_number: buildingNumberValue
             });
           }
         } catch (err) {

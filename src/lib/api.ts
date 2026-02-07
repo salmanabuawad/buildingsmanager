@@ -622,17 +622,17 @@ export function sanitizeAssetInput(input: any): any {
     main_asset_type: preConverted.main_asset_type != null ? sanitizeText(preConverted.main_asset_type) : undefined,
     asset_size: ('asset_size' in preConverted) ? sanitizeNumber(preConverted.asset_size ?? 0) : undefined,
     tax_region: preConverted.tax_region != null ? sanitizeInteger(preConverted.tax_region) : undefined,
-    sub_asset_type_1: preConverted.sub_asset_type_1 != null ? sanitizeText(preConverted.sub_asset_type_1) : undefined,
+    sub_asset_type_1: ('sub_asset_type_1' in preConverted) ? (preConverted.sub_asset_type_1 != null && preConverted.sub_asset_type_1 !== '' ? sanitizeText(preConverted.sub_asset_type_1) : null) : undefined,
     sub_asset_size_1: ('sub_asset_size_1' in preConverted) ? sanitizeNumber(preConverted.sub_asset_size_1 ?? 0) : undefined,
-    sub_asset_type_2: preConverted.sub_asset_type_2 != null ? sanitizeText(preConverted.sub_asset_type_2) : undefined,
+    sub_asset_type_2: ('sub_asset_type_2' in preConverted) ? (preConverted.sub_asset_type_2 != null && preConverted.sub_asset_type_2 !== '' ? sanitizeText(preConverted.sub_asset_type_2) : null) : undefined,
     sub_asset_size_2: ('sub_asset_size_2' in preConverted) ? sanitizeNumber(preConverted.sub_asset_size_2 ?? 0) : undefined,
-    sub_asset_type_3: preConverted.sub_asset_type_3 != null ? sanitizeText(preConverted.sub_asset_type_3) : undefined,
+    sub_asset_type_3: ('sub_asset_type_3' in preConverted) ? (preConverted.sub_asset_type_3 != null && preConverted.sub_asset_type_3 !== '' ? sanitizeText(preConverted.sub_asset_type_3) : null) : undefined,
     sub_asset_size_3: ('sub_asset_size_3' in preConverted) ? sanitizeNumber(preConverted.sub_asset_size_3 ?? 0) : undefined,
-    sub_asset_type_4: preConverted.sub_asset_type_4 != null ? sanitizeText(preConverted.sub_asset_type_4) : undefined,
+    sub_asset_type_4: ('sub_asset_type_4' in preConverted) ? (preConverted.sub_asset_type_4 != null && preConverted.sub_asset_type_4 !== '' ? sanitizeText(preConverted.sub_asset_type_4) : null) : undefined,
     sub_asset_size_4: ('sub_asset_size_4' in preConverted) ? sanitizeNumber(preConverted.sub_asset_size_4 ?? 0) : undefined,
-    sub_asset_type_5: preConverted.sub_asset_type_5 != null ? sanitizeText(preConverted.sub_asset_type_5) : undefined,
-    sub_asset_size_5: preConverted.sub_asset_size_5 != null ? sanitizeNumber(preConverted.sub_asset_size_5) : undefined,
-    sub_asset_type_6: preConverted.sub_asset_type_6 != null ? sanitizeText(preConverted.sub_asset_type_6) : undefined,
+    sub_asset_type_5: ('sub_asset_type_5' in preConverted) ? (preConverted.sub_asset_type_5 != null && preConverted.sub_asset_type_5 !== '' ? sanitizeText(preConverted.sub_asset_type_5) : null) : undefined,
+    sub_asset_size_5: ('sub_asset_size_5' in preConverted) ? sanitizeNumber(preConverted.sub_asset_size_5 ?? 0) : undefined,
+    sub_asset_type_6: ('sub_asset_type_6' in preConverted) ? (preConverted.sub_asset_type_6 != null && preConverted.sub_asset_type_6 !== '' ? sanitizeText(preConverted.sub_asset_type_6) : null) : undefined,
     sub_asset_size_6: ('sub_asset_size_6' in preConverted) ? sanitizeNumber(preConverted.sub_asset_size_6 ?? 0) : undefined,
     // Checkbox fields: convert to boolean (true/false only, never null/undefined)
     // Support both old format ('כן'/'לא') and new format (true/false)
@@ -661,9 +661,11 @@ export function sanitizeAssetInput(input: any): any {
   // Remove undefined values to avoid sending them to the database
   // But always keep measurement_date and boolean fields even if they're false
   // Boolean fields should always be included (true or false) to ensure they're updated
+  // Also keep null values for sub_asset_type fields (to allow clearing them)
   const booleanFieldsToKeep = ['elevator', 'single_double_family', 'condo', 'townhouses', 'penthouse', 'exported_to_automation'];
+  const subAssetTypeFields = ['sub_asset_type_1', 'sub_asset_type_2', 'sub_asset_type_3', 'sub_asset_type_4', 'sub_asset_type_5', 'sub_asset_type_6'];
   Object.keys(sanitized).forEach(key => {
-    if (key !== 'measurement_date' && !booleanFieldsToKeep.includes(key) && sanitized[key] === undefined) {
+    if (key !== 'measurement_date' && !booleanFieldsToKeep.includes(key) && !subAssetTypeFields.includes(key) && sanitized[key] === undefined) {
       delete sanitized[key];
     }
   });

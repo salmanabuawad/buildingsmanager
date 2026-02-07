@@ -836,7 +836,7 @@ export function AssetTypes() {
 
           // Description
           if (at.description) {
-            fields.push(`תיאור: ${at.description}`);
+            fields.push(at.description);
           }
 
           // Tax region

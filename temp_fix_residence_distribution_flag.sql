@@ -1,5 +1,6 @@
--- Update RPC to set buildings.note (runs after 20260131000000_add_note_to_buildings)
--- Adds note to the UPDATE SET list in update_buildings_bulk_with_distribution_flags
+-- Temporary SQL to fix residence distribution flag when building residence_shared_area is changed
+-- This updates the update_buildings_bulk_with_distribution_flags function to set the flag
+-- when residence_shared_area changes AND the new value > 0
 
 CREATE OR REPLACE FUNCTION update_buildings_bulk_with_distribution_flags(
   p_buildings_data JSONB[]
@@ -132,4 +133,4 @@ EXCEPTION
 END;
 $$;
 
-COMMENT ON FUNCTION update_buildings_bulk_with_distribution_flags IS 'Bulk update buildings and automatically set distribution flags when shared areas change. Includes address (via building_address) and note.';
+COMMENT ON FUNCTION update_buildings_bulk_with_distribution_flags IS 'Bulk update buildings and automatically set distribution flags when shared areas change. Sets flags to true when shared area changes AND new value > 0. Includes address (via building_address) and note.';

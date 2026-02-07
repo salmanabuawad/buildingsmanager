@@ -139,10 +139,10 @@ async function resetDistributionFlagsIfNeeded(
 
     const updates: Partial<Building> = {};
 
-    // For residence: set need_residence_distribution to true on create, delete, or type change
+    // For residence: set need_residence_distribution to true on create, delete, type change, or size change
     // BUT only if building has residence_shared_area > 0
     // (true = needs distribution, false = already distributed)
-    if (assetType === 'residence' && (changeType === 'create' || changeType === 'delete' || assetTypeChanged)) {
+    if (assetType === 'residence' && (changeType === 'create' || changeType === 'delete' || assetSizeChanged || assetTypeChanged)) {
       const residenceSharedArea = building.residence_shared_area ?? 0;
       if (residenceSharedArea > 0) {
         updates.need_residence_distribution = true;

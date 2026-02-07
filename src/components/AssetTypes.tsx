@@ -889,8 +889,12 @@ export function AssetTypes() {
         if (matchingAssetTypes.length === 0) return '';
         
         // Helper function to build tooltip text for a single asset type
-        const buildTooltipForAssetType = (at: AssetType): string[] => {
+        const buildTooltipForAssetType = (at: AssetType, entryNumber?: number): string[] => {
           const sections: string[] = [];
+
+          // Add asset type name at the beginning (with number if multiple entries)
+          const namePrefix = entryNumber !== undefined ? `${entryNumber}. ` : '';
+          sections.push(`${namePrefix}סוג נכס: ${at.name}`);
 
           // Description
           if (at.description) {
@@ -951,14 +955,10 @@ export function AssetTypes() {
             tooltipFields.forEach(field => allTooltips.push(field));
           }
         } else {
-          // Multiple asset types with same name - show all with clear separation
+          // Multiple asset types with same name - show all with numbers
           matchingAssetTypes.forEach((item, index) => {
-            const tooltipFields = buildTooltipForAssetType(item.assetType);
+            const tooltipFields = buildTooltipForAssetType(item.assetType, index + 1);
             if (tooltipFields.length > 0) {
-              // Add separator before each entry except the first
-              if (index > 0) {
-                allTooltips.push('━━━━━━━━━━━━━━━━━━━━━━━━');
-              }
               tooltipFields.forEach(field => allTooltips.push(field));
             }
           });

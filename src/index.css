@@ -206,7 +206,8 @@ input[type="number"] {
   text-align: right !important;
 }
 
-/* Light blue border on editing cells */
+/* Light blue border on focused and editing cells */
+.ag-theme-alpine .ag-cell-focus,
 .ag-theme-alpine .ag-cell-inline-editing,
 .ag-theme-alpine .ag-cell-editing {
   border: 2px solid #2196f3 !important;

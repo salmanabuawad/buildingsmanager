@@ -27,7 +27,6 @@ import { Toast } from './Toast';
 import { FileViewer } from './FileViewer';
 import { AssetFilesModal } from './AssetFilesModal';
 import { AssetStatisticsModal } from './AssetStatisticsModal';
-import { useFillHandle } from '../lib/useFillHandle';
 interface AssetsListProps {
   buildingNumber: number;
   taxRegion?: string;
@@ -75,10 +74,6 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
     'default'
   );
 
-  useFillHandle({
-    gridRef,
-    enabled: false
-  });
 
   const [showBatchValidationModal, setShowBatchValidationModal] = useState(false);
   const [batchValidationLoading, setBatchValidationLoading] = useState(false);

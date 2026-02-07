@@ -166,8 +166,42 @@ input[type="number"] {
   line-height: 32px !important;
   text-overflow: clip !important;
   padding: 0 var(--ag-cell-horizontal-padding) !important;
-  border-width: 1px !important;
   box-sizing: border-box !important;
+}
+
+.ag-theme-alpine .ag-cell-range-selected:not(.ag-cell-range-single-cell) {
+  background-color: rgba(37, 99, 235, 0.08) !important;
+}
+
+.ag-theme-alpine .ag-cell-range-selected.ag-cell-range-top {
+  border-top: 2px solid #2563eb !important;
+}
+
+.ag-theme-alpine .ag-cell-range-selected.ag-cell-range-bottom {
+  border-bottom: 2px solid #2563eb !important;
+}
+
+.ag-theme-alpine .ag-cell-range-selected.ag-cell-range-left {
+  border-left: 2px solid #2563eb !important;
+}
+
+.ag-theme-alpine .ag-cell-range-selected.ag-cell-range-right {
+  border-right: 2px solid #2563eb !important;
+}
+
+.ag-theme-alpine .ag-cell-range-single-cell {
+  border: 2px solid #2563eb !important;
+  background-color: rgba(37, 99, 235, 0.08) !important;
+}
+
+.ag-theme-alpine .ag-fill-handle {
+  position: absolute !important;
+  width: 8px !important;
+  height: 8px !important;
+  background-color: #2563eb !important;
+  border: 1px solid #fff !important;
+  cursor: crosshair !important;
+  z-index: 10 !important;
 }
 
 .ag-theme-alpine .ag-cell:not(.ag-cell-inline-editing):not(.ag-cell-editing) {

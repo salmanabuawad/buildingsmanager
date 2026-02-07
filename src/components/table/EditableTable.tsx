@@ -24,6 +24,8 @@ function EditableTableInner<T>({
   const [containerHeight, setContainerHeight] = useState(600);
   const bodyRef = useRef<HTMLDivElement>(null);
   const pinnedBodyRef = useRef<HTMLDivElement>(null);
+  const pinnedLeftBodyRef = useRef<HTMLDivElement>(null);
+  const headerScrollRef = useRef<HTMLDivElement>(null);
   const syncingScroll = useRef(false);
 
   const visibleColumns = useMemo(
@@ -77,16 +79,29 @@ function EditableTableInner<T>({
     if (pinnedBodyRef.current) {
       pinnedBodyRef.current.scrollTop = el.scrollTop;
     }
+    if (pinnedLeftBodyRef.current) {
+      pinnedLeftBodyRef.current.scrollTop = el.scrollTop;
+    }
+    if (headerScrollRef.current) {
+      headerScrollRef.current.scrollLeft = el.scrollLeft;
+    }
     syncingScroll.current = false;
   }, [virtual]);
 
   const handlePinnedScroll = useCallback((e: React.UIEvent<HTMLDivElement>) => {
     if (syncingScroll.current) return;
     syncingScroll.current = true;
+    const scrollTop = e.currentTarget.scrollTop;
     if (bodyRef.current) {
-      bodyRef.current.scrollTop = e.currentTarget.scrollTop;
+      bodyRef.current.scrollTop = scrollTop;
     }
-    virtual.onScroll(e.currentTarget.scrollTop);
+    if (pinnedLeftBodyRef.current && e.currentTarget !== pinnedLeftBodyRef.current) {
+      pinnedLeftBodyRef.current.scrollTop = scrollTop;
+    }
+    if (pinnedBodyRef.current && e.currentTarget !== pinnedBodyRef.current) {
+      pinnedBodyRef.current.scrollTop = scrollTop;
+    }
+    virtual.onScroll(scrollTop);
     syncingScroll.current = false;
   }, [virtual]);
 
@@ -143,6 +158,7 @@ function EditableTableInner<T>({
   }, [data, getRowId, onCellEditStop]);
 
   const renderHeaderCell = useCallback((col: ColumnDef<T>, idx: number) => {
+    const borderSide = rtl ? 'borderRight' : 'borderLeft';
     return (
       <div
         key={col.field || col.id || idx}
@@ -157,18 +173,19 @@ function EditableTableInner<T>({
           overflow: 'hidden',
           textOverflow: 'ellipsis',
           whiteSpace: 'nowrap',
-          borderLeft: '1px solid #d1d5db',
+          [borderSide]: '1px solid #d1d5db',
           display: 'flex',
           alignItems: 'center',
           boxSizing: 'border-box',
           lineHeight: '1.2',
           color: '#374151',
+          textAlign: rtl ? 'right' : 'left',
         }}
       >
         {col.header}
       </div>
     );
-  }, []);
+  }, [rtl]);
 
   const renderRow = useCallback((row: T, absIndex: number, cols: ColumnDef<T>[]) => {
     const rowId = getRowId(row);
@@ -196,6 +213,7 @@ function EditableTableInner<T>({
             onStartEdit={handleStartEdit}
             onCommitEdit={handleCommitEdit}
             onCancelEdit={handleCancelEdit}
+            rtl={rtl}
           />
         ))}
       </div>
@@ -257,18 +275,21 @@ function EditableTableInner<T>({
             display: 'flex',
             flexShrink: 0,
             width: pinnedLeftWidth,
-            borderRight: '2px solid #d1d5db',
+            [rtl ? 'borderLeft' : 'borderRight']: '2px solid #d1d5db',
           }}>
             {pinnedLeftCols.map(renderHeaderCell)}
           </div>
         )}
 
         {/* Scrollable header */}
-        <div style={{
-          flex: 1,
-          overflow: 'hidden',
-          display: 'flex',
-        }}>
+        <div
+          ref={headerScrollRef}
+          style={{
+            flex: 1,
+            overflow: 'hidden',
+            display: 'flex',
+          }}
+        >
           <div style={{ display: 'flex', minWidth: scrollableWidth }}>
             {scrollableCols.map(renderHeaderCell)}
           </div>
@@ -280,7 +301,7 @@ function EditableTableInner<T>({
             display: 'flex',
             flexShrink: 0,
             width: pinnedRightWidth,
-            borderLeft: '2px solid #d1d5db',
+            [rtl ? 'borderRight' : 'borderLeft']: '2px solid #d1d5db',
           }}>
             {pinnedRightCols.map(renderHeaderCell)}
           </div>
@@ -292,13 +313,16 @@ function EditableTableInner<T>({
         {/* Pinned left body */}
         {pinnedLeftCols.length > 0 && (
           <div
+            ref={pinnedLeftBodyRef}
+            onScroll={handlePinnedScroll}
             style={{
               width: pinnedLeftWidth,
               flexShrink: 0,
-              overflowY: 'hidden',
+              overflowY: 'auto',
               overflowX: 'hidden',
-              borderRight: '2px solid #d1d5db',
+              [rtl ? 'borderLeft' : 'borderRight']: '2px solid #d1d5db',
             }}
+            className="hide-scrollbar"
           >
             <div style={{ height: virtual.offsetTop }} />
             {visibleData.map((row, vi) => renderRow(row, virtual.visibleRange.start + vi, pinnedLeftCols))}
@@ -332,7 +356,7 @@ function EditableTableInner<T>({
               flexShrink: 0,
               overflowY: 'auto',
               overflowX: 'hidden',
-              borderLeft: '2px solid #d1d5db',
+              [rtl ? 'borderRight' : 'borderLeft']: '2px solid #d1d5db',
             }}
             className="hide-scrollbar"
           >

@@ -10,6 +10,7 @@ interface EditableCellProps<T = any> {
   onStartEdit: (rowId: string, field: string) => void;
   onCommitEdit: (rowId: string, field: string, oldValue: any, newValue: any) => void;
   onCancelEdit: (rowId: string, field: string) => void;
+  rtl?: boolean;
 }
 
 function EditableCellInner<T>({
@@ -21,6 +22,7 @@ function EditableCellInner<T>({
   onStartEdit,
   onCommitEdit,
   onCancelEdit,
+  rtl = false,
 }: EditableCellProps<T>) {
   const field = column.field || column.id || '';
   const rawValue = field ? (row as any)[field] : undefined;
@@ -104,8 +106,9 @@ function EditableCellInner<T>({
     display: 'flex',
     alignItems: 'center',
     boxSizing: 'border-box',
-    borderLeft: '1px solid #e5e7eb',
+    [rtl ? 'borderRight' : 'borderLeft']: '1px solid #e5e7eb',
     cursor: isEditable ? 'text' : 'default',
+    textAlign: rtl ? 'right' : 'left',
     ...dynamicStyle,
   };
 
@@ -148,6 +151,8 @@ function EditableCellInner<T>({
                 border: 'none',
                 outline: 'none',
                 padding: 4,
+                textAlign: rtl ? 'right' : 'left',
+                direction: rtl ? 'rtl' : 'ltr',
               }}
             />
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 4, marginTop: 2 }}>
@@ -184,7 +189,8 @@ function EditableCellInner<T>({
             fontFamily: 'inherit',
             outline: 'none',
             boxSizing: 'border-box',
-            textAlign: 'inherit',
+            textAlign: rtl ? 'right' : 'left',
+            direction: rtl ? 'rtl' : 'ltr',
           }}
         />
       </div>

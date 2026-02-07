@@ -1767,11 +1767,11 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
   const getCellStyle = useCallback((params: any, fieldName: string) => {
     // Use asset_id (same as getRowStyle and validationErrors) or fallback to id
     const assetId = params.data?.asset_id || params.data?.id;
-    if (!assetId) return { textAlign: 'right' };
+    if (!assetId) return { textAlign: 'left' };
     
     // Convert to number for consistency with validationErrors Map key type
     const assetIdNum = typeof assetId === 'string' ? parseInt(assetId, 10) : assetId;
-    if (isNaN(assetIdNum)) return { textAlign: 'right' };
+    if (isNaN(assetIdNum)) return { textAlign: 'left' };
     
     const isDirty = dirtyAssets.has(assetIdNum) && dirtyAssets.get(assetIdNum)?.hasOwnProperty(fieldName);
     const isLatest = params.data.is_latest === true;
@@ -1790,7 +1790,7 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
         border: '2px solid #ef4444',
         borderRadius: '4px',
         fontWeight: isDirty ? 'bold' : 'normal',
-        textAlign: 'right'
+        textAlign: 'left'
       };
     }
     
@@ -1800,7 +1800,7 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
       backgroundColor: isLatest ? undefined : '#f3f4f6',
       color: isLatest ? undefined : '#6b7280',
       cursor: 'default',
-      textAlign: 'right'
+      textAlign: 'left'
     };
   }, [dirtyAssets, validationErrors]);
 
@@ -2008,8 +2008,8 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
       lockPosition: true,
       sortable: true,
       filter: true,
-      headerClass: 'ag-right-aligned-header',
-      cellStyle: { textAlign: 'right' }
+      headerClass: 'ag-left-aligned-header',
+      cellStyle: { textAlign: 'left' }
     },
     {
       field: 'tax_region',
@@ -2022,8 +2022,8 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
       width: 100,
       sortable: true,
       filter: true,
-      headerClass: 'ag-right-aligned-header',
-      cellStyle: { textAlign: 'right' }
+      headerClass: 'ag-left-aligned-header',
+      cellStyle: { textAlign: 'left' }
     },
     {
       field: 'total_building_area',
@@ -2031,8 +2031,8 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
       width: 120,
       sortable: true,
       filter: true,
-      headerClass: 'ag-right-aligned-header',
-      cellStyle: { textAlign: 'right' },
+      headerClass: 'ag-left-aligned-header',
+      cellStyle: { textAlign: 'left' },
       valueFormatter: (params: any) => formatNumberToTwoDecimals(params.value)
     },
     {
@@ -2041,8 +2041,8 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
       width: 150,
       sortable: true,
       filter: true,
-      headerClass: 'ag-right-aligned-header',
-      cellStyle: { textAlign: 'right' },
+      headerClass: 'ag-left-aligned-header',
+      cellStyle: { textAlign: 'left' },
       valueFormatter: (params: any) => formatNumberToTwoDecimals(params.value)
     },
     {
@@ -2051,8 +2051,8 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
       width: 150,
       sortable: true,
       filter: true,
-      headerClass: 'ag-right-aligned-header',
-      cellStyle: { textAlign: 'right' },
+      headerClass: 'ag-left-aligned-header',
+      cellStyle: { textAlign: 'left' },
       valueFormatter: (params: any) => formatNumberToTwoDecimals(params.value)
     },
     {
@@ -2061,8 +2061,8 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
       width: 120,
       sortable: true,
       filter: true,
-      headerClass: 'ag-right-aligned-header',
-      cellStyle: { textAlign: 'right' },
+      headerClass: 'ag-left-aligned-header',
+      cellStyle: { textAlign: 'left' },
       valueFormatter: (params: any) => formatNumberToTwoDecimals(params.value)
     },
     {
@@ -2071,8 +2071,8 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
       width: 120,
       sortable: true,
       filter: true,
-      headerClass: 'ag-right-aligned-header',
-      cellStyle: { textAlign: 'right' },
+      headerClass: 'ag-left-aligned-header',
+      cellStyle: { textAlign: 'left' },
       valueFormatter: (params: any) => formatNumberToTwoDecimals(params.value)
     },
     {
@@ -2081,8 +2081,8 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
       width: 150,
       sortable: true,
       filter: true,
-      headerClass: 'ag-right-aligned-header',
-      cellStyle: { textAlign: 'right' }
+      headerClass: 'ag-left-aligned-header',
+      cellStyle: { textAlign: 'left' }
     },
     {
       field: 'gosh',
@@ -2090,8 +2090,8 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
       width: 100,
       sortable: true,
       filter: true,
-      headerClass: 'ag-right-aligned-header',
-      cellStyle: { textAlign: 'right' }
+      headerClass: 'ag-left-aligned-header',
+      cellStyle: { textAlign: 'left' }
     },
     {
       field: 'helka',
@@ -2099,8 +2099,8 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
       width: 100,
       sortable: true,
       filter: true,
-      headerClass: 'ag-right-aligned-header',
-      cellStyle: { textAlign: 'right' }
+      headerClass: 'ag-left-aligned-header',
+      cellStyle: { textAlign: 'left' }
     },
     {
       field: 'building_number_in_street',
@@ -2108,8 +2108,8 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
       width: 150,
       sortable: true,
       filter: true,
-      headerClass: 'ag-right-aligned-header',
-      cellStyle: { textAlign: 'right' }
+      headerClass: 'ag-left-aligned-header',
+      cellStyle: { textAlign: 'left' }
     }
   ], [getAreaDescriptionForTaxRegion]);
 
@@ -2123,8 +2123,8 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
       lockPosition: true,
       sortable: true,
       filter: true,
-      headerClass: 'ag-right-aligned-header',
-      cellStyle: { textAlign: 'right' }
+      headerClass: 'ag-left-aligned-header',
+      cellStyle: { textAlign: 'left' }
     },
     {
       field: 'building_number',
@@ -2132,8 +2132,8 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
       width: 120,
       sortable: true,
       filter: true,
-      headerClass: 'ag-right-aligned-header',
-      cellStyle: { textAlign: 'right' }
+      headerClass: 'ag-left-aligned-header',
+      cellStyle: { textAlign: 'left' }
     },
     {
       field: 'payer_id',
@@ -2141,8 +2141,8 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
       width: 120,
       sortable: true,
       filter: true,
-      headerClass: 'ag-right-aligned-header',
-      cellStyle: { textAlign: 'right' }
+      headerClass: 'ag-left-aligned-header',
+      cellStyle: { textAlign: 'left' }
     },
     {
       field: 'measurement_date',
@@ -2150,8 +2150,8 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
       width: 150,
       sortable: true,
       filter: true,
-      headerClass: 'ag-right-aligned-header',
-      cellStyle: { textAlign: 'right' }
+      headerClass: 'ag-left-aligned-header',
+      cellStyle: { textAlign: 'left' }
     },
     {
       field: 'main_asset_type',
@@ -2159,8 +2159,8 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
       width: 120,
       sortable: true,
       filter: true,
-      headerClass: 'ag-right-aligned-header',
-      cellStyle: { textAlign: 'right' }
+      headerClass: 'ag-left-aligned-header',
+      cellStyle: { textAlign: 'left' }
     },
     {
       field: 'asset_size',
@@ -2168,8 +2168,8 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
       width: 120,
       sortable: true,
       filter: true,
-      headerClass: 'ag-right-aligned-header',
-      cellStyle: { textAlign: 'right' },
+      headerClass: 'ag-left-aligned-header',
+      cellStyle: { textAlign: 'left' },
       valueFormatter: (params: any) => formatNumberToTwoDecimals(params.value)
     },
     {
@@ -2183,8 +2183,8 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
       width: 100,
       sortable: true,
       filter: true,
-      headerClass: 'ag-right-aligned-header',
-      cellStyle: { textAlign: 'right' }
+      headerClass: 'ag-left-aligned-header',
+      cellStyle: { textAlign: 'left' }
     },
     {
       field: 'apartment_number',
@@ -2210,8 +2210,8 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
       width: 100,
       sortable: true,
       filter: true,
-      headerClass: 'ag-right-aligned-header',
-      cellStyle: { textAlign: 'right' }
+      headerClass: 'ag-left-aligned-header',
+      cellStyle: { textAlign: 'left' }
     },
     {
       field: 'sub_asset_type_1',
@@ -2219,8 +2219,8 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
       width: 120,
       sortable: true,
       filter: true,
-      headerClass: 'ag-right-aligned-header',
-      cellStyle: { textAlign: 'right' }
+      headerClass: 'ag-left-aligned-header',
+      cellStyle: { textAlign: 'left' }
     },
     {
       field: 'sub_asset_size_1',
@@ -2228,8 +2228,8 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
       width: 120,
       sortable: true,
       filter: true,
-      headerClass: 'ag-right-aligned-header',
-      cellStyle: { textAlign: 'right' },
+      headerClass: 'ag-left-aligned-header',
+      cellStyle: { textAlign: 'left' },
       valueFormatter: (params: any) => formatNumberToTwoDecimals(params.value)
     },
     {
@@ -2238,8 +2238,8 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
       width: 120,
       sortable: true,
       filter: true,
-      headerClass: 'ag-right-aligned-header',
-      cellStyle: { textAlign: 'right' }
+      headerClass: 'ag-left-aligned-header',
+      cellStyle: { textAlign: 'left' }
     },
     {
       field: 'sub_asset_size_2',
@@ -2247,8 +2247,8 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
       width: 120,
       sortable: true,
       filter: true,
-      headerClass: 'ag-right-aligned-header',
-      cellStyle: { textAlign: 'right' },
+      headerClass: 'ag-left-aligned-header',
+      cellStyle: { textAlign: 'left' },
       valueFormatter: (params: any) => formatNumberToTwoDecimals(params.value)
     },
     {
@@ -2257,8 +2257,8 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
       width: 120,
       sortable: true,
       filter: true,
-      headerClass: 'ag-right-aligned-header',
-      cellStyle: { textAlign: 'right' }
+      headerClass: 'ag-left-aligned-header',
+      cellStyle: { textAlign: 'left' }
     },
     {
       field: 'sub_asset_size_3',
@@ -2266,8 +2266,8 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
       width: 120,
       sortable: true,
       filter: true,
-      headerClass: 'ag-right-aligned-header',
-      cellStyle: { textAlign: 'right' },
+      headerClass: 'ag-left-aligned-header',
+      cellStyle: { textAlign: 'left' },
       valueFormatter: (params: any) => formatNumberToTwoDecimals(params.value)
     },
     {
@@ -2276,8 +2276,8 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
       width: 120,
       sortable: true,
       filter: true,
-      headerClass: 'ag-right-aligned-header',
-      cellStyle: { textAlign: 'right' }
+      headerClass: 'ag-left-aligned-header',
+      cellStyle: { textAlign: 'left' }
     },
     {
       field: 'sub_asset_size_4',
@@ -2285,8 +2285,8 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
       width: 120,
       sortable: true,
       filter: true,
-      headerClass: 'ag-right-aligned-header',
-      cellStyle: { textAlign: 'right' },
+      headerClass: 'ag-left-aligned-header',
+      cellStyle: { textAlign: 'left' },
       valueFormatter: (params: any) => formatNumberToTwoDecimals(params.value)
     },
     {
@@ -2295,8 +2295,8 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
       width: 120,
       sortable: true,
       filter: true,
-      headerClass: 'ag-right-aligned-header',
-      cellStyle: { textAlign: 'right' }
+      headerClass: 'ag-left-aligned-header',
+      cellStyle: { textAlign: 'left' }
     },
     {
       field: 'sub_asset_size_5',
@@ -2304,8 +2304,8 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
       width: 120,
       sortable: true,
       filter: true,
-      headerClass: 'ag-right-aligned-header',
-      cellStyle: { textAlign: 'right' },
+      headerClass: 'ag-left-aligned-header',
+      cellStyle: { textAlign: 'left' },
       valueFormatter: (params: any) => formatNumberToTwoDecimals(params.value)
     },
     {
@@ -2314,8 +2314,8 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
       width: 120,
       sortable: true,
       filter: true,
-      headerClass: 'ag-right-aligned-header',
-      cellStyle: { textAlign: 'right' }
+      headerClass: 'ag-left-aligned-header',
+      cellStyle: { textAlign: 'left' }
     },
     {
       field: 'sub_asset_size_6',
@@ -2323,8 +2323,8 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
       width: 120,
       sortable: true,
       filter: true,
-      headerClass: 'ag-right-aligned-header',
-      cellStyle: { textAlign: 'right' },
+      headerClass: 'ag-left-aligned-header',
+      cellStyle: { textAlign: 'left' },
       valueFormatter: (params: any) => formatNumberToTwoDecimals(params.value)
     },
     {
@@ -2333,8 +2333,8 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
       width: 120,
       sortable: true,
       filter: true,
-      headerClass: 'ag-right-aligned-header',
-      cellStyle: { textAlign: 'right' },
+      headerClass: 'ag-left-aligned-header',
+      cellStyle: { textAlign: 'left' },
       valueFormatter: (params: any) => formatNumberToTwoDecimals(params.value),
       hide: !isBusinessContext // Hide for residence assets (business_distribution_area is only for business distribution)
     }
@@ -2408,7 +2408,7 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
       suppressHeaderMenuButton: true,
       sortable: false,
       filter: false,
-      headerClass: 'ag-right-aligned-header',
+      headerClass: 'ag-left-aligned-header',
       cellStyle: (params) => getCellStyle(params, 'asset_id'),
       cellRenderer: (params: any) => {
         // Make asset_id clickable ONLY if it's different from the current tab's asset_id
@@ -2737,12 +2737,12 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
             style={{ 
               display: 'flex', 
               alignItems: 'center', 
-              justifyContent: hasValue ? 'flex-end' : 'center', 
-              gap: '4px', 
-              direction: 'rtl', 
-              width: '100%', 
-              paddingRight: hasValue ? '4px' : '0', 
-              cursor: 'default', 
+              justifyContent: hasValue ? 'flex-start' : 'center',
+              gap: '4px',
+              direction: 'ltr',
+              width: '100%',
+              paddingLeft: hasValue ? '4px' : '0',
+              cursor: 'default',
               height: '100%' 
             }}
             onClick={(e) => {
@@ -2751,12 +2751,12 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
               }
             }}
           >
-            {hasValue && <span style={{ flex: 1, textAlign: 'right', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{params.value}</span>}
+            {hasValue && <span style={{ flex: 1, textAlign: 'left', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{params.value}</span>}
             <MessageSquare size={16} style={{ color: hasValue ? '#2563eb' : '#94a3b8', flexShrink: 0 }} />
           </div>
         );
       },
-      headerClass: 'ag-right-aligned-header',
+      headerClass: 'ag-left-aligned-header',
       cellStyle: (params) => getCellStyle(params, 'comment'),
       tooltipValueGetter: (params) => params.value || ''
     },
@@ -2946,7 +2946,7 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
       lockPinned: true,
       suppressMovable: true,
       suppressHeaderMenuButton: true,
-      headerClass: 'ag-right-aligned-header',
+      headerClass: 'ag-left-aligned-header',
       cellRenderer: structureDrawingCellRenderer,
       cellStyle: { display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0 }
     },
@@ -2961,7 +2961,7 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
       lockPinned: true,
       suppressMovable: true,
       suppressHeaderMenuButton: true,
-      headerClass: 'ag-right-aligned-header',
+      headerClass: 'ag-left-aligned-header',
       cellRenderer: actionsCellRenderer,
       cellStyle: { display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0 }
     },
@@ -2969,15 +2969,15 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
       field: 'extra_field_1',
       headerName: '',
       editable: false,
-      headerClass: 'ag-right-aligned-header',
-      cellStyle: { textAlign: 'right' }
+      headerClass: 'ag-left-aligned-header',
+      cellStyle: { textAlign: 'left' }
     },
     {
       field: 'extra_field_2',
       headerName: '',
       editable: false,
-      headerClass: 'ag-right-aligned-header',
-      cellStyle: { textAlign: 'right' }
+      headerClass: 'ag-left-aligned-header',
+      cellStyle: { textAlign: 'left' }
     }
     ];
     
@@ -3818,8 +3818,8 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
                   wrapText: true,
                   autoHeight: false,
                   sortable: false,
-                  headerClass: 'ag-right-aligned-header',
-                  cellStyle: { textAlign: 'right' },
+                  headerClass: 'ag-left-aligned-header',
+                  cellStyle: { textAlign: 'left' },
                   minWidth: 40
                 }}
                 getRowId={(params) => {
@@ -3950,21 +3950,21 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
                       wrapText: false, // Prevent text wrapping, especially for dates
                       autoHeight: false,
                       sortable: false,
-                      headerClass: 'ag-right-aligned-header',
-                      headerStyle: { 
-                        fontSize: '10px', 
-                        textAlign: 'right', 
+                      headerClass: 'ag-left-aligned-header',
+                      headerStyle: {
+                        fontSize: '10px',
+                        textAlign: 'left',
                         fontWeight: '600',
                         backgroundColor: '#f9fafb',
                         color: '#374151',
                         borderBottom: '2px solid #e5e7eb',
                         padding: '4px 6px',
-                        WebkitFontSmoothing: 'antialiased', 
-                        MozOsxFontSmoothing: 'grayscale' 
+                        WebkitFontSmoothing: 'antialiased',
+                        MozOsxFontSmoothing: 'grayscale'
                       },
                       cellStyle: (params: any) => {
                         const baseStyle = {
-                          textAlign: 'right',
+                          textAlign: 'left',
                           padding: '4px 6px',
                           fontSize: '10px',
                           borderRight: '1px solid #f3f4f6',

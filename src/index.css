@@ -281,6 +281,11 @@ input[type="number"] {
   text-align: right !important;
 }
 
+.ag-theme-alpine .ag-left-aligned-header .ag-header-cell-label {
+  justify-content: flex-start !important;
+  text-align: left !important;
+}
+
 .ag-theme-alpine .ag-header-cell-text {
   white-space: normal !important;
   overflow: hidden !important;

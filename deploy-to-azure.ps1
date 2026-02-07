@@ -9,7 +9,7 @@ Write-Host "==========================================" -ForegroundColor Cyan
 Write-Host ""
 
 # Configuration
-$RESOURCE_GROUP = "assetflow-rg"
+$RESOURCE_GROUP = "assetflow-israel-rg"
 $LOCATION = "israelcentral"
 $TIMESTAMP = [int](Get-Date -UFormat %s)
 $DB_SERVER_NAME = "assetflow-db-$TIMESTAMP"

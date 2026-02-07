@@ -11,7 +11,7 @@ echo "=========================================="
 echo ""
 
 # Configuration
-RESOURCE_GROUP="assetflow-rg"
+RESOURCE_GROUP="assetflow-israel-rg"
 LOCATION="israelcentral"
 DB_SERVER_NAME="assetflow-db-$(date +%s)"
 DB_ADMIN="assetflowadmin"

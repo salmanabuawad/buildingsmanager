@@ -246,13 +246,6 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
       parts.push(assetType.description);
     }
 
-    // Business/Residence percentages
-    if (assetType.business !== null || assetType.residence !== null) {
-      const businessPct = assetType.business || 0;
-      const residencePct = assetType.residence || 0;
-      parts.push(`עסקי: ${businessPct}% • מגורים: ${residencePct}%`);
-    }
-
     // Size range
     if (assetType.min_size || assetType.max_size) {
       const minSize = assetType.min_size || 0;

@@ -492,8 +492,6 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
   const [buildingFilter, setBuildingFilter] = useState<string>('');
   const [loading, setLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false); // Separate saving state to avoid full refresh appearance
-  const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState<string | null>(null);
   const [toast, setToast] = useState<{ message: string; type: 'error' | 'success' | 'info' } | null>(null);
   const [invalidTaxRegions, setInvalidTaxRegions] = useState<Set<number>>(new Set());
   const [newBuilding, setNewBuilding] = useState({ building_number: '', tax_region: '', building_address: null as number | null });
@@ -711,7 +709,7 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
         setOriginalBuildings(JSON.parse(JSON.stringify(data || [])));
       });
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load buildings');
+      setToast({ message: err instanceof Error ? err.message : 'Failed to load buildings', type: 'error' });
     } finally {
       if (showLoading) setLoading(false);
     }
@@ -1689,8 +1687,7 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
 
   const handleValidateAll = useCallback(async () => {
     // Don't set loading to avoid refreshing the tab
-    setError(null);
-    setSuccess(null);
+    setToast(null);
     
     try {
       const newValidationErrors = new Map<string | number, Record<string, string>>();
@@ -1707,8 +1704,8 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
       }
       
       if (buildingsToValidate.length === 0) {
-        setSuccess('אין מבנים לבדיקה');
-        setTimeout(() => setSuccess(null), 3000);
+        setToast({ message: 'אין מבנים לבדיקה', type: 'info' });
+        setTimeout(() => setToast(null), 3000);
         return;
       }
       
@@ -1764,19 +1761,19 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
       
       const errorCount = newValidationErrors.size;
       if (errorCount > 0) {
-        setError(`נמצאו שגיאות תקינות ב-${errorCount} מבנים`);
-        setTimeout(() => setError(null), 5000);
+        setToast({ message: `נמצאו שגיאות תקינות ב-${errorCount} מבנים`, type: 'error' });
+        setTimeout(() => setToast(null), 5000);
         setIsValidatedForSave(false);
       } else {
-        setSuccess(`כל ${buildingsToValidate.length} המבנים תקינים`);
-        setTimeout(() => setSuccess(null), 3000);
+        setToast({ message: `כל ${buildingsToValidate.length} המבנים תקינים`, type: 'success' });
+        setTimeout(() => setToast(null), 3000);
         // Validated state enables Save button (until next edit)
         setIsValidatedForSave(true);
       }
     } catch (err) {
       console.error('Error validating buildings:', err);
-      setError('שגיאה בבדיקת תקינות המבנים');
-      setTimeout(() => setError(null), 5000);
+      setToast({ message: 'שגיאה בבדיקת תקינות המבנים', type: 'error' });
+      setTimeout(() => setToast(null), 5000);
     }
   }, [buildings, dirtyBuildings, buildingsToDelete, getBuildingKey, isNewBuilding, totalChanges]);
 
@@ -1810,8 +1807,8 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
   const handleExportBuildingsToExcel = useCallback(async () => {
     try {
       if (!buildings || buildings.length === 0) {
-        setError('אין מבנים לייצוא');
-        setTimeout(() => setError(null), 3000);
+        setToast({ message: 'אין מבנים לייצוא', type: 'error' });
+        setTimeout(() => setToast(null), 3000);
         return;
       }
 
@@ -1917,35 +1914,34 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
         ]
       });
 
-      setSuccess(`יוצאו ${buildingsToExport.length} מבנים בהצלחה`);
-      setTimeout(() => setSuccess(null), 5000);
+      setToast({ message: `יוצאו ${buildingsToExport.length} מבנים בהצלחה`, type: 'success' });
+      setTimeout(() => setToast(null), 5000);
     } catch (error: any) {
       console.error('Error exporting buildings to Excel:', error);
-      setError(error.message || 'שגיאה בייצוא מבנים ל-Excel');
-      setTimeout(() => setError(null), 5000);
+      setToast({ message: error.message || 'שגיאה בייצוא מבנים ל-Excel', type: 'error' });
+      setTimeout(() => setToast(null), 5000);
     }
   }, [buildings, buildingsToDelete, dirtyBuildings, addressList, getBuildingKey, getAreaDescriptionForTaxRegion]);
 
   // Export assets to automation system
   const handleExportToAutomation = useCallback(async () => {
     setLoading(true);
-    setError(null);
-    setSuccess(null);
+    setToast(null);
 
     try {
       // Call API to export assets and mark them as exported
       const result = await api.assets.exportToAutomation();
 
       if (!result.success) {
-        setError(result.error || 'שגיאה בשליחת נכסים לעירייה');
-        setTimeout(() => setError(null), 5000);
+        setToast({ message: result.error || 'שגיאה בשליחת נכסים לעירייה', type: 'error' });
+        setTimeout(() => setToast(null), 5000);
         setLoading(false);
         return;
       }
 
       if (result.count === 0) {
-        setSuccess('אין נכסים לשליחה - כל הנכסים כבר נשלחו לעירייה');
-        setTimeout(() => setSuccess(null), 5000);
+        setToast({ message: 'אין נכסים לשליחה - כל הנכסים כבר נשלחו לעירייה', type: 'info' });
+        setTimeout(() => setToast(null), 5000);
         setLoading(false);
         setExportToAutomationCount(0);
         return;
@@ -1965,8 +1961,8 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
         .filter((id): id is number => id !== null && !isNaN(id) && id > 0);
 
       if (numericAssetIdsForQuery.length === 0) {
-        setError('לא נמצאו נכסים לייצוא');
-        setTimeout(() => setError(null), 5000);
+        setToast({ message: 'לא נמצאו נכסים לייצוא', type: 'error' });
+        setTimeout(() => setToast(null), 5000);
         return;
       }
 
@@ -1976,15 +1972,15 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
 
       if (fetchError) {
         console.error('Error fetching exported assets:', fetchError);
-        setError('הנכסים סומנו כייצאו אך לא ניתן היה לייצא אותם לקובץ Excel');
-        setTimeout(() => setError(null), 5000);
+        setToast({ message: 'הנכסים סומנו כייצאו אך לא ניתן היה לייצא אותם לקובץ Excel', type: 'error' });
+        setTimeout(() => setToast(null), 5000);
         setLoading(false);
         return;
       }
 
       if (!exportedAssets || exportedAssets.length === 0) {
-        setSuccess(`סומנו ${result.count} נכסים כייצאו בהצלחה`);
-        setTimeout(() => setSuccess(null), 5000);
+        setToast({ message: `סומנו ${result.count} נכסים כייצאו בהצלחה`, type: 'success' });
+        setTimeout(() => setToast(null), 5000);
         setLoading(false);
         setExportToAutomationCount(0);
         return;
@@ -2208,8 +2204,8 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
                   'See CREATE_STORAGE_BUCKETS.md for detailed instructions.'
                 );
                 // Show error to user
-                setError('Storage bucket "structure-drawings" not found. Please create it in Supabase Dashboard. See CREATE_STORAGE_BUCKETS.md for instructions.');
-                setTimeout(() => setError(null), 10000);
+                setToast({ message: 'Storage bucket "structure-drawings" not found. Please create it in Supabase Dashboard. See CREATE_STORAGE_BUCKETS.md for instructions.', type: 'error' });
+                setTimeout(() => setToast(null), 10000);
                 continue;
               }
               console.warn(`Error downloading file for asset ${assetId}:`, downloadError);
@@ -2258,16 +2254,16 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
       const successMessage = filesCount > 0 
         ? `נשלחו ${result.count} נכסים לעירייה בהצלחה (כולל ${filesCount} קבצים בקובץ ZIP)`
         : `נשלחו ${result.count} נכסים לעירייה בהצלחה`;
-      setSuccess(successMessage);
-      setTimeout(() => setSuccess(null), 5000);
+      setToast({ message: successMessage, type: 'success' });
+      setTimeout(() => setToast(null), 5000);
       // Refresh the count after export
       await fetchExportToAutomationCount();
       // Notify App to update "איפוס שליחת נתונים מתאריך" span (cache was set by api.assets.exportToAutomation)
       window.dispatchEvent(new CustomEvent('exportToAutomationSuccess'));
     } catch (error: any) {
       console.error('Error exporting to automation:', error);
-      setError(error.message || 'שגיאה בשליחת נכסים לעירייה');
-      setTimeout(() => setError(null), 5000);
+      setToast({ message: error.message || 'שגיאה בשליחת נכסים לעירייה', type: 'error' });
+      setTimeout(() => setToast(null), 5000);
     } finally {
       setLoading(false);
     }
@@ -2280,8 +2276,7 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
     // DON'T set loading=true here - it causes full component refresh (shows loading spinner)
     // Use isSaving for save button state instead to avoid tab refresh appearance
     setIsSaving(true);
-    setError(null);
-    setSuccess(null);
+    setToast(null);
     
     try {
       // Run validation before saving - MUST pass before proceeding to server
@@ -2507,17 +2502,15 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
         const successMsg = [];
         if (savedCount > 0) successMsg.push(`נשמרו ${savedCount} מבנים`);
         if (deletedCount > 0) successMsg.push(`נמחקו ${deletedCount} מבנים`);
-        setError(`${successMsg.join(', ')}. ${errors.length} שגיאות:\n${errors.slice(0, 5).join('\n')}${errors.length > 5 ? `\n...ועוד ${errors.length - 5}` : ''}`);
-        setSuccess(null);
+        setToast({ message: `${successMsg.join(', ')}. ${errors.length} שגיאות:\n${errors.slice(0, 5).join('\n')}${errors.length > 5 ? `\n...ועוד ${errors.length - 5}` : ''}`, type: 'error' });
       } else {
         const successMsg = [];
         if (savedCount > 0) successMsg.push(`נשמרו ${savedCount} מבנים`);
         if (deletedCount > 0) successMsg.push(`נמחקו ${deletedCount} מבנים`);
         if (successMsg.length > 0) {
-          setSuccess(successMsg.join(', '));
-          setTimeout(() => setSuccess(null), 3000);
+          setToast({ message: successMsg.join(', '), type: 'success' });
+          setTimeout(() => setToast(null), 3000);
         }
-        setError(null);
       }
 
       // Refresh data to get updated buildings from database
@@ -2528,7 +2521,7 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
     } catch (error: any) {
       const errorMsg = `שגיאה בשמירה: ${error.message || error.toString()}`;
       console.error('[BuildingsList] Error saving changes:', error);
-      setError(errorMsg);
+      setToast({ message: errorMsg, type: 'error' });
     } finally {
       setIsSaving(false);
     }
@@ -2547,7 +2540,6 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
     setNewBuildings(new Set());
     setValidationErrors(new Map());
     setInvalidTaxRegionBuildings(new Set()); // Clear invalid tax region buildings
-    setError(null);
     setToast(null); // Clear toast notifications
 
     // Re-validate tax regions for original buildings
@@ -3310,8 +3302,8 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
       const taxRegion = newBuilding.tax_region ? newBuilding.tax_region.trim() : null;
 
       if (isNaN(buildingNumber)) {
-        setError('Invalid building number');
-        setTimeout(() => setError(null), 3000);
+        setToast({ message: 'Invalid building number', type: 'error' });
+        setTimeout(() => setToast(null), 3000);
         return;
       }
 
@@ -3338,8 +3330,8 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
       await fetchBuildings(false);
     } catch (error: any) {
       const errorMsg = `Failed to create building: ${error.message || error.toString()}`;
-      setError(errorMsg);
-      setTimeout(() => setError(null), 5000);
+      setToast({ message: errorMsg, type: 'error' });
+      setTimeout(() => setToast(null), 5000);
     }
   };
 
@@ -3356,20 +3348,6 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
 
   return (
     <>
-      {error && (
-        <div className="fixed top-4 right-4 z-50 max-w-md animate-slide-in">
-          <div className="bg-red-50 border-l-4 border-red-500 rounded-lg p-4 shadow-lg">
-            <p className="text-red-800 font-medium">{t('error')}: {error}</p>
-          </div>
-        </div>
-      )}
-      {success && (
-        <div className="fixed top-4 right-4 z-50 max-w-md animate-slide-in">
-          <div className="bg-green-50 border-l-4 border-green-500 rounded-lg p-4 shadow-lg">
-            <p className="text-green-800 font-medium">{success}</p>
-          </div>
-        </div>
-      )}
       <div className="w-full px-2 sm:px-4 md:px-6 py-2 sm:py-4">
         <div className="mb-4 bg-gradient-to-r from-teal-600 to-blue-600 rounded-xl shadow-lg p-4">
           <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-3">

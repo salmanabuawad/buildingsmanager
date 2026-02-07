@@ -55,7 +55,6 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
   const [buildingAddress, setBuildingAddress] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false); // Separate saving state to avoid full refresh appearance
-  const [error, setError] = useState<string | null>(null);
   const [toast, setToast] = useState<{ message: string; type: 'error' | 'success' | 'info' } | null>(null);
   const [dirtyAssets, setDirtyAssets] = useState<Map<string, Partial<Asset>>>(new Map());
   const [newAssets, setNewAssets] = useState<Set<string>>(new Set());
@@ -652,7 +651,7 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
         // This is handled separately in handleSaveAll after fetchData
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load assets');
+      setToast({ message: err instanceof Error ? err.message : 'Failed to load assets', type: 'error' });
     } finally {
       if (showLoading) setLoading(false);
     }
@@ -899,8 +898,8 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
 
     } catch (error) {
       console.error('Error tracking change:', error);
-      setError('Failed to track change');
-      setTimeout(() => setError(null), 3000);
+      setToast({ message: 'Failed to track change', type: 'error' });
+      setTimeout(() => setToast(null), 3000);
     }
   }, [validationTaxRegion, assetTypes, building, setAssets, taxRegion, newAssets, originalAssets]);
 
@@ -1236,8 +1235,8 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
         console.warn(`[Batch Validation] No assets to validate. Grid assets: ${gridAssets.length}, Latest assets: ${latestAssets.length}, Selected: ${selectedAssets.size}`);
         setBatchValidationLoading(false);
         setShowBatchValidationModal(false);
-        setError('לא נמצאו נכסים לבדיקה. יש לוודא שנכסים מוצגים בטבלה.');
-        setTimeout(() => setError(null), 5000);
+        setToast({ message: 'לא נמצאו נכסים לבדיקה. יש לוודא שנכסים מוצגים בטבלה.', type: 'error' });
+        setTimeout(() => setToast(null), 5000);
         return;
       }
 
@@ -1464,15 +1463,14 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
 
   const handleSaveAll = async () => {
     if (dirtyAssets.size === 0 && deletedAssets.size === 0) {
-      setError('אין שינויים לשמור');
-      setTimeout(() => setError(null), 3000);
+      setToast({ message: 'אין שינויים לשמור', type: 'info' });
+      setTimeout(() => setToast(null), 3000);
       return;
     }
 
     // DON'T set loading=true here - it causes full component refresh (shows loading spinner)
     // Use isSaving for save button state instead to avoid tab refresh appearance
     setIsSaving(true);
-    setError(null);
     setToast(null);
 
     try {
@@ -2069,7 +2067,7 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
         const successMsg = [];
         if (savedCount > 0) successMsg.push(`נשמרו ${savedCount} נכסים`);
         if (deletedCount > 0) successMsg.push(`נמחקו ${deletedCount} נכסים`);
-        setError(`${successMsg.join(', ')}. ${errors.length} שגיאות:\n${errors.slice(0, 5).join('\n')}${errors.length > 5 ? `\n...ועוד ${errors.length - 5}` : ''}`);
+        setToast({ message: `${successMsg.join(', ')}. ${errors.length} שגיאות:\n${errors.slice(0, 5).join('\n')}${errors.length > 5 ? `\n...ועוד ${errors.length - 5}` : ''}`, type: 'error' });
       } else {
         const successMsg = [];
         if (savedCount > 0) successMsg.push(`נשמרו ${savedCount} נכסים`);
@@ -2098,7 +2096,7 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
       setIsSaving(false); // Clear saving state on error
       const errorMessage = `שגיאה בשמירה: ${err instanceof Error ? err.message : 'Unknown error'}`;
       console.error('[AssetsList] Error saving all:', err);
-      setError(errorMessage);
+      setToast({ message: errorMessage, type: 'error' });
       // Don't clear error automatically - let user see it
     } finally {
       // Always ensure saving state is cleared after save operation completes
@@ -2226,7 +2224,6 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
     setDeletedAssets(new Set());
     setNewAssets(new Set());
     setValidationErrors(new Map());
-    setError(null);
     setToast({ message: 'השינויים בוטלו', type: 'info' });
     setTimeout(() => setToast(null), 3000);
 
@@ -2242,33 +2239,32 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
   const handleDistributeSharedArea = useCallback(async () => {
     // Allow distribution if flag is set, even if current area is 0 (to clear previous distribution)
     if (!building || building.residence_shared_area == null) {
-      setError('אין שטח משותף מגורים במבנה');
-      setTimeout(() => setError(null), 3000);
+      setToast({ message: 'אין שטח משותף מגורים במבנה', type: 'error' });
+      setTimeout(() => setToast(null), 3000);
       return;
     }
-    
+
     // If area is 0 but flag is set, allow distribution to clear previous distribution
     if (building.residence_shared_area <= 0 && building.need_residence_distribution !== true) {
-      setError('אין שטח משותף מגורים במבנה או השטח הוא 0');
-      setTimeout(() => setError(null), 3000);
+      setToast({ message: 'אין שטח משותף מגורים במבנה או השטח הוא 0', type: 'error' });
+      setTimeout(() => setToast(null), 3000);
       return;
     }
 
     if (!assetTypes || assetTypes.length === 0) {
-      setError('לא ניתן לטעון את סוגי הנכסים');
-      setTimeout(() => setError(null), 3000);
+      setToast({ message: 'לא ניתן לטעון את סוגי הנכסים', type: 'error' });
+      setTimeout(() => setToast(null), 3000);
       return;
     }
 
     // Check if assets array is empty or not loaded BEFORE setting loading state
     if (!assets || assets.length === 0) {
-      setError('אין נכסים במבנה');
-      setTimeout(() => setError(null), 3000);
+      setToast({ message: 'אין נכסים במבנה', type: 'error' });
+      setTimeout(() => setToast(null), 3000);
       return;
     }
 
     setLoading(true);
-    setError(null);
     setToast(null);
 
     try {
@@ -2422,9 +2418,9 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
           totalFiltered,
           reasons
         });
-        
-        setError(errorMsg);
-        setTimeout(() => setError(null), 5000);
+
+        setToast({ message: errorMsg, type: 'error' });
+        setTimeout(() => setToast(null), 5000);
         setLoading(false);
         return;
       }
@@ -2771,8 +2767,8 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
         gridRef.current.api.refreshCells({ force: false });
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'שגיאה בפיזור שטח משותף');
-      setTimeout(() => setError(null), 5000);
+      setToast({ message: err instanceof Error ? err.message : 'שגיאה בפיזור שטח משותף', type: 'error' });
+      setTimeout(() => setToast(null), 5000);
     } finally {
       setLoading(false);
     }
@@ -2781,26 +2777,25 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
   const handleDistributeBusinessSharedArea = useCallback(async () => {
     // Allow distribution if flag is set, even if current area is 0 (to clear previous distribution)
     if (!building || building.business_shared_area == null) {
-      setError('אין שטח משותף עסקים במבנה');
-      setTimeout(() => setError(null), 3000);
+      setToast({ message: 'אין שטח משותף עסקים במבנה', type: 'error' });
+      setTimeout(() => setToast(null), 3000);
       return;
     }
-    
+
     // If area is 0 but flag is set, allow distribution to clear previous distribution
     if (building.business_shared_area <= 0 && building.need_business_distribution !== true) {
-      setError('אין שטח משותף עסקים במבנה או השטח הוא 0');
-      setTimeout(() => setError(null), 3000);
+      setToast({ message: 'אין שטח משותף עסקים במבנה או השטח הוא 0', type: 'error' });
+      setTimeout(() => setToast(null), 3000);
       return;
     }
 
     if (!assetTypes || assetTypes.length === 0) {
-      setError('לא ניתן לטעון את סוגי הנכסים');
-      setTimeout(() => setError(null), 3000);
+      setToast({ message: 'לא ניתן לטעון את סוגי הנכסים', type: 'error' });
+      setTimeout(() => setToast(null), 3000);
       return;
     }
 
     setLoading(true);
-    setError(null);
     setToast(null);
 
     try {
@@ -2893,9 +2888,9 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
         } else if (totalFiltered === totalAssets) {
           errorMsg += `. כל הנכסים במבנה נפסלו (סה"כ ${totalAssets} נכסים)`;
         }
-        
-        setError(errorMsg);
-        setTimeout(() => setError(null), 5000);
+
+        setToast({ message: errorMsg, type: 'error' });
+        setTimeout(() => setToast(null), 5000);
         setLoading(false);
         return;
       }
@@ -2916,8 +2911,8 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
       const isClearingDistribution = building.business_shared_area! <= 0;
       
       if (totalMainSize <= 0 && !isClearingDistribution) {
-        setError('סכום שטחי הנכסים העסקיים הוא 0 או שלילי');
-        setTimeout(() => setError(null), 3000);
+        setToast({ message: 'סכום שטחי הנכסים העסקיים הוא 0 או שלילי', type: 'error' });
+        setTimeout(() => setToast(null), 3000);
         setLoading(false);
         return;
       }
@@ -3039,8 +3034,8 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
         gridRef.current.api.refreshCells({ force: false });
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'שגיאה בפיזור שטח משותף עסקים');
-      setTimeout(() => setError(null), 5000);
+      setToast({ message: err instanceof Error ? err.message : 'שגיאה בפיזור שטח משותף עסקים', type: 'error' });
+      setTimeout(() => setToast(null), 5000);
     } finally {
       setLoading(false);
     }
@@ -3049,8 +3044,8 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
   // Export assets to Excel
   const handleExportToExcel = useCallback(async () => {
     if (!assets || assets.length === 0) {
-      setError('אין נכסים לייצוא');
-      setTimeout(() => setError(null), 3000);
+      setToast({ message: 'אין נכסים לייצוא', type: 'error' });
+      setTimeout(() => setToast(null), 3000);
       return;
     }
 
@@ -3173,8 +3168,8 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
       setTimeout(() => setToast(null), 3000);
     } catch (error) {
       console.error('Error exporting to Excel:', error);
-      setError('שגיאה בייצוא לקובץ Excel');
-      setTimeout(() => setError(null), 3000);
+      setToast({ message: 'שגיאה בייצוא לקובץ Excel', type: 'error' });
+      setTimeout(() => setToast(null), 3000);
     }
   }, [assets, dirtyAssets, deletedAssets, buildingNumber, taxRegion]);
 
@@ -3321,9 +3316,9 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
         : typeof err === 'object' && err !== null && 'message' in err
         ? String(err.message)
         : 'נכשל בהעלאת הקובץ';
-      
-      setError(errorMessage);
-      setTimeout(() => setError(null), 5000);
+
+      setToast({ message: errorMessage, type: 'error' });
+      setTimeout(() => setToast(null), 5000);
     } finally {
       setUploadProgress(null);
       setUploadingAssetId(null);
@@ -3765,8 +3760,8 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
                 <ValidationTooltipButton
                   errorMessage={errorMsg}
                   onErrorClick={() => {
-                    setError(errorMsg);
-                    setTimeout(() => setError(null), 5000);
+                    setToast({ message: errorMsg, type: 'error' });
+                    setTimeout(() => setToast(null), 5000);
                   }}
                 />
               );
@@ -4513,21 +4508,6 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
               <div className="h-full bg-teal-600 transition-all duration-300" style={{ width: `${uploadProgress.progress}%` }} />
             </div>
             <p className="text-slate-500 text-xs">{Math.round(uploadProgress.progress)}%</p>
-          </div>
-        </div>
-      )}
-      {error && (
-        <div className="fixed top-4 right-4 z-50 max-w-md animate-slide-in">
-          <div className="bg-red-50 border-l-4 border-red-500 rounded-lg p-4 shadow-lg relative">
-            <button
-              type="button"
-              onClick={() => setError(null)}
-              className="absolute top-2 left-2 text-red-600 hover:text-red-800 transition-colors"
-              title="סגור"
-            >
-              <X className="h-5 w-5" />
-            </button>
-            <p className="text-red-800 font-medium pr-6">{t('error')}: {error}</p>
           </div>
         </div>
       )}

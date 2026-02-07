@@ -10,6 +10,7 @@ import { ColDef, CellValueChangedEvent, GridReadyEvent, ITooltipParams } from 'a
 import { useGridPreferences } from '../lib/useGridPreferences';
 import { processColumnHeader } from '../lib/gridHeaderUtils';
 import { detectAndApplyTextOverflow, setupTextOverflowObserver } from '../lib/textOverflowDetector';
+import { useFillHandle } from '../lib/useFillHandle';
 import { useFieldConfig } from '../lib/useFieldConfig';
 import { exportToExcel } from '../lib/excelExport';
 import { numericValueParser, numericValueParserInt } from '../lib/numberUtils';
@@ -51,6 +52,12 @@ export function AssetTypes() {
     'asset-types',
     'default'
   );
+
+  // Fill handle hook for drag-to-fill functionality
+  useFillHandle({
+    gridRef,
+    enabled: true
+  });
 
   const [formData, setFormData] = useState({
     name: '',

@@ -27,6 +27,7 @@ import { Toast } from './Toast';
 import { FileViewer } from './FileViewer';
 import { AssetFilesModal } from './AssetFilesModal';
 import { AssetStatisticsModal } from './AssetStatisticsModal';
+import { useFillHandle } from '../lib/useFillHandle';
 interface AssetsListProps {
   buildingNumber: number;
   taxRegion?: string;
@@ -73,7 +74,16 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
     'assets-list',
     'default'
   );
-  
+
+  // Fill handle hook for drag-to-fill functionality
+  useFillHandle({
+    gridRef,
+    enabled: !isReadOnly,
+    onFillComplete: (startRow, startCol, endRow, endCol) => {
+      console.log('Fill complete:', { startRow, startCol, endRow, endCol });
+    }
+  });
+
   const [showBatchValidationModal, setShowBatchValidationModal] = useState(false);
   const [batchValidationLoading, setBatchValidationLoading] = useState(false);
   const [batchValidationProgress, setBatchValidationProgress] = useState<ValidationProgress | null>(null);

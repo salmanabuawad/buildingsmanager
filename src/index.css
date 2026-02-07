@@ -798,3 +798,34 @@ input[type="submit"]:disabled {
 .btn-menu-item.btn-export svg {
   @apply text-blue-600;
 }
+
+/* AG Grid Fill Handle */
+.ag-fill-handle {
+  position: absolute;
+  width: 8px;
+  height: 8px;
+  background: #1976d2;
+  border: 2px solid white;
+  cursor: crosshair;
+  z-index: 10000;
+  pointer-events: auto;
+  box-shadow: 0 0 4px rgba(0,0,0,0.3);
+  border-radius: 2px;
+  transition: transform 0.1s ease;
+}
+
+.ag-fill-handle:hover {
+  transform: scale(1.2);
+  background: #1565c0;
+}
+
+.ag-fill-handle:active {
+  transform: scale(1.1);
+  background: #0d47a1;
+}
+
+/* Highlight cells during fill operation */
+.ag-cell.ag-cell-fill-range {
+  background-color: rgba(25, 118, 210, 0.1) !important;
+  border: 1px solid rgba(25, 118, 210, 0.3) !important;
+}

@@ -11,6 +11,7 @@ import * as XLSX from 'xlsx';
 import { useGridPreferences } from '../lib/useGridPreferences';
 import { useFieldConfig } from '../lib/useFieldConfig';
 import { processColumnHeader } from '../lib/gridHeaderUtils';
+import { useFillHandle } from '../lib/useFillHandle';
 import { detectAndApplyTextOverflow, setupTextOverflowObserver } from '../lib/textOverflowDetector';
 import { exportToExcel, createExcelBlob } from '../lib/excelExport';
 import { createAndDownloadZip } from '../lib/zipExport';
@@ -658,6 +659,12 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
     'buildings-list',
     'default'
   );
+
+  // Fill handle hook for drag-to-fill functionality
+  useFillHandle({
+    gridRef,
+    enabled: !isReadOnly
+  });
 
   // Calculate total changes: new buildings count as 1 each, even if edited
   const totalChanges = useMemo(() => {

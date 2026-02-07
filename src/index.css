@@ -162,7 +162,7 @@ input[type="number"] {
   direction: rtl !important;
   overflow: hidden !important;
   white-space: nowrap !important;
-  line-height: 1.5 !important;
+  line-height: 32px !important;
   text-overflow: clip !important;
   cursor: default !important;
   outline: none !important;
@@ -174,11 +174,6 @@ input[type="number"] {
   -webkit-tap-highlight-color: transparent !important;
   -webkit-user-drag: none !important;
   -khtml-user-select: none !important;
-  display: flex !important;
-  align-items: center !important;
-  justify-content: flex-end !important;
-  padding-top: 0 !important;
-  padding-bottom: 0 !important;
 }
 
 /* Prevent active/pressed state on cells */
@@ -384,14 +379,9 @@ input[type="number"] {
 .ag-theme-alpine .ag-cell-focus,
 .ag-theme-alpine .ag-cell:focus,
 .ag-theme-alpine .ag-cell:active {
-  display: flex !important;
-  align-items: center !important;
-  justify-content: flex-end !important;
-  padding-top: 0 !important;
-  padding-bottom: 0 !important;
   padding-left: inherit !important;
   padding-right: inherit !important;
-  line-height: 1.5 !important;
+  line-height: 32px !important;
   text-align: right !important;
   direction: rtl !important;
 }

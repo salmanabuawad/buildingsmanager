@@ -3775,8 +3775,7 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
             )}
           </div>
         );
-      },
-      cellStyle: { display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0 }
+      }
     },
     {
       headerName: t('structureDrawing') || 'שרטוט מבנה',
@@ -3852,8 +3851,7 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
             </button>
           </div>
         );
-      },
-      cellStyle: { display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0 }
+      }
     },
     {
       field: 'asset_id',

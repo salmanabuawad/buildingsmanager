@@ -331,6 +331,57 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
     setSelectedAssets(new Set());
   }, [buildingNumber, taxRegion]);
 
+  // Refresh building state periodically and when window/tab gains focus to catch external updates
+  useEffect(() => {
+    if (!buildingNumber || !building) return;
+
+    const refreshBuilding = () => {
+      // Refresh building data to get latest flags (e.g., need_residence_distribution)
+      api.buildings.getOne(buildingNumber)
+        .then(updatedBuilding => {
+          // Only update if flag or shared area changed to avoid unnecessary re-renders
+          if (updatedBuilding.need_residence_distribution !== building.need_residence_distribution ||
+              updatedBuilding.need_business_distribution !== building.need_business_distribution ||
+              updatedBuilding.residence_shared_area !== building.residence_shared_area ||
+              updatedBuilding.business_shared_area !== building.business_shared_area) {
+            setBuilding(updatedBuilding);
+          }
+        })
+        .catch(err => {
+          // Silently fail - don't disrupt user experience
+          if (process.env.NODE_ENV === 'development') {
+            console.warn('[AssetsList] Failed to refresh building:', err);
+          }
+        });
+    };
+
+    const handleFocus = () => refreshBuilding();
+    const handleVisibilityChange = () => {
+      if (!document.hidden) {
+        refreshBuilding();
+      }
+    };
+
+    // Refresh immediately when component mounts or building changes
+    refreshBuilding();
+
+    // Set up periodic refresh every 5 seconds (only when tab is visible)
+    const intervalId = setInterval(() => {
+      if (!document.hidden) {
+        refreshBuilding();
+      }
+    }, 5000);
+
+    window.addEventListener('focus', handleFocus);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    
+    return () => {
+      clearInterval(intervalId);
+      window.removeEventListener('focus', handleFocus);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, [buildingNumber, building]);
+
   // Refresh grid when validation errors change to show error styling
   useEffect(() => {
     if (validationErrors.size > 0 && gridRef.current?.api) {

@@ -958,7 +958,6 @@ export function AddressListComponent() {
                 }, 10);
               }
             }}
-            singleClickEdit={true}
             stopEditingWhenCellsLoseFocus={true}
             enableRtl={true}
             animateRows={false}

@@ -991,7 +991,6 @@ export function ValidationRulesManager() {
                 pagination={true}
                 paginationPageSize={20}
                 paginationPageSizeSelector={[10, 20, 50, 100]}
-                singleClickEdit={true}
                 stopEditingWhenCellsLoseFocus={true}
                 enableRtl={true}
                 animateRows={false}

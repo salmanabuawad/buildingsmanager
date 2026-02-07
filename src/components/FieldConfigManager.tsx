@@ -822,7 +822,6 @@ export function FieldConfigManager() {
             }}
             onColumnMoved={gridPreferences.handleColumnMoved}
             onCellValueChanged={onCellValueChanged}
-            singleClickEdit={true}
             stopEditingWhenCellsLoseFocus={true}
             enableRtl={true}
             animateRows={false}

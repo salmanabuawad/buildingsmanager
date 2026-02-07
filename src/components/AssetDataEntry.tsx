@@ -1618,7 +1618,6 @@ export const AssetDataEntry = forwardRef<AssetDataEntryRef, {}>((props, ref) => 
               gridPreferences.handleColumnMoved();
             }}
             onSortChanged={() => {}}
-            singleClickEdit={true}
             stopEditingWhenCellsLoseFocus={true}
             enterNavigatesVertically={true}
             enterNavigatesVerticallyAfterEdit={true}

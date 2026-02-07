@@ -3883,7 +3883,6 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
                 onCellValueChanged={onCellValueChanged}
                 onCellEditingStopped={onCellEditingStopped}
                 onRowDoubleClicked={handleRowDoubleClick}
-                singleClickEdit={true}
                 stopEditingWhenCellsLoseFocus={true}
                 enableRtl={true}
                 animateRows={false}
@@ -4070,7 +4069,6 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
                       checkboxes: false,
                       hideDisabledCheckboxes: true
                     }}
-                    singleClickEdit={true}
                     stopEditingWhenCellsLoseFocus={true}
                     enableRtl={true}
                     animateRows={false}

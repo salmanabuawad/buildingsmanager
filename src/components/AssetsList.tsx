@@ -4979,7 +4979,6 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
             animateRows={false}
             enableRtl={true}
             suppressHorizontalScroll={false}
-            singleClickEdit={true}
             stopEditingWhenCellsLoseFocus={true}
             enterNavigatesVertically={true}
             enterNavigatesVerticallyAfterEdit={true}

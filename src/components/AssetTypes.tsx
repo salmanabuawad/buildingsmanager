@@ -1728,7 +1728,6 @@ export function AssetTypes() {
                   checkboxes: false,
                   hideDisabledCheckboxes: true
                 }}
-                singleClickEdit={true}
                 stopEditingWhenCellsLoseFocus={true}
               />
             </div>

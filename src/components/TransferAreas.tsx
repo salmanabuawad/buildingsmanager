@@ -2220,7 +2220,6 @@ export const TransferAreas = forwardRef<TransferAreasRef, TransferAreasProps>(({
               }}
               onColumnMoved={gridPreferences.handleColumnMoved}
               onSortChanged={() => {}}
-              singleClickEdit={true}
               stopEditingWhenCellsLoseFocus={true}
               enableRtl={true}
               animateRows={false}

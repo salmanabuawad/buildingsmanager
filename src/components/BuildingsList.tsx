@@ -3579,7 +3579,6 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
                 checkboxes: false,
                 hideDisabledCheckboxes: true
               }}
-              singleClickEdit={true}
               stopEditingWhenCellsLoseFocus={true}
             />
           </div>

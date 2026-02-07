@@ -3598,7 +3598,6 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
                 animateRows={false}
                 enableRtl={true}
                 suppressHorizontalScroll={false}
-                singleClickEdit={true}
                 stopEditingWhenCellsLoseFocus={true}
               />
             </div>

@@ -427,7 +427,6 @@ export function AuditLog() {
               masterGridPreferences.handleColumnResized();
             }}
             onColumnMoved={masterGridPreferences.handleColumnMoved}
-            singleClickEdit={true}
             stopEditingWhenCellsLoseFocus={true}
             animateRows={false}
           />
@@ -473,7 +472,6 @@ export function AuditLog() {
                 detailGridPreferences.handleColumnResized();
               }}
               onColumnMoved={detailGridPreferences.handleColumnMoved}
-              singleClickEdit={true}
               stopEditingWhenCellsLoseFocus={true}
               animateRows={false}
             />

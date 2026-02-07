@@ -629,7 +629,16 @@ export function AssetTypes() {
       field: 'non_accountable_for_total_area',
       headerName: 'לא נספר בחישוב שטח מבנה',
       editable: false,
-      tooltipValueGetter: () => 'לא נספר בשטח מבנה',
+      tooltipValueGetter: (params: any) => {
+        const assetType = params.data as AssetType;
+        if (!assetType) return '';
+        const flags = [];
+        if (getCurrentValue(assetType, 'non_accountable_for_total_area')) flags.push('לא נספר בשטח מבנה');
+        if (getCurrentValue(assetType, 'non_accountable_for_distribution')) flags.push('לא נכלל בפיזור');
+        if (getCurrentValue(assetType, 'not_accountable_for_statistics')) flags.push('לא נכלל בסטטיסטיקה');
+        if (getCurrentValue(assetType, 'use_shared_area')) flags.push('משמש לפיזור שטח משותף');
+        return flags.length > 0 ? flags.join(' • ') : '';
+      },
       cellRenderer: (params: any) => {
         const assetType = params.data as AssetType;
         if (!assetType) return null;
@@ -661,7 +670,16 @@ export function AssetTypes() {
       field: 'non_accountable_for_distribution',
       headerName: 'לא נספר בפיזור',
       editable: false,
-      tooltipValueGetter: () => 'לא נכלל בפיזור',
+      tooltipValueGetter: (params: any) => {
+        const assetType = params.data as AssetType;
+        if (!assetType) return '';
+        const flags = [];
+        if (getCurrentValue(assetType, 'non_accountable_for_total_area')) flags.push('לא נספר בשטח מבנה');
+        if (getCurrentValue(assetType, 'non_accountable_for_distribution')) flags.push('לא נכלל בפיזור');
+        if (getCurrentValue(assetType, 'not_accountable_for_statistics')) flags.push('לא נכלל בסטטיסטיקה');
+        if (getCurrentValue(assetType, 'use_shared_area')) flags.push('משמש לפיזור שטח משותף');
+        return flags.length > 0 ? flags.join(' • ') : '';
+      },
       cellRenderer: (params: any) => {
         const assetType = params.data as AssetType;
         if (!assetType) return null;
@@ -693,7 +711,16 @@ export function AssetTypes() {
       field: 'not_accountable_for_statistics',
       headerName: 'לא נספר בסטטיסטיקה',
       editable: false,
-      tooltipValueGetter: () => 'לא נכלל בסטטיסטיקה',
+      tooltipValueGetter: (params: any) => {
+        const assetType = params.data as AssetType;
+        if (!assetType) return '';
+        const flags = [];
+        if (getCurrentValue(assetType, 'non_accountable_for_total_area')) flags.push('לא נספר בשטח מבנה');
+        if (getCurrentValue(assetType, 'non_accountable_for_distribution')) flags.push('לא נכלל בפיזור');
+        if (getCurrentValue(assetType, 'not_accountable_for_statistics')) flags.push('לא נכלל בסטטיסטיקה');
+        if (getCurrentValue(assetType, 'use_shared_area')) flags.push('משמש לפיזור שטח משותף');
+        return flags.length > 0 ? flags.join(' • ') : '';
+      },
       cellRenderer: (params: any) => {
         const assetType = params.data as AssetType;
         if (!assetType) return null;
@@ -720,7 +747,16 @@ export function AssetTypes() {
       field: 'use_shared_area',
       headerName: 'שימוש בשטח משותף',
       editable: false,
-      tooltipValueGetter: () => 'משמש לפיזור שטח משותף',
+      tooltipValueGetter: (params: any) => {
+        const assetType = params.data as AssetType;
+        if (!assetType) return '';
+        const flags = [];
+        if (getCurrentValue(assetType, 'non_accountable_for_total_area')) flags.push('לא נספר בשטח מבנה');
+        if (getCurrentValue(assetType, 'non_accountable_for_distribution')) flags.push('לא נכלל בפיזור');
+        if (getCurrentValue(assetType, 'not_accountable_for_statistics')) flags.push('לא נכלל בסטטיסטיקה');
+        if (getCurrentValue(assetType, 'use_shared_area')) flags.push('משמש לפיזור שטח משותף');
+        return flags.length > 0 ? flags.join(' • ') : '';
+      },
       cellRenderer: (params: any) => {
         const assetType = params.data as AssetType;
         if (!assetType) return null;

@@ -547,43 +547,16 @@ input[type="submit"]:disabled {
   @apply text-blue-600;
 }
 
-.ag-theme-alpine .ag-cell-focus:not(.ag-cell-range-selected):not(.ag-cell-inline-editing):not(.ag-cell-editing),
-.ag-theme-alpine .ag-cell:focus:not(.ag-cell-range-selected):not(.ag-cell-inline-editing):not(.ag-cell-editing),
-.ag-theme-alpine .ag-cell.ag-cell-focus:not(.ag-cell-range-selected):not(.ag-cell-inline-editing):not(.ag-cell-editing),
-.ag-theme-alpine .ag-cell.ag-cell-not-inline-editing:focus:not(.ag-cell-editing),
-.ag-theme-alpine .ag-cell-focus:not(.ag-cell-inline-editing):not(.ag-cell-editing),
-.ag-theme-alpine .ag-cell.ag-cell-focus:not(.ag-cell-inline-editing):not(.ag-cell-editing),
-.ag-theme-alpine .ag-cell[tabindex="0"]:focus:not(.ag-cell-inline-editing):not(.ag-cell-editing),
-.ag-theme-alpine .ag-cell[tabindex="0"]:not(.ag-cell-inline-editing):not(.ag-cell-editing),
-.ag-theme-alpine .ag-cell-range-selected:not(.ag-cell-inline-editing):not(.ag-cell-editing),
-.ag-theme-alpine .ag-cell-range-selected.ag-cell-range-top:not(.ag-cell-inline-editing):not(.ag-cell-editing),
-.ag-theme-alpine .ag-cell-range-selected.ag-cell-range-bottom:not(.ag-cell-inline-editing):not(.ag-cell-editing),
-.ag-theme-alpine .ag-cell-range-selected.ag-cell-range-left:not(.ag-cell-inline-editing):not(.ag-cell-editing),
-.ag-theme-alpine .ag-cell-range-selected.ag-cell-range-right:not(.ag-cell-inline-editing):not(.ag-cell-editing),
-.ag-theme-alpine .ag-cell-range-single-cell:not(.ag-cell-inline-editing):not(.ag-cell-editing) {
+.ag-theme-alpine .ag-cell {
   border: none !important;
-  border-top: none !important;
-  border-bottom: none !important;
-  border-left: none !important;
-  border-right: none !important;
   outline: none !important;
   box-shadow: none !important;
 }
 
-.ag-theme-alpine .ag-cell:not(.ag-cell-inline-editing):not(.ag-cell-editing).ag-cell-focus::before,
-.ag-theme-alpine .ag-cell:not(.ag-cell-inline-editing):not(.ag-cell-editing).ag-cell-focus::after,
-.ag-theme-alpine .ag-cell:not(.ag-cell-inline-editing):not(.ag-cell-editing):focus::before,
-.ag-theme-alpine .ag-cell:not(.ag-cell-inline-editing):not(.ag-cell-editing):focus::after,
-.ag-theme-alpine .ag-cell:not(.ag-cell-inline-editing):not(.ag-cell-editing).ag-cell-range-selected::before,
-.ag-theme-alpine .ag-cell:not(.ag-cell-inline-editing):not(.ag-cell-editing).ag-cell-range-selected::after,
-.ag-theme-alpine .ag-fill-handle::before,
-.ag-theme-alpine .ag-fill-handle::after,
-.ag-theme-alpine .ag-range-handle::before,
-.ag-theme-alpine .ag-range-handle::after {
+.ag-theme-alpine .ag-cell::before,
+.ag-theme-alpine .ag-cell::after {
   display: none !important;
   content: none !important;
-  border: none !important;
-  outline: none !important;
 }
 
 .ag-theme-alpine .ag-cell-range-handle,
@@ -605,19 +578,3 @@ input[type="submit"]:disabled {
   pointer-events: none !important;
 }
 
-.ag-theme-alpine .ag-cell-inline-editing,
-.ag-theme-alpine .ag-cell-editing {
-  visibility: visible !important;
-  opacity: 1 !important;
-}
-
-.ag-theme-alpine .ag-cell-inline-editing input,
-.ag-theme-alpine .ag-cell-editing input,
-.ag-theme-alpine .ag-cell-inline-editing textarea,
-.ag-theme-alpine .ag-cell-editing textarea,
-.ag-theme-alpine .ag-cell-inline-editing select,
-.ag-theme-alpine .ag-cell-editing select {
-  visibility: visible !important;
-  opacity: 1 !important;
-  display: block !important;
-}

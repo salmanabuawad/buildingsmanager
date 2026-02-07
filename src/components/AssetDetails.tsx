@@ -3795,7 +3795,7 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
                   </button>
                 </div>
               </div>
-              <div className="ag-theme-alpine rounded-xl shadow-lg border border-blue-100 asset-details-pinned-grid" style={{ height: '85px', width: '100%', overflowX: 'auto' }}>
+              <div className="ag-theme-alpine rounded-xl shadow-lg border border-blue-100 asset-details-pinned-grid" style={{ height: '140px', width: '100%', overflowX: 'auto' }}>
                 <style>{`
                   .asset-details-pinned-grid .ag-header-cell-label,
                   .asset-details-pinned-grid .ag-header-cell-text,

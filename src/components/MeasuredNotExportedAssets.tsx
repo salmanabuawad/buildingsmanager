@@ -1358,7 +1358,6 @@ export const MeasuredNotExportedAssets = ({ onSelectAsset }: MeasuredNotExported
             enableRtl={true}
             domLayout="normal"
             suppressMenuHide={true}
-            cellSelection={false}
             getRowStyle={getRowStyle}
           onGridReady={async (params) => {
             await gridPreferences.loadColumnState(params.api);

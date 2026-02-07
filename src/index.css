@@ -30,11 +30,6 @@ input[type="number"] {
   --ag-cell-horizontal-border: solid #dee2e6;
   --ag-borders: solid 1px #dee2e6;
   --ag-row-border-color: #dee2e6;
-  --ag-range-selection-border-color: transparent;
-  --ag-range-selection-border-style: none;
-  --ag-range-selection-border-width: 0;
-  --ag-range-selection-background-color: rgba(37, 99, 235, 0.08);
-  --ag-range-selection-highlight-color: rgba(37, 99, 235, 0.08);
   --ag-input-focus-box-shadow: none;
   --ag-input-focus-border-color: transparent;
 }
@@ -170,18 +165,6 @@ input[type="number"] {
   box-sizing: border-box !important;
 }
 
-.ag-theme-alpine .ag-cell-range-selected:not(.ag-cell-range-single-cell) {
-  background-color: rgba(37, 99, 235, 0.08) !important;
-  border: none !important;
-}
-
-.ag-theme-alpine .ag-fill-handle,
-.ag-theme-alpine .ag-range-handle {
-  display: none !important;
-  visibility: hidden !important;
-  opacity: 0 !important;
-  pointer-events: none !important;
-}
 
 .ag-theme-alpine .ag-cell:not(.ag-cell-inline-editing):not(.ag-cell-editing) {
   user-select: none !important;
@@ -238,17 +221,6 @@ input[type="number"] {
   line-height: normal !important;
 }
 
-/* Remove range selection styling during edit */
-.ag-theme-alpine .ag-cell-range-selected:not(.ag-cell-focus) {
-  background-color: transparent !important;
-  border: none !important;
-}
-
-.ag-theme-alpine .ag-cell-range-selected.ag-cell-inline-editing,
-.ag-theme-alpine .ag-cell-range-selected.ag-cell-editing {
-  background-color: transparent !important;
-  border: none !important;
-}
 
 /* Prevent cell width change during editing */
 .ag-theme-alpine .ag-cell-editor {
@@ -621,23 +593,4 @@ input[type="submit"]:disabled {
   @apply text-blue-600;
 }
 
-/* Remove range selection visuals but keep focus border */
-.ag-theme-alpine .ag-cell-range-selected:not(.ag-cell-focus),
-.ag-theme-alpine .ag-cell-range-selected-1:not(.ag-cell-focus),
-.ag-theme-alpine .ag-cell-range-selected-2:not(.ag-cell-focus),
-.ag-theme-alpine .ag-cell-range-selected-3:not(.ag-cell-focus),
-.ag-theme-alpine .ag-cell-range-selected-4:not(.ag-cell-focus) {
-  border: none !important;
-  box-shadow: none !important;
-}
-
-.ag-theme-alpine .ag-cell:focus-within:not(.ag-cell-focus) {
-  outline: none !important;
-}
-
-/* Hide fill handle */
-.ag-theme-alpine .ag-fill-handle,
-.ag-theme-alpine .ag-range-handle {
-  display: none !important;
-}
 

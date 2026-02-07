@@ -4897,9 +4897,6 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
               cellStyle: { textAlign: 'right' },
               minWidth: 40
             }}
-            cellSelection={{
-              handle: { mode: 'fill' },
-            }}
             gridOptions={{
               suppressColumnVirtualisation: false,
               alwaysShowHorizontalScroll: true,

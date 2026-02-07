@@ -806,7 +806,6 @@ export function AddressListComponent() {
               checkboxes: false,
               hideDisabledCheckboxes: true
             }}
-            cellSelection={false}
             suppressHorizontalScroll={false}
             suppressRowVirtualisation={false}
             getRowId={(params) => String(params.data.street_code)}

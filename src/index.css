@@ -176,6 +176,7 @@ input[type="number"] {
   -khtml-user-select: none !important;
   display: flex !important;
   align-items: center !important;
+  justify-content: flex-end !important;
   padding-top: 0 !important;
   padding-bottom: 0 !important;
 }
@@ -377,7 +378,7 @@ input[type="number"] {
   color: inherit !important;
 }
 
-/* Ensure selected/focused cells have same vertical alignment as normal cells */
+/* Ensure selected/focused cells have same vertical and horizontal alignment as normal cells */
 .ag-theme-alpine .ag-cell-range-selected,
 .ag-theme-alpine .ag-cell-range-single-cell,
 .ag-theme-alpine .ag-cell-focus,
@@ -385,9 +386,14 @@ input[type="number"] {
 .ag-theme-alpine .ag-cell:active {
   display: flex !important;
   align-items: center !important;
+  justify-content: flex-end !important;
   padding-top: 0 !important;
   padding-bottom: 0 !important;
+  padding-left: inherit !important;
+  padding-right: inherit !important;
   line-height: 1.5 !important;
+  text-align: right !important;
+  direction: rtl !important;
 }
 
 /* Disable range handle */

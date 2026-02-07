@@ -3454,7 +3454,6 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
                 alwaysShowHorizontalScroll: true,
                 suppressMovableColumns: true,
                 suppressColumnMoveAnimation: true,
-                cellSelection: true,
               }}
               onCellValueChanged={onCellValueChanged}
               onCellEditingStopped={onCellEditingStopped}

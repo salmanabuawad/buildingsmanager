@@ -1636,6 +1636,7 @@ export const AssetDataEntry = forwardRef<AssetDataEntryRef, {}>((props, ref) => 
             enterNavigatesVerticallyAfterEdit={true}
             suppressScrollOnNewData={true}
             enableRtl={true}
+            animateRows={false}
             theme="legacy"
           />
         </div>

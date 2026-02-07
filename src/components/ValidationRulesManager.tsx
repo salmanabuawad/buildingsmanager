@@ -1005,6 +1005,7 @@ export function ValidationRulesManager() {
                 singleClickEdit={true}
                 stopEditingWhenCellsLoseFocus={true}
                 enableRtl={true}
+                animateRows={false}
                 getRowId={(params) => params.data.id}
               />
             </div>

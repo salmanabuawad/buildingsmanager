@@ -836,7 +836,7 @@ export function FieldConfigManager() {
             singleClickEdit={true}
             stopEditingWhenCellsLoseFocus={true}
             enableRtl={true}
-            animateRows={true}
+            animateRows={false}
           />
         </div>
 

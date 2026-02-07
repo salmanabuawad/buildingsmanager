@@ -1720,6 +1720,7 @@ export function AssetTypes() {
                   suppressColumnVirtualisation: true,
                   alwaysShowHorizontalScroll: true,
                   enableRtl: true,
+                  animateRows: false,
                   suppressMovableColumns: true,
                   suppressColumnMoveAnimation: true,
                   tooltipShowDelay: 100,

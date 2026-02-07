@@ -295,7 +295,7 @@ export function AssetStatisticsModal({ isOpen, onClose, assets, assetTypes, buil
                   loadingError: 'שגיאה בטעינה',
                   noMatches: 'לא נמצאו תוצאות'
                 }}
-                animateRows={true}
+                animateRows={false}
                 rowHeight={32}
                 headerHeight={32}
                 domLayout="normal"

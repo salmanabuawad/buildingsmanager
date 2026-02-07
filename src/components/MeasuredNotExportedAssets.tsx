@@ -1402,7 +1402,7 @@ export const MeasuredNotExportedAssets = ({ onSelectAsset }: MeasuredNotExported
           }}
           rowSelection="single"
           suppressRowClickSelection={false}
-          animateRows={true}
+          animateRows={false}
           localeText={{
             noRowsToShow: 'אין נכסים להצגה',
             loadingOoo: 'טוען...',

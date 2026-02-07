@@ -5221,7 +5221,7 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
               gridPreferences.handleColumnMoved();
             }}
             onSortChanged={() => {}}
-            animateRows={true}
+            animateRows={false}
             enableRtl={true}
             suppressHorizontalScroll={false}
             singleClickEdit={true}

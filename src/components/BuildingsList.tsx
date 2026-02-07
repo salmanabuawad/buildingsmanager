@@ -3822,6 +3822,7 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
               domLayout="normal"
               suppressHorizontalScroll={false}
               enableRtl={true}
+              animateRows={false}
               rowClass="ag-row"
               getRowStyle={(params) => {
                 const building = params.data as Building;

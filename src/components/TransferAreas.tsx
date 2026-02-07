@@ -2264,7 +2264,7 @@ export const TransferAreas = forwardRef<TransferAreasRef, TransferAreasProps>(({
               singleClickEdit={true}
               stopEditingWhenCellsLoseFocus={true}
               enableRtl={true}
-              animateRows={true}
+              animateRows={false}
             />
           </div>
         </div>

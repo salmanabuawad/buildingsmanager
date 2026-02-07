@@ -995,7 +995,7 @@ export function AddressListComponent() {
             singleClickEdit={true}
             stopEditingWhenCellsLoseFocus={true}
             enableRtl={true}
-            animateRows={true}
+            animateRows={false}
             tooltipShowDelay={200}
             tooltipHideDelay={10000}
           />

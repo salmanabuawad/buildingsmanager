@@ -3972,7 +3972,7 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
                 singleClickEdit={true}
                 stopEditingWhenCellsLoseFocus={true}
                 enableRtl={true}
-                animateRows={true}
+                animateRows={false}
                 tooltipShowDelay={200}
                 tooltipHideDelay={10000}
               />
@@ -4174,7 +4174,7 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
                     singleClickEdit={true}
                     stopEditingWhenCellsLoseFocus={true}
                     enableRtl={true}
-                    animateRows={true}
+                    animateRows={false}
                     tooltipShowDelay={200}
                     tooltipHideDelay={10000}
                   />

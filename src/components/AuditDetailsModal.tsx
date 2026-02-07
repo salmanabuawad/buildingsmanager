@@ -607,6 +607,7 @@ export function AuditDetailsModal({ isOpen, onClose, actionId }: AuditDetailsMod
                           }}
                           singleClickEdit={true}
                           stopEditingWhenCellsLoseFocus={true}
+                          animateRows={false}
                         />
                       </div>
                     </div>
@@ -651,6 +652,7 @@ export function AuditDetailsModal({ isOpen, onClose, actionId }: AuditDetailsMod
                           }}
                           singleClickEdit={true}
                           stopEditingWhenCellsLoseFocus={true}
+                          animateRows={false}
                         />
                       </div>
                     </div>
@@ -702,6 +704,7 @@ export function AuditDetailsModal({ isOpen, onClose, actionId }: AuditDetailsMod
                           }}
                           singleClickEdit={true}
                           stopEditingWhenCellsLoseFocus={true}
+                          animateRows={false}
                         />
                       </div>
                     </div>
@@ -744,6 +747,7 @@ export function AuditDetailsModal({ isOpen, onClose, actionId }: AuditDetailsMod
                           onColumnResized={(_params: any) => {
                             afterAssetGridPreferences.handleColumnResized();
                           }}
+                          animateRows={false}
                         />
                       </div>
                     </div>
@@ -796,6 +800,7 @@ export function AuditDetailsModal({ isOpen, onClose, actionId }: AuditDetailsMod
                       }}
                       singleClickEdit={true}
                       stopEditingWhenCellsLoseFocus={true}
+                      animateRows={false}
                     />
                   </div>
                 </div>

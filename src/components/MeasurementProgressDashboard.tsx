@@ -355,7 +355,7 @@ export const MeasurementProgressDashboard = ({ onOpenBuildingsList, onOpenMeasur
                 suppressHorizontalScroll={false}
                 enableRtl={true}
                 domLayout="normal"
-                animateRows={true}
+                animateRows={false}
                 localeText={{
                   noRowsToShow: 'אין נתונים להצגה',
                   loadingOoo: 'טוען...',

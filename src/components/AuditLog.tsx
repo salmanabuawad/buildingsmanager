@@ -440,6 +440,7 @@ export function AuditLog() {
             onColumnMoved={masterGridPreferences.handleColumnMoved}
             singleClickEdit={true}
             stopEditingWhenCellsLoseFocus={true}
+            animateRows={false}
           />
         </div>
       </div>
@@ -495,6 +496,7 @@ export function AuditLog() {
               onColumnMoved={detailGridPreferences.handleColumnMoved}
               singleClickEdit={true}
               stopEditingWhenCellsLoseFocus={true}
+              animateRows={false}
             />
           </div>
         </div>

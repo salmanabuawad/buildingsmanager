@@ -3618,7 +3618,7 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
                 onColumnResized={(params) => {
                   setTimeout(() => detectAndApplyTextOverflow(params.api), 100);
                 }}
-                animateRows={true}
+                animateRows={false}
                 enableRtl={true}
                 suppressHorizontalScroll={false}
                 singleClickEdit={true}

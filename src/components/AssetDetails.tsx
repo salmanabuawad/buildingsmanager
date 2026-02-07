@@ -231,14 +231,7 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
     const assetIdNum = typeof assetId === 'string' ? parseInt(assetId, 10) : assetId;
     if (isNaN(assetIdNum)) return undefined;
 
-    const assetErrors = validationErrors.get(assetIdNum);
-    const hasErrors = assetErrors && assetErrors.size > 0;
-
     const asset = params.data as Asset;
-    const numericRegex = /^[0-9]+$/;
-    // Only check for invalid format if the field has a value (empty strings are allowed)
-    const hasInvalidPayerId = asset.payer_id && asset.payer_id !== '' && !numericRegex.test(asset.payer_id);
-    const hasInvalidAssetId = asset.asset_id && asset.asset_id !== '' && !numericRegex.test(asset.asset_id);
     const isLatest = asset.is_latest === true;
 
     const baseStyle: any = {
@@ -247,15 +240,6 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
       fontWeight: isLatest ? '600' : undefined,
       fontStyle: isLatest ? 'normal' : 'italic'
     };
-
-    if (hasErrors || hasInvalidPayerId || hasInvalidAssetId) {
-      return {
-        ...baseStyle,
-        border: '3px solid #ef4444',
-        borderRadius: '4px',
-        background: '#fee2e2'
-      };
-    }
 
     if (!isLatest) {
       baseStyle.background = '#f9fafb';

@@ -703,15 +703,8 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
     if (deletedAssets.has(assetId)) {
       return { backgroundColor: '#fee2e2', opacity: 0.7 };
     }
-    if (validationErrors.has(assetId)) {
-      return {
-        backgroundColor: '#fee2e2',
-        border: '3px solid #ef4444',
-        borderRadius: '4px'
-      };
-    }
     return null;
-  }, [deletedAssets, validationErrors]);
+  }, [deletedAssets]);
 
   const onCellValueChanged = useCallback(async (event: any) => {
     // Skip validation if we're currently refreshing after save (prevents unnecessary API calls)

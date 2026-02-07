@@ -2211,14 +2211,6 @@ export const TransferAreas = forwardRef<TransferAreasRef, TransferAreasProps>(({
               onCellValueChanged={onCellValueChanged}
               onCellEditingStopped={onCellEditingStopped}
               getRowStyle={(params) => {
-        const assetId = String(params.data?.asset_id);
-        
-        // Check validation errors by asset_id
-        const hasValidationError = validationErrors.has(assetId);
-                
-                if (hasValidationError) {
-                  return { backgroundColor: '#fef2f2' }; // Light red for validation errors
-                }
                 return null;
               }}
               onGridReady={async (params) => {

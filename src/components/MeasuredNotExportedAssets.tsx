@@ -753,21 +753,11 @@ export const MeasuredNotExportedAssets = ({ onSelectAsset }: MeasuredNotExported
     });
   }, [assets, validationErrors]);
 
-  // Get row style to highlight invalid assets
+  // Get row style
   const getRowStyle = useCallback((params: any) => {
     if (!params?.data) return null;
-    const asset = params.data as Asset;
-    const assetId = String(asset.asset_id);
-    
-    if (validationErrors.has(assetId)) {
-      return {
-        backgroundColor: '#fee2e2',
-        border: '3px solid #ef4444',
-        borderRadius: '4px'
-      };
-    }
     return null;
-  }, [validationErrors]);
+  }, []);
 
   // Export assets to automation system
   const handleExportToAutomation = useCallback(async () => {

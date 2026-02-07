@@ -4911,7 +4911,7 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
               rowBuffer: 10, // Use AG Grid default for optimal performance
               debounceVerticalScrollbar: false, // No delay for responsive scrolling
               suppressRowVirtualisation: false, // Keep row virtualization enabled for better performance
-              suppressCellFocus: false,
+              suppressCellFocus: true,
               suppressScrollOnNewData: true,
               enableCellTextSelection: false, // Disable text selection for better performance
               suppressAnimationFrame: false, // Use animation frame for smoother updates

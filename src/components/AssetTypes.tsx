@@ -919,8 +919,8 @@ export function AssetTypes() {
         return allTooltips.length > 0 ? allTooltips.join('\n') : 'אין פרטים נוספים';
       },
       tooltipComponent: CustomTooltip,
-      tooltipShowDelay: 100, // Show tooltip after 100ms
-      tooltipHideDelay: 60000, // Keep tooltip visible for 60 seconds (60000 milliseconds)
+      tooltipShowDelay: 500, // Show tooltip after 500ms delay
+      tooltipHideDelay: 120000, // Keep tooltip visible for 120 seconds (2 minutes)
       cellStyle: (params: any) => {
         const isDirty = params.data && isFieldDirty(params.data.id, 'name');
         return { 
@@ -1740,8 +1740,8 @@ export function AssetTypes() {
                   animateRows: false,
                   suppressMovableColumns: true,
                   suppressColumnMoveAnimation: true,
-                  tooltipShowDelay: 100,
-                  tooltipHideDelay: 10000,
+                  tooltipShowDelay: 500,
+                  tooltipHideDelay: 120000,
                   enableBrowserTooltips: false,
                   tooltipMouseTrack: false,
                 }}

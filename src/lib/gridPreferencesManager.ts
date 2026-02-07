@@ -63,7 +63,6 @@ export async function getAllGridStates(userId: string = 'default'): Promise<Reco
 export async function clearAllGridStates(userId: string = 'default'): Promise<void> {
   try {
     // TODO: Clear from field_configurations table instead
-    console.log('[clearAllGridStates] Would clear from field_configurations');
   } catch (error) {
     console.error('Error getting user preferences for clearing:', error);
     throw error;

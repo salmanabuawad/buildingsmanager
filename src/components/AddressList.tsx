@@ -838,7 +838,6 @@ export function AddressListComponent() {
                     const target = e.target as HTMLElement;
                     if (!target.closest('input') && !target.closest('textarea') && 
                         !target.closest('button') && !target.closest('a')) {
-                      console.log('[AddressList] Preventing selection on cell:', cellEl);
                       e.preventDefault();
                       e.stopPropagation();
                       e.stopImmediatePropagation();
@@ -853,7 +852,6 @@ export function AddressListComponent() {
                     const target = e.target as HTMLElement;
                     if (!target.closest('input') && !target.closest('textarea') && 
                         !target.closest('button') && !target.closest('a')) {
-                      console.log('[AddressList] mousedown on cell - clearing selection');
                       if (window.getSelection) {
                         const selection = window.getSelection();
                         if (selection) {
@@ -934,36 +932,22 @@ export function AddressListComponent() {
             onSortChanged={() => {}}
             onCellValueChanged={onCellValueChanged}
             onCellFocused={(event: any) => {
-              console.log('[AddressList] onCellFocused:', {
-                cell: event.node?.data,
-                column: event.column?.getColId(),
-                hasSelection: window.getSelection()?.toString().length > 0,
-                selectionText: window.getSelection()?.toString()
-              });
               // Clear text selection when cell gets focus
               setTimeout(() => {
                 if (window.getSelection) {
                   const selection = window.getSelection();
                   if (selection && selection.toString().length > 0) {
-                    console.log('[AddressList] Clearing selection in onCellFocused:', selection.toString());
                     selection.removeAllRanges();
                   }
                 }
               }, 0);
             }}
             onCellClicked={(event: any) => {
-              console.log('[AddressList] onCellClicked:', {
-                cell: event.node?.data,
-                column: event.column?.getColId(),
-                hasSelection: window.getSelection()?.toString().length > 0,
-                selectionText: window.getSelection()?.toString()
-              });
               // Clear text selection when cell is clicked
               setTimeout(() => {
                 if (window.getSelection) {
                   const selection = window.getSelection();
                   if (selection && selection.toString().length > 0) {
-                    console.log('[AddressList] Clearing selection in onCellClicked:', selection.toString());
                     selection.removeAllRanges();
                   }
                 }
@@ -971,13 +955,6 @@ export function AddressListComponent() {
             }}
             onCellMouseDown={(event: any) => {
               const mouseEvent = event.event as MouseEvent;
-              console.log('[AddressList] onCellMouseDown:', {
-                target: mouseEvent?.target,
-                cellElement: mouseEvent?.target?.closest('.ag-cell'),
-                hasSelection: window.getSelection()?.toString().length > 0,
-                selectionText: window.getSelection()?.toString(),
-                computedStyle: mouseEvent?.target ? window.getComputedStyle(mouseEvent.target as HTMLElement).userSelect : null
-              });
               if (mouseEvent) {
                 // Don't prevent default - let AG Grid handle the click
                 // Just clear selection after AG Grid processes the click
@@ -985,7 +962,6 @@ export function AddressListComponent() {
                   if (window.getSelection) {
                     const selection = window.getSelection();
                     if (selection && selection.toString().length > 0) {
-                      console.log('[AddressList] Clearing selection in onCellMouseDown:', selection.toString());
                       selection.removeAllRanges();
                     }
                   }

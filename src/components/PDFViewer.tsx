@@ -52,7 +52,6 @@ export function PDFViewer({ fileUrl, fileName }: PDFViewerProps) {
 
           if (!error && data?.signedUrl) {
             if (process.env.NODE_ENV === 'development') {
-              console.log('Using signed URL for file:', data.signedUrl);
             }
             setActualFileUrl(data.signedUrl);
             setIsPreparingUrl(false);

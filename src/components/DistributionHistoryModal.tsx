@@ -79,7 +79,6 @@ export function DistributionHistoryModal({
   };
 
   const handleRecordClick = (record: DistributionAudit) => {
-    console.log('Selected record created_at:', record.created_at, typeof record.created_at);
     setSelectedRecord(record);
   };
 

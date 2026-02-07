@@ -31,13 +31,6 @@ export function DetailRowRenderer(params: DetailRowParams) {
   
   // Debug: Log which actionId we're looking for
   if (process.env.NODE_ENV === 'development') {
-    console.log('[DetailRowRenderer] Rendering for actionId:', actionId, {
-      _actionId: data._actionId,
-      _parentActionId: data._parentActionId,
-      action_id: data.action_id,
-      availableCacheKeys: Array.from(params.auditDataCache.keys()),
-      hasCacheData: params.auditDataCache.has(actionId)
-    });
   }
   
   if (!actionId) {

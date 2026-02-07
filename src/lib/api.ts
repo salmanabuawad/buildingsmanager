@@ -146,9 +146,7 @@ async function resetDistributionFlagsIfNeeded(
       const residenceSharedArea = building.residence_shared_area ?? 0;
       if (residenceSharedArea > 0) {
         updates.need_residence_distribution = true;
-        console.log(`[resetDistributionFlagsIfNeeded] Setting need_residence_distribution=true for building ${buildingNumber} (residence asset, ${changeType})`);
       } else {
-        console.log(`[resetDistributionFlagsIfNeeded] Skipping need_residence_distribution for building ${buildingNumber} (residence_shared_area is ${residenceSharedArea})`);
       }
     }
 
@@ -160,9 +158,7 @@ async function resetDistributionFlagsIfNeeded(
         const businessSharedArea = building.business_shared_area ?? 0;
         if (businessSharedArea > 0) {
           updates.need_business_distribution = true;
-          console.log(`[resetDistributionFlagsIfNeeded] Setting need_business_distribution=true for building ${buildingNumber} (business asset, ${changeType}${assetSizeChanged ? ', size changed' : ''}${assetTypeChanged ? ', type changed' : ''})`);
         } else {
-          console.log(`[resetDistributionFlagsIfNeeded] Skipping need_business_distribution for building ${buildingNumber} (business_shared_area is ${businessSharedArea})`);
         }
       }
     }
@@ -222,7 +218,6 @@ async function resetDistributionFlagsIfNeeded(
 
             if (!hasEligibleBusinessAssets) {
               updates.need_business_distribution = false;
-              console.log(`[resetDistributionFlagsIfNeeded] Turning off need_business_distribution for building ${buildingNumber} (no eligible business assets)`);
             }
           }
 
@@ -255,7 +250,6 @@ async function resetDistributionFlagsIfNeeded(
 
             if (!hasEligibleResidenceAssets) {
               updates.need_residence_distribution = false;
-              console.log(`[resetDistributionFlagsIfNeeded] Turning off need_residence_distribution for building ${buildingNumber} (no eligible residence assets)`);
             }
           }
         }
@@ -263,11 +257,9 @@ async function resetDistributionFlagsIfNeeded(
         // No assets at all - turn off both flags
         if (building.need_business_distribution) {
           updates.need_business_distribution = false;
-          console.log(`[resetDistributionFlagsIfNeeded] Turning off need_business_distribution for building ${buildingNumber} (no assets)`);
         }
         if (building.need_residence_distribution) {
           updates.need_residence_distribution = false;
-          console.log(`[resetDistributionFlagsIfNeeded] Turning off need_residence_distribution for building ${buildingNumber} (no assets)`);
         }
       }
     }
@@ -775,11 +767,6 @@ function sanitizeBuildingInput(input: any): any {
       sanitized.address = null;
     } else {
       const code = sanitizeInteger(input.address);
-      console.log('[sanitizeBuildingInput] address sanitization:', {
-        inputAddress: input.address,
-        sanitizedCode: code,
-        type: typeof input.address
-      });
       // Only set if it's a valid positive number, otherwise set to null
       if (code != null && code > 0) {
         sanitized.address = code;
@@ -1319,13 +1306,6 @@ export const api = {
         .filter(b => b && b.building_number != null)
         .map(b => {
           const sanitized = sanitizeBuildingInput(b.updates || {});
-          console.log('[updateBulk] Sanitizing building updates:', {
-            building_number: b.building_number,
-            originalUpdates: b.updates,
-            sanitized,
-            sanitizedKeys: Object.keys(sanitized),
-            sanitizedEntries: Object.entries(sanitized).map(([k, v]) => ({ key: k, value: v, type: typeof v }))
-          });
           return {
             building_number: b.building_number,
             updates: Object.fromEntries(
@@ -1335,14 +1315,6 @@ export const api = {
         })
         .filter(b => b.updates && Object.keys(b.updates).length > 0);
       
-      console.log('[updateBulk] Final payload before RPC call:', {
-        payloadLength: payload.length,
-        payload: payload.map(p => ({
-          building_number: p.building_number,
-          updatesKeys: Object.keys(p.updates),
-          updates: p.updates
-        }))
-      });
 
       if (payload.length === 0) {
         return { success: true, count: 0, buildings: [] };
@@ -1451,7 +1423,6 @@ export const api = {
         console.error('[api.buildings.markBusinessDistributionNeeded] Failed:', error);
         throw error;
       }
-      console.log(`[api.buildings.markBusinessDistributionNeeded] Marked building ${buildingNumber} as needing business distribution`);
     },
     markBusinessDistributionDone: async (buildingNumber: number): Promise<void> => {
       const { error } = await supabase
@@ -1463,10 +1434,8 @@ export const api = {
         console.error('[api.buildings.markBusinessDistributionDone] Failed:', error);
         throw error;
       }
-      console.log(`[api.buildings.markBusinessDistributionDone] Marked building ${buildingNumber} as having completed business distribution`);
     },
     markResidenceDistributionNeeded: async (buildingNumber: number): Promise<void> => {
-      console.log(`[api.buildings.markResidenceDistributionNeeded] Attempting to update building ${buildingNumber}...`);
       const { data, error } = await supabase
         .from('buildings')
         .update({ need_residence_distribution: true })
@@ -1479,7 +1448,6 @@ export const api = {
       }
       
       if (data && data.length > 0) {
-        console.log(`[api.buildings.markResidenceDistributionNeeded] ✓ Successfully updated building ${buildingNumber}:`, data[0]);
       } else {
         console.warn(`[api.buildings.markResidenceDistributionNeeded] ⚠ No rows updated for building ${buildingNumber} - building may not exist`);
       }
@@ -1494,7 +1462,6 @@ export const api = {
         console.error('[api.buildings.markResidenceDistributionDone] Failed:', error);
         throw error;
       }
-      console.log(`[api.buildings.markResidenceDistributionDone] Marked building ${buildingNumber} as having completed residence distribution`);
     },
     getDistributionStatus: async (buildingNumber: number): Promise<{ business: boolean | null; residence: boolean | null }> => {
       const { data, error } = await supabase
@@ -2134,7 +2101,6 @@ export const api = {
                   
                   // NOTE: Distribution flags are set by save_asset_transactional function, not here
                   // Flags are part of the save transaction and cannot be set separately
-                  console.log(`[api.assets.create] Distribution flags will be set by save_asset_transactional for building ${newAsset.building_number}`);
                 }
               } catch (err) {
                 console.error('[api.assets.create] Failed to check non_accountable_for_distribution (NOT non_accountable_for_total_area) during replacement:', err);
@@ -2211,7 +2177,6 @@ export const api = {
       // NOTE: Distribution flags are set by save_asset_transactional function, not here
       // Flags are part of the save transaction and cannot be set separately
       if (data.building_number) {
-        console.log(`[api.assets.create] Distribution flags are handled by save_asset_transactional function for building ${data.building_number}`);
       }
       
       // Log audit entry ONLY for transfer_area or distribute_shared actions
@@ -2227,11 +2192,9 @@ export const api = {
       return data;
     },
     update: async (id: string | number, input: Partial<Asset>, actionType?: 'manual_update' | 'import_file' | 'transfer_area' | 'distribute_shared', skipAudit: boolean = false): Promise<Asset> => {
-      console.log('[api.assets.update] ⚡ UPDATE CALLED:', { id, idType: typeof id, actionType, skipAudit, hasInput: !!input });
 
       // Get asset ID as number
       const assetIdNum = typeof id === 'string' ? parseInt(id, 10) : id;
-      console.log('[api.assets.update] Parsed assetIdNum:', assetIdNum, 'isNaN:', isNaN(assetIdNum));
 
       // Preserve is_new_measurement flag before sanitization (sanitizeAssetInput doesn't handle it)
       const isNewMeasurement = input.is_new_measurement;
@@ -2245,7 +2208,6 @@ export const api = {
           .eq('asset_id', assetIdNum)
           .maybeSingle();
         beforeData = assetData || null;
-        console.log('[api.assets.update] beforeData fetch result:', { hasBeforeData: !!beforeData, assetId: assetIdNum });
       } catch (err) {
         // If asset doesn't exist, that's fine - we'll still try to update
         console.error('[api.assets.update] ERROR fetching before data:', err);
@@ -2263,18 +2225,12 @@ export const api = {
       // If column exists and is false, omitting it keeps it false (PostgreSQL behavior)
       if (isNewMeasurement !== undefined) {
         (sanitizedInput as any).is_new_measurement = isNewMeasurement;
-        console.log('[api.assets.update] Setting is_new_measurement flag:', isNewMeasurement, 'for asset_id:', id);
       } else {
         delete (sanitizedInput as any).is_new_measurement;
       }
       
       // Log what we're about to update (for debugging)
       if (isNewMeasurement === true) {
-        console.log('[api.assets.update] About to update with is_new_measurement=true. Sanitized input:', {
-          asset_id: id,
-          is_new_measurement: sanitizedInput.is_new_measurement,
-          hasFlag: 'is_new_measurement' in sanitizedInput
-        });
       }
 
       // If is_new_measurement is true, copy old asset to history BEFORE update
@@ -2365,7 +2321,6 @@ export const api = {
       // NOTE: Distribution flags are NOT set here - they are only set within transactional save functions
       // (save_asset_transactional, save_assets_bulk_transactional, delete_asset_transactional)
       // This ensures flags are always part of the save transaction and cannot be set separately
-      console.log('[api.assets.update] Distribution flags are handled by transactional save functions, not set directly from API');
 
       // Log audit entry ONLY for transfer_area or distribute_shared actions
       // Regular asset updates should NOT create audit entries
@@ -2427,7 +2382,6 @@ export const api = {
         throw error;
       }
 
-      console.log('[api.assets.delete] Asset deleted successfully in transaction:', data);
 
       return { message: 'Asset deleted successfully' };
     },
@@ -3183,11 +3137,6 @@ export const api = {
         const withNonAccountableForTotalArea = mappedData.filter((at: any) => at.non_accountable_for_total_area === true);
         const withNonAccountableForDistribution = mappedData.filter((at: any) => at.non_accountable_for_distribution === true);
         
-        console.log(`[api.assetTypes.getAll] Loaded ${mappedData.length} asset types. Statistics:`, {
-          withBusinessResidence: withBusinessResidence.length,
-          withNonAccountableForTotalArea: withNonAccountableForTotalArea.length,
-          withNonAccountableForDistribution: withNonAccountableForDistribution.length
-        });
       }
       
       return mappedData;
@@ -3298,10 +3247,6 @@ export const api = {
       // If non_accountable_for_distribution is true, reset distribution flags for affected buildings
       if (input.non_accountable_for_distribution === true && data.name) {
         try {
-          console.log('[api.assetTypes.create] Asset type has non_accountable_for_distribution=true, resetting flags for affected buildings:', {
-            assetTypeName: data.name,
-            business_residence: data.business_residence
-          });
           
           // Find all buildings with assets of this type
           const { data: affectedAssets } = await supabase
@@ -3312,7 +3257,6 @@ export const api = {
           
           if (affectedAssets && affectedAssets.length > 0) {
             const buildingNumbers = [...new Set(affectedAssets.map(a => a.building_number))];
-            console.log(`[api.assetTypes.create] Found ${buildingNumbers.length} affected building(s):`, buildingNumbers);
             
             // Get the asset type's business_residence to determine which flag to set
             const isBusiness = data.business_residence === 'עסקים';
@@ -3321,9 +3265,7 @@ export const api = {
             // NOTE: Distribution flags should be set when assets using this type are saved/updated
             // via transactional save functions, not when asset types are created/updated
             // Flags are part of asset save transactions and cannot be set separately
-            console.log(`[api.assetTypes.create] Distribution flags will be set by transactional save functions when assets using this type are saved`);
           } else {
-            console.log('[api.assetTypes.create] No affected buildings found for asset type:', data.name);
           }
         } catch (err) {
           // Don't fail the create operation if flag reset fails
@@ -3475,11 +3417,6 @@ export const api = {
                 : oldValue;
               
               if (oldValue !== newValue) {
-                console.log('[api.assetTypes.update] non_accountable_for_distribution changed, resetting flags for affected buildings:', {
-                  assetTypeName: beforeData.name,
-                  oldValue,
-                  newValue
-                });
                 
                 const { data: affectedAssets } = await supabase
                   .from('assets')
@@ -3489,7 +3426,6 @@ export const api = {
                 
                 if (affectedAssets && affectedAssets.length > 0) {
                   const buildingNumbers = [...new Set(affectedAssets.map(a => a.building_number))];
-                  console.log(`[api.assetTypes.update] Found ${buildingNumbers.length} affected building(s):`, buildingNumbers);
                   
                   // Get the asset type's business_residence to determine which flag to set
                   const isBusiness = beforeData.business_residence === 'עסקים';
@@ -3498,9 +3434,7 @@ export const api = {
                   // NOTE: Distribution flags should be set when assets using this type are saved/updated
                   // via transactional save functions, not when asset types are created/updated
                   // Flags are part of asset save transactions and cannot be set separately
-                  console.log(`[api.assetTypes.update] Distribution flags will be set by transactional save functions when assets using this type are saved`);
                 } else {
-                  console.log('[api.assetTypes.update] No affected buildings found for asset type:', beforeData.name);
                 }
               }
             }
@@ -3519,13 +3453,11 @@ export const api = {
             
             // Log if distribution flags were reset
             if (result?.affected_buildings && Array.isArray(result.affected_buildings) && result.affected_buildings.length > 0) {
-              console.log(`[api.assetTypes.update] Database function updated asset type and set distribution flags to true for ${result.affected_buildings.length} building(s):`, result.affected_buildings);
             } else if (beforeData && 'non_accountable_for_distribution' in input) {
               // Check if non_accountable_for_distribution changed but no buildings were affected
               const oldValue = beforeData.non_accountable_for_distribution === true;
               const newValue = input.non_accountable_for_distribution === true;
               if (oldValue !== newValue) {
-                console.log('[api.assetTypes.update] non_accountable_for_distribution changed but no affected buildings found (database function may have handled it)');
               }
             }
           } else {
@@ -3930,7 +3862,6 @@ export const api = {
     // when individual assets are deleted. For bulk deletion, flags should be set by
     // using the transactional delete function for each asset, or by a bulk transactional delete function.
     // This ensures flags are always part of the delete transaction and cannot be set separately.
-    console.log('[api.deleteAssetsByBuilding] Distribution flags should be set by transactional delete functions, not directly from API');
 
     // Delete from assets_history again to remove entries created by the trigger
     if (assetIds.length > 0) {

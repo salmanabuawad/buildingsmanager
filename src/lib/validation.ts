@@ -32,7 +32,6 @@ let inMemoryLatestExportDate: string | null = null;
 export function setValidationRules(rules: ValidationRule[]): void {
   inMemoryRules = rules;
   rulesLoaded = true;
-  console.log(`[validation] Loaded ${rules.length} validation rules into memory`);
 }
 
 /**
@@ -50,8 +49,6 @@ export function setValidationData(data: { buildings: any[]; assetTypes: any[]; a
   const withNonAccountableForTotalArea = data.assetTypes.filter((at: any) => at.non_accountable_for_total_area === true);
   const withNonAccountableForDistribution = data.assetTypes.filter((at: any) => at.non_accountable_for_distribution === true);
   
-  console.log(`[validation] Loaded ${data.buildings.length} buildings, ${data.assetTypes.length} asset types, and ${inMemoryAllAssets.length} assets into memory`);
-  console.log(`[validation] Asset types statistics: ${withNonAccountableForTotalArea.length} with non_accountable_for_total_area, ${withNonAccountableForDistribution.length} with non_accountable_for_distribution`);
 }
 
 /**
@@ -84,7 +81,6 @@ export async function refreshAssetTypesCache(): Promise<void> {
     const withBusinessResidence = mappedData.filter((at: any) => at.business_residence != null);
     const withNonAccountableForTotalArea = mappedData.filter((at: any) => at.non_accountable_for_total_area === true);
     const withNonAccountableForDistribution = mappedData.filter((at: any) => at.non_accountable_for_distribution === true);
-    console.log(`[validation] Refreshed ${mappedData.length} asset types in memory. ${withBusinessResidence.length} have business_residence set. ${withNonAccountableForTotalArea.length} have non_accountable_for_total_area set. ${withNonAccountableForDistribution.length} have non_accountable_for_distribution set.`);
   } catch (err) {
     console.error('[validation] Failed to refresh asset types cache:', err);
   }
@@ -95,7 +91,6 @@ export async function refreshAssetTypesCache(): Promise<void> {
  */
 export function setAllAssets(assets: any[]): void {
   inMemoryAllAssets = assets;
-  console.log(`[validation] Loaded ${assets.length} assets into memory for uniqueness validation`);
 }
 
 /**
@@ -115,9 +110,7 @@ export function getAllAssets(): any[] {
 export function setLatestExportDate(date: string | null): void {
   inMemoryLatestExportDate = date;
   if (date) {
-    console.log(`[validation] Latest export date cached in memory: ${date}`);
   } else {
-    console.log('[validation] Latest export date cleared from memory');
   }
 }
 
@@ -600,12 +593,6 @@ export async function validateAssetTypeForBuildingTaxRegion(
       const assetTaxRegion = cachedData.asset.tax_region;
       taxRegionsToUse = [String(assetTaxRegion)];
       if (process.env.NODE_ENV === 'development') {
-        console.log('[validateAssetTypeForBuildingTaxRegion] Using asset.tax_region from asset table:', {
-          assetTaxRegion: assetTaxRegion,
-          buildingNumber: buildingNumber,
-          assetTypeName: assetTypeName,
-          source: 'asset.tax_region'
-        });
       }
     }
     // Priority 2: Use taxRegion parameter from tab if asset.tax_region is not available
@@ -613,12 +600,6 @@ export async function validateAssetTypeForBuildingTaxRegion(
       const tabTaxRegion = taxRegion.trim();
       taxRegionsToUse = [tabTaxRegion];
       if (process.env.NODE_ENV === 'development') {
-        console.log('[validateAssetTypeForBuildingTaxRegion] Using taxRegion from tab parameter:', {
-          tabTaxRegion: tabTaxRegion,
-          buildingNumber: buildingNumber,
-          assetTypeName: assetTypeName,
-          source: 'taxRegion parameter'
-        });
       }
     }
     
@@ -626,10 +607,6 @@ export async function validateAssetTypeForBuildingTaxRegion(
     // (but still validate that asset type exists)
     if (taxRegionsToUse === null) {
       if (process.env.NODE_ENV === 'development') {
-        console.log('[validateAssetTypeForBuildingTaxRegion] No tax region available for validation, skipping tax region check:', {
-          buildingNumber: buildingNumber,
-          assetTypeName: assetTypeName
-        });
       }
       // Still validate that the asset type exists, but skip tax region validation
       taxRegionsToUse = [];
@@ -650,7 +627,6 @@ export async function validateAssetTypeForBuildingTaxRegion(
       const buildingTaxRegionNumbers = buildingTaxRegions.map(r => parseInt(r));
       const hasValidTaxRegion = buildingTaxRegionNumbers.some(tr => validTaxRegions.includes(tr));
       
-      console.log(`[validateAssetTypeForBuildingTaxRegion] Asset type ${assetTypeName}, building tax regions: ${JSON.stringify(buildingTaxRegions)}, valid tax regions: ${JSON.stringify(validTaxRegions)}, hasValidTaxRegion: ${hasValidTaxRegion}`);
       
       // Only error if the asset type exists in the database but not for this tax region
       if (!hasValidTaxRegion) {
@@ -783,13 +759,6 @@ export async function validateAssetTypeComplete(
       taxRegionsToCheck = assetTaxRegion.split(',').map(r => r.trim()).filter(r => r);
       // Reduced logging frequency to improve performance (log only 1% of calls)
       if (process.env.NODE_ENV === 'development' && Math.random() < 0.01) {
-        console.log('[validateAssetTypeComplete] Using asset.tax_region from assetData:', {
-          assetTaxRegion: assetTaxRegion,
-          taxRegionsToCheck: taxRegionsToCheck,
-          buildingNumber: buildingNumber,
-          assetTypeName: assetTypeName,
-          source: 'assetData.tax_region'
-        });
       }
     }
     // Priority 2: Use taxRegion parameter if asset.tax_region is not available
@@ -797,13 +766,6 @@ export async function validateAssetTypeComplete(
       // Split if comma-separated
       taxRegionsToCheck = taxRegion.split(',').map(r => r.trim()).filter(r => r);
       if (process.env.NODE_ENV === 'development') {
-        console.log('[validateAssetTypeComplete] Using taxRegion from parameter:', {
-          taxRegion: taxRegion,
-          taxRegionsToCheck: taxRegionsToCheck,
-          buildingNumber: buildingNumber,
-          assetTypeName: assetTypeName,
-          source: 'taxRegion parameter'
-        });
       }
     }
     
@@ -1779,14 +1741,6 @@ export async function validateSubAssetsFor199Or299(
     // Support comma-separated tax regions (e.g., "10,40")
     // This ensures that even if building has "10,40", we only use the tab's tax regions
     buildingTaxRegions = taxRegion.split(',').map(r => r.trim()).filter(r => r);
-    console.log('[validateSubAssetsFor199Or299] TAB TAX REGION PROVIDED - Using tab tax regions, IGNORING building tax_region:', {
-      tabTaxRegion: taxRegion,
-      taxRegionsToCheck: buildingTaxRegions,
-      buildingNumber: buildingNumber,
-      mainAssetType: mainAssetType,
-      willUse: 'TAB TAX REGIONS ONLY',
-      buildingTaxRegionWillBeIgnored: true
-    });
   } else {
     // Fallback: if no taxRegion provided, use cached building or fetch building and use its tax_region
     let building = cachedData?.building;
@@ -1967,7 +1921,6 @@ export async function validateField(
 
   // Reduced logging frequency to improve performance (log only 1% of calls)
   if (process.env.NODE_ENV === 'development' && Math.random() < 0.01) {
-    console.log(`validateField(${entityType}, ${fieldName}, ${value}, taxRegion: ${taxRegion}) - Found ${fieldRules.length} rules`, fieldRules.map(r => r.rule_type));
   }
 
   if (value == null || value === '') {
@@ -2260,10 +2213,6 @@ export const assetValidators = {
     }
     // Reduced logging frequency to improve performance (log only 1% of calls)
     if (process.env.NODE_ENV === 'development' && Math.random() < 0.01) {
-      console.log('[assetValidators.validateAssetType] Validating asset type with taxRegion:', taxRegion, {
-        assetType,
-        fieldName
-      });
     }
     // Pass validation rules and lookup data to avoid database queries
     const results = await validateField('asset', fieldName, assetType, validationRules, taxRegion, lookupData);
@@ -2574,11 +2523,9 @@ export const buildingValidators = {
     const taxRegionStr = typeof taxRegion === 'number' ? taxRegion.toString() : taxRegion;
     const trimmedValue = taxRegionStr.trim();
 
-    console.log('[checkTaxRegionInvalid] Checking tax region:', taxRegion, 'trimmed:', trimmedValue);
 
     // Check format first
     const formatResult = await buildingValidators.validateTaxRegion(taxRegion, true);
-    console.log('[checkTaxRegionInvalid] Format validation result:', formatResult);
     if (!formatResult.valid) return true;
 
     // Then check if all components exist in asset_types
@@ -2586,7 +2533,6 @@ export const buildingValidators = {
       ? trimmedValue.split(',').map(v => v.trim())
       : [trimmedValue];
 
-    console.log('[checkTaxRegionInvalid] Checking components:', components);
 
     const assetTypes = getAssetTypes();
     const taxRegionsInAssetTypes = new Set(assetTypes.map(at => at.tax_region).filter(tr => tr != null));
@@ -2595,13 +2541,11 @@ export const buildingValidators = {
       const taxRegionNum = parseInt(component);
       if (!taxRegionsInAssetTypes.has(taxRegionNum)) {
         if (process.env.NODE_ENV === 'development') {
-          console.log('[checkTaxRegionInvalid] Tax region component', component, 'is INVALID');
         }
         return true;
       }
     }
 
-    console.log('[checkTaxRegionInvalid] All components valid, returning false');
     return false;
   },
 

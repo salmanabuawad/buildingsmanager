@@ -52,12 +52,6 @@ export class AssetValidationHandler {
     // Log validation parameters for debugging (disabled to reduce console noise)
     // Uncomment below and adjust frequency if needed for debugging
     // if (process.env.NODE_ENV === 'development' && Math.random() < 0.001) { // Log only 0.1% of validations
-    //   console.log('[AssetValidationHandler.validateSingleAsset] Parameters:', {
-    //     assetId: asset.asset_id,
-    //     buildingNumber: asset.building_number,
-    //     taxRegion: options?.taxRegion || 'NOT PROVIDED (will use building tax_region)',
-    //     mainAssetType: asset.main_asset_type
-    //   });
     // }
     
     // Include asset in cachedData so validation can access asset.tax_region
@@ -403,22 +397,11 @@ export class AssetValidationHandler {
     // Log validation parameters for debugging (disabled to reduce console noise)
     // Uncomment below and adjust frequency if needed for debugging
     // if (process.env.NODE_ENV === 'development' && Math.random() < 0.001) { // Log only 0.1% of validations
-    //   console.log('[AssetValidationHandler.validateAssetInternal] Parameters:', {
-    //     assetId: asset.asset_id,
-    //     buildingNumber: asset.building_number,
-    //     taxRegion: taxRegion || 'NOT PROVIDED (will use building tax_region)',
-    //     mainAssetType: asset.main_asset_type,
-    //     assetIdentifier: assetIdentifier
-    //   });
     // }
     
     // Skip validation for asset type 990
     if (asset.main_asset_type && (String(asset.main_asset_type).trim() === '990' || parseInt(String(asset.main_asset_type).trim(), 10) === 990)) {
       if (process.env.NODE_ENV === 'development') {
-        console.log('[AssetValidationHandler] Skipping validation for asset type 990:', {
-          assetId: asset.asset_id,
-          main_asset_type: asset.main_asset_type
-        });
       }
       return {
         assetId: asset.asset_id,
@@ -470,12 +453,6 @@ export class AssetValidationHandler {
         if (assetType && assetType.non_accountable_for_total_area === true) {
           // Asset type is non_accountable_for_total_area - skip all validation
           if (process.env.NODE_ENV === 'development') {
-            console.log('[AssetValidationHandler] Skipping validation for non_accountable_for_total_area asset:', {
-              assetId: asset.asset_id,
-              main_asset_type: asset.main_asset_type,
-              assetTypeName: assetType.name,
-              non_accountable_for_total_area: assetType.non_accountable_for_total_area
-            });
           }
           return {
             assetId: asset.asset_id,

@@ -108,10 +108,6 @@ const AddressCellEditor = React.forwardRef<any, AddressCellEditorParams>((props,
   
   // Debug: Log addressList when it changes
   useEffect(() => {
-    console.log('[AddressCellEditor] addressList updated:', {
-      length: addressList.length,
-      firstFew: addressList.slice(0, 3).map(a => ({ code: a.street_code, desc: a.street_description }))
-    });
   }, [addressList]);
 
   // Get the field name from column (address is the default now)
@@ -135,11 +131,6 @@ const AddressCellEditor = React.forwardRef<any, AddressCellEditorParams>((props,
         }
       }
       
-      console.log('[AddressCellEditor] getValue() called:', {
-        fieldName,
-        refValue: selectedValueRef.current,
-        returning: value
-      });
       
       return value;
     },
@@ -160,13 +151,6 @@ const AddressCellEditor = React.forwardRef<any, AddressCellEditorParams>((props,
       streetCode = dataRef.current[fieldName];
     }
     
-    console.log('[AddressCellEditor] Initializing:', {
-      fieldName,
-      propsValue: props.value,
-      dataValue: props.data?.[fieldName],
-      dataRefValue: dataRef.current?.[fieldName],
-      finalValue: streetCode
-    });
     
     if (streetCode != null) {
       setSelectedValue(streetCode);
@@ -195,11 +179,6 @@ const AddressCellEditor = React.forwardRef<any, AddressCellEditorParams>((props,
 
   // Filter addresses based on search
   const filteredAddresses = useMemo(() => {
-    console.log('[AddressCellEditor] filteredAddresses calculation:', {
-      addressListLength: addressList.length,
-      searchValue,
-      hasAddressList: addressList.length > 0
-    });
     
     if (!searchValue.trim()) {
       return addressList;
@@ -210,7 +189,6 @@ const AddressCellEditor = React.forwardRef<any, AddressCellEditorParams>((props,
       a.street_description?.toLowerCase().includes(searchLower) ||
       `${a.street_code} - ${a.street_description}`.toLowerCase().includes(searchLower)
     );
-    console.log('[AddressCellEditor] Filtered addresses:', filtered.length);
     return filtered;
   }, [searchValue, addressList]);
 
@@ -270,13 +248,6 @@ const AddressCellEditor = React.forwardRef<any, AddressCellEditorParams>((props,
     const streetCode = Number(address.street_code); // Ensure it's a number
     const oldValue = props.value;
     
-    console.log('[AddressCellEditor] Selecting address:', {
-      streetCode,
-      oldValue,
-      currentRefValue: selectedValueRef.current,
-      fieldName,
-      address: address.street_description
-    });
     
     // CRITICAL: Set value in ref FIRST - this is what getValue() will return
     selectedValueRef.current = streetCode;
@@ -288,12 +259,6 @@ const AddressCellEditor = React.forwardRef<any, AddressCellEditorParams>((props,
     // Update search value to show selected address
     setSearchValue(`${address.street_code} - ${address.street_description}`);
     
-    console.log('[AddressCellEditor] Before stopEditing:', {
-      ref: selectedValueRef.current,
-      streetCode,
-      oldValue,
-      fieldName
-    });
     
     // CRITICAL: Don't call setDataValue before stopEditing - it causes issues
     // Instead, let ag-grid's natural flow handle it:
@@ -302,12 +267,6 @@ const AddressCellEditor = React.forwardRef<any, AddressCellEditorParams>((props,
     // 3. ag-grid will trigger onCellValueChanged
     
     // Just ensure the ref is set correctly
-    console.log('[AddressCellEditor] Before stopEditing:', {
-      fieldName,
-      streetCode,
-      refValue: selectedValueRef.current,
-      nodeDataAddress: props.node?.data?.[fieldName]
-    });
     
     // Stop editing - AG Grid will:
     // 1. Call getValue() which returns selectedValueRef.current (streetCode)
@@ -325,14 +284,6 @@ const AddressCellEditor = React.forwardRef<any, AddressCellEditorParams>((props,
       if (node && column) {
         const colId = column.getColId();
         const currentValue = node.data?.[fieldName];
-        console.log('[AddressCellEditor] After stopEditing, checking value:', {
-          colId,
-          fieldName,
-          streetCode,
-          currentValue,
-          refValue: selectedValueRef.current,
-          needsUpdate: currentValue !== streetCode
-        });
         
         // If value doesn't match, force update
         if (currentValue !== streetCode && streetCode != null) {
@@ -366,12 +317,6 @@ const AddressCellEditor = React.forwardRef<any, AddressCellEditorParams>((props,
     setTimeout(() => {
       if (node && column && api) {
         const colId = column.getColId();
-        console.log('[AddressCellEditor] After stopEditing, refreshing cell:', {
-          colId,
-          fieldName,
-          nodeDataAddress: node.data?.[fieldName],
-          refValue: selectedValueRef.current
-        });
         api.refreshCells({ 
           rowNodes: [node], 
           columns: [colId], 
@@ -390,13 +335,6 @@ const AddressCellEditor = React.forwardRef<any, AddressCellEditorParams>((props,
       const clickedOnDropdown = dropdownRef.current && dropdownRef.current.contains(target);
       const clickedOnInput = inputRef.current && inputRef.current.contains(target);
       
-      console.log('[AddressCellEditor] Click outside check:', {
-        clickedOnDropdown,
-        clickedOnInput,
-        hasDropdown: !!dropdownRef.current,
-        hasInput: !!inputRef.current,
-        target: (target as Element)?.tagName
-      });
       
       // Only close if click is truly outside both dropdown and input
       if (
@@ -405,7 +343,6 @@ const AddressCellEditor = React.forwardRef<any, AddressCellEditorParams>((props,
         inputRef.current &&
         !clickedOnInput
       ) {
-        console.log('[AddressCellEditor] Click outside detected, closing editor');
         // Use setTimeout to allow dropdown item clicks to process first
         setTimeout(() => {
           props.stopEditing();
@@ -486,15 +423,8 @@ const AddressCellEditor = React.forwardRef<any, AddressCellEditorParams>((props,
                     onClick={(e) => {
                       e.preventDefault();
                       e.stopPropagation();
-                      console.log('[AddressCellEditor] Dropdown item clicked:', {
-                        streetCode: address.street_code,
-                        description: address.street_description,
-                        index,
-                        addressObject: address
-                      });
                       // Use setTimeout to ensure the click event is fully processed
                       setTimeout(() => {
-                        console.log('[AddressCellEditor] Calling selectAddress after timeout');
                         selectAddress(address);
                       }, 0);
                     }}
@@ -502,10 +432,6 @@ const AddressCellEditor = React.forwardRef<any, AddressCellEditorParams>((props,
                       // Also handle mousedown to ensure click works
                       e.preventDefault();
                       e.stopPropagation();
-                      console.log('[AddressCellEditor] Dropdown item mousedown:', {
-                        streetCode: address.street_code,
-                        description: address.street_description
-                      });
                     }}
                     onMouseEnter={() => setSelectedIndex(index)}
                     style={{
@@ -796,7 +722,6 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
     try {
       const result = await api.assets.getExportToAutomationCount();
       if (result.success) {
-        console.log('[BuildingsList] Refreshed export count:', result.count);
         setExportToAutomationCount(result.count);
       }
     } catch (err) {
@@ -816,7 +741,6 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
     const loadAddressList = async () => {
       try {
         const addresses = await api.addressList.getAll();
-        console.log('[BuildingsList] Loaded address list:', addresses.length, 'addresses');
         setAddressList(addresses);
       } catch (err) {
         console.error('Error loading address list:', err);
@@ -995,15 +919,6 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
     // CRITICAL: If user didn't interact and values are the same, skip entirely
     // This prevents dirty state from being set when just clicking a cell without editing
     if (userInteracted === false && valuesAreSame && !isNew) {
-      console.log('[onCellValueChanged] User did not interact and value unchanged - skipping:', {
-        field,
-        cellKey,
-        oldValue,
-        newValue,
-        normOld,
-        normNew,
-        userInteracted
-      });
       cellEditStartValues.current.delete(cellKey);
       cellEditUserInteracted.current.delete(cellKey);
       return; // EARLY RETURN - don't mark dirty, don't update state
@@ -1031,14 +946,6 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
       // CRITICAL: If edit started with 0 (or null/empty) and new value is also 0, skip
       // This catches the case where user clicks a zero cell but doesn't change it
       if (numStart !== null && numStart === 0 && numNew === 0) {
-        console.log('[onCellValueChanged] Numeric field unchanged from zero - skipping:', {
-          field,
-          startValue: numStart,
-          newValue: numNew,
-          oldValue: numOld,
-          editStartValue,
-          userInteracted
-        });
         cellEditStartValues.current.delete(cellKey);
         cellEditUserInteracted.current.delete(cellKey);
         return; // EARLY RETURN - don't mark dirty, don't update state
@@ -1046,14 +953,6 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
       
       // If both old and new are 0 (or null/empty treated as 0), and user hasn't interacted, skip
       if (numOld === 0 && numNew === 0 && userInteracted === false) {
-        console.log('[onCellValueChanged] Numeric field with zero value, user did not interact - skipping:', {
-          field,
-          oldValue,
-          newValue,
-          numOld,
-          numNew,
-          editStartValue: numStart
-        });
         cellEditStartValues.current.delete(cellKey);
         cellEditUserInteracted.current.delete(cellKey);
         return; // EARLY RETURN - don't mark dirty, don't update state
@@ -1068,15 +967,6 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
     // STRICT CHECK: If user hasn't interacted AND values are the same, skip immediately
     // This catches the case where user just clicks cell without editing
     if (!isNew && userInteracted === false && valuesAreSame) {
-      console.log('[onCellValueChanged] User clicked but did not interact, values unchanged - skipping:', {
-        field,
-        oldValue,
-        newValue,
-        normOld,
-        normNew,
-        editStartValue,
-        userInteracted
-      });
       cellEditStartValues.current.delete(cellKey);
       cellEditUserInteracted.current.delete(cellKey);
       return;
@@ -1125,15 +1015,6 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
     
     // Check if value changed from original data value (most reliable check)
     if (!isNew && normalizedOriginalValue === normalizedNewValue) {
-      console.log('[onCellValueChanged] Value unchanged from original data, skipping:', {
-        field,
-        originalDataValue,
-        normalizedOriginalValue,
-        newValue,
-        normalizedNewValue,
-        buildingKey,
-        isNumericField
-      });
       // Clean up any tracking
       cellEditStartValues.current.delete(cellKey);
       cellEditUserInteracted.current.delete(cellKey);
@@ -1144,16 +1025,6 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
     if (editStartValue !== undefined) {
       const normalizedStartValue = normalizeForCompare(editStartValue);
       if (normalizedNewValue === normalizedStartValue) {
-        console.log('[onCellValueChanged] Value unchanged from edit start, skipping dirty tracking:', {
-          field,
-          startValue: editStartValue,
-          normalizedStartValue,
-          newValue,
-          normalizedNewValue,
-          cellKey,
-          userInteracted,
-          isNumericField
-        });
         // Clean up tracking
         cellEditStartValues.current.delete(cellKey);
         cellEditUserInteracted.current.delete(cellKey);
@@ -1165,13 +1036,6 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
     if (!isNew && oldValue !== undefined && newValue !== undefined) {
       const normalizedOld = normalizeForCompare(oldValue);
       if (normalizedOld === normalizedNewValue) {
-        console.log('[onCellValueChanged] oldValue === newValue (normalized), skipping:', {
-          field,
-          oldValue,
-          newValue,
-          normalizedOld,
-          normalizedNewValue
-        });
         cellEditStartValues.current.delete(cellKey);
         cellEditUserInteracted.current.delete(cellKey);
         return; // EARLY RETURN - don't mark dirty, don't update state
@@ -1185,13 +1049,6 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
 
     // Debug log for address field
     if (field === 'address') {
-      console.log('[CELL CHANGED] address field changed:', {
-        buildingKey,
-        isNew,
-        newValue,
-        oldValue: event.oldValue,
-        buildingAddress: building.address
-      });
     }
 
 
@@ -1380,11 +1237,6 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
       } else {
         valueToUpdate = null;
       }
-      console.log('[onCellValueChanged] address valueToUpdate:', {
-        newValue,
-        valueToUpdate,
-        type: typeof newValue
-      });
     }
     // For note, preserve string value (including empty string as null)
     if (field === 'note') {
@@ -1517,24 +1369,9 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
     let updatedDirtyChanges: Partial<Building>;
     if (shouldMarkAsDirty) {
       updatedDirtyChanges = { ...existingDirtyChanges, [field]: valueForDirty };
-      console.log('[onCellValueChanged] Setting dirty change:', {
-        field,
-        buildingKey: newBuildingKey,
-        valueForDirty,
-        valueToUpdate,
-        valueToStore,
-        updatedDirtyChanges
-      });
     } else {
       updatedDirtyChanges = { ...existingDirtyChanges };
       delete updatedDirtyChanges[field as keyof Building];
-      console.log('[onCellValueChanged] Removing dirty change:', {
-        field,
-        buildingKey: newBuildingKey,
-        reason: 'value matches original',
-        newValue: valueForDirty,
-        originalValue: normalizedOriginalValueForDirty
-      });
     }
     
     if (field !== 'building_number' || !isNew) {
@@ -1543,10 +1380,6 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
           const next = new Map(prev);
           if (shouldMarkAsDirty) {
             next.set(newBuildingKey, updatedDirtyChanges);
-            console.log('[onCellValueChanged] Updated dirtyBuildings:', {
-              buildingKey: newBuildingKey,
-              changes: updatedDirtyChanges
-            });
           } else {
             if (Object.keys(updatedDirtyChanges).length > 0) {
               next.set(newBuildingKey, updatedDirtyChanges);
@@ -1643,16 +1476,6 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
     
     // CRITICAL: If user didn't interact (just clicked without typing) OR value didn't change, skip entirely
     if (!isNew && (userInteracted === false || !valueChanged)) {
-      console.log('[onCellEditingStopped] Skipping - user did not interact or value unchanged:', {
-        field,
-        cellKey,
-        userInteracted,
-        valueChanged,
-        editStartValue,
-        newValue,
-        normalizedStartValue,
-        normalizedNewValue
-      });
       // Clean up tracking
       cellEditStartValues.current.delete(cellKey);
       cellEditUserInteracted.current.delete(cellKey);
@@ -1726,13 +1549,6 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
     cellEditStartValues.current.set(cellKey, initialValue);
     cellEditUserInteracted.current.set(cellKey, false); // User hasn't interacted yet
     
-    console.log('[onCellEditingStarted] Tracking edit start:', {
-      cellKey,
-      field,
-      initialValue,
-      isNumericField,
-      userInteracted: false
-    });
   }, [getBuildingKey]);
 
   // Add empty building row
@@ -2571,18 +2387,6 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
           const changes = dirtyBuildings.get(buildingKey) || {};
           const isNew = isNewBuilding(building);
 
-          console.log('[handleSaveAll] Processing building:', {
-            buildingKey,
-            isNew,
-            buildingNumber: building.building_number,
-            changes,
-            hasAddress: 'address' in changes,
-            hasNote: 'note' in changes,
-            addressValue: changes.address,
-            noteValue: changes.note,
-            allChangesKeys: Object.keys(changes),
-            allChangesValues: Object.entries(changes).map(([k, v]) => ({ key: k, value: v, type: typeof v }))
-          });
 
           if (isNew) {
             const finalBuilding = { ...building, ...changes };
@@ -2596,12 +2400,6 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
             }
 
             const { _tempId, _isNew, created_at, updated_at, ...buildingData } = finalBuilding as any;
-            console.log('[handleSaveAll] Creating building with data:', {
-              building_number: buildingData.building_number,
-              address: buildingData.address,
-              note: buildingData.note,
-              allFields: Object.keys(buildingData)
-            });
             buildingsToCreate.push(buildingData);
             successfullySaved.add(buildingKey);
             successfullySaved.add(finalBuilding.building_number);
@@ -2611,12 +2409,6 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
               errors.push(`מבנה ${buildingKey}: לא ניתן לעדכן מבנה עם מזהה מבנה לא תקין`);
               continue;
             }
-            console.log('[handleSaveAll] Updating building with changes:', {
-              building_number: actualBuildingNumber,
-              address: changes.address,
-              note: changes.note,
-              allChanges: Object.keys(changes)
-            });
             buildingsToUpdate.push({ building_number: actualBuildingNumber, updates: changes });
             successfullySaved.add(buildingKey);
             successfullySaved.add(actualBuildingNumber);
@@ -2990,13 +2782,11 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
           
           if (hasMultipleTaxRegions) {
             // Building has multiple tax regions - use them directly
-            console.log('[BuildingsList] Building has multiple tax regions:', buildingTaxRegions);
             onSelectBuilding(building.building_number, buildingTaxRegions);
           } else {
             // Try to get tax regions from assets, fallback to building tax_region if available
             try {
               const availableTaxRegions = await api.buildings.getAvailableTaxRegions(building.building_number);
-              console.log('[BuildingsList] Available tax regions from assets:', availableTaxRegions);
               // If no tax regions from assets but building has tax_region, use building's tax_region
               const taxRegionsToUse = availableTaxRegions || (buildingTaxRegions ? String(buildingTaxRegions) : undefined);
               onSelectBuilding(building.building_number, taxRegionsToUse);
@@ -3332,11 +3122,6 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
       valueGetter: (params: any) => {
         // Return the street code from the data object
         const value = params.data?.address ?? null;
-        console.log('[address valueGetter] Getting value:', {
-          dataAddress: params.data?.address,
-          returning: value,
-          type: typeof value
-        });
         return value;
       },
       valueSetter: (params: any) => {
@@ -3350,22 +3135,12 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
           // CRITICAL: Set the value directly on the data object
           params.data.address = finalValue;
           
-          console.log('[address valueSetter] Setting address:', {
-            newValue,
-            numValue,
-            finalValue,
-            oldValue: params.oldValue,
-            dataAddress: params.data.address,
-            dataObject: params.data,
-            hasAddress: 'address' in params.data
-          });
         }
         return true;
       },
       cellRenderer: (params: any) => {
         const building = params.data as Building;
         if (!building) {
-          console.log('[address cellRenderer] No building data');
           return '';
         }
         
@@ -3373,18 +3148,8 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
         // params.value contains the street_code (number) that is stored in DB
         const streetCode = params.value != null ? params.value : (building.address ?? null);
         
-        console.log('[address cellRenderer] Rendering:', {
-          streetCode,
-          paramsValue: params.value,
-          buildingAddress: building.address,
-          dataObject: params.data,
-          hasAddressInData: 'address' in (params.data || {}),
-          isNew: isNewBuilding(building),
-          addressListLength: addressList.length
-        });
         
         if (!streetCode) {
-          console.log('[address cellRenderer] No streetCode, returning empty');
           return '';
         }
         
@@ -3397,12 +3162,6 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
         // The code is stored in DB, but we show the description to the user
         const displayValue = address ? address.street_description : (streetCode ? String(streetCode) : '');
         
-        console.log('[address cellRenderer] Final display:', {
-          streetCode,
-          displayValue,
-          hasAddress: !!address,
-          addressFound: address ? { code: address.street_code, desc: address.street_description } : null
-        });
         
         if (isNew && !streetCode) {
           return '';
@@ -3412,11 +3171,6 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
       },
       cellEditor: AddressCellEditor,
       cellEditorParams: (params: any) => {
-        console.log('[address cellEditorParams]', {
-          addressListLength: addressList.length,
-          hasAddressList: addressList.length > 0,
-          addressListSample: addressList.slice(0, 3)
-        });
         return {
           addressList: addressList || [],
         };
@@ -3506,10 +3260,6 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
           const newValue = params.newValue;
           // Convert empty string to null, otherwise keep as string
           params.data.note = (newValue === '' || newValue === null || newValue === undefined) ? null : String(newValue);
-          console.log('[note valueSetter] Setting note:', {
-            newValue,
-            finalValue: params.data.note
-          });
         }
         return true;
       },

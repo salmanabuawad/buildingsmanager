@@ -214,7 +214,6 @@ export const MeasuredNotExportedAssets = ({ onSelectAsset }: MeasuredNotExported
     }
 
     setValidationErrors(errorsMap);
-    console.log('[MeasuredNotExportedAssets] Validation completed. Errors found:', errorsMap.size, 'assets');
   }, []);
 
   // Fetch export to automation count
@@ -222,7 +221,6 @@ export const MeasuredNotExportedAssets = ({ onSelectAsset }: MeasuredNotExported
     try {
       const result = await api.assets.getExportToAutomationCount();
       if (result.success) {
-        console.log('[MeasuredNotExportedAssets] Refreshed export count:', result.count);
         setExportToAutomationCount(result.count);
       }
     } catch (err) {

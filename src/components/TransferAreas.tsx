@@ -361,15 +361,6 @@ export const TransferAreas = forwardRef<TransferAreasRef, TransferAreasProps>(({
     
     // Debug logging
     if (process.env.NODE_ENV === 'development') {
-      console.log('[TransferAreas.validateAsset] Combining tax regions:', {
-        assetTaxRegion: asset.tax_region,
-        assetTaxRegionStr,
-        assetTaxRegions,
-        tabTaxRegion: taxRegion,
-        tabTaxRegions,
-        combinedTaxRegion,
-        allTaxRegions: Array.from(allTaxRegions)
-      });
     }
 
     // Create a modified asset object with combined tax region for validation
@@ -1508,19 +1499,6 @@ export const TransferAreas = forwardRef<TransferAreasRef, TransferAreasProps>(({
       }, 0);
 
       // Debug: Log the calculation for troubleshooting
-      console.log('[TransferAreas] Area calculation after adding 999 asset:', {
-        initialTotalArea,
-        totalAreaWithNewAsset,
-        difference: initialTotalArea !== null ? totalAreaWithNewAsset - initialTotalArea : null,
-        newAssetSize: assetSize,
-        newAssetId: assetIdNum,
-        assetIdStr: assetIdStr,
-        finalAssetsCount: finalAssets.length,
-        newAssetInFinalAssets: finalAssets.find(a => String(a.asset_id) === String(assetIdNum)),
-        dirtyAssetsHasAssetId: finalDirtyAssets.has(assetIdStr),
-        dirtyAssetsAssetIdValue: finalDirtyAssets.get(assetIdStr),
-        areaMatches: initialTotalArea !== null && Math.abs(totalAreaWithNewAsset - initialTotalArea) <= 0.01
-      });
       
       // Check if total area now matches the required area (with small tolerance for floating point)
       const areaMatches = initialTotalArea !== null && Math.abs(totalAreaWithNewAsset - initialTotalArea) <= 0.01;

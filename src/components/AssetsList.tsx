@@ -301,10 +301,6 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
   useEffect(() => {
     if (validationErrors.size > 0 && gridRef.current?.api) {
       if (process.env.NODE_ENV === 'development') {
-        console.log('[AssetsList] Validation errors changed, refreshing grid:', {
-          errorCount: validationErrors.size,
-          errorAssetIds: Array.from(validationErrors.keys())
-        });
       }
       // Lightweight refresh to update cell styling for validation errors
       setTimeout(() => {
@@ -358,12 +354,6 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
       }
       
       if (process.env.NODE_ENV === 'development') {
-        console.log(`[AssetsList] Fetched data for building ${buildingNumber}:`, {
-          assetsCount: (assetsData || []).length,
-          assetTypesCount: assetTypesToUse.length,
-          taxRegion,
-          buildingExists: !!buildingData
-        });
       }
       
       // Filter by tax region according to tab's tax region
@@ -378,13 +368,6 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
         const taxRegionStr = taxRegion.trim();
         
         if (process.env.NODE_ENV === 'development') {
-          console.log(`[AssetsList] Filtering assets by tab tax region:`, {
-            requestedTaxRegion: taxRegion,
-            taxRegionNum,
-            taxRegionStr,
-            totalAssetsBeforeFilter: (assetsData || []).length,
-            hasSelectedAssetIds: !!selectedAssetIdsSet
-          });
         }
         
         filteredAssets = [];
@@ -421,30 +404,9 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
             filteredAssets.push(asset);
           } else {
             // Log why asset was filtered out for debugging
-            console.log(`[AssetsList] Asset filtered out (tax region mismatch):`, {
-              asset_id: asset.asset_id,
-              assetTaxRegion: assetTaxRegionNum,
-              requestedTaxRegion: taxRegion,
-              building_number: asset.building_number
-            });
           }
         }
         
-        console.log(`[AssetsList] Filtering results:`, {
-          matched,
-          skippedNoTaxRegion,
-          includedFromSelectedIds,
-          filteredCount: filteredAssets.length,
-          totalAssetsBeforeFilter: (assetsData || []).length,
-          sampleMatched: filteredAssets[0] ? {
-            asset_id: filteredAssets[0].asset_id,
-            tax_region: filteredAssets[0].tax_region
-          } : null,
-          sampleSkipped: (assetsData || []).find(a => a.tax_region == null) ? {
-            asset_id: (assetsData || []).find(a => a.tax_region == null)?.asset_id,
-            tax_region: (assetsData || []).find(a => a.tax_region == null)?.tax_region
-          } : null
-        });
         
         // Always filter strictly by tax region - no fallback to all assets
         // This ensures the list is always according to the tab's tax region
@@ -459,9 +421,6 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
         }
       } else {
         // No tax region specified - show all assets (for "all assets" tab)
-        console.log(`[AssetsList] No tax region filter - showing all assets:`, {
-          totalAssets: (assetsData || []).length
-        });
       }
       
       // Additional filter: if selectedAssetIds is provided, filter to only show those assets
@@ -471,7 +430,6 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
         filteredAssets = filteredAssets.filter(asset => 
           selectedAssetIdsSet.has(String(asset.asset_id))
         );
-        console.log(`[AssetsList] Filtered to ${filteredAssets.length} assets with selected asset IDs`);
       }
       
       // If in error fixing mode with selectedAssetIds and taxRegion, update assets' tax_region to match the tab's tax region
@@ -499,14 +457,12 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
                   return newMap;
                 });
               } else {
-                console.log(`[AssetsList] Skipping dirty mark for asset ${assetId} - was just saved`);
               }
               
               return updatedAsset;
             }
             return asset;
           });
-          console.log(`[AssetsList] Updated tax_region to ${newTaxRegion} for ${filteredAssets.length} assets in error fixing mode`);
         }
       }
       
@@ -527,17 +483,6 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
       });
       const mergedAssets = [...validFilteredAssets, ...existingNewAssets];
       
-      console.log(`[AssetsList] Setting assets:`, {
-        validFilteredCount: validFilteredAssets.length,
-        existingNewAssetsCount: existingNewAssets.length,
-        totalAssets: mergedAssets.length,
-        buildingNumber,
-        taxRegion,
-        sampleAsset: mergedAssets[0] ? {
-          asset_id: mergedAssets[0].asset_id,
-          main_asset_type: mergedAssets[0].main_asset_type
-        } : null
-      });
       
       // Update assets state - use AG Grid transaction API for smoother updates when refreshing after save
       // This preserves scroll position and selection better than full rowData replacement
@@ -1193,12 +1138,6 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
               const errorMessage = (result.errors || []).join('; ');
               newValidationErrors.set(dbId, errorMessage);
               if (process.env.NODE_ENV === 'development') {
-                console.log('[AssetsList] Adding validation error for asset:', {
-                  assetId: dbId,
-                  errorMessage,
-                  resultAssetId: result.assetId,
-                  resultAssetIdentifier: result.assetIdentifier
-                });
               }
             } else {
               if (process.env.NODE_ENV === 'development') {
@@ -1215,12 +1154,6 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
         setValidationErrors(() => newValidationErrors);
         
         if (process.env.NODE_ENV === 'development') {
-          console.log('[AssetsList] Validation errors set in runValidationProgrammatically:', {
-            errorCount: newValidationErrors.size,
-            errorAssetIds: Array.from(newValidationErrors.keys()),
-            totalAssets: assetsWithChanges.length,
-            sampleErrors: Array.from(newValidationErrors.entries()).slice(0, 3)
-          });
         }
 
         return {
@@ -1254,11 +1187,6 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
       // These assets are already filtered by tax region and exclude historical records
       const gridAssets = assets || [];
       
-      console.log(`[Batch Validation] Using assets from grid: ${gridAssets.length} assets`, {
-        buildingNumber,
-        taxRegion: taxRegion || 'all',
-        sampleAssetIds: gridAssets.slice(0, 3).map(a => ({ asset_id: a.asset_id, tax_region: a.tax_region }))
-      });
 
       // IMPORTANT: Filter out historical records - only validate latest measurements (is_latest === true)
       // Historical records (is_latest === false) should NOT be validated
@@ -1272,7 +1200,6 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
         
         return true;
       });
-      console.log(`[Batch Validation] Filtered to latest only: ${latestAssets.length} out of ${gridAssets.length} assets (excluded ${gridAssets.length - latestAssets.length} historical records)`);
       
       // Pre-fetch required supporting data (asset types and building data)
       // Use cached building data if available to avoid redundant API calls
@@ -1290,13 +1217,9 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
           const assetIdKey = String(asset.asset_id);
           return selectedAssets.has(assetIdKey);
         });
-        console.log(`[Batch Validation] Selected assets count: ${selectedAssets.size}, Grid assets count: ${latestAssets.length}, Assets to validate: ${assetsToValidate.length}`);
-        console.log(`[Batch Validation] Selected asset IDs:`, Array.from(selectedAssets));
-        console.log(`[Batch Validation] Assets to validate asset IDs:`, assetsToValidate.map(a => String(a.asset_id)));
       } else {
         // Validate all assets shown in the grid
         assetsToValidate = latestAssets;
-        console.log(`[Batch Validation] Validating all ${assetsToValidate.length} assets from grid`);
       }
 
       // Apply dirty changes to assets before validating (so we validate the current edited state)
@@ -1318,15 +1241,6 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
         return;
       }
 
-      console.log(`[Batch Validation] Found ${assetsToValidate.length} assets to validate for building ${buildingNumber}`, {
-        taxRegion: taxRegion || 'NOT PROVIDED (will use asset.tax_region from each asset)',
-        buildingNumber,
-        selectedCount: selectedAssets.size,
-        validatingSelected: selectedAssets.size > 0,
-        dirtyAssetsCount: dirtyAssets.size,
-        gridAssetsCount: gridAssets.length,
-        note: 'Each asset will be validated using its own tax_region field, not calculated from asset types'
-      });
 
       // Prepare cached data for validation (all data is already in memory)
       const cachedData = {
@@ -1391,8 +1305,6 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
       const actualInvalid = resultsWithDiscountErrors.filter(r => !r.valid || (r.errors && r.errors.length > 0)).length;
       const actualTotal = resultsWithDiscountErrors.length;
       
-      console.log(`[Batch Validation] Handler returned: total=${batchResult.total}, valid=${batchResult.valid}, invalid=${batchResult.invalid}, results.length=${batchResult.results.length}`);
-      console.log(`[Batch Validation] Recalculated: actualTotal=${actualTotal}, actualValid=${actualValid}, actualInvalid=${actualInvalid}`);
       
       // Map ALL results (both valid and invalid) - the modal will filter them
       const results = {
@@ -1417,7 +1329,6 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
       };
 
       setBatchValidationResults(results);
-      console.log(`[Batch Validation] Final results: ${results.valid} valid, ${results.invalid} invalid out of ${results.total} total (${results.errors.length} errors in errors array)`);
 
       // IMPORTANT:
       // `results.errors` contains ALL rows (valid + invalid) for the modal filtering UX.
@@ -1451,14 +1362,12 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
               // Combine all errors into a single error message
               const errorMessage = errorInfo.errors.join('; ');
               newValidationErrors.set(dbId, errorMessage);
-              console.log(`[Batch Validation] Setting validation error for asset ${dbId}:`, errorMessage);
             } else {
               console.warn(`[Batch Validation] Could not find asset for error:`, errorInfo);
             }
           }
         }
 
-        console.log(`[Batch Validation] Setting ${newValidationErrors.size} validation errors:`, Array.from(newValidationErrors.keys()));
         
         // Set validation errors in state
         setValidationErrors(newValidationErrors);
@@ -1480,7 +1389,6 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
         }
       } else {
         // Clear validation errors if all assets are valid
-        console.log('[Batch Validation] All assets valid, clearing validation errors');
         setValidationErrors(new Map());
         setIsValidatedForSave(hasDirtyChangesNow);
       }
@@ -1588,10 +1496,6 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
           setTimeout(() => {
             if (gridRef.current?.api) {
               if (process.env.NODE_ENV === 'development') {
-                console.log('[AssetsList] Refreshing grid after validation errors:', {
-                  validationErrorsSize: validationErrors.size,
-                  errorAssetIds: Array.from(validationErrors.keys())
-                });
               }
               
               // Lightweight refresh to show validation errors on rows
@@ -1602,7 +1506,6 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
                 if (gridRef.current?.api && validationErrors.size > 0) {
                   const firstErrorAssetId = Array.from(validationErrors.keys())[0];
                   if (process.env.NODE_ENV === 'development') {
-                    console.log('[AssetsList] Scrolling to first error row:', firstErrorAssetId);
                   }
                   gridRef.current.api.forEachNode(node => {
                     const assetId = String(node.data?.asset_id);
@@ -1746,21 +1649,6 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
       }
 
       // Debug logging
-      console.log('[handleSaveAll] Distribution detection:', {
-        isDistributionSave,
-        distributionType,
-        buildingFlags: {
-          need_residence_distribution: building?.need_residence_distribution,
-          need_business_distribution: building?.need_business_distribution
-        },
-        buildingData: {
-          business_shared_area: building?.business_shared_area,
-          residence_shared_area: building?.residence_shared_area,
-          overload_ratio: building?.overload_ratio
-        },
-        dirtyAssetsCount: dirtyAssets.size,
-        sampleChanges: Array.from(dirtyAssets.values()).slice(0, 3)
-      });
 
       for (const [assetId, changes] of dirtyAssets.entries()) {
         try {
@@ -1866,13 +1754,6 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
         }
         
         // Debug logging
-        console.log('[handleSaveAll] Calling saveBulkTransactional with:', {
-          assetsCount: assetsToSave.length,
-          actionType,
-          description,
-          afterData,
-          isBusinessContext
-        });
 
         // BULK SAVE: Save all assets in a single transaction
         // This ensures all distribution-related assets are saved together, not one by one
@@ -1922,12 +1803,6 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
             setBuilding(updatedBuilding);
 
             if (process.env.NODE_ENV === 'development') {
-              console.log('[AssetsList] Updated building flags after distribution save:', {
-                distributionType,
-                need_business_distribution: updatedBuilding.need_business_distribution,
-                need_residence_distribution: updatedBuilding.need_residence_distribution,
-                overload_ratio: updatedBuilding.overload_ratio
-              });
             }
           }
           
@@ -2066,10 +1941,6 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
           setBuilding(updatedBuilding);
           assetsData = assets;
           if (process.env.NODE_ENV === 'development') {
-            console.log('[AssetsList] Refreshed building data after asset save to update distribution flags:', {
-              need_business_distribution: updatedBuilding.need_business_distribution,
-              need_residence_distribution: updatedBuilding.need_residence_distribution
-            });
           }
         } else {
           assetsData = await api.assets.getAll(buildingNumber);
@@ -2282,11 +2153,6 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
     // Run validation rules on the new asset (async, don't block UI)
     // IMPORTANT: validationTaxRegion is taken from the tab data (component prop) for validation
     // This validationTaxRegion will OVERRIDE the building's tax_region field during validation
-    console.log('[AssetsList.addEmptyRow] Calling validateSingleAsset with validationTaxRegion:', validationTaxRegion, {
-      assetId: newAsset.asset_id,
-      buildingNumber: newAsset.building_number,
-      mainAssetType: newAsset.main_asset_type
-    });
     // Prepare cached data for validation (all data is already in memory)
     const cachedData = {
       assetTypes: assetTypes || [],
@@ -2441,27 +2307,6 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
         at.business_residence == null || at.business_residence === ''
       );
       
-      console.log('[DistributeResidence] Starting distribution:', {
-        totalAssets: assets.length,
-        assetTypesCount: assetTypes.length,
-        residenceSharedArea: building.residence_shared_area,
-        residentialAssetTypesCount: residentialAssetTypes.length,
-        residentialAssetTypeNames: residentialAssetTypes.map(at => at.name),
-        assetTypesWithNullBusinessResidence: assetTypesWithNullBusinessResidence.length,
-        allAssetTypesWithBusinessResidence: currentAssetTypes
-          .filter(at => at.business_residence != null && at.business_residence !== '')
-          .map(at => ({
-            name: at.name,
-            business_residence: at.business_residence,
-            business_residence_length: String(at.business_residence).length,
-            business_residence_chars: Array.from(String(at.business_residence)).map(c => c.charCodeAt(0))
-          })),
-        sampleAssets: assets.slice(0, 5).map(a => ({
-          asset_id: a.asset_id,
-          main_asset_type: a.main_asset_type,
-          tax_region: a.tax_region
-        }))
-      });
 
       // Filter assets: only accountable assets
       let deletedCount = 0;
@@ -2481,7 +2326,6 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
         if (deletedAssets.has(String(asset.asset_id))) {
           deletedCount++;
           debugInfo.reason = 'deleted';
-          if (index < 3) console.log('[DistributeResidence] Asset filtered:', debugInfo);
           return false;
         }
         
@@ -2489,7 +2333,6 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
         if (!hasAtLeastOneAccountableTypeForDistribution(asset)) {
           notAccountableForDistributionCount++;
           debugInfo.reason = 'not_accountable_for_distribution';
-          if (index < 3) console.log('[DistributeResidence] Asset filtered:', debugInfo);
           return false;
         }
         
@@ -2497,7 +2340,6 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
         if (!asset.main_asset_type) {
           noMainTypeCount++;
           debugInfo.reason = 'no_main_type';
-          if (index < 3) console.log('[DistributeResidence] Asset filtered:', debugInfo);
           return false;
         }
         
@@ -2547,20 +2389,10 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
         
         residentialFoundCount++;
         if (residentialFoundCount <= 3) {
-          console.log('[DistributeResidence] Asset IS residential:', debugInfo);
         }
         return true;
       });
 
-      console.log('[DistributeResidence] Filter results:', {
-        totalAssets: assets.length,
-        residentialFound: residentialFoundCount,
-        deletedCount,
-        notAccountableForDistributionCount,
-        noMainTypeCount,
-        assetTypeNotFoundCount,
-        finalResidentialAssets: residentialAssets.length
-      });
 
       if (residentialAssets.length === 0) {
         // Provide detailed error message
@@ -3028,13 +2860,6 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
           notBusinessCount++;
           // Log details for debugging (only first few to avoid spam)
           if (notBusinessCount <= 5) {
-            console.log('[DistributeBusiness] Asset excluded - not business type:', {
-              assetId: asset.asset_id,
-              mainAssetType: asset.main_asset_type,
-              assetTypeName: assetType.name,
-              businessResidence: assetType.business_residence,
-              expected: 'עסקים'
-            });
           }
           return false;
         }
@@ -3046,15 +2871,6 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
       });
       
       // Log summary for debugging
-      console.log('[DistributeBusiness] Asset filtering summary:', {
-        totalAssets: assets.length,
-        businessAssetsFound: businessAssets.length,
-        deletedCount,
-        notAccountableForDistributionCount,
-        noMainTypeCount,
-        assetTypeNotFoundCount,
-        notBusinessCount
-      });
 
       if (businessAssets.length === 0) {
         // Provide detailed error message
@@ -3847,11 +3663,6 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
         
         // Debug logging for validation errors
         if (process.env.NODE_ENV === 'development' && hasValidationError) {
-          console.log('[Actions Cell] Validation error found for asset:', {
-            assetId,
-            error: safeValidationErrors.get(assetId),
-            validationErrorsKeys: Array.from(safeValidationErrors.keys())
-          });
         }
         
         // Show delete button only if a specific tax region is selected (same visibility logic as "Save All" and "Cancel" buttons)
@@ -4861,7 +4672,6 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
                         taxRegionToPass = taxRegion.split(',')[0].trim();
                       }
                       if (process.env.NODE_ENV === 'development') {
-                        console.log('[AssetsList] Opening new asset with:', { buildingNumber, taxRegion: taxRegionToPass, originalTaxRegion: taxRegion });
                       }
                       onOpenNewAsset(buildingNumber, taxRegionToPass);
                     } else {
@@ -5286,11 +5096,6 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
           const savedAssetIds = Array.from(selectedAssets);
           
           if (process.env.NODE_ENV === 'development') {
-            console.log('[AssetsList] Clearing dirty bits after tax region change:', {
-              savedAssetIds,
-              dirtyAssetsSizeBefore: dirtyAssets.size,
-              dirtyAssetIdsBefore: Array.from(dirtyAssets.keys())
-            });
           }
           
           setDirtyAssets(prev => {
@@ -5299,7 +5104,6 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
               next.delete(String(assetId));
             }
             if (process.env.NODE_ENV === 'development') {
-              console.log('[AssetsList] Cleared dirty bits:', { remainingSize: next.size, remainingIds: Array.from(next.keys()) });
             }
             return next;
           });

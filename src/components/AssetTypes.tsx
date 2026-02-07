@@ -158,7 +158,6 @@ export function AssetTypes() {
       
       // Reload validation rules after creating new asset type
       await refreshRules();
-      console.log('[AssetTypes] Validation rules reloaded after creating new asset type');
       
       showMessage('success', t('assetTypeCreated'));
       await fetchAssetTypes();
@@ -1306,7 +1305,6 @@ export function AssetTypes() {
 
       // Reload validation rules after importing asset types
       await refreshRules();
-      console.log('[AssetTypes] Validation rules reloaded after importing asset types');
 
       if (errors.length > 0) {
         showMessage('error', `יובאו ${successCount} רשומות. ${errorCount} שגיאות: ${errors.slice(0, 3).join('; ')}${errors.length > 3 ? '...' : ''}`);

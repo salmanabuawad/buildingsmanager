@@ -48,10 +48,7 @@ export function ValidationRulesManager() {
   async function fetchRules() {
     try {
       setLoading(true);
-      console.log('Fetching validation rules...');
       const data = await api.validationRules.getAll();
-      console.log('Fetched validation rules:', data.length, 'rules');
-      console.log('Sample rule:', data[0]);
       setRules(data);
     } catch (error) {
       console.error('Error fetching validation rules:', error);
@@ -498,7 +495,6 @@ export function ValidationRulesManager() {
       lockPinned: true,
       suppressMovable: true,
       suppressHeaderMenuButton: true,
-      suppressHeaderMenuButton: true,
       sortable: false,
       filter: false,
       cellRenderer: (params: any) => {
@@ -677,7 +673,6 @@ export function ValidationRulesManager() {
   }), []);
 
   const onGridReady = useCallback(async (params: any) => {
-    console.log('Grid ready, rules count:', rules.length);
   }, [rules]);
 
   return (

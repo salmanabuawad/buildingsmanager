@@ -179,7 +179,6 @@ ModuleRegistry.registerModules([AllCommunityModule]);
 import('./lib/fieldConfigUtils').then(({ loadFieldConfigurations }) => {
   loadFieldConfigurations()
     .then(() => {
-      console.log('[main] Field configurations preloaded and cached in memory');
     })
     .catch(error => {
       console.warn('[main] Failed to preload field configurations:', error);

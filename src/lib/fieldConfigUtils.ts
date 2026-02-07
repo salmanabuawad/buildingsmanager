@@ -71,7 +71,6 @@ export async function loadFieldConfigurations(gridName?: string): Promise<Map<st
       fieldConfigCache = configMap;
       isCacheLoaded = true;
       
-      console.log(`[fieldConfigUtils] Loaded ${configs.length} field configurations into memory cache`);
       
       // If gridName was requested, filter from cache
       if (gridName) {
@@ -181,7 +180,6 @@ export function clearFieldConfigCache(): void {
   fieldConfigCache = null;
   fieldConfigCachePromise = null;
   isCacheLoaded = false;
-  console.log('[fieldConfigUtils] Field configuration cache cleared');
 }
 
 /**

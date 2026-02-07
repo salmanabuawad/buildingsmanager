@@ -169,7 +169,6 @@ export function useGridPreferences<T = any>(
         justSavedRef.current = true;
         
         // TODO: Save to field_configurations table instead
-        console.log('[useGridPreferences] Would save to field_configurations:', cleanedState);
         
         // Clear the flag after a delay to allow normal reloads later
         setTimeout(() => {

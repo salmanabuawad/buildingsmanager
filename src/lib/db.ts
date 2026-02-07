@@ -13,7 +13,6 @@ if (USE_LOCAL_DB) {
     throw new Error('Missing local database URL. Please set VITE_LOCAL_DB_URL in your .env file.');
   }
 
-  console.log('Using local PostgreSQL database');
 
   // For local PostgreSQL, we'll use Supabase client with local connection
   // You'll need to run Supabase locally or use PostgREST
@@ -33,7 +32,6 @@ if (USE_LOCAL_DB) {
     throw new Error('Missing Supabase environment variables. Please check your .env file.');
   }
 
-  console.log('Using Supabase hosted database');
 
   dbClient = createClient(supabaseUrl, supabaseAnonKey, {
     realtime: {

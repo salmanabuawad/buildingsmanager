@@ -824,7 +824,6 @@ export const AssetDataEntry = forwardRef<AssetDataEntryRef, {}>((props, ref) => 
       lockPinned: true,
       suppressMovable: true,
       suppressHeaderMenuButton: true,
-      suppressHeaderMenuButton: true,
       sortable: false,
       filter: false,
       resizable: false,

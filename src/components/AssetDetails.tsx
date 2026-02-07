@@ -696,12 +696,6 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
       
       // Debug logging for tax region validation
       if (process.env.NODE_ENV === 'development') {
-        console.log('[AssetDetails.handleSaveFromModal] Validation parameters:', {
-          assetId: updatedAsset.asset_id,
-          buildingNumber: updatedAsset.building_number,
-          validationTaxRegion: validationTaxRegion || 'NOT PROVIDED (will use building tax_region)',
-          buildingTaxRegion: building?.tax_region || 'NOT SET'
-        });
       }
 
       // Use the same validation as AssetsList - AssetValidationHandler.validateSingleAsset
@@ -911,13 +905,6 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
         
         // Debug logging for tax region validation
         if (process.env.NODE_ENV === 'development') {
-          console.log('[AssetDetails.handleSaveChanges] Validation parameters:', {
-            assetId: currentAssetData.asset_id,
-            buildingNumber: currentAssetData.building_number,
-            mainAssetType: currentAssetData.main_asset_type,
-            validationTaxRegion: validationTaxRegion || 'NOT PROVIDED (will use building tax_region)',
-            buildingTaxRegion: building?.tax_region || 'NOT SET'
-          });
         }
         
         // Skip validation for asset type 990
@@ -927,10 +914,6 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
         
         if (isAssetType990) {
           if (process.env.NODE_ENV === 'development') {
-            console.log('[AssetDetails] Skipping validation for asset type 990:', {
-              assetId: currentAssetData.asset_id,
-              main_asset_type: currentAssetData.main_asset_type
-            });
           }
           // Skip validation - proceed directly to save
         } else {
@@ -1137,10 +1120,6 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
           try {
             const updatedBuilding = await api.buildings.getOne(currentAssetData.building_number);
             setBuilding(updatedBuilding);
-            console.log('[AssetDetails] Refreshed building data after asset creation to update distribution flags:', {
-              need_business_distribution: updatedBuilding.need_business_distribution,
-              need_residence_distribution: updatedBuilding.need_residence_distribution
-            });
           } catch (err) {
             console.warn('[AssetDetails] Error refreshing building data after asset creation:', err);
             // Don't fail the save operation if building refresh fails
@@ -1226,10 +1205,6 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
         try {
           const updatedBuilding = await api.buildings.getOne(asset.building_number);
           setBuilding(updatedBuilding);
-          console.log('[AssetDetails] Refreshed building data after asset update to update distribution flags:', {
-            need_business_distribution: updatedBuilding.need_business_distribution,
-            need_residence_distribution: updatedBuilding.need_residence_distribution
-          });
         } catch (err) {
           console.warn('[AssetDetails] Error refreshing building data after asset update:', err);
           // Don't fail the save operation if building refresh fails
@@ -1253,11 +1228,6 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
             allAssetMeasurements = await api.assets.getAssetWithHistory(asset.asset_id, asset.building_number);
             
             if (process.env.NODE_ENV === 'development') {
-              console.log('[AssetDetails] Fetched measurements after save:', {
-                totalCount: allAssetMeasurements.length,
-                latestCount: allAssetMeasurements.filter(m => m.is_latest).length,
-                historyCount: allAssetMeasurements.filter(m => !m.is_latest).length,
-              });
             }
           } catch (historyErr) {
             if (process.env.NODE_ENV === 'development') {
@@ -1464,10 +1434,6 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
         try {
           const updatedBuilding = await api.buildings.getOne(currentAsset.building_number);
           setBuilding(updatedBuilding);
-          console.log('[AssetDetails] Refreshed building data after save as new measurement to update distribution flags:', {
-            need_business_distribution: updatedBuilding.need_business_distribution,
-            need_residence_distribution: updatedBuilding.need_residence_distribution
-          });
         } catch (err) {
           console.warn('[AssetDetails] Error refreshing building data after save as new measurement:', err);
           // Don't fail the save operation if building refresh fails
@@ -1479,7 +1445,6 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
         const currentMeasurementDate = latestMeasurement.measurement_date;
         await api.assets.files.clone(oldAssetId, currentMeasurementDate, finalMeasurementDate);
         if (process.env.NODE_ENV === 'development') {
-          console.log(`[AssetDetails] Cloned files from measurement ${currentMeasurementDate} to ${finalMeasurementDate}`);
         }
       } catch (fileCloneError) {
         console.error('[AssetDetails] Error cloning files for new measurement:', fileCloneError);
@@ -1502,11 +1467,6 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
             allAssetMeasurements = await api.assets.getAssetWithHistory(asset.asset_id, asset.building_number);
             
             if (process.env.NODE_ENV === 'development') {
-              console.log('[AssetDetails] Fetched measurements after save as new:', {
-                totalCount: allAssetMeasurements.length,
-                latestCount: allAssetMeasurements.filter(m => m.is_latest).length,
-                historyCount: allAssetMeasurements.filter(m => !m.is_latest).length,
-              });
             }
           } catch (historyErr) {
             if (process.env.NODE_ENV === 'development') {
@@ -1730,12 +1690,6 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
     try {
       // Debug logging for tax region validation
       if (process.env.NODE_ENV === 'development') {
-        console.log('[AssetDetails.handleValidateLatestRow] Validation parameters:', {
-          assetId: latestRow.asset_id,
-          buildingNumber: latestRow.building_number,
-          validationTaxRegion: validationTaxRegion || 'NOT PROVIDED (will use building tax_region)',
-          buildingTaxRegion: building?.tax_region || 'NOT SET'
-        });
       }
 
       // Use unified validation handler - same as building assets list

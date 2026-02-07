@@ -1434,18 +1434,10 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
           }
           
           // Some assets are duplicates but we can still insert the unique ones
-          console.log(`[Skeleton Import] Filtered out ${duplicateIndices.length} duplicate assets, inserting ${assetsToInsertFiltered.length} unique assets`);
         }
       }
       
       // Final check: log sanitized assets for debugging
-      console.log('[Skeleton Import] Inserting assets:', {
-        total: sanitizedAssets.length,
-        filtered: assetsToInsertFiltered.length,
-        duplicates: sanitizedDuplicateAssetIds.size,
-        assetIds: assetsToInsertFiltered.map(a => a.asset_id),
-        uniqueAssetIds: [...seenAssetIds]
-      });
       
       // Use filtered assets for insert (only unique asset_ids)
       // If we filtered duplicates, use the filtered list; otherwise use original (should already be checked)
@@ -1464,11 +1456,6 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
         }
       });
       
-      console.log('[Skeleton Import] Final insert check:', {
-        before: finalAssetsToInsert.length,
-        after: finalUniqueAssets.length,
-        removed: finalAssetsToInsert.length - finalUniqueAssets.length
-      });
       
       // Bulk insert skeleton assets - only unique ones
       const { data: insertedAssets, error: insertError } = await supabase

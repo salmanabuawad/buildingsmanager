@@ -401,7 +401,7 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
     try {
       // STEP 1: Get assets in this building that match export condition
       // Use the same query pattern as getMeasuredNotExported
-      const { data: assetsToExport, error: fetchError } = await supabase
+      const { data: assetsToExport, error: fetchAssetsError } = await supabase
         .from('assets')
         .select('*')
         .eq('building_number', buildingNumber)
@@ -413,8 +413,8 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
         !asset.data_from_automation || asset.data_from_automation === false
       );
       
-      if (fetchError) {
-        console.error('[AssetsList] Error fetching assets to export:', fetchError);
+      if (fetchAssetsError) {
+        console.error('[AssetsList] Error fetching assets to export:', fetchAssetsError);
         setToast({ message: 'שגיאה בטעינת נכסים לשליחה', type: 'error' });
         setTimeout(() => setToast(null), 5000);
         setLoading(false);

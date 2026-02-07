@@ -16,7 +16,7 @@ import { useValidationRules } from '../contexts/ValidationContext';
 import { supabase } from '../lib/supabase';
 import { compressFile } from '../lib/fileCompression';
 import { formatDateToDDMMYYYY } from '../lib/dateUtils';
-import { getAssetTypes } from '../lib/validation';
+import { getAssetTypes, setLatestExportDate } from '../lib/validation';
 import { createExcelBlob } from '../lib/excelExport';
 import { createAndDownloadZip } from '../lib/zipExport';
 import { numericValueParser, numericValueParserInt } from '../lib/numberUtils';
@@ -494,36 +494,59 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
       // STEP 4: All assets passed validation - proceed with export
       setToast({ message: 'כל הנכסים עברו אימות בהצלחה. מתחיל שליחה...', type: 'success' });
       
-      // Call API to export assets and mark them as exported
-      const result = await api.assets.exportToAutomation();
+      // Get asset IDs from filtered assets (only assets in current building/tax region)
+      const assetIdsToMark = filteredAssets
+        .map(asset => {
+          const assetId = typeof asset.asset_id === 'string' ? parseInt(asset.asset_id, 10) : Number(asset.asset_id);
+          return !isNaN(assetId) && assetId > 0 ? assetId : null;
+        })
+        .filter((id): id is number => id !== null);
 
-      if (!result.success) {
-        setToast({ message: result.error || 'שגיאה בשליחת נכסים לעירייה', type: 'error' });
-        setTimeout(() => setToast(null), 5000);
-        setLoading(false);
-        return;
-      }
-
-      if (result.count === 0) {
-        setToast({ message: 'אין נכסים לשליחה - כל הנכסים כבר נשלחו לעירייה', type: 'info' });
+      if (assetIdsToMark.length === 0) {
+        setToast({ message: 'אין נכסים לשליחה', type: 'info' });
         setTimeout(() => setToast(null), 5000);
         setLoading(false);
         setExportToAutomationCount(0);
         return;
       }
 
+      // Mark only the filtered assets as exported (not all assets in the system)
+      const now = new Date();
+      const day = String(now.getDate()).padStart(2, '0');
+      const month = String(now.getMonth() + 1).padStart(2, '0');
+      const year = now.getFullYear();
+      const exportDateStr = `${day}/${month}/${year}`;
+
+      // Update each asset individually to avoid type mismatch issues with .in() operator
+      const updatePromises = assetIdsToMark.map(async (assetId) => {
+        const { error } = await supabase
+          .from('assets')
+          .update({ 
+            exported_to_automation: true,
+            export_to_automation_at: exportDateStr
+          })
+          .eq('asset_id', assetId);
+        return error;
+      });
+      
+      const updateErrors = await Promise.all(updatePromises);
+      const updateError = updateErrors.find(err => err !== null);
+
+      if (updateError) {
+        console.error('[AssetsList] Error marking assets as exported:', updateError);
+        setToast({ message: 'שגיאה בסימון נכסים כייצאו', type: 'error' });
+        setTimeout(() => setToast(null), 5000);
+        setLoading(false);
+        return;
+      }
+
+      // Update latest export date cache
+      setLatestExportDate(exportDateStr);
+
       // Fetch the exported assets to export them to Excel
       // Use RPC function to avoid type mismatch issues with .in() operator
       // Ensure assetIds are numbers (not strings) for the RPC call
-      const numericAssetIdsForQuery = result.assetIds
-        .map(id => {
-          if (typeof id === 'string') {
-            const parsed = parseInt(id, 10);
-            return isNaN(parsed) ? null : parsed;
-          }
-          return typeof id === 'number' ? id : Number(id);
-        })
-        .filter((id): id is number => id !== null && !isNaN(id) && id > 0);
+      const numericAssetIdsForQuery = assetIdsToMark;
 
       if (numericAssetIdsForQuery.length === 0) {
         setToast({ message: 'לא נמצאו נכסים לייצוא', type: 'error' });
@@ -545,7 +568,7 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
       }
 
       if (!exportedAssets || exportedAssets.length === 0) {
-        setToast({ message: `סומנו ${result.count} נכסים כייצאו בהצלחה`, type: 'success' });
+        setToast({ message: `סומנו ${assetIdsToMark.length} נכסים כייצאו בהצלחה`, type: 'success' });
         setTimeout(() => setToast(null), 5000);
         setLoading(false);
         setExportToAutomationCount(0);
@@ -897,8 +920,8 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
       
       const filesCount = fileListData.length - 1; // Subtract header row
       const successMessage = filesCount > 0 
-        ? `נשלחו ${result.count} נכסים לעירייה בהצלחה (כולל ${filesCount} קבצים בקובץ ZIP)`
-        : `נשלחו ${result.count} נכסים לעירייה בהצלחה`;
+        ? `נשלחו ${assetIdsToMark.length} נכסים לעירייה בהצלחה (כולל ${filesCount} קבצים בקובץ ZIP)`
+        : `נשלחו ${assetIdsToMark.length} נכסים לעירייה בהצלחה`;
       setToast({ message: successMessage, type: 'success' });
       setTimeout(() => setToast(null), 5000);
       

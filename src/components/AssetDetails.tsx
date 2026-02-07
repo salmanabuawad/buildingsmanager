@@ -3838,7 +3838,7 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
                   suppressColumnMoveAnimation: true,
                   rowBuffer: 5, // Reduce row buffer for better performance
                   debounceVerticalScrollbar: true,
-                  rowSelection: { enableClickSelection: true },
+                  rowSelection: { mode: 'singleRow', enableClickSelection: true },
                   enableCellTextSelection: false, // Disable text selection for better performance
                 }}
                 suppressHorizontalScroll={false}
@@ -4012,7 +4012,7 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
                       suppressColumnMoveAnimation: true,
                       rowBuffer: 5, // Reduce row buffer for better performance
                       debounceVerticalScrollbar: true,
-                      rowSelection: { enableClickSelection: true },
+                      rowSelection: { mode: 'singleRow', enableClickSelection: true },
                       enableCellTextSelection: false, // Disable text selection for better performance
                     }}
                     suppressHorizontalScroll={false}

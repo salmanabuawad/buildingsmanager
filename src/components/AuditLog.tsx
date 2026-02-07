@@ -408,7 +408,7 @@ export function AuditLog() {
               cellStyle: { textAlign: 'right' },
               minWidth: 100
             }}
-            rowSelection="single"
+            rowSelection={{ mode: 'singleRow', enableClickSelection: true }}
             onRowClicked={onMasterRowSelected}
             getRowId={(params) => String(params.data?.id || params.data?.action_id || params.rowIndex)}
             gridOptions={{

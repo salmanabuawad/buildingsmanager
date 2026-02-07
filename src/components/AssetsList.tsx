@@ -78,10 +78,7 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
   // Fill handle hook for drag-to-fill functionality
   useFillHandle({
     gridRef,
-    enabled: !isReadOnly,
-    onFillComplete: (startRow, startCol, endRow, endCol) => {
-      console.log('Fill complete:', { startRow, startCol, endRow, endCol });
-    }
+    enabled: !isReadOnly
   });
 
   const [showBatchValidationModal, setShowBatchValidationModal] = useState(false);

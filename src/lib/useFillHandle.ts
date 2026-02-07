@@ -16,6 +16,7 @@ interface FillHandleOptions<T = any> {
 
 export function useFillHandle<T = any>({ gridRef, onFillComplete, enabled = true }: FillHandleOptions<T>) {
   const [isDragging, setIsDragging] = useState(false);
+  const [isGridReady, setIsGridReady] = useState(false);
   const [fillRange, setFillRange] = useState<{
     startRow: number;
     startCol: string;
@@ -25,6 +26,18 @@ export function useFillHandle<T = any>({ gridRef, onFillComplete, enabled = true
 
   const dragStartPos = useRef<{ row: number; col: string; value: any } | null>(null);
   const handleElement = useRef<HTMLDivElement | null>(null);
+
+  // Check if grid is ready
+  useEffect(() => {
+    const checkInterval = setInterval(() => {
+      if (gridRef.current?.api) {
+        setIsGridReady(true);
+        clearInterval(checkInterval);
+      }
+    }, 100);
+
+    return () => clearInterval(checkInterval);
+  }, [gridRef]);
 
   const createFillHandle = useCallback(() => {
     if (!enabled) return null;
@@ -255,12 +268,7 @@ export function useFillHandle<T = any>({ gridRef, onFillComplete, enabled = true
   }, [isDragging, fillRange, gridRef, getFillValues, onFillComplete]);
 
   const updateHandlePosition = useCallback(() => {
-    if (!enabled || !gridRef.current || !handleElement.current) {
-      console.log('[FillHandle] updateHandlePosition early return:', {
-        enabled,
-        hasGridRef: !!gridRef.current,
-        hasHandle: !!handleElement.current
-      });
+    if (!enabled || !gridRef.current || !handleElement.current || !isGridReady) {
       return;
     }
 
@@ -270,16 +278,12 @@ export function useFillHandle<T = any>({ gridRef, onFillComplete, enabled = true
     const focusedCell = api.getFocusedCell();
     if (!focusedCell) {
       handleElement.current.style.display = 'none';
-      console.log('[FillHandle] No focused cell, hiding handle');
       return;
     }
-
-    console.log('[FillHandle] Focused cell:', focusedCell);
 
     const rowNode = api.getDisplayedRowAtIndex(focusedCell.rowIndex);
     if (!rowNode) {
       handleElement.current.style.display = 'none';
-      console.log('[FillHandle] No row node found');
       return;
     }
 
@@ -292,7 +296,6 @@ export function useFillHandle<T = any>({ gridRef, onFillComplete, enabled = true
     const cellElement = cellRenderers[0]?.getGui?.();
     if (!cellElement) {
       handleElement.current.style.display = 'none';
-      console.log('[FillHandle] No cell element found');
       return;
     }
 
@@ -310,31 +313,25 @@ export function useFillHandle<T = any>({ gridRef, onFillComplete, enabled = true
     handleElement.current.style.left = `${left}px`;
     handleElement.current.style.top = `${top}px`;
 
-    console.log('[FillHandle] Handle positioned at:', { left, top, cellRect, gridRect });
-
-  }, [enabled, gridRef]);
+  }, [enabled, gridRef, isGridReady]);
 
   useEffect(() => {
-    if (!enabled || !gridRef.current) {
-      console.log('[FillHandle] Not initializing:', { enabled, hasGridRef: !!gridRef.current });
+    if (!enabled || !gridRef.current || !isGridReady) {
       return;
     }
 
     const api = gridRef.current.api;
     if (!api) {
-      console.log('[FillHandle] No API available yet');
       return;
     }
 
     const handle = createFillHandle();
     if (!handle) {
-      console.log('[FillHandle] Failed to create handle');
       return;
     }
 
     const gridElement = gridRef.current.eGridDiv;
     if (!gridElement) {
-      console.log('[FillHandle] No grid element found');
       return;
     }
 
@@ -348,12 +345,9 @@ export function useFillHandle<T = any>({ gridRef, onFillComplete, enabled = true
     gridElement.appendChild(handle);
     handleElement.current = handle;
 
-    console.log('[FillHandle] Handle created and appended to grid');
-
     // Initial position update
     setTimeout(() => {
       updateHandlePosition();
-      console.log('[FillHandle] Initial position update complete');
     }, 100);
 
     return () => {
@@ -361,12 +355,11 @@ export function useFillHandle<T = any>({ gridRef, onFillComplete, enabled = true
         handle.parentElement.removeChild(handle);
       }
       handleElement.current = null;
-      console.log('[FillHandle] Handle cleaned up');
     };
-  }, [enabled, gridRef, createFillHandle, updateHandlePosition]);
+  }, [enabled, gridRef, isGridReady, createFillHandle, updateHandlePosition]);
 
   useEffect(() => {
-    if (!enabled || !gridRef.current) return;
+    if (!enabled || !gridRef.current || !isGridReady) return;
 
     const api = gridRef.current.api;
     if (!api) return;
@@ -398,7 +391,7 @@ export function useFillHandle<T = any>({ gridRef, onFillComplete, enabled = true
       api.removeEventListener('cellClicked', onCellClicked);
       api.removeEventListener('selectionChanged', onSelectionChanged);
     };
-  }, [enabled, gridRef, updateHandlePosition]);
+  }, [enabled, gridRef, isGridReady, updateHandlePosition]);
 
   useEffect(() => {
     if (!enabled) return;
@@ -415,7 +408,7 @@ export function useFillHandle<T = any>({ gridRef, onFillComplete, enabled = true
   }, [enabled, handleMouseDown, handleMouseMove, handleMouseUp]);
 
   useEffect(() => {
-    if (!enabled || !fillRange || !isDragging || !gridRef.current) return;
+    if (!enabled || !fillRange || !isDragging || !gridRef.current || !isGridReady) return;
 
     const api = gridRef.current.api;
     if (!api) return;
@@ -435,7 +428,7 @@ export function useFillHandle<T = any>({ gridRef, onFillComplete, enabled = true
       }
     }
 
-  }, [enabled, fillRange, isDragging, gridRef]);
+  }, [enabled, fillRange, isDragging, gridRef, isGridReady]);
 
   return {
     isDragging,

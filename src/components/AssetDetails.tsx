@@ -3801,10 +3801,10 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
                   .asset-details-pinned-grid .ag-header-cell-text,
                   .asset-details-pinned-grid .ag-header-cell-label span,
                   .asset-details-pinned-grid .ag-header-cell-label .ag-header-cell-text {
-                    color: white !important;
+                    color: #212529 !important;
                     opacity: 1 !important;
                     visibility: visible !important;
-                    -webkit-text-fill-color: white !important;
+                    -webkit-text-fill-color: #212529 !important;
                   }
                 `}</style>
                 <AgGridReact<Asset>
@@ -3901,17 +3901,17 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
                 <div className="ag-theme-alpine rounded-xl shadow-lg border-2 border-gray-200 bg-gradient-to-br from-white to-gray-50" style={{ height: '300px', width: '100%', overflowX: 'auto' }}>
                     <style>{`
                       .ag-theme-alpine .ag-header {
-                        background: linear-gradient(to bottom, #f9fafb, #f3f4f6) !important;
-                        border-bottom: 2px solid #e5e7eb !important;
+                        background: #f8f9fa !important;
+                        border-bottom: 2px solid #dee2e6 !important;
                       }
                       .ag-theme-alpine .ag-header-cell-label,
                       .ag-theme-alpine .ag-header-cell-text,
                       .ag-theme-alpine .ag-header-cell-label span,
                       .ag-theme-alpine .ag-header-cell-label .ag-header-cell-text {
-                        color: #374151 !important;
+                        color: #212529 !important;
                         opacity: 1 !important;
                         visibility: visible !important;
-                        -webkit-text-fill-color: #374151 !important;
+                        -webkit-text-fill-color: #212529 !important;
                       }
                       .ag-theme-alpine .ag-row {
                         border-bottom: 1px solid #e5e7eb !important;

@@ -4819,7 +4819,7 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
           
           {/* Tab Navigation - hidden in error fixing mode */}
           {!isErrorFixingMode && building && (
-              <div className="flex items-center gap-1 border-b-2 border-gray-300 bg-gradient-to-b from-gray-50 to-gray-100 rounded-t-lg shadow-sm mt-2">
+              <div className="flex items-center gap-1 border-2 border-b-0 border-blue-400 bg-gradient-to-b from-gray-50 to-gray-100 rounded-t-xl shadow-sm mt-2">
                 <button
                   type="button"
                   onClick={() => setActiveTab('assets')}
@@ -4879,7 +4879,7 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
         
         {/* Tab Content */}
         {activeTab === 'assets' && (
-          <div className="bg-white rounded-xl shadow-lg hover:shadow-xl transition-shadow duration-200 overflow-hidden border-2 border-blue-400 w-full">
+          <div className="bg-white rounded-b-xl shadow-lg hover:shadow-xl transition-shadow duration-200 overflow-hidden border-2 border-blue-400 w-full">
             <div className="ag-theme-alpine" style={{ height: '60vh', width: '100%', minWidth: '100%' }}>
               <AgGridReact
             ref={gridRef}
@@ -4993,7 +4993,7 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
         {!isMultiTaxRegion && (
           <>
             {activeTab === 'distribution-history' && (
-              <div className="rounded-xl shadow-lg hover:shadow-xl transition-shadow duration-200 border-2 border-blue-400 bg-white overflow-hidden" style={{ height: '60vh', width: '100%' }}>
+              <div className="rounded-b-xl shadow-lg hover:shadow-xl transition-shadow duration-200 border-2 border-blue-400 bg-white overflow-hidden" style={{ height: '60vh', width: '100%' }}>
                 <DistributionHistoryModal
                   isOpen={true}
                   onClose={() => setActiveTab('assets')}
@@ -5005,7 +5005,7 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
             )}
             
             {activeTab === 'transfer-history' && !isResidentTaxRegion && (
-              <div className="rounded-xl shadow-lg hover:shadow-xl transition-shadow duration-200 border-2 border-blue-400 bg-white overflow-hidden" style={{ height: '60vh', width: '100%' }}>
+              <div className="rounded-b-xl shadow-lg hover:shadow-xl transition-shadow duration-200 border-2 border-blue-400 bg-white overflow-hidden" style={{ height: '60vh', width: '100%' }}>
                 <TransferHistoryModal
                   isOpen={true}
                   onClose={() => setActiveTab('assets')}

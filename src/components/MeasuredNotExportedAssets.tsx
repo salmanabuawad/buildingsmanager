@@ -100,18 +100,59 @@ export const MeasuredNotExportedAssets = ({ onSelectAsset }: MeasuredNotExported
     if (!taxRegionNum || !assetTypes || assetTypes.length === 0) {
       return String(taxRegionNum || '');
     }
-    
+
     const taxRegion = typeof taxRegionNum === 'string' ? parseInt(taxRegionNum.trim(), 10) : taxRegionNum;
     if (isNaN(taxRegion)) {
       return String(taxRegionNum);
     }
-    
+
     // Find first asset type with matching tax_region that has area_description_for_tab
     const matchingAssetType = assetTypes.find(at =>
       at.tax_region === taxRegion && at.area_description_for_tab
     );
-    
+
     return matchingAssetType?.area_description_for_tab || String(taxRegion);
+  }, [assetTypes]);
+
+  // Helper function to generate comprehensive tooltip for asset types
+  const getAssetTypeTooltip = useCallback((assetTypeName: string | null | undefined): string => {
+    if (!assetTypeName) return '';
+    const assetType = assetTypes?.find(at => at.name === assetTypeName);
+    if (!assetType) return String(assetTypeName);
+
+    const parts = [];
+
+    // Description
+    if (assetType.description) {
+      parts.push(assetType.description);
+    }
+
+    // Business/Residence percentages
+    if (assetType.business !== null || assetType.residence !== null) {
+      const businessPct = assetType.business || 0;
+      const residencePct = assetType.residence || 0;
+      parts.push(`עסקי: ${businessPct}% • מגורים: ${residencePct}%`);
+    }
+
+    // Size range
+    if (assetType.min_size || assetType.max_size) {
+      const minSize = assetType.min_size || 0;
+      const maxSize = assetType.max_size || '∞';
+      parts.push(`טווח שטח: ${minSize} - ${maxSize}`);
+    }
+
+    // Flags
+    const flags = [];
+    if (assetType.non_accountable_for_total_area) flags.push('לא נספר בשטח מבנה');
+    if (assetType.non_accountable_for_distribution) flags.push('לא נכלל בפיזור');
+    if (assetType.not_accountable_for_statistics) flags.push('לא נכלל בסטטיסטיקה');
+    if (assetType.use_shared_area) flags.push('משמש לפיזור שטח משותף');
+
+    if (flags.length > 0) {
+      parts.push(flags.join(' • '));
+    }
+
+    return parts.join('\n');
   }, [assetTypes]);
 
   // Fetch data
@@ -474,11 +515,7 @@ export const MeasuredNotExportedAssets = ({ onSelectAsset }: MeasuredNotExported
       field: 'main_asset_type',
       ...processColumnHeader(t('mainAssetType') || 'סוג נכס ראשי'),
       editable: false,
-      tooltipValueGetter: (params) => {
-        if (!params.value) return '';
-        const assetType = assetTypes.find(at => at.name === params.value);
-        return assetType?.description || params.value;
-      },
+      tooltipValueGetter: (params) => getAssetTypeTooltip(params.value),
       headerClass: 'ag-right-aligned-header',
       cellStyle: { textAlign: 'right' }
     },
@@ -500,11 +537,7 @@ export const MeasuredNotExportedAssets = ({ onSelectAsset }: MeasuredNotExported
       field: 'sub_asset_type_1',
       headerName: t('subAssetType1') || 'תת סוג נכס 1',
       editable: false,
-      tooltipValueGetter: (params) => {
-        if (!params.value) return '';
-        const assetType = assetTypes.find(at => at.name === params.value);
-        return assetType?.description || params.value;
-      },
+      tooltipValueGetter: (params) => getAssetTypeTooltip(params.value),
       headerClass: 'ag-right-aligned-header',
       cellStyle: { textAlign: 'right' }
     },
@@ -526,11 +559,7 @@ export const MeasuredNotExportedAssets = ({ onSelectAsset }: MeasuredNotExported
       field: 'sub_asset_type_2',
       headerName: t('subAssetType2') || 'תת סוג נכס 2',
       editable: false,
-      tooltipValueGetter: (params) => {
-        if (!params.value) return '';
-        const assetType = assetTypes.find(at => at.name === params.value);
-        return assetType?.description || params.value;
-      },
+      tooltipValueGetter: (params) => getAssetTypeTooltip(params.value),
       headerClass: 'ag-right-aligned-header',
       cellStyle: { textAlign: 'right' }
     },
@@ -552,11 +581,7 @@ export const MeasuredNotExportedAssets = ({ onSelectAsset }: MeasuredNotExported
       field: 'sub_asset_type_3',
       headerName: t('subAssetType3') || 'תת סוג נכס 3',
       editable: false,
-      tooltipValueGetter: (params) => {
-        if (!params.value) return '';
-        const assetType = assetTypes.find(at => at.name === params.value);
-        return assetType?.description || params.value;
-      },
+      tooltipValueGetter: (params) => getAssetTypeTooltip(params.value),
       headerClass: 'ag-right-aligned-header',
       cellStyle: { textAlign: 'right' }
     },
@@ -578,11 +603,7 @@ export const MeasuredNotExportedAssets = ({ onSelectAsset }: MeasuredNotExported
       field: 'sub_asset_type_4',
       headerName: t('subAssetType4') || 'תת סוג נכס 4',
       editable: false,
-      tooltipValueGetter: (params) => {
-        if (!params.value) return '';
-        const assetType = assetTypes.find(at => at.name === params.value);
-        return assetType?.description || params.value;
-      },
+      tooltipValueGetter: (params) => getAssetTypeTooltip(params.value),
       headerClass: 'ag-right-aligned-header',
       cellStyle: { textAlign: 'right' }
     },
@@ -604,11 +625,7 @@ export const MeasuredNotExportedAssets = ({ onSelectAsset }: MeasuredNotExported
       field: 'sub_asset_type_5',
       headerName: t('subAssetType5') || 'תת סוג נכס 5',
       editable: false,
-      tooltipValueGetter: (params) => {
-        if (!params.value) return '';
-        const assetType = assetTypes.find(at => at.name === params.value);
-        return assetType?.description || params.value;
-      },
+      tooltipValueGetter: (params) => getAssetTypeTooltip(params.value),
       headerClass: 'ag-right-aligned-header',
       cellStyle: { textAlign: 'right' }
     },
@@ -630,11 +647,7 @@ export const MeasuredNotExportedAssets = ({ onSelectAsset }: MeasuredNotExported
       field: 'sub_asset_type_6',
       headerName: t('subAssetType6') || 'תת סוג נכס 6',
       editable: false,
-      tooltipValueGetter: (params) => {
-        if (!params.value) return '';
-        const assetType = assetTypes.find(at => at.name === params.value);
-        return assetType?.description || params.value;
-      },
+      tooltipValueGetter: (params) => getAssetTypeTooltip(params.value),
       headerClass: 'ag-right-aligned-header',
       cellStyle: { textAlign: 'right' }
     },
@@ -725,7 +738,7 @@ export const MeasuredNotExportedAssets = ({ onSelectAsset }: MeasuredNotExported
       }
       return colDef;
     });
-  }, [t, assetTypes, getAreaDescriptionForTaxRegion, onSelectAsset, validationErrors]);
+  }, [t, assetTypes, getAreaDescriptionForTaxRegion, getAssetTypeTooltip, onSelectAsset, validationErrors]);
   
   // Apply field configurations to column definitions
   const configuredColumnDefs = useFieldConfig(columnDefs, 'measured-not-exported-assets');

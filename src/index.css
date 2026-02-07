@@ -360,6 +360,19 @@ input[type="number"] {
   animation: none !important;
 }
 
+/* Ensure text in selected/range cells remains fully visible and readable */
+.ag-theme-alpine .ag-cell-range-selected *,
+.ag-theme-alpine .ag-cell-range-single-cell *,
+.ag-theme-alpine .ag-cell-range-selected-1 *,
+.ag-theme-alpine .ag-cell-range-selected-2 *,
+.ag-theme-alpine .ag-cell-range-selected-3 *,
+.ag-theme-alpine .ag-cell-range-selected-4 *,
+.ag-theme-alpine .ag-cell-highlight *,
+.ag-theme-alpine .ag-cell-focus * {
+  opacity: 1 !important;
+  color: inherit !important;
+}
+
 /* Disable range handle */
 .ag-theme-alpine .ag-range-handle {
   display: none !important;

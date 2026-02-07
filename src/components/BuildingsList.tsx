@@ -663,7 +663,7 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
   // Fill handle hook for drag-to-fill functionality
   useFillHandle({
     gridRef,
-    enabled: !isReadOnly
+    enabled: false
   });
 
   // Calculate total changes: new buildings count as 1 each, even if edited

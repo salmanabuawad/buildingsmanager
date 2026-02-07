@@ -56,7 +56,7 @@ export function AssetTypes() {
   // Fill handle hook for drag-to-fill functionality
   useFillHandle({
     gridRef,
-    enabled: true
+    enabled: false
   });
 
   const [formData, setFormData] = useState({

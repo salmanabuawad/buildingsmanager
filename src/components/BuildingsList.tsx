@@ -2602,18 +2602,11 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
     const building = params.data as Building;
     if (!building) return { textAlign: 'right' };
     const buildingKey = getBuildingKey(building);
-    const errors = validationErrors.get(buildingKey);
-    const hasError = errors && errors[fieldName];
     const isDirty = dirtyBuildings.has(buildingKey) && dirtyBuildings.get(buildingKey)?.hasOwnProperty(fieldName);
-    const hasInvalidTaxRegion = fieldName === 'tax_region' && invalidTaxRegionBuildings.has(buildingKey);
-    
+
     return {
       textAlign: 'right',
-      fontWeight: isDirty ? 'bold' : 'normal',
-      border: hasError || hasInvalidTaxRegion ? '3px solid #dc2626' : undefined,
-      borderRadius: hasError || hasInvalidTaxRegion ? '4px' : undefined,
-      backgroundColor: hasInvalidTaxRegion ? '#fee2e2' : undefined,
-      padding: hasInvalidTaxRegion ? '2px 4px' : undefined
+      fontWeight: isDirty ? 'bold' : 'normal'
     };
   };
 

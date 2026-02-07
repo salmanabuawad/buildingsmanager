@@ -3176,25 +3176,16 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
   // Helper function to get cell style for validation errors and read-only indication
   const getCellStyle = useCallback((params: any) => {
     if (!params || !params.data) return { textAlign: 'right' };
-    
+
     const assetId = String(params.data?.asset_id);
     if (!assetId || assetId === 'undefined' || assetId === 'null') return { textAlign: 'right' };
-    
+
     // Safety check: ensure validationErrors and newAssets are defined
     if (!validationErrors || !newAssets) return { textAlign: 'right' };
-    
-    const hasValidationError = validationErrors.has(assetId);
+
     const isNewAsset = newAssets.has(assetId);
     const isEditable = isNewAsset || !!taxRegion; // Editable if new asset OR tax region is selected
-    
-    if (hasValidationError) {
-      return {
-        backgroundColor: '#fee2e2',
-        border: '2px solid #ef4444',
-        textAlign: 'right'
-      };
-    }
-    
+
     // Add visual indication for read-only cells (existing assets when no tax region)
     if (!isEditable) {
       return {
@@ -3204,7 +3195,7 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
         cursor: 'default'
       };
     }
-    
+
     return { textAlign: 'right' };
   }, [validationErrors, newAssets, taxRegion]);
 

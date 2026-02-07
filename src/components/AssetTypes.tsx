@@ -900,12 +900,6 @@ export function AssetTypes() {
         allTooltips.push(`סוג נכס: ${currentName}`);
         allTooltips.push(''); // Empty line for spacing
 
-        // If multiple rows with same name, show count
-        if (matchingAssetTypes.length > 1) {
-          allTooltips.push(`נמצאו ${matchingAssetTypes.length} שורות עם שם זהה:`);
-          allTooltips.push(''); // Empty line for spacing
-        }
-
         // Then list each matching asset type's details
         matchingAssetTypes.forEach(({ assetType: at, originalIndex }, index) => {
           const tooltipFields = buildTooltipForAssetType(at);

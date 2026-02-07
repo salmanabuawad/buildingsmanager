@@ -4925,11 +4925,8 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
               checkboxes: false,
               hideDisabledCheckboxes: true
             }}
-            cellSelection={{
-              handle: {
-                mode: 'fill'
-              }
-            }}
+            enableRangeSelection={true}
+            enableRangeHandle={true}
             domLayout="normal"
             getRowId={(params) => String(params.data.asset_id)}
             onCellValueChanged={onCellValueChanged}

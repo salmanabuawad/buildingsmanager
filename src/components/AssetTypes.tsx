@@ -1739,11 +1739,8 @@ export function AssetTypes() {
                   checkboxes: false,
                   hideDisabledCheckboxes: true
                 }}
-                cellSelection={{
-                  handle: {
-                    mode: 'fill'
-                  }
-                }}
+                enableRangeSelection={true}
+                enableRangeHandle={true}
                 singleClickEdit={true}
                 stopEditingWhenCellsLoseFocus={true}
               />

@@ -1143,49 +1143,46 @@ export async function validateAssetTypeComplete(
       // Match asset attribute: penthouse (דירת גג)
       // NOTE: Penthouse validation only applies to main assets, not sub-assets
       // If assetData is not provided, it means we're validating a sub-asset, so skip penthouse check
-      // Handle boolean or string values for assetType.penthouse
-      let assetTypePenthouseValue = '';
-      if (assetType.penthouse != null) {
+      // Only validate if asset type penthouse is explicitly "כן"/"yes"/true (requires penthouse)
+      // If asset type penthouse is NOT "כן"/"yes"/true (including "לא"/"no"/false/null/empty/any other value),
+      // then skip validation - asset can be with or without penthouse
+      if (assetData != null && assetType.penthouse != null) {
+        let requiredValue = '';
         if (typeof assetType.penthouse === 'boolean') {
-          assetTypePenthouseValue = assetType.penthouse ? 'כן' : 'לא';
+          requiredValue = assetType.penthouse ? 'כן' : '';
         } else {
-          assetTypePenthouseValue = String(assetType.penthouse).trim();
-        }
-      }
-      if (assetData != null && assetTypePenthouseValue !== '') {
-        const requiredValue = assetTypePenthouseValue;
-        const assetPenthouse = assetData?.penthouse;
-        
-        // Normalize asset penthouse value to a boolean-like check
-        // Handle various formats: 'כן', 'yes', true, 'true', null, undefined, empty string
-        let isAssetPenthouse = false;
-        if (assetPenthouse != null && assetPenthouse !== '') {
-          if (typeof assetPenthouse === 'boolean') {
-            isAssetPenthouse = assetPenthouse;
-          } else {
-            const strValue = String(assetPenthouse).trim();
-            // Check for Hebrew 'כן' or English 'yes'/'true' (case-insensitive)
-            isAssetPenthouse = strValue === 'כן' || 
-                              strValue.toLowerCase() === 'yes' || 
-                              strValue.toLowerCase() === 'true';
-          }
+          requiredValue = String(assetType.penthouse).trim();
         }
         
-        // Normalize required value
+        // Only validate if the value is explicitly "כן"/"yes" (or boolean true)
+        // If it's anything else (including "לא"/"no"/false/null/empty), skip validation
         const requiredIsYes = requiredValue === 'כן' || requiredValue.toLowerCase() === 'yes';
-        const requiredIsNo = requiredValue === 'לא' || requiredValue.toLowerCase() === 'no';
-
+        
+        // Only proceed with validation if asset type explicitly requires penthouse
         if (requiredIsYes) {
+          const assetPenthouse = assetData?.penthouse;
+          
+          // Normalize asset penthouse value to a boolean-like check
+          // Handle various formats: 'כן', 'yes', true, 'true', null, undefined, empty string
+          let isAssetPenthouse = false;
+          if (assetPenthouse != null && assetPenthouse !== '') {
+            if (typeof assetPenthouse === 'boolean') {
+              isAssetPenthouse = assetPenthouse;
+            } else {
+              const strValue = String(assetPenthouse).trim();
+              // Check for Hebrew 'כן' or English 'yes'/'true' (case-insensitive)
+              isAssetPenthouse = strValue === 'כן' || 
+                                strValue.toLowerCase() === 'yes' || 
+                                strValue.toLowerCase() === 'true';
+            }
+          }
+          
           // Asset type requires penthouse
           if (!isAssetPenthouse) {
             errors.push('דורש דירת גג, אבל הנכס לא מסומן כדירת גג');
           }
-        } else if (requiredIsNo) {
-          // Asset type does NOT allow penthouse
-          if (isAssetPenthouse) {
-            errors.push('לא תקף לדירת גג, אבל הנכס מסומן כדירת גג');
-          }
         }
+        // If requiredIsYes is false, we skip validation entirely - asset can be with or without penthouse
       }
 
       // ============================================
@@ -1200,123 +1197,139 @@ export async function validateAssetTypeComplete(
       // If assetData is not provided, it means we're validating a sub-asset, so skip building-level checks
       if (assetData != null) {
         // Step 4a: Match elevator (מעלית)
-        // Handle boolean or string values for assetType.elevator
-        let assetTypeElevatorValue = '';
+        // Only validate if asset type elevator is explicitly "כן"/"yes"/true (requires elevator)
+        // If asset type elevator is NOT "כן"/"yes"/true (including "לא"/"no"/false/null/empty/any other value),
+        // then skip validation - building can be with or without elevator
         if (assetType.elevator != null) {
+          let requiredValue = '';
           if (typeof assetType.elevator === 'boolean') {
-            assetTypeElevatorValue = assetType.elevator ? 'כן' : 'לא';
+            requiredValue = assetType.elevator ? 'כן' : '';
           } else {
-            assetTypeElevatorValue = String(assetType.elevator).trim();
+            requiredValue = String(assetType.elevator).trim();
           }
-        }
-        if (assetTypeElevatorValue !== '') {
-          const requiredValue = assetTypeElevatorValue.toLowerCase();
-          // Handle boolean or string values for building.elevator
-          let buildingValue = '';
-          if (building.elevator != null) {
-            if (typeof building.elevator === 'boolean') {
-              buildingValue = building.elevator ? 'כן' : 'לא';
-            } else {
-              buildingValue = String(building.elevator).toLowerCase();
+          
+          // Only validate if the value is explicitly "כן"/"yes" (or boolean true)
+          const requiredIsYes = requiredValue === 'כן' || requiredValue.toLowerCase() === 'yes';
+          
+          // Only proceed with validation if asset type explicitly requires elevator
+          if (requiredIsYes) {
+            // Handle boolean or string values for building.elevator
+            let buildingValue = '';
+            if (building.elevator != null) {
+              if (typeof building.elevator === 'boolean') {
+                buildingValue = building.elevator ? 'כן' : 'לא';
+              } else {
+                buildingValue = String(building.elevator).toLowerCase();
+              }
             }
-          }
 
-          if (requiredValue === 'כן' || requiredValue === 'yes') {
             if (buildingValue !== 'כן' && buildingValue !== 'yes' && buildingValue !== 'true') {
               errors.push('דורש מעלית, אבל במבנה אין מעלית');
             }
-          } else if (requiredValue === 'לא' || requiredValue === 'no') {
-            if (buildingValue === 'כן' || buildingValue === 'yes' || buildingValue === 'true') {
-              errors.push('מיועד למבנים ללא מעלית, אבל במבנה יש מעלית');
-            }
           }
+          // If requiredIsYes is false, we skip validation entirely - building can be with or without elevator
         }
 
         // Step 4b: Match single_double_family (בית פרטי)
-        // Handle boolean or string values for assetType.single_double_family
-        let assetTypeSingleDoubleFamilyValue = '';
+        // Only validate if asset type single_double_family is explicitly "כן"/"yes"/true (requires single/double family)
+        // If asset type single_double_family is NOT "כן"/"yes"/true (including "לא"/"no"/false/null/empty/any other value),
+        // then skip validation - building can be with or without single/double family
         if (assetType.single_double_family != null) {
+          let requiredValue = '';
           if (typeof assetType.single_double_family === 'boolean') {
-            assetTypeSingleDoubleFamilyValue = assetType.single_double_family ? 'כן' : 'לא';
+            requiredValue = assetType.single_double_family ? 'כן' : '';
           } else {
-            assetTypeSingleDoubleFamilyValue = String(assetType.single_double_family).trim();
+            requiredValue = String(assetType.single_double_family).trim();
           }
-        }
-        if (assetTypeSingleDoubleFamilyValue !== '') {
-          const requiredValue = assetTypeSingleDoubleFamilyValue.toLowerCase();
-          // Handle boolean or string values for building.single_double_family
-          let buildingValue = '';
-          if (building.single_double_family != null) {
-            if (typeof building.single_double_family === 'boolean') {
-              buildingValue = building.single_double_family ? 'כן' : 'לא';
-            } else {
-              buildingValue = String(building.single_double_family).toLowerCase();
+          
+          // Only validate if the value is explicitly "כן"/"yes" (or boolean true)
+          const requiredIsYes = requiredValue === 'כן' || requiredValue.toLowerCase() === 'yes';
+          
+          // Only proceed with validation if asset type explicitly requires single_double_family
+          if (requiredIsYes) {
+            // Handle boolean or string values for building.single_double_family
+            let buildingValue = '';
+            if (building.single_double_family != null) {
+              if (typeof building.single_double_family === 'boolean') {
+                buildingValue = building.single_double_family ? 'כן' : 'לא';
+              } else {
+                buildingValue = String(building.single_double_family).toLowerCase();
+              }
             }
-          }
 
-          if (requiredValue === 'כן' || requiredValue === 'yes') {
             if (buildingValue !== 'כן' && buildingValue !== 'yes' && buildingValue !== 'true') {
               errors.push('דורש משפחה יחידה/דו משפחתי, אבל המבנה לא מסומן ככזה');
             }
           }
+          // If requiredIsYes is false, we skip validation entirely - building can be with or without single_double_family
         }
 
         // Step 4c: Match condo (בית משותף)
-        // Handle boolean or string values for assetType.condo
-        let assetTypeCondoValue = '';
+        // Only validate if asset type condo is explicitly "כן"/"yes"/true (requires condo)
+        // If asset type condo is NOT "כן"/"yes"/true (including "לא"/"no"/false/null/empty/any other value),
+        // then skip validation - building can be with or without condo
         if (assetType.condo != null) {
+          let requiredValue = '';
           if (typeof assetType.condo === 'boolean') {
-            assetTypeCondoValue = assetType.condo ? 'כן' : 'לא';
+            requiredValue = assetType.condo ? 'כן' : '';
           } else {
-            assetTypeCondoValue = String(assetType.condo).trim();
+            requiredValue = String(assetType.condo).trim();
           }
-        }
-        if (assetTypeCondoValue !== '') {
-          const requiredValue = assetTypeCondoValue.toLowerCase();
-          // Handle boolean or string values for building.condo
-          let buildingValue = '';
-          if (building.condo != null) {
-            if (typeof building.condo === 'boolean') {
-              buildingValue = building.condo ? 'כן' : 'לא';
-            } else {
-              buildingValue = String(building.condo).toLowerCase();
+          
+          // Only validate if the value is explicitly "כן"/"yes" (or boolean true)
+          const requiredIsYes = requiredValue === 'כן' || requiredValue.toLowerCase() === 'yes';
+          
+          // Only proceed with validation if asset type explicitly requires condo
+          if (requiredIsYes) {
+            // Handle boolean or string values for building.condo
+            let buildingValue = '';
+            if (building.condo != null) {
+              if (typeof building.condo === 'boolean') {
+                buildingValue = building.condo ? 'כן' : 'לא';
+              } else {
+                buildingValue = String(building.condo).toLowerCase();
+              }
             }
-          }
 
-          if (requiredValue === 'כן' || requiredValue === 'yes') {
             if (buildingValue !== 'כן' && buildingValue !== 'yes' && buildingValue !== 'true') {
               errors.push('דורש בית משותף, אבל המבנה לא מסומן ככזה');
             }
           }
+          // If requiredIsYes is false, we skip validation entirely - building can be with or without condo
         }
 
         // Step 4d: Match townhouses (טוריים)
-        // Handle boolean or string values for assetType.townhouses
-        let assetTypeTownhousesValue = '';
+        // Only validate if asset type townhouses is explicitly "כן"/"yes"/true (requires townhouses)
+        // If asset type townhouses is NOT "כן"/"yes"/true (including "לא"/"no"/false/null/empty/any other value),
+        // then skip validation - building can be with or without townhouses
         if (assetType.townhouses != null) {
+          let requiredValue = '';
           if (typeof assetType.townhouses === 'boolean') {
-            assetTypeTownhousesValue = assetType.townhouses ? 'כן' : 'לא';
+            requiredValue = assetType.townhouses ? 'כן' : '';
           } else {
-            assetTypeTownhousesValue = String(assetType.townhouses).trim();
+            requiredValue = String(assetType.townhouses).trim();
           }
-        }
-        if (assetTypeTownhousesValue !== '') {
-          const requiredValue = assetTypeTownhousesValue.toLowerCase();
-          // Handle boolean or string values for building.townhouses
-          let buildingValue = '';
-          if (building.townhouses != null) {
-            if (typeof building.townhouses === 'boolean') {
-              buildingValue = building.townhouses ? 'כן' : 'לא';
-            } else {
-              buildingValue = String(building.townhouses).toLowerCase();
+          
+          // Only validate if the value is explicitly "כן"/"yes" (or boolean true)
+          const requiredIsYes = requiredValue === 'כן' || requiredValue.toLowerCase() === 'yes';
+          
+          // Only proceed with validation if asset type explicitly requires townhouses
+          if (requiredIsYes) {
+            // Handle boolean or string values for building.townhouses
+            let buildingValue = '';
+            if (building.townhouses != null) {
+              if (typeof building.townhouses === 'boolean') {
+                buildingValue = building.townhouses ? 'כן' : 'לא';
+              } else {
+                buildingValue = String(building.townhouses).toLowerCase();
+              }
             }
-          }
 
-          if (requiredValue === 'כן' || requiredValue === 'yes') {
             if (buildingValue !== 'כן' && buildingValue !== 'yes' && buildingValue !== 'true') {
               errors.push('דורש טוריים, אבל המבנה לא מסומן ככזה');
             }
           }
+          // If requiredIsYes is false, we skip validation entirely - building can be with or without townhouses
         }
 
       }

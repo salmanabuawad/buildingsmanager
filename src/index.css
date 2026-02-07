@@ -206,12 +206,18 @@ input[type="number"] {
   text-align: right !important;
 }
 
-/* Light blue border on focused and editing cells using box-shadow to avoid layout shift */
-.ag-theme-alpine .ag-cell-focus:not(.ag-cell-range-selected),
+/* Light blue border on focused cells using box-shadow to avoid layout shift */
+.ag-theme-alpine .ag-cell-focus:not(.ag-cell-range-selected) {
+  box-shadow: inset 0 0 0 2px #2196f3 !important;
+  outline: none !important;
+}
+
+/* Light blue border on editing cells - only on the cell wrapper */
 .ag-theme-alpine .ag-cell-inline-editing,
 .ag-theme-alpine .ag-cell-editing {
   box-shadow: inset 0 0 0 2px #2196f3 !important;
   outline: none !important;
+  padding: 0 !important;
 }
 
 .ag-theme-alpine .ag-cell-inline-editing input,
@@ -226,7 +232,8 @@ input[type="number"] {
   min-width: 100% !important;
   height: 100% !important;
   box-sizing: border-box !important;
-  padding: 2px 10px !important;
+  padding: 0 10px !important;
+  margin: 2px !important;
   color: #000000 !important;
   line-height: normal !important;
 }

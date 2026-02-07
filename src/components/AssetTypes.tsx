@@ -861,21 +861,21 @@ export function AssetTypes() {
             fields.push(`טוריים: ${at.townhouses}`);
           }
           if (at.business_residence) {
-            fields.push(`מגורים/עסקי: ${at.business_residence}`);
+            fields.push(at.business_residence);
           }
 
-          // Boolean fields
+          // Boolean fields - only show when true
           if (at.non_accountable_for_total_area === true) {
-            fields.push('לא נספר בחישוב שטח מבנה: כן');
+            fields.push('לא נספר בחישוב שטח מבנה');
           }
           if (at.non_accountable_for_distribution === true) {
-            fields.push('לא נספר בפיזור: כן');
+            fields.push('לא נספר בפיזור');
           }
           if (at.not_accountable_for_statistics === true) {
-            fields.push('לא נספר בסטטיסטיקה: כן');
+            fields.push('לא נספר בסטטיסטיקה');
           }
           if (at.use_shared_area === true) {
-            fields.push('שימוש בשטח משותף: כן');
+            fields.push('שימוש בשטח משותף');
           }
 
           // Size range
@@ -900,9 +900,9 @@ export function AssetTypes() {
         allTooltips.push(`סוג נכס: ${currentName}`);
         allTooltips.push(''); // Empty line for spacing
 
-        // If multiple rows with same name, show each variant
+        // If multiple rows with same name, show count
         if (matchingAssetTypes.length > 1) {
-          allTooltips.push(`נמצאו ${matchingAssetTypes.length} וריאנטים:`);
+          allTooltips.push(`נמצאו ${matchingAssetTypes.length} שורות עם שם זהה:`);
           allTooltips.push(''); // Empty line for spacing
         }
 
@@ -910,7 +910,7 @@ export function AssetTypes() {
         matchingAssetTypes.forEach(({ assetType: at, originalIndex }, index) => {
           const tooltipFields = buildTooltipForAssetType(at);
           if (matchingAssetTypes.length > 1) {
-            allTooltips.push(`--- וריאנט ${index + 1} ---`);
+            allTooltips.push(`--- ${index + 1} ---`);
           }
           if (tooltipFields.length > 0) {
             tooltipFields.forEach(field => allTooltips.push(field));

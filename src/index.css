@@ -135,7 +135,8 @@ input[type="number"] {
 }
 
 .ag-theme-alpine .ag-row {
-  transition: none;
+  transition: none !important;
+  animation: none !important;
 }
 
 .ag-theme-alpine .ag-row-hover {
@@ -148,6 +149,27 @@ input[type="number"] {
   transform: none !important;
   transition: none !important;
   box-shadow: none !important;
+}
+
+/* Disable AG Grid cell flash animation */
+.ag-theme-alpine .ag-cell-data-changed,
+.ag-theme-alpine .ag-cell-data-changed-animation {
+  background-color: transparent !important;
+  transition: none !important;
+  animation: none !important;
+}
+
+/* Disable row animation */
+.ag-theme-alpine .ag-row-animation {
+  transition: none !important;
+}
+
+/* Disable all AG Grid animations */
+.ag-theme-alpine * {
+  animation-duration: 0s !important;
+  animation-delay: 0s !important;
+  transition-duration: 0s !important;
+  transition-delay: 0s !important;
 }
 
 .ag-theme-alpine .ag-cell {

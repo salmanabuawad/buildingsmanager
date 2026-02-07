@@ -30,6 +30,16 @@ input[type="number"] {
   --ag-cell-horizontal-border: solid #dee2e6;
   --ag-borders: solid 1px #dee2e6;
   --ag-row-border-color: #dee2e6;
+  --ag-range-selection-border-color: transparent;
+  --ag-input-focus-box-shadow: none;
+}
+
+/* Override AG Grid's internal box-shadow */
+.ag-theme-alpine .ag-cell,
+.ag-theme-alpine .ag-cell *,
+.ag-theme-alpine .ag-cell::before,
+.ag-theme-alpine .ag-cell::after {
+  box-shadow: none !important;
 }
 
 .ag-theme-alpine .ag-header {
@@ -658,7 +668,6 @@ input[type="number"] {
 .ag-theme-alpine .ag-cell-error {
   background-color: #fee2e2 !important;
   border: 2px solid #ef4444 !important;
-  box-shadow: 0 0 0 1px #ef4444 inset !important;
 }
 
 /* Smooth scrolling */
@@ -924,4 +933,27 @@ input[type="submit"]:disabled {
 .ag-cell.ag-cell-fill-range {
   background-color: rgba(25, 118, 210, 0.1) !important;
   border: 1px solid rgba(25, 118, 210, 0.3) !important;
+}
+
+/* CRITICAL: Remove all box-shadows from all cell states - final override */
+.ag-theme-alpine .ag-cell,
+.ag-theme-alpine .ag-cell *,
+.ag-theme-alpine .ag-cell:hover,
+.ag-theme-alpine .ag-cell:focus,
+.ag-theme-alpine .ag-cell:active,
+.ag-theme-alpine .ag-cell.ag-cell-focus,
+.ag-theme-alpine .ag-cell-focus,
+.ag-theme-alpine .ag-cell-focus *,
+.ag-theme-alpine .ag-cell-range-selected,
+.ag-theme-alpine .ag-cell-range-single-cell,
+.ag-theme-alpine .ag-cell.ag-cell-inline-editing,
+.ag-theme-alpine .ag-cell-focus.ag-cell-inline-editing,
+.ag-theme-alpine .ag-cell::before,
+.ag-theme-alpine .ag-cell::after,
+.ag-theme-alpine .ag-ltr .ag-cell,
+.ag-theme-alpine .ag-rtl .ag-cell,
+.ag-theme-alpine .ag-cell-wrapper,
+.ag-theme-alpine .ag-cell-value,
+.ag-theme-alpine [class*="ag-cell"] {
+  box-shadow: none !important;
 }

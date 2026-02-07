@@ -206,8 +206,13 @@ input[type="number"] {
   text-align: right !important;
 }
 
-/* Light blue border on focused and editing cells */
-.ag-theme-alpine .ag-cell-focus,
+/* Light blue border on focused cells using box-shadow to avoid layout shift */
+.ag-theme-alpine .ag-cell-focus:not(.ag-cell-range-selected) {
+  box-shadow: inset 0 0 0 2px #2196f3 !important;
+  outline: none !important;
+}
+
+/* Light blue border on editing cells */
 .ag-theme-alpine .ag-cell-inline-editing,
 .ag-theme-alpine .ag-cell-editing {
   border: 2px solid #2196f3 !important;

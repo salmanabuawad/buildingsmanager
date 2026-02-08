@@ -18,6 +18,8 @@ export function AssetFilesModal({ isOpen, onClose, assetId, measurementDate, onF
   const [loading, setLoading] = useState(false);
   const [selectedFiles, setSelectedFiles] = useState<Set<number>>(new Set());
   const [viewingFile, setViewingFile] = useState<AssetFile | null>(null);
+  const [viewingAllFiles, setViewingAllFiles] = useState<AssetFile[]>([]);
+  const [currentViewingIndex, setCurrentViewingIndex] = useState(0);
   const [deleting, setDeleting] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
@@ -102,6 +104,39 @@ export function AssetFilesModal({ isOpen, onClose, assetId, measurementDate, onF
     setViewingFile(file);
   };
 
+  const handleViewAll = () => {
+    // If files are selected, view only selected files; otherwise view all files
+    const filesToView = selectedFiles.size > 0
+      ? files.filter(f => selectedFiles.has(f.id))
+      : files;
+    
+    if (filesToView.length === 0) return;
+    
+    setViewingAllFiles(filesToView);
+    setCurrentViewingIndex(0);
+    setViewingFile(filesToView[0]);
+  };
+
+  const handleNextFile = () => {
+    if (viewingAllFiles.length === 0) return;
+    const nextIndex = (currentViewingIndex + 1) % viewingAllFiles.length;
+    setCurrentViewingIndex(nextIndex);
+    setViewingFile(viewingAllFiles[nextIndex]);
+  };
+
+  const handlePrevFile = () => {
+    if (viewingAllFiles.length === 0) return;
+    const prevIndex = (currentViewingIndex - 1 + viewingAllFiles.length) % viewingAllFiles.length;
+    setCurrentViewingIndex(prevIndex);
+    setViewingFile(viewingAllFiles[prevIndex]);
+  };
+
+  const handleCloseViewAll = () => {
+    setViewingFile(null);
+    setViewingAllFiles([]);
+    setCurrentViewingIndex(0);
+  };
+
   const getFileIcon = (fileType?: string) => {
     if (!fileType) return <FileText className="h-8 w-8" />;
     if (fileType.startsWith('image/')) return <ImageIcon className="h-8 w-8" />;
@@ -138,6 +173,15 @@ export function AssetFilesModal({ isOpen, onClose, assetId, measurementDate, onF
           <div className="flex items-center justify-between p-4 border-b border-gray-200">
             <h3 className="text-lg font-semibold text-slate-800">קבצים - נכס {assetId}</h3>
             <div className="flex items-center gap-2">
+              {files.length > 0 && (
+                <button
+                  onClick={handleViewAll}
+                  className="flex items-center gap-1 px-3 py-1.5 text-sm bg-blue-600 hover:bg-blue-700 text-white rounded transition-colors"
+                >
+                  <Eye className="h-4 w-4" />
+                  צפה בכל {selectedFiles.size > 0 ? `(${selectedFiles.size})` : `(${files.length})`}
+                </button>
+              )}
               {selectedFiles.size > 0 && (
                 <button
                   onClick={handleDeleteClick}
@@ -252,21 +296,48 @@ export function AssetFilesModal({ isOpen, onClose, assetId, measurementDate, onF
         <div 
           className="fixed inset-0 z-[60] flex items-center justify-center transition-opacity duration-300 opacity-100"
           style={{ backgroundColor: 'rgba(0, 0, 0, 0.7)' }}
-          onClick={() => setViewingFile(null)}
+          onClick={handleCloseViewAll}
         >
           <div 
-            className="bg-white rounded-xl shadow-2xl max-w-6xl w-full mx-4 max-h-[90vh] flex flex-col transition-all duration-300 scale-100 opacity-100"
+            className="bg-white rounded-xl shadow-2xl max-w-6xl w-full mx-4 max-h-[90vh] flex flex-col transition-all duration-300 scale-100 opacity-100 relative"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center justify-between p-4 border-b border-gray-200">
-              <h3 className="text-lg font-semibold text-slate-800">{viewingFile.file_name || 'קובץ'}</h3>
-              <button
-                onClick={() => setViewingFile(null)}
-                className="flex items-center gap-1 px-2 py-1 text-xs bg-gray-500 hover:bg-gray-600 text-white rounded transition-colors font-bold"
-              >
-                <X className="h-4 w-4" />
-                סגור
-              </button>
+              <div className="flex items-center gap-4">
+                <h3 className="text-lg font-semibold text-slate-800">{viewingFile.file_name || 'קובץ'}</h3>
+                {viewingAllFiles.length > 1 && (
+                  <span className="text-sm text-gray-600">
+                    {currentViewingIndex + 1} / {viewingAllFiles.length}
+                  </span>
+                )}
+              </div>
+              <div className="flex items-center gap-2">
+                {viewingAllFiles.length > 1 && (
+                  <>
+                    <button
+                      onClick={handlePrevFile}
+                      className="flex items-center gap-1 px-3 py-1.5 text-sm bg-gray-600 hover:bg-gray-700 text-white rounded transition-colors"
+                      title="קובץ קודם"
+                    >
+                      ← קודם
+                    </button>
+                    <button
+                      onClick={handleNextFile}
+                      className="flex items-center gap-1 px-3 py-1.5 text-sm bg-gray-600 hover:bg-gray-700 text-white rounded transition-colors"
+                      title="קובץ הבא"
+                    >
+                      הבא →
+                    </button>
+                  </>
+                )}
+                <button
+                  onClick={handleCloseViewAll}
+                  className="flex items-center gap-1 px-2 py-1 text-xs bg-gray-500 hover:bg-gray-600 text-white rounded transition-colors font-bold"
+                >
+                  <X className="h-4 w-4" />
+                  סגור
+                </button>
+              </div>
             </div>
             <div className="flex-1 overflow-auto p-4">
               <FileViewer

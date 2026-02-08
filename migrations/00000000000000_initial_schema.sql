@@ -1,0 +1,11 @@
+-- Migration: 00000000000000_initial_schema.sql
+-- Description: Initial database schema
+--
+-- This migration file references the consolidated initial schema.
+-- For a fresh database setup, use init_db.sql instead.
+--
+-- This file is kept for migration tracking purposes.
+-- The actual schema is defined in init_db.sql
+
+-- Note: The complete initial schema is in ../init_db.sql
+-- This migration file is a placeholder for migration tracking systems.

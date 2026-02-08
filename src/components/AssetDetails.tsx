@@ -1926,7 +1926,7 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
                 type="file"
                 multiple
                 className="hidden"
-                accept="*/*"
+                accept="image/*,.pdf,.dwg,.docx,.doc,.txt,.xlsx"
                 onChange={async (e) => {
                   const files = e.target.files;
                   if (!files?.length || !asset.asset_id) return;

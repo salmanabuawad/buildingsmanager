@@ -17,7 +17,7 @@ VALUES (
   'structure-drawings',
   true,  -- Set to true so getPublicUrl() works (RLS policies still protect access)
   52428800, -- 50MB limit
-  ARRAY['application/pdf', 'image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp']
+  ARRAY['application/pdf', 'image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'application/msword', 'text/plain', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet']
 )
 ON CONFLICT (id) DO UPDATE SET
   name = EXCLUDED.name,
@@ -33,7 +33,7 @@ VALUES (
   'dwg-files',
   true,  -- Set to true so getPublicUrl() works (RLS policies still protect access)
   52428800, -- 50MB limit
-  ARRAY['application/pdf', 'image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp']
+  ARRAY['application/pdf', 'image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'application/msword', 'text/plain', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet']
 )
 ON CONFLICT (id) DO UPDATE SET
   name = EXCLUDED.name,

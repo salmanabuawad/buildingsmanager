@@ -4691,7 +4691,7 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
                     if (el) fileInputRefs.current.set(assetId, el);
                   }}
                   className="hidden"
-                  accept="image/*,.pdf,.dwg"
+                  accept="image/*,.pdf,.dwg,.docx,.doc,.txt,.xlsx"
                   onChange={async (e) => {
                     const files = e.target.files;
                     if (!files?.length) return;

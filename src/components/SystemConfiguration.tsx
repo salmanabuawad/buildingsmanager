@@ -284,6 +284,7 @@ export function SystemConfigurationManager() {
                   className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm"
                 >
                   <option value="email">Email</option>
+                  <option value="mail">Mail</option>
                   <option value="ui">UI</option>
                   <option value="general">כללי</option>
                   <option value="notification">התראות</option>
@@ -417,6 +418,135 @@ export function SystemConfigurationManager() {
                 </>
               )}
 
+              {/* Mail-specific fields */}
+              {formData.config_type === 'mail' && (
+                <>
+                  <div className="md:col-span-2">
+                    <label className="block text-sm font-medium text-slate-700 mb-1">הגדרות רשימת תפוצה</label>
+                    <div className="space-y-3 p-3 bg-white rounded-lg border border-slate-200">
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="checkbox"
+                          id="mailing_list_enabled"
+                          checked={(formData.config_data as any)?.mailing_list_enabled || false}
+                          onChange={(e) => {
+                            const currentData = (formData.config_data as any) || {};
+                            setFormData({
+                              ...formData,
+                              config_data: {
+                                ...currentData,
+                                mailing_list_enabled: e.target.checked,
+                              },
+                            });
+                          }}
+                          className="w-4 h-4 text-teal-600 rounded focus:ring-2 focus:ring-teal-500"
+                        />
+                        <label htmlFor="mailing_list_enabled" className="text-sm font-medium text-slate-700">
+                          הפעל רשימת תפוצה
+                        </label>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="checkbox"
+                          id="auto_send_emails"
+                          checked={(formData.config_data as any)?.auto_send_emails || false}
+                          onChange={(e) => {
+                            const currentData = (formData.config_data as any) || {};
+                            setFormData({
+                              ...formData,
+                              config_data: {
+                                ...currentData,
+                                auto_send_emails: e.target.checked,
+                              },
+                            });
+                          }}
+                          className="w-4 h-4 text-teal-600 rounded focus:ring-2 focus:ring-teal-500"
+                        />
+                        <label htmlFor="auto_send_emails" className="text-sm font-medium text-slate-700">
+                          שלח אימיילים אוטומטית
+                        </label>
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-slate-700 mb-1">תבנית נושא ברירת מחדל</label>
+                        <input
+                          type="text"
+                          value={(formData.config_data as any)?.default_subject_template || ''}
+                          onChange={(e) => {
+                            const currentData = (formData.config_data as any) || {};
+                            setFormData({
+                              ...formData,
+                              config_data: {
+                                ...currentData,
+                                default_subject_template: e.target.value,
+                              },
+                            });
+                          }}
+                          placeholder="לדוגמה: עדכון נכסים - {tax_region}"
+                          className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-slate-700 mb-1">תבנית תוכן ברירת מחדל</label>
+                        <textarea
+                          value={(formData.config_data as any)?.default_body_template || ''}
+                          onChange={(e) => {
+                            const currentData = (formData.config_data as any) || {};
+                            setFormData({
+                              ...formData,
+                              config_data: {
+                                ...currentData,
+                                default_body_template: e.target.value,
+                              },
+                            });
+                          }}
+                          placeholder="תוכן האימייל..."
+                          rows={4}
+                          className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-slate-700 mb-1">מרווח זמן בין שליחות (דקות)</label>
+                        <input
+                          type="number"
+                          value={(formData.config_data as any)?.send_interval_minutes || 5}
+                          onChange={(e) => {
+                            const currentData = (formData.config_data as any) || {};
+                            setFormData({
+                              ...formData,
+                              config_data: {
+                                ...currentData,
+                                send_interval_minutes: parseInt(e.target.value) || 5,
+                              },
+                            });
+                          }}
+                          min={1}
+                          className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-slate-700 mb-1">מספר מקסימלי של נמענים לשליחה</label>
+                        <input
+                          type="number"
+                          value={(formData.config_data as any)?.max_recipients_per_batch || 50}
+                          onChange={(e) => {
+                            const currentData = (formData.config_data as any) || {};
+                            setFormData({
+                              ...formData,
+                              config_data: {
+                                ...currentData,
+                                max_recipients_per_batch: parseInt(e.target.value) || 50,
+                              },
+                            });
+                          }}
+                          min={1}
+                          className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </>
+              )}
+
               {/* UI-specific fields */}
               {formData.config_type === 'ui' && (
                 <>
@@ -497,7 +627,8 @@ export function SystemConfigurationManager() {
                   <div className="flex-1">
                     <div className="flex items-center gap-2 mb-2">
                       {config.config_type === 'email' && <Mail className="h-5 w-5 text-blue-600" />}
-                      {config.config_type !== 'email' && <Settings className="h-5 w-5 text-slate-600" />}
+                      {config.config_type === 'mail' && <Mail className="h-5 w-5 text-green-600" />}
+                      {config.config_type !== 'email' && config.config_type !== 'mail' && <Settings className="h-5 w-5 text-slate-600" />}
                       <h3 className="text-lg font-semibold text-slate-800">
                         {config.name} ({config.config_type})
                       </h3>
@@ -514,6 +645,30 @@ export function SystemConfigurationManager() {
                         <div><span className="font-medium">Port:</span> {config.smtp_port || '-'}</div>
                         <div><span className="font-medium">From:</span> {config.from_email || '-'}</div>
                         <div><span className="font-medium">Encryption:</span> {config.smtp_encryption || '-'}</div>
+                      </div>
+                    )}
+                    {config.config_type === 'mail' && config.config_data && (
+                      <div className="text-sm text-slate-600 space-y-1">
+                        <div>
+                          <span className="font-medium">רשימת תפוצה מופעלת:</span>{' '}
+                          {(config.config_data as any)?.mailing_list_enabled ? 'כן' : 'לא'}
+                        </div>
+                        <div>
+                          <span className="font-medium">שליחה אוטומטית:</span>{' '}
+                          {(config.config_data as any)?.auto_send_emails ? 'כן' : 'לא'}
+                        </div>
+                        {(config.config_data as any)?.send_interval_minutes && (
+                          <div>
+                            <span className="font-medium">מרווח זמן:</span>{' '}
+                            {(config.config_data as any).send_interval_minutes} דקות
+                          </div>
+                        )}
+                        {(config.config_data as any)?.max_recipients_per_batch && (
+                          <div>
+                            <span className="font-medium">מקסימום נמענים:</span>{' '}
+                            {(config.config_data as any).max_recipients_per_batch}
+                          </div>
+                        )}
                       </div>
                     )}
                     {config.config_type === 'ui' && config.config_data && (

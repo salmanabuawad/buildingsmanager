@@ -83,6 +83,17 @@ export function FileViewer({ fileUrl, fileName }: FileViewerProps) {
     return () => { cancelled = true; };
   }, [fileUrl]);
 
+  // Reset state when file changes to handle switching between different file types
+  useEffect(() => {
+    setFileType('loading');
+    setNumPages(0);
+    setPageNumber(1);
+    setScale(1.0);
+    setRotation(0);
+    setImageError(false);
+    setPdfLoadError(null);
+  }, [fileUrl, fileName]);
+
   // Detect file type from URL and filename (use original fileUrl to avoid duplicate calls)
   useEffect(() => {
     const detectFileType = async () => {

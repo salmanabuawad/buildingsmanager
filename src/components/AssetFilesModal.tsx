@@ -105,7 +105,16 @@ export function AssetFilesModal({ isOpen, onClose, assetId, measurementDate, onF
   };
 
   const handleViewAll = () => {
-    // If files are selected, view only selected files; otherwise view all files
+    // Only view selected files if any are selected
+    // Otherwise, view all files only if select all is checked
+    const isSelectAllChecked = selectedFiles.size === files.length && files.length > 0;
+    const hasMultipleSelected = selectedFiles.size > 1;
+    
+    // Only proceed if select all is checked or more than one file is selected
+    if (!isSelectAllChecked && !hasMultipleSelected) {
+      return;
+    }
+    
     const filesToView = selectedFiles.size > 0
       ? files.filter(f => selectedFiles.has(f.id))
       : files;
@@ -176,10 +185,11 @@ export function AssetFilesModal({ isOpen, onClose, assetId, measurementDate, onF
               {files.length > 0 && (
                 <button
                   onClick={handleViewAll}
-                  className="flex items-center gap-1 px-3 py-1.5 text-sm bg-blue-600 hover:bg-blue-700 text-white rounded transition-colors"
+                  disabled={!(selectedFiles.size === files.length && files.length > 0) && selectedFiles.size <= 1}
+                  className="flex items-center gap-1 px-3 py-1.5 text-sm bg-blue-600 hover:bg-blue-700 text-white rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <Eye className="h-4 w-4" />
-                  צפה בכל {selectedFiles.size > 0 ? `(${selectedFiles.size})` : `(${files.length})`}
+                  {selectedFiles.size > 0 ? `צפה בנבחרים (${selectedFiles.size})` : `צפה בכל (${files.length})`}
                 </button>
               )}
               {selectedFiles.size > 0 && (

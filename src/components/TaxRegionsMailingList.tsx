@@ -272,7 +272,7 @@ export function TaxRegionsMailingListManager() {
         cellStyle: (params: any) => {
           const isDirty = params.data && isFieldDirty(params.data.id, 'email');
           return { 
-            textAlign: 'right',
+            textAlign: 'left',
             direction: 'ltr',
             backgroundColor: isDirty ? '#fef3c7' : undefined,
             fontWeight: isDirty ? 'bold' : undefined
@@ -555,24 +555,49 @@ export function TaxRegionsMailingListManager() {
         )}
 
         {/* Grid */}
-        <div className="ag-theme-alpine" style={{ height: '600px', width: '100%' }}>
-          <AgGridReact
-            ref={gridRef}
-            rowData={items}
-            columnDefs={configuredColumnDefs}
-            defaultColDef={{
-              resizable: true,
-              sortable: true,
-              filter: true,
-            }}
-            onCellValueChanged={onCellValueChanged}
-            onGridReady={onGridReady}
-            getRowStyle={getRowStyle}
-            animateRows={true}
-            localeText={{
-              noRowsToShow: 'אין רשומות להצגה',
-            }}
-          />
+        <div className="bg-white rounded-xl shadow-lg hover:shadow-xl transition-shadow duration-200 overflow-hidden border-2 border-blue-400 w-full">
+          <div className="ag-theme-alpine" style={{ height: '60vh', width: '100%', minWidth: '100%', overflowX: 'auto', direction: 'rtl' }}>
+            <AgGridReact
+              ref={gridRef}
+              rowData={items}
+              columnDefs={configuredColumnDefs}
+              defaultColDef={{
+                resizable: false, // Disabled - use field configurations instead
+                wrapHeaderText: true,
+                autoHeaderHeight: true,
+                wrapText: true,
+                autoHeight: false,
+                cellStyle: { textAlign: 'right', direction: 'rtl' },
+                headerClass: 'ag-right-aligned-header',
+                headerStyle: { fontSize: '11px', textAlign: 'right', fontWeight: 'normal', WebkitFontSmoothing: 'antialiased', MozOsxFontSmoothing: 'grayscale' },
+                minWidth: 40,
+                sortable: true,
+                filter: true
+              }}
+              onCellValueChanged={onCellValueChanged}
+              onGridReady={async (params) => {
+                await gridPreferences.loadColumnState(params.api);
+                onGridReady(params);
+              }}
+              onColumnResized={(params) => {
+                gridPreferences.handleColumnResized();
+              }}
+              onColumnMoved={gridPreferences.handleColumnMoved}
+              getRowStyle={getRowStyle}
+              getRowId={(params: any) => String(params.data.id)}
+              gridOptions={{
+                suppressColumnVirtualisation: true,
+                alwaysShowHorizontalScroll: true,
+                enableRtl: true,
+                animateRows: false,
+                suppressMovableColumns: true,
+                suppressColumnMoveAnimation: true,
+              }}
+              localeText={{
+                noRowsToShow: 'אין רשומות להצגה',
+              }}
+            />
+          </div>
         </div>
       </div>
     </div>

@@ -108,9 +108,10 @@ function App() {
       }
     };
     
-    if (user || isAuthenticated) {
+    if (isAuthenticated) {
       loadUIConfig();
     }
+  }, [isAuthenticated]);
   }, [isAuthenticated]);
 
   const handleLoginSuccess = async () => {

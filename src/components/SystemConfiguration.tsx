@@ -131,6 +131,13 @@ export function SystemConfigurationManager() {
         const updatedConfig = await api.systemConfiguration.update(editingId, formData);
         setConfigurations(configurations.map(c => c.id === editingId ? updatedConfig : c));
         setToast({ message: 'ההגדרה עודכנה בהצלחה', type: 'success' });
+        
+        // If UI config was updated, reload the page to apply changes
+        if (formData.config_type === 'ui') {
+          setTimeout(() => {
+            window.location.reload();
+          }, 1000);
+        }
       }
 
       handleCancel();
@@ -277,6 +284,7 @@ export function SystemConfigurationManager() {
                   className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm"
                 >
                   <option value="email">Email</option>
+                  <option value="ui">UI</option>
                   <option value="general">כללי</option>
                   <option value="notification">התראות</option>
                 </select>
@@ -409,6 +417,33 @@ export function SystemConfigurationManager() {
                 </>
               )}
 
+              {/* UI-specific fields */}
+              {formData.config_type === 'ui' && (
+                <>
+                  <div className="md:col-span-2 flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      id="validation_rules_enabled"
+                      checked={(formData.config_data as any)?.validation_rules_enabled || false}
+                      onChange={(e) => {
+                        const currentData = (formData.config_data as any) || {};
+                        setFormData({
+                          ...formData,
+                          config_data: {
+                            ...currentData,
+                            validation_rules_enabled: e.target.checked,
+                          },
+                        });
+                      }}
+                      className="w-4 h-4 text-teal-600 rounded focus:ring-2 focus:ring-teal-500"
+                    />
+                    <label htmlFor="validation_rules_enabled" className="text-sm font-medium text-slate-700">
+                      הפעל תפריט כללי תקינות
+                    </label>
+                  </div>
+                </>
+              )}
+
               <div className="md:col-span-2 flex items-center gap-2">
                 <input
                   type="checkbox"
@@ -479,6 +514,14 @@ export function SystemConfigurationManager() {
                         <div><span className="font-medium">Port:</span> {config.smtp_port || '-'}</div>
                         <div><span className="font-medium">From:</span> {config.from_email || '-'}</div>
                         <div><span className="font-medium">Encryption:</span> {config.smtp_encryption || '-'}</div>
+                      </div>
+                    )}
+                    {config.config_type === 'ui' && config.config_data && (
+                      <div className="text-sm text-slate-600">
+                        <div>
+                          <span className="font-medium">כללי תקינות מופעלים:</span>{' '}
+                          {(config.config_data as any)?.validation_rules_enabled ? 'כן' : 'לא'}
+                        </div>
                       </div>
                     )}
                     <div className="text-xs text-slate-500 mt-2">

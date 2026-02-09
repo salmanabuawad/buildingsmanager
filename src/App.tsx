@@ -69,6 +69,7 @@ function App() {
     invalid: number;
     errors: Array<{ assetId: string; buildingNumber: number; errors: string[] }>;
   } | null>(null);
+  const [validationRulesEnabled, setValidationRulesEnabled] = useState<boolean>(false);
   
   // Refs to child components for checking dirty state
   const buildingsListRef = useRef<BuildingsListRef | null>(null);
@@ -93,6 +94,24 @@ function App() {
     setIsAuthenticated(!!getSession());
     setCheckingAuth(false);
   }, []);
+
+  // Load UI configuration
+  useEffect(() => {
+    const loadUIConfig = async () => {
+      try {
+        const uiConfig = await api.systemConfiguration.getUIConfig();
+        setValidationRulesEnabled(uiConfig.validation_rules_enabled);
+      } catch (error) {
+        console.error('Error loading UI config:', error);
+        // Default to false if error
+        setValidationRulesEnabled(false);
+      }
+    };
+    
+    if (isAuthenticated) {
+      loadUIConfig();
+    }
+  }, [isAuthenticated]);
 
   const handleLoginSuccess = async () => {
     setIsAuthenticated(true);
@@ -1492,7 +1511,7 @@ function App() {
                   <span className="font-medium text-slate-700">סוגי נכסים</span>
                   <Tag className="h-3.5 w-3.5 text-pink-600" />
                 </button>
-                {isAdmin && (
+                {isAdmin && validationRulesEnabled && (
                   <button
                     onClick={openValidationRules}
                     className="w-full flex items-center gap-2 px-3 py-2 text-right bg-pink-50/50 hover:bg-pink-100 rounded-lg transition-all text-xs shadow-sm hover:shadow"

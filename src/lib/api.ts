@@ -4613,5 +4613,14 @@ export const api = {
       
       if (error) throw error;
     },
+    getUIConfig: async (): Promise<{ validation_rules_enabled: boolean }> => {
+      const config = await api.systemConfiguration.getActive('ui');
+      if (config && config.config_data) {
+        return {
+          validation_rules_enabled: (config.config_data as any).validation_rules_enabled ?? false,
+        };
+      }
+      return { validation_rules_enabled: false };
+    },
   },
 };

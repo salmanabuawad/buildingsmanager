@@ -105,19 +105,10 @@ export function AssetFilesModal({ isOpen, onClose, assetId, measurementDate, onF
   };
 
   const handleViewAll = () => {
-    // Only view selected files if any are selected
-    // Otherwise, view all files only if select all is checked
-    const isSelectAllChecked = selectedFiles.size === files.length && files.length > 0;
-    const hasMultipleSelected = selectedFiles.size > 1;
+    // View only selected files - button is disabled when nothing is selected
+    if (selectedFiles.size === 0) return;
     
-    // Only proceed if select all is checked or more than one file is selected
-    if (!isSelectAllChecked && !hasMultipleSelected) {
-      return;
-    }
-    
-    const filesToView = selectedFiles.size > 0
-      ? files.filter(f => selectedFiles.has(f.id))
-      : files;
+    const filesToView = files.filter(f => selectedFiles.has(f.id));
     
     if (filesToView.length === 0) return;
     
@@ -182,26 +173,22 @@ export function AssetFilesModal({ isOpen, onClose, assetId, measurementDate, onF
           <div className="flex items-center justify-between p-4 border-b border-gray-200">
             <h3 className="text-lg font-semibold text-slate-800">קבצים - נכס {assetId}</h3>
             <div className="flex items-center gap-2">
-              {files.length > 0 && (
-                <button
-                  onClick={handleViewAll}
-                  disabled={!(selectedFiles.size === files.length && files.length > 0) && selectedFiles.size <= 1}
-                  className="flex items-center gap-1 px-3 py-1.5 text-sm bg-blue-600 hover:bg-blue-700 text-white rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  <Eye className="h-4 w-4" />
-                  {selectedFiles.size > 0 ? `צפה בנבחרים (${selectedFiles.size})` : `צפה בכל (${files.length})`}
-                </button>
-              )}
-              {selectedFiles.size > 0 && (
-                <button
-                  onClick={handleDeleteClick}
-                  disabled={deleting}
-                  className="flex items-center gap-1 px-3 py-1.5 text-sm bg-red-600 hover:bg-red-700 text-white rounded transition-colors disabled:opacity-50"
-                >
-                  <Trash2 className="h-4 w-4" />
-                  מחק נבחרים ({selectedFiles.size})
-                </button>
-              )}
+              <button
+                onClick={handleViewAll}
+                disabled={selectedFiles.size === 0}
+                className="flex items-center gap-1 px-3 py-1.5 text-sm bg-blue-600 hover:bg-blue-700 text-white rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <Eye className="h-4 w-4" />
+                צפה בנבחרים{selectedFiles.size > 0 ? ` (${selectedFiles.size})` : ''}
+              </button>
+              <button
+                onClick={handleDeleteClick}
+                disabled={selectedFiles.size === 0 || deleting}
+                className="flex items-center gap-1 px-3 py-1.5 text-sm bg-red-600 hover:bg-red-700 text-white rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <Trash2 className="h-4 w-4" />
+                מחק נבחרים{selectedFiles.size > 0 ? ` (${selectedFiles.size})` : ''}
+              </button>
               <button
                 onClick={onClose}
                 className="flex items-center gap-1 px-2 py-1 text-xs bg-gray-500 hover:bg-gray-600 text-white rounded transition-colors font-bold"

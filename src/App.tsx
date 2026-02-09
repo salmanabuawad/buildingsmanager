@@ -112,7 +112,6 @@ function App() {
       loadUIConfig();
     }
   }, [isAuthenticated]);
-  }, [isAuthenticated]);
 
   const handleLoginSuccess = async () => {
     setIsAuthenticated(true);

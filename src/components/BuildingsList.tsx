@@ -2060,73 +2060,18 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
         return assetSize || '';
       };
 
-      // Convert assets to rows - matching sample file format and column order
-      const rows = exportedAssets.map(asset => [
-        asset.payer_id || '',                                    // זיהוי משלם
-        asset.asset_id != null ? String(asset.asset_id) : '',   // זיהוי נכס (convert to string)
-        formatDateToDDMMYYYY(asset.discount_date_from) || '',  // תחילת שינוי
-        formatDateToDDMMYYYY(asset.discount_date_to) || '',    // סוף שינוי
-        asset.main_asset_type || '',                             // סוג נכס
-        getExportAssetSize(asset),                               // גודל נכס (asset_size + business_distribution_area for business)
-        asset.sub_asset_type_1 || '',                            // נכס משנה 1
-        asset.sub_asset_size_1 || '',                            // גודל נכס משנה 1
-        asset.sub_asset_type_2 || '',                            // נכס משנה 2
-        asset.sub_asset_size_2 || '',                            // גודל נכס משנה 2
-        asset.sub_asset_type_3 || '',                            // נכס משנה 3
-        asset.sub_asset_size_3 || '',                            // גודל נכס משנה 3
-        asset.sub_asset_type_4 || '',                            // נכס משנה 4
-        asset.sub_asset_size_4 || '',                            // גודל נכס משנה 4
-        asset.sub_asset_type_5 || '',                            // נכס משנה 5
-        asset.sub_asset_size_5 || '',                            // גודל נכס משנה 5
-        asset.sub_asset_type_6 || '',                            // סוג נכס משני 6
-        asset.sub_asset_size_6 || '',                            // גודל נכסי משני 6
-        '',                                                      // מנה (empty in sample)
-        '',                                                      // מקום גביה (empty in sample)
-        '',                                                      // מספר פקודה (empty in sample)
-        '',                                                      // שנת כספים (empty in sample)
-        '',                                                      // תאריך גביה (empty in sample)
-        ''                                                       // יום ערך (empty in sample)
-      ]);
-
-      // Create data array with headers and rows
-      const data = [headers, ...rows];
-
       // Generate filename with current date
       const now = new Date();
       const dateStr = now.toISOString().split('T')[0].replace(/-/g, '');
-      const excelFilename = `שליחת_נתונים_${dateStr}.xlsx`;
 
-      // Create main Excel file as Blob (for ZIP)
-      const mainExcelBlob = createExcelBlob({
-        filename: excelFilename,
-        sheetName: 'נכסים',
-        data,
-        columnWidths: [
-          { wch: 15 }, // זיהוי משלם
-          { wch: 15 }, // זיהוי נכס
-          { wch: 20 }, // תחילת שינוי
-          { wch: 20 }, // סוף שינוי
-          { wch: 12 }, // סוג נכס
-          { wch: 12 }, // גודל נכס
-          { wch: 15 }, // נכס משנה 1
-          { wch: 15 }, // גודל נכס משנה 1
-          { wch: 15 }, // נכס משנה 2
-          { wch: 15 }, // גודל נכס משנה 2
-          { wch: 15 }, // נכס משנה 3
-          { wch: 15 }, // גודל נכס משנה 3
-          { wch: 15 }, // נכס משנה 4
-          { wch: 15 }, // גודל נכס משנה 4
-          { wch: 15 }, // נכס משנה 5
-          { wch: 15 }, // גודל נכס משנה 5
-          { wch: 15 }, // נכס משנה 6
-          { wch: 15 }, // גודל נכס משנה 6
-          { wch: 10 }, // מנה
-          { wch: 12 }, // מקום גביה
-          { wch: 12 }, // מספר פקודה
-          { wch: 12 }, // שנת כספים
-          { wch: 15 }, // תאריך גביה
-          { wch: 15 }  // יום ערך
-        ]
+      // Group assets by tax region BEFORE creating Excel files
+      const assetsByTaxRegionForExcel = new Map<string, any[]>();
+      exportedAssets.forEach(asset => {
+        const taxRegion = asset.tax_region ? String(asset.tax_region).trim() : 'unknown';
+        if (!assetsByTaxRegionForExcel.has(taxRegion)) {
+          assetsByTaxRegionForExcel.set(taxRegion, []);
+        }
+        assetsByTaxRegionForExcel.get(taxRegion)!.push(asset);
       });
 
       // Get all files for exported assets
@@ -2144,112 +2089,204 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
         }
       });
       
-      // Prepare file list data for Excel: asset_id, payer_id, file_name
-      const fileListData: any[][] = [
-        ['מזהה נכס', 'מזהה משלם', 'שם קובץ']
-      ];
-      
       // Prepare files array for ZIP
       const zipFiles: Array<{ filename: string; data: Blob }> = [];
       
-      // Add main Excel file to ZIP
-      zipFiles.push({
-        filename: excelFilename,
-        data: mainExcelBlob
-      });
+      // Group assets by tax region for folder organization (for files)
+      const assetsByTaxRegion = new Map<string, Array<{ assetId: number; asset: any; files: any[] }>>();
       
-      // Build file list and download asset files
+      // Build file list and organize by tax region
       for (const [assetId, files] of filesByAsset.entries()) {
         if (!files || files.length === 0) continue;
         
         const asset = assetMap.get(assetId);
-        const payerId = asset?.payer_id || '';
+        if (!asset) continue;
         
-        for (const file of files) {
-          // Extract file name from URL if file_name is not available
-          let fileName = file.file_name;
-          if (!fileName && file.file_url) {
-            const urlParts = file.file_url.split('/');
-            fileName = urlParts[urlParts.length - 1].split('?')[0];
-          }
-          
-          // Add row to file list Excel: asset_id, payer_id, file_name
-          fileListData.push([
-            assetId,
-            payerId,
-            fileName || ''
-          ]);
-          
-          // Download file from storage and add to ZIP
-          try {
-            // Extract file path from URL
-            const urlParts = file.file_url.split('/');
-            const urlFileName = urlParts[urlParts.length - 1].split('?')[0];
-            
-            // Try to extract path from URL (format: .../structure-drawings/{assetId}/{filename})
-            let filePath = '';
-            const structureDrawingsIndex = file.file_url.indexOf('structure-drawings/');
-            if (structureDrawingsIndex !== -1) {
-              filePath = file.file_url.substring(structureDrawingsIndex + 'structure-drawings/'.length).split('?')[0];
-            } else {
-              // Fallback: construct path from assetId and filename
-              filePath = `${assetId}/${urlFileName}`;
-            }
-            
-            // Download file from storage
-            const { data: fileData, error: downloadError } = await supabase.storage
-              .from('structure-drawings')
-              .download(filePath);
-            
-            if (downloadError || !fileData) {
-              // Check for bucket not found error
-              if (downloadError?.message?.includes('Bucket not found') || downloadError?.statusCode === '404') {
-                console.error(
-                  'Storage bucket "structure-drawings" not found. ' +
-                  'Please create the bucket in Supabase Dashboard: Storage → New bucket → Name: "structure-drawings". ' +
-                  'See CREATE_STORAGE_BUCKETS.md for detailed instructions.'
-                );
-                // Show error to user
-                setToast({ message: 'Storage bucket "structure-drawings" not found. Please create it in Supabase Dashboard. See CREATE_STORAGE_BUCKETS.md for instructions.', type: 'error' });
-                setTimeout(() => setToast(null), 10000);
-                continue;
-              }
-              console.warn(`Error downloading file for asset ${assetId}:`, downloadError);
-              continue;
-            }
-            
-            // Add file to ZIP at root level with original filename
-            const zipFilePath = fileName || urlFileName;
-            zipFiles.push({
-              filename: zipFilePath,
-              data: fileData
-            });
-          } catch (err) {
-            console.warn(`Error processing file for asset ${assetId}:`, err);
-          }
+        const taxRegion = asset?.tax_region ? String(asset.tax_region).trim() : 'unknown';
+        
+        // Initialize tax region group if needed
+        if (!assetsByTaxRegion.has(taxRegion)) {
+          assetsByTaxRegion.set(taxRegion, []);
         }
+        
+        assetsByTaxRegion.get(taxRegion)!.push({
+          assetId,
+          asset,
+          files
+        });
       }
       
-      // Create file list Excel as Blob (for ZIP)
-      let fileListExcelBlob: Blob | null = null;
-      if (fileListData.length > 1) {
-        const fileListFilename = `רשימת_קבצים_${dateStr}.xlsx`;
-        fileListExcelBlob = createExcelBlob({
-          filename: fileListFilename,
-          sheetName: 'רשימת קבצים',
-          data: fileListData,
+      // Process each tax region: create Excel file and download files
+      // Iterate over all tax regions that have assets (not just those with files)
+      for (const [taxRegion, regionAssetsForExcel] of assetsByTaxRegionForExcel.entries()) {
+        // Get files for this tax region (if any)
+        const regionAssets = assetsByTaxRegion.get(taxRegion) || [];
+        
+        // Convert assets to rows for this tax region
+        const rows = regionAssetsForExcel.map(asset => [
+          asset.payer_id || '',                                    // זיהוי משלם
+          asset.asset_id != null ? String(asset.asset_id) : '',   // זיהוי נכס (convert to string)
+          formatDateToDDMMYYYY(asset.discount_date_from) || '',  // תחילת שינוי
+          formatDateToDDMMYYYY(asset.discount_date_to) || '',    // סוף שינוי
+          asset.main_asset_type || '',                             // סוג נכס
+          getExportAssetSize(asset),                               // גודל נכס (asset_size + business_distribution_area for business)
+          asset.sub_asset_type_1 || '',                            // נכס משנה 1
+          asset.sub_asset_size_1 || '',                            // גודל נכס משנה 1
+          asset.sub_asset_type_2 || '',                            // נכס משנה 2
+          asset.sub_asset_size_2 || '',                            // גודל נכס משנה 2
+          asset.sub_asset_type_3 || '',                            // נכס משנה 3
+          asset.sub_asset_size_3 || '',                            // גודל נכס משנה 3
+          asset.sub_asset_type_4 || '',                            // נכס משנה 4
+          asset.sub_asset_size_4 || '',                            // גודל נכס משנה 4
+          asset.sub_asset_type_5 || '',                            // נכס משנה 5
+          asset.sub_asset_size_5 || '',                            // גודל נכס משנה 5
+          asset.sub_asset_type_6 || '',                            // סוג נכס משני 6
+          asset.sub_asset_size_6 || '',                            // גודל נכסי משני 6
+          '',                                                      // מנה (empty in sample)
+          '',                                                      // מקום גביה (empty in sample)
+          '',                                                      // מספר פקודה (empty in sample)
+          '',                                                      // שנת כספים (empty in sample)
+          '',                                                      // תאריך גביה (empty in sample)
+          ''                                                       // יום ערך (empty in sample)
+        ]);
+
+        // Create data array with headers and rows for this tax region
+        const data = [headers, ...rows];
+
+        // Create Excel file for this tax region
+        const excelFilename = `שליחת_נתונים_${taxRegion}_${dateStr}.xlsx`;
+        const regionExcelBlob = createExcelBlob({
+          filename: excelFilename,
+          sheetName: 'נכסים',
+          data,
           columnWidths: [
-            { wch: 15 }, // מזהה נכס
-            { wch: 15 }, // מזהה משלם
-            { wch: 30 }  // שם קובץ
+            { wch: 15 }, // זיהוי משלם
+            { wch: 15 }, // זיהוי נכס
+            { wch: 20 }, // תחילת שינוי
+            { wch: 20 }, // סוף שינוי
+            { wch: 12 }, // סוג נכס
+            { wch: 12 }, // גודל נכס
+            { wch: 15 }, // נכס משנה 1
+            { wch: 15 }, // גודל נכס משנה 1
+            { wch: 15 }, // נכס משנה 2
+            { wch: 15 }, // גודל נכס משנה 2
+            { wch: 15 }, // נכס משנה 3
+            { wch: 15 }, // גודל נכס משנה 3
+            { wch: 15 }, // נכס משנה 4
+            { wch: 15 }, // גודל נכס משנה 4
+            { wch: 15 }, // נכס משנה 5
+            { wch: 15 }, // גודל נכס משנה 5
+            { wch: 15 }, // נכס משנה 6
+            { wch: 15 }, // גודל נכס משנה 6
+            { wch: 10 }, // מנה
+            { wch: 12 }, // מקום גביה
+            { wch: 12 }, // מספר פקודה
+            { wch: 12 }, // שנת כספים
+            { wch: 15 }, // תאריך גביה
+            { wch: 15 }  // יום ערך
           ]
         });
         
-        // Add file list Excel to ZIP
+        // Add Excel file to ZIP in tax region folder
         zipFiles.push({
-          filename: fileListFilename,
-          data: fileListExcelBlob
+          filename: `${taxRegion}/${excelFilename}`,
+          data: regionExcelBlob
         });
+        
+        // Prepare file list data for this tax region
+        const fileListData: any[][] = [
+          ['מזהה נכס', 'מזהה משלם', 'שם קובץ']
+        ];
+        
+        // Download and add files for this tax region
+        for (const { assetId, asset, files } of regionAssets) {
+          const payerId = asset?.payer_id || '';
+          
+          for (const file of files) {
+            // Extract file name from URL if file_name is not available
+            let fileName = file.file_name;
+            if (!fileName && file.file_url) {
+              const urlParts = file.file_url.split('/');
+              fileName = urlParts[urlParts.length - 1].split('?')[0];
+            }
+            
+            // Add row to file list Excel: asset_id, payer_id, file_name
+            fileListData.push([
+              assetId,
+              payerId,
+              fileName || ''
+            ]);
+            
+            // Download file from storage and add to ZIP
+            try {
+              // Extract file path from URL
+              const urlParts = file.file_url.split('/');
+              const urlFileName = urlParts[urlParts.length - 1].split('?')[0];
+              
+              // Try to extract path from URL (format: .../structure-drawings/{assetId}/{filename})
+              let filePath = '';
+              const structureDrawingsIndex = file.file_url.indexOf('structure-drawings/');
+              if (structureDrawingsIndex !== -1) {
+                filePath = file.file_url.substring(structureDrawingsIndex + 'structure-drawings/'.length).split('?')[0];
+              } else {
+                // Fallback: construct path from assetId and filename
+                filePath = `${assetId}/${urlFileName}`;
+              }
+              
+              // Download file from storage
+              const { data: fileData, error: downloadError } = await supabase.storage
+                .from('structure-drawings')
+                .download(filePath);
+              
+              if (downloadError || !fileData) {
+                // Check for bucket not found error
+                if (downloadError?.message?.includes('Bucket not found') || downloadError?.statusCode === '404') {
+                  console.error(
+                    'Storage bucket "structure-drawings" not found. ' +
+                    'Please create the bucket in Supabase Dashboard: Storage → New bucket → Name: "structure-drawings". ' +
+                    'See CREATE_STORAGE_BUCKETS.md for detailed instructions.'
+                  );
+                  // Show error to user
+                  setToast({ message: 'Storage bucket "structure-drawings" not found. Please create it in Supabase Dashboard. See CREATE_STORAGE_BUCKETS.md for instructions.', type: 'error' });
+                  setTimeout(() => setToast(null), 10000);
+                  continue;
+                }
+                console.warn(`Error downloading file for asset ${assetId}:`, downloadError);
+                continue;
+              }
+              
+              // Add file to ZIP in tax region folder: {tax_region}/{assetId}_{filename}
+              const zipFilePath = `${taxRegion}/${assetId}_${fileName || urlFileName}`;
+              zipFiles.push({
+                filename: zipFilePath,
+                data: fileData
+              });
+            } catch (err) {
+              console.warn(`Error processing file for asset ${assetId}:`, err);
+            }
+          }
+        }
+        
+        // Create file list Excel for this tax region
+        if (fileListData.length > 1) {
+          const fileListFilename = `רשימת_קבצים_${taxRegion}_${dateStr}.xlsx`;
+          const fileListExcelBlob = createExcelBlob({
+            filename: fileListFilename,
+            sheetName: 'רשימת קבצים',
+            data: fileListData,
+            columnWidths: [
+              { wch: 15 }, // מזהה נכס
+              { wch: 15 }, // מזהה משלם
+              { wch: 30 }  // שם קובץ
+            ]
+          });
+          
+          // Add file list Excel to ZIP in tax region folder
+          zipFiles.push({
+            filename: `${taxRegion}/${fileListFilename}`,
+            data: fileListExcelBlob
+          });
+        }
       }
       
       // Create ZIP file as Blob

@@ -108,7 +108,7 @@ function App() {
       }
     };
     
-    if (isAuthenticated) {
+    if (user || isAuthenticated) {
       loadUIConfig();
     }
   }, [isAuthenticated]);

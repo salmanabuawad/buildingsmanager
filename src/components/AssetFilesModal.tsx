@@ -316,14 +316,14 @@ export function AssetFilesModal({ isOpen, onClose, assetId, measurementDate, onF
                       className="flex items-center gap-1 px-3 py-1.5 text-sm bg-gray-600 hover:bg-gray-700 text-white rounded transition-colors"
                       title="קובץ קודם"
                     >
-                      ← קודם
+                      קודם
                     </button>
                     <button
                       onClick={handleNextFile}
                       className="flex items-center gap-1 px-3 py-1.5 text-sm bg-gray-600 hover:bg-gray-700 text-white rounded transition-colors"
                       title="קובץ הבא"
                     >
-                      הבא →
+                      הבא
                     </button>
                   </>
                 )}

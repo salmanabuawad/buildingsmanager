@@ -437,21 +437,9 @@ export interface AssetFile {
 
 export interface SystemConfiguration {
   id: number;
-  config_type: string;
   name: string;
+  value: string;
   description?: string | null;
-  smtp_host?: string | null;
-  smtp_port?: number | null;
-  smtp_encryption?: string | null;
-  smtp_username?: string | null;
-  smtp_password?: string | null;
-  from_email?: string | null;
-  from_name?: string | null;
-  reply_to_email?: string | null;
-  max_retries?: number | null;
-  timeout_seconds?: number | null;
-  config_data?: any | null;
-  is_active: boolean;
   created_at: string;
   updated_at: string;
   created_by?: string | null;
@@ -4536,17 +4524,10 @@ export const api = {
     },
   },
   systemConfiguration: {
-    getAll: async (configType?: string): Promise<SystemConfiguration[]> => {
-      let query = supabase
+    getAll: async (): Promise<SystemConfiguration[]> => {
+      const { data, error } = await supabase
         .from('system_configuration')
-        .select('*');
-      
-      if (configType) {
-        query = query.eq('config_type', configType);
-      }
-      
-      const { data, error } = await query
-        .order('config_type')
+        .select('*')
         .order('name');
       
       if (error) throw error;
@@ -4562,14 +4543,11 @@ export const api = {
       if (error) throw error;
       return data;
     },
-    getActive: async (configType: string): Promise<SystemConfiguration | null> => {
+    getByName: async (name: string): Promise<SystemConfiguration | null> => {
       const { data, error } = await supabase
         .from('system_configuration')
         .select('*')
-        .eq('config_type', configType)
-        .eq('is_active', true)
-        .order('created_at', { ascending: false })
-        .limit(1)
+        .eq('name', name)
         .maybeSingle();
       
       if (error) throw error;
@@ -4605,6 +4583,24 @@ export const api = {
       if (error) throw error;
       return data;
     },
+    upsert: async (name: string, value: string, description?: string): Promise<SystemConfiguration> => {
+      const userInfo = await getCurrentUserInfo();
+      const { data, error } = await supabase
+        .from('system_configuration')
+        .upsert({
+          name,
+          value,
+          description,
+          updated_by: userInfo.user_name,
+        }, {
+          onConflict: 'name',
+        })
+        .select()
+        .single();
+      
+      if (error) throw error;
+      return data;
+    },
     delete: async (id: number): Promise<void> => {
       const { error } = await supabase
         .from('system_configuration')
@@ -4614,13 +4610,40 @@ export const api = {
       if (error) throw error;
     },
     getUIConfig: async (): Promise<{ validation_rules_enabled: boolean }> => {
-      const config = await api.systemConfiguration.getActive('ui');
-      if (config && config.config_data) {
-        return {
-          validation_rules_enabled: (config.config_data as any).validation_rules_enabled ?? false,
-        };
+      const config = await api.systemConfiguration.getByName('ui_config');
+      if (config && config.value) {
+        try {
+          const configData = JSON.parse(config.value);
+          return {
+            validation_rules_enabled: configData.validation_rules_enabled ?? false,
+          };
+        } catch {
+          return { validation_rules_enabled: false };
+        }
       }
       return { validation_rules_enabled: false };
+    },
+    getEmailConfig: async (): Promise<any> => {
+      const config = await api.systemConfiguration.getByName('email_config');
+      if (config && config.value) {
+        try {
+          return JSON.parse(config.value);
+        } catch {
+          return null;
+        }
+      }
+      return null;
+    },
+    getMailConfig: async (): Promise<any> => {
+      const config = await api.systemConfiguration.getByName('mail_config');
+      if (config && config.value) {
+        try {
+          return JSON.parse(config.value);
+        } catch {
+          return null;
+        }
+      }
+      return null;
     },
   },
 };

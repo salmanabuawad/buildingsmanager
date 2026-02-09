@@ -435,6 +435,29 @@ export interface AssetFile {
   measurement_date?: string | null; // Measurement date this file belongs to (NULL = belongs to all measurements)
 }
 
+export interface SystemConfiguration {
+  id: number;
+  config_type: string;
+  name: string;
+  description?: string | null;
+  smtp_host?: string | null;
+  smtp_port?: number | null;
+  smtp_encryption?: string | null;
+  smtp_username?: string | null;
+  smtp_password?: string | null;
+  from_email?: string | null;
+  from_name?: string | null;
+  reply_to_email?: string | null;
+  max_retries?: number | null;
+  timeout_seconds?: number | null;
+  config_data?: any | null;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+  created_by?: string | null;
+  updated_by?: string | null;
+}
+
 export interface AssetMeasurement {
   id: string;
   asset_id: string;
@@ -4510,6 +4533,85 @@ export const api = {
         const msg = e instanceof Error ? e.message : 'שגיאה';
         return { success: false, results: [], message: msg };
       }
+    },
+  },
+  systemConfiguration: {
+    getAll: async (configType?: string): Promise<SystemConfiguration[]> => {
+      let query = supabase
+        .from('system_configuration')
+        .select('*');
+      
+      if (configType) {
+        query = query.eq('config_type', configType);
+      }
+      
+      const { data, error } = await query
+        .order('config_type')
+        .order('name');
+      
+      if (error) throw error;
+      return data || [];
+    },
+    getOne: async (id: number): Promise<SystemConfiguration | null> => {
+      const { data, error } = await supabase
+        .from('system_configuration')
+        .select('*')
+        .eq('id', id)
+        .maybeSingle();
+      
+      if (error) throw error;
+      return data;
+    },
+    getActive: async (configType: string): Promise<SystemConfiguration | null> => {
+      const { data, error } = await supabase
+        .from('system_configuration')
+        .select('*')
+        .eq('config_type', configType)
+        .eq('is_active', true)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      
+      if (error) throw error;
+      return data;
+    },
+    create: async (input: Omit<SystemConfiguration, 'id' | 'created_at' | 'updated_at'>): Promise<SystemConfiguration> => {
+      const userInfo = await getCurrentUserInfo();
+      const { data, error } = await supabase
+        .from('system_configuration')
+        .insert({
+          ...input,
+          created_by: userInfo.user_name,
+          updated_by: userInfo.user_name,
+        })
+        .select()
+        .single();
+      
+      if (error) throw error;
+      return data;
+    },
+    update: async (id: number, input: Partial<Omit<SystemConfiguration, 'id' | 'created_at' | 'updated_at' | 'created_by'>>): Promise<SystemConfiguration> => {
+      const userInfo = await getCurrentUserInfo();
+      const { data, error } = await supabase
+        .from('system_configuration')
+        .update({
+          ...input,
+          updated_by: userInfo.user_name,
+        })
+        .eq('id', id)
+        .select()
+        .single();
+      
+      if (error) throw error;
+      return data;
+    },
+    delete: async (id: number): Promise<void> => {
+      const { error } = await supabase
+        .from('system_configuration')
+        .delete()
+        .eq('id', id);
+      
+      if (error) throw error;
     },
   },
 };

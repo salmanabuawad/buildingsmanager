@@ -338,6 +338,7 @@ export function AssetFilesModal({ isOpen, onClose, assetId, measurementDate, onF
             </div>
             <div className="flex-1 overflow-auto p-4">
               <FileViewer
+                key={`${viewingFile.id}-${viewingFile.file_url}`}
                 fileUrl={viewingFile.file_url}
                 fileName={viewingFile.file_name || `file-${viewingFile.id}`}
               />

@@ -92,6 +92,8 @@ export function FileViewer({ fileUrl, fileName }: FileViewerProps) {
     setRotation(0);
     setImageError(false);
     setPdfLoadError(null);
+    setActualFileUrl(null);
+    setIsPreparingUrl(true);
   }, [fileUrl, fileName]);
 
   // Detect file type from URL and filename (use original fileUrl to avoid duplicate calls)
@@ -413,11 +415,15 @@ export function FileViewer({ fileUrl, fileName }: FileViewerProps) {
         </div>
 
         <div className="border border-t-0 border-slate-300 rounded-b-lg bg-slate-50 p-4 overflow-auto max-h-[600px] flex justify-center">
-          {imageError ? (
+          {isPreparingUrl ? (
+            <div className="flex items-center justify-center p-12">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-slate-800"></div>
+            </div>
+          ) : imageError ? (
             <div className="bg-red-50 border border-red-200 rounded-lg p-6">
               <p className="text-red-800">Failed to load image.</p>
             </div>
-          ) : (
+          ) : actualFileUrl ? (
             <img
               src={actualFileUrl}
               alt={fileName || 'Image'}
@@ -429,6 +435,10 @@ export function FileViewer({ fileUrl, fileName }: FileViewerProps) {
               }}
               onError={() => setImageError(true)}
             />
+          ) : (
+            <div className="bg-red-50 border border-red-200 rounded-lg p-6">
+              <p className="text-red-800">Failed to prepare image URL.</p>
+            </div>
           )}
         </div>
       </div>

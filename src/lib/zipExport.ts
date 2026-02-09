@@ -11,15 +11,14 @@ export interface ZipFileEntry {
 }
 
 /**
- * Create and download a ZIP file containing multiple files
+ * Create a ZIP file as Blob (without downloading)
  * 
- * @param zipFilename Name of the ZIP file to create
  * @param files Array of files to include in the ZIP
+ * @returns Promise resolving to ZIP Blob
  */
-export async function createAndDownloadZip(
-  zipFilename: string,
+export async function createZipBlob(
   files: ZipFileEntry[]
-): Promise<void> {
+): Promise<Blob> {
   try {
     const zip = new JSZip();
 
@@ -34,6 +33,26 @@ export async function createAndDownloadZip(
       compression: 'DEFLATE',
       compressionOptions: { level: 6 }
     });
+
+    return zipBlob;
+  } catch (error) {
+    console.error('Error creating ZIP file:', error);
+    throw error;
+  }
+}
+
+/**
+ * Create and download a ZIP file containing multiple files
+ * 
+ * @param zipFilename Name of the ZIP file to create
+ * @param files Array of files to include in the ZIP
+ */
+export async function createAndDownloadZip(
+  zipFilename: string,
+  files: ZipFileEntry[]
+): Promise<void> {
+  try {
+    const zipBlob = await createZipBlob(files);
 
     // Create download link
     const url = URL.createObjectURL(zipBlob);

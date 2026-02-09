@@ -309,10 +309,7 @@ export function TaxRegionsMailingListManager() {
       }
     ];
 
-    return defs.map(col => ({
-      ...col,
-      headerName: processColumnHeader(col.headerName || ''),
-    }));
+    return defs;
   }, [isAdmin, deletedItems, isFieldDirty]);
 
   const configuredColumnDefs = useFieldConfig(columnDefs, 'tax-regions-mailing-list');

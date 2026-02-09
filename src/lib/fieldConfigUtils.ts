@@ -142,6 +142,8 @@ export function applyFieldConfigToColumn(
     minWidth: width,
     maxWidth: width,
     resizable: false, // Disable manual resizing
+    // Use hebrew_name from field config if available, otherwise keep existing headerName
+    headerName: fieldConfig.hebrew_name || colDef.headerName,
     cellStyle: {
       ...colDef.cellStyle,
       textAlign: 'right', // Ensure all columns are right-aligned

@@ -250,13 +250,6 @@ export function TaxRegionsMailingListManager() {
   const columnDefs: ColDef<TaxRegionsMailingList>[] = useMemo(() => {
     const defs: ColDef<TaxRegionsMailingList>[] = [
       {
-        field: 'id',
-        headerName: 'מזהה',
-        width: 80,
-        editable: false,
-        cellStyle: { textAlign: 'right' }
-      },
-      {
         field: 'tax_region',
         headerName: 'אזור מס',
         editable: isAdmin,
@@ -285,28 +278,6 @@ export function TaxRegionsMailingListManager() {
             fontWeight: isDirty ? 'bold' : undefined
           };
         }
-      },
-      {
-        field: 'created_at',
-        headerName: 'נוצר',
-        width: 180,
-        editable: false,
-        valueFormatter: (params) => {
-          if (!params.value) return '';
-          return new Date(params.value).toLocaleDateString('he-IL');
-        },
-        cellStyle: { textAlign: 'right' }
-      },
-      {
-        field: 'updated_at',
-        headerName: 'עודכן',
-        width: 180,
-        editable: false,
-        valueFormatter: (params) => {
-          if (!params.value) return '';
-          return new Date(params.value).toLocaleDateString('he-IL');
-        },
-        cellStyle: { textAlign: 'right' }
       },
       {
         headerName: 'פעולות',
@@ -361,11 +332,8 @@ export function TaxRegionsMailingListManager() {
       .map(item => {
         const dirty = dirtyItems.get(item.id) || {};
         return {
-          'מזהה': item.id,
           'אזור מס': dirty.tax_region !== undefined ? dirty.tax_region : item.tax_region,
           'אימייל': dirty.email !== undefined ? dirty.email : item.email,
-          'נוצר': item.created_at ? new Date(item.created_at).toLocaleDateString('he-IL') : '',
-          'עודכן': item.updated_at ? new Date(item.updated_at).toLocaleDateString('he-IL') : '',
         };
       });
 
@@ -392,8 +360,20 @@ export function TaxRegionsMailingListManager() {
 
       const itemsToAdd: Array<{ tax_region: string; email: string }> = [];
       for (const row of jsonData) {
-        const taxRegion = String(row['אזור מס'] || row['tax_region'] || '').trim();
-        const email = String(row['אימייל'] || row['email'] || '').trim();
+        // Support both Hebrew and English headers
+        const taxRegion = String(
+          row['אזור מס'] || 
+          row['אזור מיסים'] || 
+          row['tax_region'] || 
+          row['tax region'] || 
+          ''
+        ).trim();
+        const email = String(
+          row['אימייל'] || 
+          row['email'] || 
+          row['Email'] || 
+          ''
+        ).trim();
         
         if (taxRegion && email) {
           const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;

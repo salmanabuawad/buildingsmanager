@@ -1837,15 +1837,51 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
         return;
       }
 
+      // Fetch asset types if not already loaded (needed to detect business assets)
+      const typesForImport = assetTypes.length > 0 ? assetTypes : await api.assetTypes.getAll();
+
+      // Fetch each building's overload_ratio for business asset area split on import
+      const buildingOverloadRatioMap = new Map<number, number | null>();
+      for (const buildingNum of uniqueBuildingNumbers) {
+        try {
+          const building = await api.buildings.getOne(buildingNum);
+          const ratio = building?.overload_ratio;
+          buildingOverloadRatioMap.set(buildingNum, ratio != null ? ratio : null);
+        } catch {
+          buildingOverloadRatioMap.set(buildingNum, null);
+        }
+      }
+
       // Prepare all valid assets for bulk insert
       let assetsToInsert: Partial<Asset>[] = validAssets.map(asset => {
+        const buildingNum = typeof asset.building_number === 'number'
+          ? asset.building_number
+          : parseInt(String(asset.building_number), 10);
+        const overloadRatioPct = !isNaN(buildingNum) ? buildingOverloadRatioMap.get(buildingNum) ?? null : null;
+        const assetType = typesForImport.find(at => at.name === (asset.main_asset_type || ''));
+        const isBusinessAsset = assetType?.business_residence === 'עסקים';
+        // y = total area (from file), x = business shared area, z = main size, h = overload ratio (0..1).
+        // Relation: x = h * (y - x)  =>  x = h*y / (1 + h).  Then z = y - x.
+        const y = asset.asset_size ?? 0;
+        const h = overloadRatioPct != null && overloadRatioPct > 0 ? overloadRatioPct / 100 : 0;
+        let assetSize: number;       // z = main size
+        let businessDistributionArea: number;  // x = shared area
+        if (isBusinessAsset && h > 0 && y > 0) {
+          const x = (h * y) / (1 + h);
+          businessDistributionArea = x;
+          assetSize = y - x;  // z = y - x
+        } else {
+          assetSize = y;
+          businessDistributionArea = 0;
+        }
+
         const assetData: Partial<Asset> = {
           building_number: asset.building_number!,
           payer_id: asset.payer_id || null,
           asset_id: asset.asset_id,
           measurement_date: saveAsNew && newMeasurementDate ? newMeasurementDate : asset.measurement_date,
           main_asset_type: asset.main_asset_type || null,
-          asset_size: asset.asset_size || 0,
+          asset_size: assetSize,
           tax_region: asset.tax_region || null,
           sub_asset_type_1: asset.sub_asset_type_1 || null,
           sub_asset_size_1: asset.sub_asset_size_1 || 0,
@@ -1859,6 +1895,7 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
           sub_asset_size_5: asset.sub_asset_size_5 || 0,
           sub_asset_type_6: asset.sub_asset_type_6 || null,
           sub_asset_size_6: asset.sub_asset_size_6 || 0,
+          business_distribution_area: businessDistributionArea,
           apartment_number: asset.apartment_number || null,
           apartment_floor: asset.apartment_floor || null,
           storage_number: asset.storage_number || null,

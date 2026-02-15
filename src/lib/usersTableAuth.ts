@@ -34,6 +34,19 @@ export function getAuthUserIdForRpc(): string | null {
   return s ? `uid:${s.user_id}` : null;
 }
 
+function authLoginErrorToHebrew(msg: string): string {
+  if (msg.includes('user_name and password (min 6 chars) required')) {
+    return 'נדרשים שם משתמש וסיסמה (לפחות 6 תווים).';
+  }
+  if (msg.includes('invalid credentials')) {
+    return 'פרטי התחברות לא תקינים.';
+  }
+  if (msg.includes('user has no password set')) {
+    return 'למשתמש לא הוגדרה סיסמה.';
+  }
+  return msg;
+}
+
 export async function loginUsersTable(
   user_name: string,
   password: string
@@ -46,7 +59,7 @@ export async function loginUsersTable(
 
     if (error) {
       const msg = error.message || 'שגיאה בהתחברות';
-      return { success: false, error: msg.includes('invalid credentials') ? 'פרטי התחברות לא תקינים.' : msg };
+      return { success: false, error: authLoginErrorToHebrew(msg) };
     }
 
     const d = data as { user_id: number; user_name: string; user_role: string } | null;
@@ -72,7 +85,7 @@ export async function loginUsersTable(
           'בדוק חיבור לאינטרנט, וודא שכתובת Supabase והמפתח בסביבת הבנייה נכונים (וכן שהפרויקט לא מושהה).',
       };
     }
-    return { success: false, error: msg || 'שגיאה בהתחברות.' };
+    return { success: false, error: authLoginErrorToHebrew(msg) || 'שגיאה בהתחברות.' };
   }
 }
 

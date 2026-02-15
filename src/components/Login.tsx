@@ -1,6 +1,5 @@
 import { useState, FormEvent } from 'react';
 import { loginUsersTable } from '../lib/usersTableAuth';
-import { api } from '../lib/api';
 import { Building2, Loader2, AlertCircle } from 'lucide-react';
 
 interface LoginProps {
@@ -13,8 +12,6 @@ export function Login({ onLoginSuccess }: LoginProps) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showPassword, setShowPassword] = useState(false);
-  const [creatingUsers, setCreatingUsers] = useState(false);
-  const [createUsersMessage, setCreateUsersMessage] = useState<string | null>(null);
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
@@ -31,20 +28,6 @@ export function Login({ onLoginSuccess }: LoginProps) {
       setError(err instanceof Error ? err.message : 'שגיאה בהתחברות. אנא נסה שוב.');
     } finally {
       setLoading(false);
-    }
-  };
-
-  const handleCreateUsers = async () => {
-    setCreatingUsers(true);
-    setCreateUsersMessage(null);
-    setError(null);
-    try {
-      const res = await api.users.createDefaultUsers();
-      setCreateUsersMessage(res.message);
-    } catch (err) {
-      setCreateUsersMessage(err instanceof Error ? err.message : 'שגיאה ביצירת משתמשים.');
-    } finally {
-      setCreatingUsers(false);
     }
   };
 
@@ -129,35 +112,6 @@ export function Login({ onLoginSuccess }: LoginProps) {
               )}
             </button>
           </form>
-
-          <div className="mt-6 pt-6 border-t border-slate-200">
-            <button
-              type="button"
-              onClick={handleCreateUsers}
-              disabled={creatingUsers}
-              className="w-full py-2 px-4 bg-amber-500 hover:bg-amber-600 text-white font-medium rounded-lg shadow-sm hover:shadow transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-            >
-              {creatingUsers ? (
-                <>
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                  <span>יוצר משתמשים...</span>
-                </>
-              ) : (
-                <span>צור משתמשים ברירת מחדל</span>
-              )}
-            </button>
-            {createUsersMessage && (
-              <div
-                className={`mt-2 p-2 rounded text-xs text-center whitespace-pre-line ${
-                  createUsersMessage.includes('מוכנים') || createUsersMessage.includes('✅')
-                    ? 'bg-green-50 text-green-700 border border-green-200'
-                    : 'bg-amber-50 text-amber-700 border border-amber-200'
-                }`}
-              >
-                {createUsersMessage}
-              </div>
-            )}
-          </div>
         </div>
 
         <p className="text-center text-sm text-slate-500 mt-6">

@@ -4007,6 +4007,8 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
                     )}
                   </div>
 
+                  {/* שטח משותף עסקים hidden when creating building during asset import */}
+                  {false && (
                   <div>
                     <label className="block text-sm font-medium text-slate-700 mb-1">
                       שטח משותף עסקים
@@ -4020,6 +4022,7 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
                       disabled={isCreatingBuilding}
                     />
                   </div>
+                  )}
 
                   <div>
                     <label className="block text-sm font-medium text-slate-700 mb-1">

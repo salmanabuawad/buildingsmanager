@@ -23,6 +23,7 @@ interface ImportAssetRow {
   measurement_date: string;
   main_asset_type: string;
   asset_size: number;
+  asset_total_area?: number;  // total area (main + shared) from file; used as y for overload split when present
   tax_region?: number;
   sub_asset_type_1: string;
   sub_asset_size_1: number;
@@ -251,6 +252,7 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
         'measurement_date': 'תאריך מדידה',
         'main_asset_type': 'סוג נכס ראשי',
         'asset_size': 'גודל נכס ראשי',
+        'asset_total_area': 'סה"כ שטח נכס',
         'tax_region': 'אזור מס',
         'sub_asset_type_1': 'סוג נכס משנה 1',
         'sub_asset_size_1': 'גודל נכס משנה 1',
@@ -391,6 +393,10 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
         if (headerMap['asset_size'] !== undefined) {
           const value = values[headerMap['asset_size']] || '';
           asset.asset_size = value ? parseFloat(value) : 0;
+        }
+        if (headerMap['asset_total_area'] !== undefined) {
+          const value = values[headerMap['asset_total_area']] || '';
+          asset.asset_total_area = value ? parseFloat(value) : undefined;
         }
         if (headerMap['tax_region'] !== undefined) {
           const value = values[headerMap['tax_region']] || '';
@@ -1860,9 +1866,9 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
         const overloadRatioPct = !isNaN(buildingNum) ? buildingOverloadRatioMap.get(buildingNum) ?? null : null;
         const assetType = typesForImport.find(at => at.name === (asset.main_asset_type || ''));
         const isBusinessAsset = assetType?.business_residence === 'עסקים';
-        // y = total area (from file), x = business shared area, z = main size, h = overload ratio (0..1).
+        // y = total area (from file; use asset_total_area if mapped, else asset_size), x = business shared area, z = main size, h = overload ratio (0..1).
         // Relation: x = h * (y - x)  =>  x = h*y / (1 + h).  Then z = y - x.
-        const y = asset.asset_size ?? 0;
+        const y = (asset.asset_total_area ?? asset.asset_size) ?? 0;
         const h = overloadRatioPct != null && overloadRatioPct > 0 ? overloadRatioPct / 100 : 0;
         let assetSize: number;       // z = main size
         let businessDistributionArea: number;  // x = shared area
@@ -2918,6 +2924,19 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
       },
       cellStyle: getCellStyle
     },
+    {
+      field: 'asset_total_area',
+      headerName: 'סה"כ שטח נכס',
+      editable: true,
+      type: 'numericColumn',
+      valueFormatter: (params) => {
+        if (params.value == null || params.value === '') return '';
+        const num = typeof params.value === 'number' ? params.value : parseFloat(params.value);
+        if (isNaN(num) || num === 0) return '';
+        return num.toFixed(2);
+      },
+      cellStyle: getCellStyle
+    },
     // tax_region column is hidden from UI but will be saved in the database
     // It is automatically populated from tab data when creating assets
     {
@@ -3185,6 +3204,7 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
       'מזהה נכס',
       'סוג נכס ראשי',
       'גודל נכס ראשי',
+      'סה"כ שטח נכס',
       'אזור מס',
       'סוג נכס משנה 1',
       'גודל נכס משנה 1',
@@ -3515,7 +3535,7 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
                       return;
                     }
                     try {
-                      const headers = ['מזהה מבנה', 'מזהה נכס', 'מזהה משלם', 'תאריך מדידה', 'סוג נכס ראשי', 'גודל נכס', 'אזור מס'];
+                      const headers = ['מזהה מבנה', 'מזהה נכס', 'מזהה משלם', 'תאריך מדידה', 'סוג נכס ראשי', 'גודל נכס', 'סה"כ שטח נכס', 'אזור מס'];
                       const rows = displayedImportedAssets.map(asset => [
                         asset.building_number || '',
                         asset.asset_id || '',
@@ -3523,6 +3543,7 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
                         asset.measurement_date || '',
                         asset.main_asset_type || '',
                         asset.asset_size || '',
+                        asset.asset_total_area ?? '',
                         asset.tax_region || ''
                       ]);
                       const data = [headers, ...rows];
@@ -3761,6 +3782,7 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
                         <option value="measurement_date">תאריך מדידה</option>
                         <option value="main_asset_type">סוג נכס ראשי</option>
                         <option value="asset_size">גודל נכס ראשי</option>
+                        <option value="asset_total_area">סה"כ שטח נכס</option>
                         <option value="tax_region">אזור מס</option>
                         <option value="sub_asset_type_1">סוג נכס משנה 1</option>
                         <option value="sub_asset_size_1">גודל נכס משנה 1</option>

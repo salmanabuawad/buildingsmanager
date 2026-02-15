@@ -2337,6 +2337,17 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
       cellStyle: { textAlign: 'right' },
       valueFormatter: (params: any) => formatNumberToTwoDecimals(params.value),
       hide: !isBusinessContext // Hide for residence assets (business_distribution_area is only for business distribution)
+    },
+    {
+      field: 'business_total_area',
+      headerName: 'סה"כ שטח עסקים',
+      width: 120,
+      sortable: true,
+      filter: true,
+      headerClass: 'ag-right-aligned-header',
+      cellStyle: { textAlign: 'right' },
+      valueFormatter: (params: any) => formatNumberToTwoDecimals(params.value),
+      hide: !isBusinessContext // Hide for residence assets (business_total_area is only for business assets)
     }
   ], [getAreaDescriptionForTaxRegion, isBusinessContext]);
 

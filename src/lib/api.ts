@@ -1412,7 +1412,25 @@ export const api = {
         }
       }
 
-      
+      // Delete audit rows that reference this building before deleting the building
+      const buildingIdStr = String(buildingNumber);
+      const { error: auditError } = await supabase
+        .from('audit')
+        .delete()
+        .eq('entity_type', 'bulk_asset')
+        .eq('entity_id', buildingIdStr);
+      if (auditError) {
+        console.warn('[api.buildings.delete] Failed to delete audit rows for building:', auditError);
+      }
+      const { error: auditBuildingError } = await supabase
+        .from('audit')
+        .delete()
+        .eq('entity_type', 'building')
+        .eq('entity_id', buildingIdStr);
+      if (auditBuildingError) {
+        console.warn('[api.buildings.delete] Failed to delete building audit rows:', auditBuildingError);
+      }
+
       const { error } = await supabase
         .from('buildings')
         .delete()
@@ -3841,6 +3859,19 @@ export const api = {
     if (fetchError) throw fetchError;
 
     const assetIds = assets?.map(a => a.asset_id) || [];
+
+    // Delete audit rows for these assets (entity_type = 'asset', entity_id = asset_id)
+    if (assetIds.length > 0) {
+      const assetIdStrs = assetIds.map(id => String(id));
+      const { error: auditError } = await supabase
+        .from('audit')
+        .delete()
+        .eq('entity_type', 'asset')
+        .in('entity_id', assetIdStrs);
+      if (auditError) {
+        console.warn('[deleteAssetsByBuilding] Failed to delete asset audit rows:', auditError);
+      }
+    }
 
     // NOTE: For bulk deletion, we should use delete_asset_transactional for each asset
     // to ensure flags are set as part of the transaction. This function should be

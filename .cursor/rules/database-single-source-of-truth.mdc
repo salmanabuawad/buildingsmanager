@@ -1,35 +1,40 @@
 ---
-description: Before changing triggers or SQL functions, check the live database—not migration files—as the single source of truth.
-globs: supabase/migrations/**/*.sql,**/*.sql
+description: Sync with the live database before any DB-related change; the DB is the single source of truth.
+globs: supabase/migrations/**/*.sql,**/*.sql,src/**/*.ts
 alwaysApply: false
 ---
 
-# Database as Single Source of Truth for Triggers and Functions
+# Sync with Database Before Change
 
-**Before changing any trigger or SQL function, check the database first. The live database is the single source of truth—not migration files.**
+**Before changing anything that touches the database, confirm the current state against the live database. The live DB is the single source of truth—not migration files or assumptions.**
 
-Migration files may be out of sync with what is actually deployed or applied. Schema drift, manual fixes, or migrations that were never run can make migration files unreliable for understanding current behavior.
+Migration files and code may be out of sync with what is actually deployed. Always query the DB first, then make changes that align with or safely extend that state.
 
-## What to do
+## Mandatory workflow
 
-1. **Inspect the live database** (e.g. Supabase SQL Editor, `psql`, or MCP/API that runs SQL) to see:
-   - Current function definitions (`pg_get_functiondef`, or `\df+` in psql)
-   - Current trigger definitions and which functions they call
-   - Current table/column state if the change touches schema
+1. **Query the live database** (Supabase SQL Editor, MCP `execute_sql`, or `psql`) to get current state:
+   - Table columns: `SELECT column_name, data_type FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'table_name';`
+   - RLS policies: `SELECT policyname, cmd, roles FROM pg_policies WHERE tablename = 'table_name';`
+   - Function definition: `SELECT pg_get_functiondef(oid) FROM pg_proc WHERE proname = 'function_name';`
+   - Triggers: `SELECT * FROM information_schema.triggers WHERE event_object_table = 'table_name';`
 
-2. **Use that current state** to decide what to change and to write new migration or application code. Do not assume migration files reflect the current DB.
+2. **Use that result** to decide what to change. Do not assume migrations or code reflect the current DB.
 
-3. **Then** create or edit migrations so they align with the intended target state, using the live DB as the reference for “what exists today.”
+3. **Then** apply migrations or code changes so they match or safely extend the current DB state.
 
 ## When this applies
 
-- Adding, modifying, or removing **triggers**
-- Adding, modifying, or removing **SQL functions** (including RPCs)
-- Any change that depends on existing trigger/function behavior
+- Triggers, SQL functions, RPCs
+- Table schema, columns, constraints
+- RLS policies (SELECT/INSERT/UPDATE/DELETE)
+- Any code or migration that depends on DB structure or behavior
 
 ## Quick reference
 
-- To see a function’s definition in Postgres:  
-  `SELECT pg_get_functiondef(oid) FROM pg_proc WHERE proname = 'function_name';`
-- To list triggers on a table:  
-  `SELECT * FROM information_schema.triggers WHERE event_object_table = 'table_name';`
+| Check | Query |
+|-------|--------|
+| Table columns | `information_schema.columns` for `table_schema = 'public' AND table_name = 'x'` |
+| RLS policies | `pg_policies` for `tablename = 'x'` |
+| Function body | `pg_get_functiondef(oid)` from `pg_proc` where `proname = 'x'` |
+| Function args | `pg_get_function_arguments(oid)` from `pg_proc` where `proname = 'x'` |
+| Triggers | `information_schema.triggers` for `event_object_table = 'x'` |

@@ -4174,7 +4174,7 @@ export const api = {
       const { data, error } = await supabase
         .from('audit')
         .select('*')
-        .eq('id', id)
+        .eq('action_id', id)
         .single();
       
       if (error) throw error;
@@ -4201,9 +4201,10 @@ export const api = {
         }
       }
       
-      // Return data with before_data and after_data
+      // Return data with before_data and after_data; audit table uses action_id (not id)
       return {
         ...data,
+        id: data.action_id ?? data.id,
         building_number: data.building_number || (data.entity_id ? parseInt(data.entity_id, 10) : null),
         before_data: beforeData || null,
         after_data: afterData || null,
@@ -4279,9 +4280,10 @@ export const api = {
         }
       }
 
-      // Extract data with before_data and after_data
+      // Extract data with before_data and after_data; audit table uses action_id (not id)
       return records.map((record: any) => ({
         ...record,
+        id: record.action_id ?? record.id,
         before_data: record.before_data || null,
         after_data: record.after_data || null,
       }));

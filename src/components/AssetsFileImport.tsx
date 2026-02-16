@@ -1914,7 +1914,9 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
           comment: asset.comment || null,
           // If file is from automation, mark as coming from automation.
           // Any later edit in the app will flip this back to false via DB trigger.
-          data_from_automation: importFromAutomation ? true : false
+          data_from_automation: importFromAutomation ? true : false,
+          // When data is from automation, do not mark as needing to send to automation (already there).
+          exported_to_automation: importFromAutomation ? true : false
         };
 
         if (asset.penthouse === 'כן' || asset.penthouse === true) {

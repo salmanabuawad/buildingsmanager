@@ -1866,13 +1866,15 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
         const overloadRatioPct = !isNaN(buildingNum) ? buildingOverloadRatioMap.get(buildingNum) ?? null : null;
         const assetType = typesForImport.find(at => at.name === (asset.main_asset_type || ''));
         const isBusinessAsset = assetType?.business_residence === 'עסקים';
+        // Only apply distribution to assets accountable for distribution (non_accountable_for_distribution !== true)
+        const isAccountableForDistribution = assetType ? (assetType.non_accountable_for_distribution !== true) : false;
         // y = total area (from file; use asset_total_area if mapped, else asset_size), x = business shared area, z = main size, h = overload ratio (0..1).
         // Relation: x = h * (y - x)  =>  x = h*y / (1 + h).  Then z = y - x.
         const y = (asset.asset_total_area ?? asset.asset_size) ?? 0;
         const h = overloadRatioPct != null && overloadRatioPct > 0 ? overloadRatioPct / 100 : 0;
         let assetSize: number;       // z = main size
         let businessDistributionArea: number;  // x = shared area
-        if (isBusinessAsset && h > 0 && y > 0) {
+        if (isBusinessAsset && isAccountableForDistribution && h > 0 && y > 0) {
           const x = (h * y) / (1 + h);
           businessDistributionArea = x;
           assetSize = y - x;  // z = y - x
@@ -2334,6 +2336,27 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
           } catch (areaError) {
             console.warn(`Failed to update building total area for building ${buildingNum} after import:`, areaError);
             // Don't fail the operation if area update fails
+          }
+        }
+
+        // When overload_ratio > 0, set building business_shared_area to sum of distribution areas of inserted assets
+        for (const buildingNum of affectedBuildingNumbers) {
+          const overloadRatioPct = buildingOverloadRatioMap.get(buildingNum);
+          if (overloadRatioPct != null && overloadRatioPct > 0) {
+            let sumDistributionArea = 0;
+            insertedAssetsResult.forEach((savedAsset: any) => {
+              const bn = savedAsset.building_number != null
+                ? (typeof savedAsset.building_number === 'string' ? parseInt(savedAsset.building_number, 10) : savedAsset.building_number)
+                : null;
+              if (bn === buildingNum && !isNaN(bn)) {
+                sumDistributionArea += Number(savedAsset.business_distribution_area) || 0;
+              }
+            });
+            try {
+              await api.buildings.update(buildingNum, { business_shared_area: sumDistributionArea });
+            } catch (sharedAreaError) {
+              console.warn(`Failed to update business_shared_area for building ${buildingNum} after import:`, sharedAreaError);
+            }
           }
         }
       }

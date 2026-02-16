@@ -1,0 +1,35 @@
+---
+description: Before changing triggers or SQL functions, check the live database—not migration files—as the single source of truth.
+globs: supabase/migrations/**/*.sql,**/*.sql
+alwaysApply: false
+---
+
+# Database as Single Source of Truth for Triggers and Functions
+
+**Before changing any trigger or SQL function, check the database first. The live database is the single source of truth—not migration files.**
+
+Migration files may be out of sync with what is actually deployed or applied. Schema drift, manual fixes, or migrations that were never run can make migration files unreliable for understanding current behavior.
+
+## What to do
+
+1. **Inspect the live database** (e.g. Supabase SQL Editor, `psql`, or MCP/API that runs SQL) to see:
+   - Current function definitions (`pg_get_functiondef`, or `\df+` in psql)
+   - Current trigger definitions and which functions they call
+   - Current table/column state if the change touches schema
+
+2. **Use that current state** to decide what to change and to write new migration or application code. Do not assume migration files reflect the current DB.
+
+3. **Then** create or edit migrations so they align with the intended target state, using the live DB as the reference for “what exists today.”
+
+## When this applies
+
+- Adding, modifying, or removing **triggers**
+- Adding, modifying, or removing **SQL functions** (including RPCs)
+- Any change that depends on existing trigger/function behavior
+
+## Quick reference
+
+- To see a function’s definition in Postgres:  
+  `SELECT pg_get_functiondef(oid) FROM pg_proc WHERE proname = 'function_name';`
+- To list triggers on a table:  
+  `SELECT * FROM information_schema.triggers WHERE event_object_table = 'table_name';`

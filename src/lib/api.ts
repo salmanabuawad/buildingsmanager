@@ -4032,6 +4032,28 @@ export const api = {
     },
   },
   auditLog: {
+    /** Log a business distribution from import so it appears in distribution history. */
+    logDistributionFromImport: async (
+      buildingNumber: number,
+      afterData: { assets: any[] },
+      description: string,
+      overloadRatioPct: number,
+      sharedAreaSize: number
+    ): Promise<void> => {
+      const { error } = await supabase.rpc('log_audit_entry', {
+        p_action_type: 'business_distribution',
+        p_entity_type: 'bulk_asset',
+        p_entity_id: String(buildingNumber),
+        p_user_id: getAuthUserIdForRpc() ?? null,
+        p_before_data: null,
+        p_after_data: afterData,
+        p_description: description,
+        p_building_number: buildingNumber,
+        p_overload_ratio: overloadRatioPct,
+        p_shared_area_size: sharedAreaSize,
+      });
+      if (error) throw error;
+    },
     bulkTransferAreas: async (
       oldAssets: Asset[],
       newAssets: Partial<Asset>[],
@@ -4207,15 +4229,15 @@ export const api = {
       }
       
       // Query audit table by entity_type and entity_id
-      // Distribution operations use entity_type='bulk_asset' and entity_id=building_number (as text)
-      // Transfer operations also use entity_type='bulk_asset' and entity_id=building_number (as text)
+      // Distribution: entity_type='bulk_asset', entity_id=building_number (as text)
+      // Transfer: same for bulk; also include entity_type='asset' where entity_id is an asset in this building
       let query = supabase
         .from('audit')
         .select('*')
         .eq('entity_type', 'bulk_asset')
         .eq('entity_id', String(buildingNumber))
         .order('created_at', { ascending: false });
-      
+
       if (mappedActionTypes && mappedActionTypes.length > 0) {
         if (mappedActionTypes.length === 1) {
           query = query.eq('action_type', mappedActionTypes[0]);
@@ -4223,15 +4245,42 @@ export const api = {
           query = query.in('action_type', mappedActionTypes);
         }
       }
-      
-      // taxRegion parameter is kept for backward compatibility but no longer used
-      // Filtering is now done by action_type ('distribute_shared' or 'transfer_area')
-      
-      const { data, error } = await query;
+
+      const { data: bulkData, error } = await query;
       if (error) throw error;
-      
+
+      let records: any[] = bulkData || [];
+
+      // For transfer history: also include audit rows where entity_type='asset' and entity_id is an asset in this building
+      if (mappedActionTypes?.includes('transfer_area')) {
+        const { data: buildingAssets } = await supabase
+          .from('assets')
+          .select('asset_id')
+          .eq('building_number', buildingNumber);
+        const assetIds = (buildingAssets || []).map((a: any) => String(a.asset_id));
+        if (assetIds.length > 0) {
+          const { data: assetAuditData, error: assetErr } = await supabase
+            .from('audit')
+            .select('*')
+            .eq('entity_type', 'asset')
+            .eq('action_type', 'transfer_area')
+            .in('entity_id', assetIds)
+            .order('created_at', { ascending: false });
+          if (!assetErr && assetAuditData?.length) {
+            const seen = new Set(records.map((r: any) => r.action_id));
+            for (const r of assetAuditData) {
+              if (!seen.has(r.action_id)) {
+                seen.add(r.action_id);
+                records.push(r);
+              }
+            }
+            records.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+          }
+        }
+      }
+
       // Extract data with before_data and after_data
-      return (data || []).map((record: any) => ({
+      return records.map((record: any) => ({
         ...record,
         before_data: record.before_data || null,
         after_data: record.after_data || null,

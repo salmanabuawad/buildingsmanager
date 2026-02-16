@@ -4032,28 +4032,6 @@ export const api = {
     },
   },
   auditLog: {
-    /** Log a business distribution from import so it appears in distribution history. */
-    logDistributionFromImport: async (
-      buildingNumber: number,
-      afterData: { assets: any[] },
-      description: string,
-      overloadRatioPct: number,
-      sharedAreaSize: number
-    ): Promise<void> => {
-      const { error } = await supabase.rpc('log_audit_entry', {
-        p_action_type: 'business_distribution',
-        p_entity_type: 'bulk_asset',
-        p_entity_id: String(buildingNumber),
-        p_user_id: getAuthUserIdForRpc() ?? null,
-        p_before_data: null,
-        p_after_data: afterData,
-        p_description: description,
-        p_building_number: buildingNumber,
-        p_overload_ratio: overloadRatioPct,
-        p_shared_area_size: sharedAreaSize,
-      });
-      if (error) throw error;
-    },
     bulkTransferAreas: async (
       oldAssets: Asset[],
       newAssets: Partial<Asset>[],

@@ -2339,35 +2339,23 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
           }
         }
 
-        // When overload_ratio > 0, set building business_shared_area and write distribution history
+        // When overload_ratio > 0, set building business_shared_area to sum of distribution areas of inserted assets
         for (const buildingNum of affectedBuildingNumbers) {
           const overloadRatioPct = buildingOverloadRatioMap.get(buildingNum);
           if (overloadRatioPct != null && overloadRatioPct > 0) {
-            const assetsForBuilding = insertedAssetsResult.filter((a: any) => {
-              const bn = a.building_number != null
-                ? (typeof a.building_number === 'string' ? parseInt(a.building_number, 10) : a.building_number)
-                : null;
-              return bn === buildingNum && !isNaN(bn);
-            });
             let sumDistributionArea = 0;
-            assetsForBuilding.forEach((savedAsset: any) => {
-              sumDistributionArea += Number(savedAsset.business_distribution_area) || 0;
+            insertedAssetsResult.forEach((savedAsset: any) => {
+              const bn = savedAsset.building_number != null
+                ? (typeof savedAsset.building_number === 'string' ? parseInt(savedAsset.building_number, 10) : savedAsset.building_number)
+                : null;
+              if (bn === buildingNum && !isNaN(bn)) {
+                sumDistributionArea += Number(savedAsset.business_distribution_area) || 0;
+              }
             });
             try {
               await api.buildings.update(buildingNum, { business_shared_area: sumDistributionArea });
             } catch (sharedAreaError) {
               console.warn(`Failed to update business_shared_area for building ${buildingNum} after import:`, sharedAreaError);
-            }
-            try {
-              await api.auditLog.logDistributionFromImport(
-                buildingNum,
-                { assets: assetsForBuilding },
-                `Distribution from import. Overload ratio: ${overloadRatioPct}%. Shared area: ${sumDistributionArea.toFixed(2)}.`,
-                overloadRatioPct,
-                sumDistributionArea
-              );
-            } catch (auditErr) {
-              console.warn(`Failed to log distribution history for building ${buildingNum} after import:`, auditErr);
             }
           }
         }

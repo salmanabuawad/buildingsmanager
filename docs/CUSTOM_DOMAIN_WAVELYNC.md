@@ -4,6 +4,28 @@ Use **www.wavelync.com** for the app and **www.wavelync.com/api** for the API (s
 
 ---
 
+## Quick: www.wavelync.com + www.wavelync.com/api (combined)
+
+1. **Deploy combined**  
+   - GitHub → **Actions** → **Deploy to www.wavelync.com (combined)** → **Run workflow**,  
+   - or push to `main` (this workflow can be triggered manually).  
+   - This builds the frontend with `VITE_API_URL=/api`, packs it into the backend, and deploys to the App Service.
+
+2. **DNS**  
+   At your DNS provider (e.g. Hostinger, GoDaddy):  
+   - **CNAME** **www** → **buildingsmanager-api.azurewebsites.net**
+
+3. **Azure custom domain**  
+   - **App Service** → **buildingsmanager-api** → **Custom domains** → **Add custom domain** → **www.wavelync.com**.  
+   - Add any **TXT** records Azure shows for verification (e.g. **asuid.www.wavelync.com**).  
+   - **Add** the domain, then **Add TLS/SSL binding** (managed certificate).
+
+4. **Result**  
+   - **https://www.wavelync.com** → app  
+   - **https://www.wavelync.com/api** → API (e.g. **/api/health**, **/api/auth/login**)
+
+---
+
 ## 1. DNS records (at your domain registrar)
 
 Add these records where **wavelync.com** is managed (GoDaddy, Cloudflare, Azure DNS, etc.):

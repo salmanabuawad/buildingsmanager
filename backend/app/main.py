@@ -18,10 +18,14 @@ def _config_ok():
 
 
 def _is_allowed_origin(origin: str) -> bool:
-    """Allow *.azurestaticapps.net and wavelync.com custom domain."""
-    if not origin or not origin.startswith("https://"):
+    """Allow *.azurestaticapps.net, wavelync.com, and localhost (http or https)."""
+    if not origin or not origin.startswith(("http://", "https://")):
         return False
-    return origin.endswith(".azurestaticapps.net") or "wavelync.com" in origin
+    return (
+        origin.endswith(".azurestaticapps.net")
+        or "wavelync.com" in origin
+        or "localhost" in origin
+    )
 
 
 class AzureStaticWebAppCORSMiddleware(BaseHTTPMiddleware):

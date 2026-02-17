@@ -26,6 +26,8 @@ dist-ssr
 
 # Backend static (built frontend when using combined deploy)
 backend/static
+# Backend dependency bundle (created in CI for Azure zip deploy)
+backend/.python_packages
 
 # Playwright
 playwright-report/

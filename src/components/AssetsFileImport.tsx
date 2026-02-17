@@ -1870,9 +1870,8 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
         const isBusinessAsset = assetType?.business_residence === 'עסקים';
         // Only apply distribution to assets accountable for distribution (non_accountable_for_distribution !== true)
         const isAccountableForDistribution = assetType ? (assetType.non_accountable_for_distribution !== true) : false;
-        // y = total area for distribution: if asset has subtypes, use only accountable subtype 1 size; else asset_total_area or asset_size.
-        // Main asset_size = sum of all subtypes. Distribution portion (x) computed from subtype 1 only when accountable.
-        // x = business shared area, h = overload ratio (0..1). Relation: x = h*y / (1 + h).
+        // y = area for distribution: with subtypes, main size is NOT used (it equals sum of subtypes); use only accountable subtype 1 size.
+        // With no subtypes, use asset_total_area or asset_size (main size). x = h*y/(1+h).
         const hasSubtypes = !!(asset.sub_asset_type_1 && String(asset.sub_asset_type_1).trim() !== '');
         let y: number;
         let isSubtype1Accountable = false;

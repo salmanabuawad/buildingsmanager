@@ -19,8 +19,8 @@ class Settings(BaseSettings):
     # Azure Storage (optional: omit for local file storage)
     AZURE_STORAGE_CONNECTION_STRING: Optional[str] = None
     AZURE_STORAGE_CONTAINER_NAME: str = "assetflow-files"
-    # CORS and deployment (set ALLOWED_ORIGINS in Azure to include your Static Web App URL)
-    ALLOWED_ORIGINS: str = "http://localhost:5173,http://localhost:3000,https://calm-pebble-0c2b49603.4.azurestaticapps.net"
+    # CORS and deployment (set ALLOWED_ORIGINS in Azure to add more origins)
+    ALLOWED_ORIGINS: str = "http://localhost:5173,http://localhost:3000,https://calm-pebble-0c2b49603.4.azurestaticapps.net,https://wavelync.com,https://www.wavelync.com"
     ENVIRONMENT: str = "development"
     # Deploy to Israel Central
     AZURE_REGION: str = "israelcentral"

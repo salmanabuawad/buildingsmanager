@@ -81,3 +81,15 @@ If you host the frontend elsewhere (e.g. Static Web App), set **VITE_API_URL** t
 - [ ] **Same host (www.wavelync.com + www.wavelync.com/api):** Deploy with `DEPLOY_COMBINED=1`; DNS **www** → App Service; add custom domain and SSL.  
 - [ ] ALLOWED_ORIGINS includes **https://wavelync.com** and **https://www.wavelync.com**.  
 - [ ] **VITE_API_URL** = **/api** (combined) or **https://www.wavelync.com/api** (separate frontend).
+
+---
+
+## 7. Troubleshooting: "wavelync.com not working"
+
+| Issue | What to check |
+|-------|----------------|
+| **Domain doesn’t load** | DNS: **www** (and **@** if used) must CNAME to the correct Azure host: **Static Web App** → use the CNAME target shown in Azure (e.g. `*.azurestaticapps.net`); **App Service (combined)** → `buildingsmanager-api.azurewebsites.net`. Wait for DNS propagation (up to 48h; often minutes). |
+| **"Site can’t be reached" / SSL error** | In Azure: **Static Web App** or **App Service** → **Custom domains** → add **wavelync.com** and **www.wavelync.com** → **Add** the TLS/SSL binding (managed certificate). If Azure shows verification TXT records (e.g. **asuid.www**), add them at your DNS provider first, then validate. |
+| **API calls blocked (CORS)** | Backend default already allows `https://wavelync.com` and `https://www.wavelync.com`. If you override **ALLOWED_ORIGINS** in App Service, include both. Redeploy the backend after CORS changes. |
+| **API calls blocked (CSP)** | Frontend `index.html` CSP `connect-src` includes `https://wavelync.com` and `https://www.wavelync.com`. Rebuild and redeploy the frontend after changes. |
+| **Which host to point DNS to?** | **Option A – Static Web App (frontend only):** Add custom domain in **Static Web Apps** → Custom domains; use the CNAME target Azure gives you for **www** (and apex if supported). **Option B – App Service (combined):** CNAME **www** → **buildingsmanager-api.azurewebsites.net**, add custom domain in **App Service** → Custom domains. |

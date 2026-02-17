@@ -1102,6 +1102,11 @@ export async function validateAndSaveBulkAssets(
 export const api = {
   buildings: {
     getAll: async (): Promise<Building[]> => {
+      if (USE_FASTAPI) {
+        const list = (await apiClient.getBuildings(0, 1000)) as Record<string, unknown>[];
+        const withNumber = (list || []).map((row: any) => ({ ...row, building_number: row.id ?? Number(row.building_id) || 0 }));
+        return withNumber.map(normalizeBuildingForUi);
+      }
       const { data, error } = await supabase
         .from('buildings')
         .select('*')
@@ -1512,6 +1517,28 @@ export const api = {
   },
   assets: {
     getAll: async (buildingNumber?: number): Promise<Asset[]> => {
+      if (USE_FASTAPI) {
+        const list = (await apiClient.getAssets(buildingNumber, 0, 5000)) as any[];
+        const parseDate = (dateStr: string) => {
+          if (!dateStr) return new Date(0);
+          const parts = String(dateStr).split('/');
+          if (parts.length === 3) {
+            return new Date(parseInt(parts[2], 10), parseInt(parts[1], 10) - 1, parseInt(parts[0], 10));
+          }
+          return new Date(dateStr);
+        };
+        const mapped = (list || []).map((r) => ({
+          ...r,
+          building_number: r.building_id ?? 0,
+          asset_id: r.id ?? r.asset_id,
+          measurement_date: r.created_at ? new Date(r.created_at).toISOString().slice(0, 10) : '',
+        }));
+        const sorted = [...mapped].sort((a, b) => {
+          if (a.asset_id !== b.asset_id) return Number(a.asset_id) - Number(b.asset_id);
+          return parseDate(b.measurement_date).getTime() - parseDate(a.measurement_date).getTime();
+        });
+        return sorted.map(convertHebrewBooleans);
+      }
       let query = supabase
         .from('assets')
         .select('*')
@@ -3143,6 +3170,10 @@ export const api = {
   },
   assetTypes: {
     getAll: async (): Promise<AssetType[]> => {
+      if (USE_FASTAPI) {
+        const list = (await apiClient.getAssetTypes()) as AssetType[];
+        return list || [];
+      }
       // Try to get from in-memory cache first (loaded on app startup)
       try {
         const { getAssetTypes } = await import('./validation');

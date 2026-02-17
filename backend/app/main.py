@@ -17,19 +17,37 @@ def _config_ok():
     return True, None
 
 
+def _is_allowed_origin(origin: str) -> bool:
+    """Allow *.azurestaticapps.net and wavelync.com custom domain."""
+    if not origin or not origin.startswith("https://"):
+        return False
+    return origin.endswith(".azurestaticapps.net") or "wavelync.com" in origin
+
+
 class AzureStaticWebAppCORSMiddleware(BaseHTTPMiddleware):
-    """Allow any *.azurestaticapps.net origin so Static Web Apps work without configuring each URL."""
+    """Allow *.azurestaticapps.net and wavelync.com origins for CORS."""
 
     async def dispatch(self, request: Request, call_next):
-        origin = request.headers.get("origin") or ""
+        origin = (request.headers.get("origin") or "").strip()
+        allowed = _is_allowed_origin(origin)
+
+        if request.method == "OPTIONS" and allowed:
+            from starlette.responses import Response
+            return Response(
+                status_code=200,
+                headers={
+                    "Access-Control-Allow-Origin": origin,
+                    "Access-Control-Allow-Methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
+                    "Access-Control-Allow-Headers": "Content-Type, Authorization",
+                    "Access-Control-Allow-Credentials": "true",
+                    "Access-Control-Max-Age": "86400",
+                    "Vary": "Origin",
+                },
+            )
         response = await call_next(request)
-        if origin and origin.endswith(".azurestaticapps.net"):
+        if allowed:
             response.headers["Access-Control-Allow-Origin"] = origin
             response.headers["Vary"] = "Origin"
-            if request.method == "OPTIONS":
-                response.headers.setdefault("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS")
-                response.headers.setdefault("Access-Control-Allow-Headers", "Content-Type, Authorization")
-                response.headers.setdefault("Access-Control-Allow-Credentials", "true")
         return response
 
 

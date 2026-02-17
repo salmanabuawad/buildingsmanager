@@ -6,14 +6,6 @@ name: Deploy Frontend to Azure
 on:
   push:
     branches: [main, dev]
-    paths:
-      - 'src/**'
-      - 'public/**'
-      - 'index.html'
-      - 'vite.config.ts'
-      - 'package.json'
-      - 'package-lock.json'
-      - '.github/workflows/azure-frontend.yml'
   workflow_dispatch:
 
 jobs:

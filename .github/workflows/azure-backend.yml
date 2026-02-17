@@ -6,9 +6,6 @@ name: Deploy Backend to Azure
 on:
   push:
     branches: [main, dev]
-    paths:
-      - 'backend/**'
-      - '.github/workflows/azure-backend.yml'
   workflow_dispatch:
 
 env:

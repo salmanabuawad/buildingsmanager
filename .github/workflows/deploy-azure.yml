@@ -6,15 +6,6 @@ name: Deploy to Azure
 on:
   push:
     branches: [main, dev]
-    paths:
-      - 'backend/**'
-      - 'src/**'
-      - 'public/**'
-      - 'index.html'
-      - 'vite.config.ts'
-      - 'package.json'
-      - 'package-lock.json'
-      - '.github/workflows/deploy-azure.yml'
   workflow_dispatch:
 
 env:

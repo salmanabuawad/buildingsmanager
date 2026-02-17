@@ -1858,7 +1858,9 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
         }
       }
 
-      // Prepare all valid assets for bulk insert
+      // Prepare all valid assets for bulk insert.
+      // On import with distribution: compute scaled sizes and building business_shared_area only; do NOT set asset business_distribution_area.
+      const buildingDistributionSumMap = new Map<number, number>();
       let assetsToInsert: Partial<Asset>[] = validAssets.map(asset => {
         const buildingNum = typeof asset.building_number === 'number'
           ? asset.building_number
@@ -1866,19 +1868,71 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
         const overloadRatioPct = !isNaN(buildingNum) ? buildingOverloadRatioMap.get(buildingNum) ?? null : null;
         const assetType = typesForImport.find(at => at.name === (asset.main_asset_type || ''));
         const isBusinessAsset = assetType?.business_residence === 'עסקים';
-        // y = total area (from file; use asset_total_area if mapped, else asset_size), x = business shared area, z = main size, h = overload ratio (0..1).
-        // Relation: x = h * (y - x)  =>  x = h*y / (1 + h).  Then z = y - x.
-        const y = (asset.asset_total_area ?? asset.asset_size) ?? 0;
+        // Only apply distribution to assets accountable for distribution (non_accountable_for_distribution !== true)
+        const isAccountableForDistribution = assetType ? (assetType.non_accountable_for_distribution !== true) : false;
+        // y = area for distribution: with subtypes, main size is NOT used (it equals sum of subtypes); use only accountable subtype 1 size.
+        // With no subtypes, use asset_total_area or asset_size (main size). x = h*y/(1+h).
+        const hasSubtypes = !!(asset.sub_asset_type_1 && String(asset.sub_asset_type_1).trim() !== '');
+        let y: number;
+        let isSubtype1Accountable = false;
+        if (hasSubtypes) {
+          const subType1 = asset.sub_asset_type_1;
+          const subSize1 = asset.sub_asset_size_1 ?? 0;
+          if (subType1 && String(subType1).trim() !== '' && subSize1 > 0) {
+            const subAssetType1 = typesForImport.find(at => at.name === subType1);
+            isSubtype1Accountable = !!(subAssetType1 && subAssetType1.non_accountable_for_distribution !== true);
+          }
+          y = isSubtype1Accountable ? subSize1 : 0;
+        } else {
+          y = (asset.asset_total_area ?? asset.asset_size) ?? 0;
+        }
         const h = overloadRatioPct != null && overloadRatioPct > 0 ? overloadRatioPct / 100 : 0;
-        let assetSize: number;       // z = main size
-        let businessDistributionArea: number;  // x = shared area
-        if (isBusinessAsset && h > 0 && y > 0) {
+        const hasAtLeastOneAccountable = !hasSubtypes ? isAccountableForDistribution : isSubtype1Accountable;
+        let assetSize: number;
+        let businessDistributionArea: number;
+        let subAssetSize1: number;
+        let subAssetSize2: number;
+        let subAssetSize3: number;
+        let subAssetSize4: number;
+        let subAssetSize5: number;
+        let subAssetSize6: number;
+        if (isBusinessAsset && hasAtLeastOneAccountable && h > 0 && y > 0) {
           const x = (h * y) / (1 + h);
           businessDistributionArea = x;
-          assetSize = y - x;  // z = y - x
+          const scale = (y - x) / y;  // scale factor for subtype 1 only
+          if (hasSubtypes) {
+            subAssetSize1 = isSubtype1Accountable ? (asset.sub_asset_size_1 ?? 0) * scale : (asset.sub_asset_size_1 ?? 0);
+            subAssetSize2 = asset.sub_asset_size_2 ?? 0;
+            subAssetSize3 = asset.sub_asset_size_3 ?? 0;
+            subAssetSize4 = asset.sub_asset_size_4 ?? 0;
+            subAssetSize5 = asset.sub_asset_size_5 ?? 0;
+            subAssetSize6 = asset.sub_asset_size_6 ?? 0;
+            assetSize = subAssetSize1 + subAssetSize2 + subAssetSize3 + subAssetSize4 + subAssetSize5 + subAssetSize6;  // main = sum of all subtypes
+          } else {
+            assetSize = (asset.asset_total_area ?? asset.asset_size ?? 0) - x;
+            subAssetSize1 = asset.sub_asset_size_1 || 0;
+            subAssetSize2 = asset.sub_asset_size_2 || 0;
+            subAssetSize3 = asset.sub_asset_size_3 || 0;
+            subAssetSize4 = asset.sub_asset_size_4 || 0;
+            subAssetSize5 = asset.sub_asset_size_5 || 0;
+            subAssetSize6 = asset.sub_asset_size_6 || 0;
+          }
         } else {
-          assetSize = y;
           businessDistributionArea = 0;
+          subAssetSize1 = asset.sub_asset_size_1 || 0;
+          subAssetSize2 = asset.sub_asset_size_2 || 0;
+          subAssetSize3 = asset.sub_asset_size_3 || 0;
+          subAssetSize4 = asset.sub_asset_size_4 || 0;
+          subAssetSize5 = asset.sub_asset_size_5 || 0;
+          subAssetSize6 = asset.sub_asset_size_6 || 0;
+          assetSize = hasSubtypes
+            ? subAssetSize1 + subAssetSize2 + subAssetSize3 + subAssetSize4 + subAssetSize5 + subAssetSize6
+            : ((asset.asset_total_area ?? asset.asset_size) ?? 0);
+        }
+
+        // Accumulate distribution area for building update (do not store on asset)
+        if (businessDistributionArea > 0 && !isNaN(buildingNum)) {
+          buildingDistributionSumMap.set(buildingNum, (buildingDistributionSumMap.get(buildingNum) || 0) + businessDistributionArea);
         }
 
         const assetData: Partial<Asset> = {
@@ -1890,18 +1944,18 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
           asset_size: assetSize,
           tax_region: asset.tax_region || null,
           sub_asset_type_1: asset.sub_asset_type_1 || null,
-          sub_asset_size_1: asset.sub_asset_size_1 || 0,
+          sub_asset_size_1: subAssetSize1,
           sub_asset_type_2: asset.sub_asset_type_2 || null,
-          sub_asset_size_2: asset.sub_asset_size_2 || 0,
+          sub_asset_size_2: subAssetSize2,
           sub_asset_type_3: asset.sub_asset_type_3 || null,
-          sub_asset_size_3: asset.sub_asset_size_3 || 0,
+          sub_asset_size_3: subAssetSize3,
           sub_asset_type_4: asset.sub_asset_type_4 || null,
-          sub_asset_size_4: asset.sub_asset_size_4 || 0,
+          sub_asset_size_4: subAssetSize4,
           sub_asset_type_5: asset.sub_asset_type_5 || null,
-          sub_asset_size_5: asset.sub_asset_size_5 || 0,
+          sub_asset_size_5: subAssetSize5,
           sub_asset_type_6: asset.sub_asset_type_6 || null,
-          sub_asset_size_6: asset.sub_asset_size_6 || 0,
-          business_distribution_area: businessDistributionArea,
+          sub_asset_size_6: subAssetSize6,
+          business_distribution_area: 0,  // Do not update asset shared business area on import
           apartment_number: asset.apartment_number || null,
           apartment_floor: asset.apartment_floor || null,
           storage_number: asset.storage_number || null,
@@ -1912,7 +1966,9 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
           comment: asset.comment || null,
           // If file is from automation, mark as coming from automation.
           // Any later edit in the app will flip this back to false via DB trigger.
-          data_from_automation: importFromAutomation ? true : false
+          data_from_automation: importFromAutomation ? true : false,
+          // When data is from automation, do not mark as needing to send to automation (already there).
+          exported_to_automation: importFromAutomation ? true : false
         };
 
         if (asset.penthouse === 'כן' || asset.penthouse === true) {
@@ -2334,6 +2390,21 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
           } catch (areaError) {
             console.warn(`Failed to update building total area for building ${buildingNum} after import:`, areaError);
             // Don't fail the operation if area update fails
+          }
+        }
+
+        // When overload_ratio > 0, set building business_shared_area from computed distribution sum (assets do not store business_distribution_area on import)
+        for (const buildingNum of affectedBuildingNumbers) {
+          const overloadRatioPct = buildingOverloadRatioMap.get(buildingNum);
+          if (overloadRatioPct != null && overloadRatioPct > 0) {
+            const sumDistributionArea = buildingDistributionSumMap.get(buildingNum) || 0;
+            if (sumDistributionArea > 0) {
+              try {
+                await api.buildings.update(buildingNum, { business_shared_area: sumDistributionArea });
+              } catch (sharedAreaError) {
+                console.warn(`Failed to update business_shared_area for building ${buildingNum} after import:`, sharedAreaError);
+              }
+            }
           }
         }
       }

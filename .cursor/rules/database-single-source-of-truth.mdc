@@ -1,0 +1,40 @@
+---
+description: Sync with the live database before any DB-related change; the DB is the single source of truth.
+globs: supabase/migrations/**/*.sql,**/*.sql,src/**/*.ts
+alwaysApply: false
+---
+
+# Sync with Database Before Change
+
+**Before changing anything that touches the database, confirm the current state against the live database. The live DB is the single source of truth—not migration files or assumptions.**
+
+Migration files and code may be out of sync with what is actually deployed. Always query the DB first, then make changes that align with or safely extend that state.
+
+## Mandatory workflow
+
+1. **Query the live database** (Supabase SQL Editor, MCP `execute_sql`, or `psql`) to get current state:
+   - Table columns: `SELECT column_name, data_type FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'table_name';`
+   - RLS policies: `SELECT policyname, cmd, roles FROM pg_policies WHERE tablename = 'table_name';`
+   - Function definition: `SELECT pg_get_functiondef(oid) FROM pg_proc WHERE proname = 'function_name';`
+   - Triggers: `SELECT * FROM information_schema.triggers WHERE event_object_table = 'table_name';`
+
+2. **Use that result** to decide what to change. Do not assume migrations or code reflect the current DB.
+
+3. **Then** apply migrations or code changes so they match or safely extend the current DB state.
+
+## When this applies
+
+- Triggers, SQL functions, RPCs
+- Table schema, columns, constraints
+- RLS policies (SELECT/INSERT/UPDATE/DELETE)
+- Any code or migration that depends on DB structure or behavior
+
+## Quick reference
+
+| Check | Query |
+|-------|--------|
+| Table columns | `information_schema.columns` for `table_schema = 'public' AND table_name = 'x'` |
+| RLS policies | `pg_policies` for `tablename = 'x'` |
+| Function body | `pg_get_functiondef(oid)` from `pg_proc` where `proname = 'x'` |
+| Function args | `pg_get_function_arguments(oid)` from `pg_proc` where `proname = 'x'` |
+| Triggers | `information_schema.triggers` for `event_object_table = 'x'` |

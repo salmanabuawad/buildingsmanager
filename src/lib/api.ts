@@ -642,7 +642,7 @@ export function sanitizeAssetInput(input: any): any {
     payer_id: preConverted.payer_id != null && preConverted.payer_id !== '' ? sanitizeText(preConverted.payer_id) : undefined,
     asset_id: preConverted.asset_id != null ? sanitizeInteger(preConverted.asset_id) : undefined,
     measurement_date: measurementDate, // Always include measurement_date
-    main_asset_type: preConverted.main_asset_type != null ? sanitizeText(preConverted.main_asset_type) : undefined,
+    main_asset_type: ('main_asset_type' in preConverted) ? (preConverted.main_asset_type != null && preConverted.main_asset_type !== '' ? sanitizeText(preConverted.main_asset_type) : null) : undefined,
     asset_size: ('asset_size' in preConverted) ? sanitizeNumber(preConverted.asset_size ?? 0) : undefined,
     tax_region: preConverted.tax_region != null ? sanitizeInteger(preConverted.tax_region) : undefined,
     sub_asset_type_1: ('sub_asset_type_1' in preConverted) ? (preConverted.sub_asset_type_1 != null && preConverted.sub_asset_type_1 !== '' ? sanitizeText(preConverted.sub_asset_type_1) : null) : undefined,
@@ -687,8 +687,9 @@ export function sanitizeAssetInput(input: any): any {
   // Also keep null values for sub_asset_type fields (to allow clearing them)
   const booleanFieldsToKeep = ['elevator', 'single_double_family', 'condo', 'townhouses', 'penthouse', 'exported_to_automation'];
   const subAssetTypeFields = ['sub_asset_type_1', 'sub_asset_type_2', 'sub_asset_type_3', 'sub_asset_type_4', 'sub_asset_type_5', 'sub_asset_type_6'];
+  const nullableTypeFields = ['main_asset_type', ...subAssetTypeFields];  // Allow null to clear these
   Object.keys(sanitized).forEach(key => {
-    if (key !== 'measurement_date' && !booleanFieldsToKeep.includes(key) && !subAssetTypeFields.includes(key) && sanitized[key] === undefined) {
+    if (key !== 'measurement_date' && !booleanFieldsToKeep.includes(key) && !nullableTypeFields.includes(key) && sanitized[key] === undefined) {
       delete sanitized[key];
     }
   });
@@ -1421,7 +1422,25 @@ export const api = {
         }
       }
 
-      
+      // Delete audit rows that reference this building before deleting the building
+      const buildingIdStr = String(buildingNumber);
+      const { error: auditError } = await supabase
+        .from('audit')
+        .delete()
+        .eq('entity_type', 'bulk_asset')
+        .eq('entity_id', buildingIdStr);
+      if (auditError) {
+        console.warn('[api.buildings.delete] Failed to delete audit rows for building:', auditError);
+      }
+      const { error: auditBuildingError } = await supabase
+        .from('audit')
+        .delete()
+        .eq('entity_type', 'building')
+        .eq('entity_id', buildingIdStr);
+      if (auditBuildingError) {
+        console.warn('[api.buildings.delete] Failed to delete building audit rows:', auditBuildingError);
+      }
+
       const { error } = await supabase
         .from('buildings')
         .delete()
@@ -3896,6 +3915,19 @@ export const api = {
 
     const assetIds = assets?.map(a => a.asset_id) || [];
 
+    // Delete audit rows for these assets (entity_type = 'asset', entity_id = asset_id)
+    if (assetIds.length > 0) {
+      const assetIdStrs = assetIds.map(id => String(id));
+      const { error: auditError } = await supabase
+        .from('audit')
+        .delete()
+        .eq('entity_type', 'asset')
+        .in('entity_id', assetIdStrs);
+      if (auditError) {
+        console.warn('[deleteAssetsByBuilding] Failed to delete asset audit rows:', auditError);
+      }
+    }
+
     // NOTE: For bulk deletion, we should use delete_asset_transactional for each asset
     // to ensure flags are set as part of the transaction. This function should be
     // refactored to use transactional delete, or a bulk transactional delete function
@@ -4209,7 +4241,7 @@ export const api = {
       const { data, error } = await supabase
         .from('audit')
         .select('*')
-        .eq('id', id)
+        .eq('action_id', id)
         .single();
       
       if (error) throw error;
@@ -4236,9 +4268,10 @@ export const api = {
         }
       }
       
-      // Return data with before_data and after_data
+      // Return data with before_data and after_data; audit table uses action_id (not id)
       return {
         ...data,
+        id: data.action_id ?? data.id,
         building_number: data.building_number || (data.entity_id ? parseInt(data.entity_id, 10) : null),
         before_data: beforeData || null,
         after_data: afterData || null,
@@ -4264,15 +4297,15 @@ export const api = {
       }
       
       // Query audit table by entity_type and entity_id
-      // Distribution operations use entity_type='bulk_asset' and entity_id=building_number (as text)
-      // Transfer operations also use entity_type='bulk_asset' and entity_id=building_number (as text)
+      // Distribution: entity_type='bulk_asset', entity_id=building_number (as text)
+      // Transfer: same for bulk; also include entity_type='asset' where entity_id is an asset in this building
       let query = supabase
         .from('audit')
         .select('*')
         .eq('entity_type', 'bulk_asset')
         .eq('entity_id', String(buildingNumber))
         .order('created_at', { ascending: false });
-      
+
       if (mappedActionTypes && mappedActionTypes.length > 0) {
         if (mappedActionTypes.length === 1) {
           query = query.eq('action_type', mappedActionTypes[0]);
@@ -4280,16 +4313,44 @@ export const api = {
           query = query.in('action_type', mappedActionTypes);
         }
       }
-      
-      // taxRegion parameter is kept for backward compatibility but no longer used
-      // Filtering is now done by action_type ('distribute_shared' or 'transfer_area')
-      
-      const { data, error } = await query;
+
+      const { data: bulkData, error } = await query;
       if (error) throw error;
-      
-      // Extract data with before_data and after_data
-      return (data || []).map((record: any) => ({
+
+      let records: any[] = bulkData || [];
+
+      // For transfer history: also include audit rows where entity_type='asset' and entity_id is an asset in this building
+      if (mappedActionTypes?.includes('transfer_area')) {
+        const { data: buildingAssets } = await supabase
+          .from('assets')
+          .select('asset_id')
+          .eq('building_number', buildingNumber);
+        const assetIds = (buildingAssets || []).map((a: any) => String(a.asset_id));
+        if (assetIds.length > 0) {
+          const { data: assetAuditData, error: assetErr } = await supabase
+            .from('audit')
+            .select('*')
+            .eq('entity_type', 'asset')
+            .eq('action_type', 'transfer_area')
+            .in('entity_id', assetIds)
+            .order('created_at', { ascending: false });
+          if (!assetErr && assetAuditData?.length) {
+            const seen = new Set(records.map((r: any) => r.action_id));
+            for (const r of assetAuditData) {
+              if (!seen.has(r.action_id)) {
+                seen.add(r.action_id);
+                records.push(r);
+              }
+            }
+            records.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+          }
+        }
+      }
+
+      // Extract data with before_data and after_data; audit table uses action_id (not id)
+      return records.map((record: any) => ({
         ...record,
+        id: record.action_id ?? record.id,
         before_data: record.before_data || null,
         after_data: record.after_data || null,
       }));

@@ -1049,18 +1049,14 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
     setSelectedAssets(new Set());
   }, [buildingNumber, taxRegion]);
 
-  // Refresh building state periodically and when window/tab gains focus to catch external updates
+  // Refresh building state on mount and when window/tab gains focus (no periodic polling)
   useEffect(() => {
     if (!buildingNumber) return;
 
     const refreshBuilding = async () => {
       try {
-        // Refresh building data to get latest flags (e.g., need_residence_distribution)
         const updatedBuilding = await api.buildings.getOne(buildingNumber);
-        
-        // Always update building state to ensure flags are current
         setBuilding(prevBuilding => {
-          // Only update if something actually changed to avoid unnecessary re-renders
           if (!prevBuilding || 
               updatedBuilding.need_residence_distribution !== prevBuilding.need_residence_distribution ||
               updatedBuilding.need_business_distribution !== prevBuilding.need_business_distribution ||
@@ -1071,39 +1067,23 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
           return prevBuilding;
         });
       } catch (err) {
-        // Silently fail - don't disrupt user experience
         if (process.env.NODE_ENV === 'development') {
           console.warn('[AssetsList] Failed to refresh building:', err);
         }
       }
     };
 
-    const handleFocus = () => refreshBuilding();
-    const handleVisibilityChange = () => {
-      if (!document.hidden) {
-        refreshBuilding();
-      }
-    };
-
-    // Refresh immediately when component mounts or buildingNumber changes
     refreshBuilding();
-
-    // Set up periodic refresh every 3 seconds (only when tab is visible)
-    const intervalId = setInterval(() => {
-      if (!document.hidden) {
-        refreshBuilding();
-      }
-    }, 3000);
+    const handleFocus = () => refreshBuilding();
+    const handleVisibilityChange = () => { if (!document.hidden) refreshBuilding(); };
 
     window.addEventListener('focus', handleFocus);
     document.addEventListener('visibilitychange', handleVisibilityChange);
-    
     return () => {
-      clearInterval(intervalId);
       window.removeEventListener('focus', handleFocus);
       document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
-  }, [buildingNumber]); // Only depend on buildingNumber, not building
+  }, [buildingNumber]);
 
   // Refresh grid when validation errors change to show error styling
   useEffect(() => {
@@ -3738,42 +3718,35 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
         return;
       }
 
-      // Sum all business accountable assets' main size (ignore existing business_distribution_area)
-      let totalMainSize = 0;
+      // Denominator for overload_ratio: sum of (main size if no subtypes) + sum of (first subtype size for assets with subtypes)
+      let totalForDistribution = 0;
       for (const asset of businessAssets) {
         const assetId = String(asset.asset_id);
         const existingChanges = dirtyAssets.get(assetId) || {};
-        const currentAssetSize = existingChanges.asset_size !== undefined
-          ? existingChanges.asset_size
-          : (asset.asset_size || 0);
-        // Use asset_size directly, ignoring any existing business_distribution_area
-        totalMainSize += currentAssetSize;
+        const hasSubtypes = !!(asset.sub_asset_type_1 && String(asset.sub_asset_type_1).trim() !== '');
+        let contribSize: number;
+        if (hasSubtypes) {
+          contribSize = existingChanges.sub_asset_size_1 !== undefined ? existingChanges.sub_asset_size_1 : (asset.sub_asset_size_1 ?? 0);
+        } else {
+          contribSize = existingChanges.asset_size !== undefined ? existingChanges.asset_size : (asset.asset_size ?? 0);
+        }
+        totalForDistribution += contribSize;
       }
 
-      // If shared area is 0, we're clearing the distribution - allow this even if totalMainSize is 0
+      // If shared area is 0, we're clearing the distribution - allow this even if totalForDistribution is 0
       const isClearingDistribution = building.business_shared_area! <= 0;
-      
-      if (totalMainSize <= 0 && !isClearingDistribution) {
+
+      if (totalForDistribution <= 0 && !isClearingDistribution) {
         setToast({ message: 'סכום שטחי הנכסים העסקיים הוא 0 או שלילי', type: 'error' });
         setTimeout(() => setToast(null), 3000);
         setLoading(false);
         return;
       }
 
-      // Calculate overload ratio = business_shared_area / totalMainSize
-      // If shared area is 0, overloadRatio should be explicitly 0 (clearing distribution)
-      // If totalMainSize is 0 but we're clearing, use 0 for overloadRatio
+      // overload_ratio = business_shared_area / totalForDistribution (as decimal; percentage = *100)
       const overloadRatio = isClearingDistribution || building.business_shared_area! <= 0
         ? 0
-        : (totalMainSize > 0 ? (building.business_shared_area! / totalMainSize) : 0);
-      // Convert to percentage for storage (multiply by 100)
-      const overloadRatioPercentage = overloadRatio * 100;
-
-      // Update local building state only - overload_ratio will be saved when user clicks "Save All"
-        // Only update if we're still viewing the same building
-        if (building.building_number === buildingNumber) {
-          setBuilding(prev => prev ? { ...prev, overload_ratio: overloadRatioPercentage } : prev);
-      }
+        : (totalForDistribution > 0 ? (building.business_shared_area! / totalForDistribution) : 0);
 
       // Also clear business_distribution_area for non-accountable assets
       const nonAccountableAssets = assets.filter(asset => {
@@ -3839,15 +3812,14 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
         // Prepare changes object
         const changes: Partial<Asset> = { ...existingChanges };
 
-        // Get current asset size for calculation (ignore existing business_distribution_area)
-        const currentAssetSize = existingChanges.asset_size !== undefined
-          ? existingChanges.asset_size
-          : (currentAsset?.asset_size || 0);
+        // Contributing size: main size if no subtypes, else first subtype size (same as denominator)
+        const hasSubtypes = !!(currentAsset?.sub_asset_type_1 && String(currentAsset.sub_asset_type_1).trim() !== '');
+        const contribSize = hasSubtypes
+          ? (existingChanges.sub_asset_size_1 !== undefined ? existingChanges.sub_asset_size_1 : (currentAsset?.sub_asset_size_1 ?? 0))
+          : (existingChanges.asset_size !== undefined ? existingChanges.asset_size : (currentAsset?.asset_size ?? 0));
 
-        // Calculate new distribution area based on asset_size directly
-        // Redistribution ignores any existing business_distribution_area and recalculates from scratch
-        // Note: We only READ currentAssetSize for calculation, we do NOT update it
-        const newDistributionArea = overloadRatio * currentAssetSize;
+        // Calculate new distribution area: proportional to contrib size
+        const newDistributionArea = overloadRatio * contribSize;
 
         // IMPORTANT: Only update business_distribution_area field
         // Do NOT update asset_size, sub_asset_size_1, or any other sub-asset sizes
@@ -3939,8 +3911,8 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
       const sharedAreaText = building.business_shared_area! > 0
         ? building.business_shared_area!.toLocaleString('he-IL')
         : '0 (ניקוי פיזור קודם)';
-      const overloadRatioText = building.business_shared_area! > 0
-        ? ` יחס העמסה: ${overloadRatioPercentage.toFixed(2)}%.`
+      const overloadRatioText = building.business_shared_area! > 0 && building.overload_ratio != null
+        ? ` יחס העמסה: ${building.overload_ratio.toFixed(2)}%.`
         : '';
       setToast({
         message: `חושב פיזור שטח משותף עסקים (${sharedAreaText}) ל-${updatedCount} נכסים.${overloadRatioText} לחץ "שמור הכל" לשמירה.`,

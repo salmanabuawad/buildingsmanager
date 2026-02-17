@@ -638,7 +638,7 @@ export function sanitizeAssetInput(input: any): any {
     payer_id: preConverted.payer_id != null && preConverted.payer_id !== '' ? sanitizeText(preConverted.payer_id) : undefined,
     asset_id: preConverted.asset_id != null ? sanitizeInteger(preConverted.asset_id) : undefined,
     measurement_date: measurementDate, // Always include measurement_date
-    main_asset_type: preConverted.main_asset_type != null ? sanitizeText(preConverted.main_asset_type) : undefined,
+    main_asset_type: ('main_asset_type' in preConverted) ? (preConverted.main_asset_type != null && preConverted.main_asset_type !== '' ? sanitizeText(preConverted.main_asset_type) : null) : undefined,
     asset_size: ('asset_size' in preConverted) ? sanitizeNumber(preConverted.asset_size ?? 0) : undefined,
     tax_region: preConverted.tax_region != null ? sanitizeInteger(preConverted.tax_region) : undefined,
     sub_asset_type_1: ('sub_asset_type_1' in preConverted) ? (preConverted.sub_asset_type_1 != null && preConverted.sub_asset_type_1 !== '' ? sanitizeText(preConverted.sub_asset_type_1) : null) : undefined,
@@ -683,8 +683,9 @@ export function sanitizeAssetInput(input: any): any {
   // Also keep null values for sub_asset_type fields (to allow clearing them)
   const booleanFieldsToKeep = ['elevator', 'single_double_family', 'condo', 'townhouses', 'penthouse', 'exported_to_automation'];
   const subAssetTypeFields = ['sub_asset_type_1', 'sub_asset_type_2', 'sub_asset_type_3', 'sub_asset_type_4', 'sub_asset_type_5', 'sub_asset_type_6'];
+  const nullableTypeFields = ['main_asset_type', ...subAssetTypeFields];  // Allow null to clear these
   Object.keys(sanitized).forEach(key => {
-    if (key !== 'measurement_date' && !booleanFieldsToKeep.includes(key) && !subAssetTypeFields.includes(key) && sanitized[key] === undefined) {
+    if (key !== 'measurement_date' && !booleanFieldsToKeep.includes(key) && !nullableTypeFields.includes(key) && sanitized[key] === undefined) {
       delete sanitized[key];
     }
   });

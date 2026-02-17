@@ -75,7 +75,8 @@ az storage account create \
   --resource-group $RESOURCE_GROUP \
   --location $LOCATION \
   --sku Standard_LRS \
-  --kind StorageV2
+  --kind StorageV2 \
+  --min-tls-version TLS1_2
 
 az storage container create \
   --name assetflow-files \

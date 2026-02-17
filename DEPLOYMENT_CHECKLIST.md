@@ -173,7 +173,7 @@ curl https://YOUR-BACKEND-APP.azurewebsites.net/health
 ```bash
 curl -X POST https://YOUR-BACKEND-APP.azurewebsites.net/api/auth/login \
   -H "Content-Type: application/json" \
-  -d '{"username": "admin", "password": "admin123"}'
+  -d '{"username": "admin", "password": "WaveLync1342#"}'
 ```
 
 ---

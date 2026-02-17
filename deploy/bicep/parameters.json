@@ -1,0 +1,17 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentParameters.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "baseName": { "value": "buildingsmanager" },
+    "location": { "value": "israelcentral" },
+    "dbHost": { "value": "buildingsmanager-db.postgres.database.azure.com" },
+    "dbUser": { "value": "dbadmin" },
+    "dbName": { "value": "postgres" },
+    "dbPassword": { "value": "" },
+    "secretKey": { "value": "" },
+    "allowedOrigins": { "value": "https://buildingsmanager-app.azurestaticapps.net,http://localhost:5173" },
+    "pgSslMode": { "value": "require" },
+    "azureStorageConnectionString": { "value": "" },
+    "azureStorageContainerName": { "value": "assetflow-files" }
+  }
+}

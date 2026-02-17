@@ -188,7 +188,7 @@ After deployment:
 ## Default Login
 
 - **Username**: `admin`
-- **Password**: `admin123`
+- **Password**: `WaveLync1342#`
 
 **Important**: Change this password immediately!
 

@@ -1,10 +1,22 @@
 -- Seed Data
 -- Extracted at: 2026-02-08T01:54:06.804734
+-- Order: buildings first (assets FK), then assets, asset_types, etc.
+
+-- Table: buildings
+-- 6 rows
+
+INSERT INTO buildings (building_number, total_building_area, tax_region, elevator, single_double_family, condo, townhouses, residence_shared_area, business_shared_area, area_for_control, building_address, gosh, helka, building_number_in_street, overload_ratio, need_residence_distribution, need_business_distribution, action_id, created_at, note) VALUES
+(8254121, 640.0, '10', true, false, true, false, 0.0, NULL, NULL, NULL, NULL, NULL, NULL, NULL, false, false, NULL, '2026-02-07T19:35:24.973347+00:00', NULL),
+(8268129, 0.0, '40', false, false, false, false, 0.0, NULL, NULL, NULL, NULL, NULL, NULL, NULL, false, false, NULL, '2026-02-07T21:51:27.692523+00:00', NULL),
+(8268130, 0.0, '40', false, false, false, false, 0.0, NULL, NULL, NULL, NULL, NULL, NULL, NULL, false, false, NULL, '2026-02-07T21:51:31.938099+00:00', NULL),
+(908742, 65416.49, '40', false, false, false, false, 0.0, 0.0, NULL, 102, NULL, NULL, NULL, 0.0, false, false, NULL, '2026-02-06T14:21:55.531283+00:00', NULL),
+(821512300, 0.0, '20', false, false, false, false, 0.0, NULL, NULL, 801, NULL, NULL, NULL, NULL, true, true, NULL, '2026-02-05T10:36:04.023238+00:00', NULL),
+(8268120, 2945.72, '40', false, false, false, false, 0.0, 200.0, NULL, NULL, NULL, NULL, NULL, 7.28, true, false, NULL, '2026-02-07T21:51:20.798147+00:00', NULL);
 
 -- Table: assets
 -- 79 rows
 
-INSERT INTO assets (building_number, payer_id, asset_id, measurement_date, main_asset_type, asset_size, sub_asset_type_1, sub_asset_size_1, sub_asset_type_2, sub_asset_size_2, sub_asset_type_3, sub_asset_size_3, sub_asset_type_4, sub_asset_size_4, sub_asset_type_5, sub_asset_size_5, sub_asset_type_6, sub_asset_size_6, structure_drawing_url, created_at, updated_at, elevator, single_double_family, condo, townhouses, penthouse, tax_region, discount_type, discount_date_from, discount_date_to, is_new_measurement, action_id, business_distribution_area, exported_to_automation, data_from_automation, comment, export_to_automation_at, apartment_number, storage_number, apartment_floor, storage_floor) VALUES
+INSERT INTO assets (building_number, payer_id, asset_id, measurement_date, main_asset_type, asset_size, sub_asset_type_1, sub_asset_size_1, sub_asset_type_2, sub_asset_size_2, sub_asset_type_3, sub_asset_size_3, sub_asset_type_4, sub_asset_size_4, sub_asset_type_5, sub_asset_size_5, sub_asset_type_6, sub_asset_size_6, structure_drawing_url, created_at, updated_at, elevator, single_double_family, condo, townhouses, penthouse, tax_region, discount_type, discount_date_from, discount_date_to, is_new_measurement, action_id, area_from_distribution, exported_to_automation, data_from_automation, comment, export_to_automation_at, apartment_number, storage_number, apartment_floor, storage_floor) VALUES
 (908742, '514030808', 908742013, '06/02/2026', '805', 55, NULL, 0, NULL, 0, NULL, 0, NULL, 0, NULL, 0, NULL, 0, NULL, '2026-02-06T14:22:04.076914+00:00', '2026-02-07T23:45:45.199183+00:00', false, false, false, false, false, 40, NULL, NULL, NULL, false, NULL, 0, false, false, NULL, NULL, NULL, NULL, NULL, NULL),
 (908742, '514030808', 908742017, '06/02/2026', '800', 10517.61, NULL, 0, NULL, 0, NULL, 0, NULL, 0, NULL, 0, NULL, 0, NULL, '2026-02-06T14:22:04.076914+00:00', '2026-02-07T23:45:45.199737+00:00', false, false, false, false, false, 40, NULL, NULL, NULL, false, NULL, 0, false, false, NULL, NULL, NULL, NULL, NULL, NULL),
 (908742, '514030808', 908742014, '06/02/2026', '805', 5, NULL, 0, NULL, 0, NULL, 0, NULL, 0, NULL, 0, NULL, 0, NULL, '2026-02-06T14:22:04.076914+00:00', '2026-02-07T23:45:45.216761+00:00', false, false, false, false, false, 40, NULL, NULL, NULL, false, NULL, 0, false, false, NULL, NULL, NULL, NULL, NULL, NULL),
@@ -84,17 +96,6 @@ INSERT INTO assets (building_number, payer_id, asset_id, measurement_date, main_
 (8254121, '513775551', 1179920044, '07/02/2026', NULL, 0, NULL, 0, NULL, 0, NULL, 0, NULL, 0, NULL, 0, NULL, 0, NULL, '2026-02-07T19:35:33.759107+00:00', '2026-02-07T23:45:45.333574+00:00', false, false, false, false, false, 10, NULL, NULL, NULL, false, NULL, NULL, false, false, NULL, NULL, NULL, NULL, NULL, NULL),
 (8254121, '513775551', 1179920050, '07/02/2026', NULL, 0, NULL, 0, NULL, 0, NULL, 0, NULL, 0, NULL, 0, NULL, 0, NULL, '2026-02-07T19:35:33.759107+00:00', '2026-02-07T23:45:45.33642+00:00', false, false, false, false, false, 10, NULL, NULL, NULL, false, NULL, NULL, false, false, NULL, NULL, NULL, NULL, NULL, NULL),
 (8254121, '513775551', 1179920032, '07/02/2026', NULL, 0, NULL, 0, NULL, 0, NULL, 0, NULL, 0, NULL, 0, NULL, 0, NULL, '2026-02-07T19:35:33.759107+00:00', '2026-02-07T23:45:45.346195+00:00', false, false, false, false, false, 10, NULL, NULL, NULL, false, NULL, NULL, false, false, NULL, NULL, NULL, NULL, NULL, NULL);
-
--- Table: buildings
--- 6 rows
-
-INSERT INTO buildings (building_number, total_building_area, tax_region, elevator, single_double_family, condo, townhouses, residence_shared_area, business_shared_area, area_for_control, building_address, gosh, helka, building_number_in_street, overload_ratio, need_residence_distribution, need_business_distribution, action_id, created_at, note) VALUES
-(8254121, 640.0, '10', true, false, true, false, 0.0, NULL, NULL, NULL, NULL, NULL, NULL, NULL, false, false, NULL, '2026-02-07T19:35:24.973347+00:00', NULL),
-(8268129, 0.0, '40', false, false, false, false, 0.0, NULL, NULL, NULL, NULL, NULL, NULL, NULL, false, false, NULL, '2026-02-07T21:51:27.692523+00:00', NULL),
-(8268130, 0.0, '40', false, false, false, false, 0.0, NULL, NULL, NULL, NULL, NULL, NULL, NULL, false, false, NULL, '2026-02-07T21:51:31.938099+00:00', NULL),
-(908742, 65416.49, '40', false, false, false, false, 0.0, 0.0, NULL, 102, NULL, NULL, NULL, 0.0, false, false, NULL, '2026-02-06T14:21:55.531283+00:00', NULL),
-(821512300, 0.0, '20', false, false, false, false, 0.0, NULL, NULL, 801, NULL, NULL, NULL, NULL, true, true, NULL, '2026-02-05T10:36:04.023238+00:00', NULL),
-(8268120, 2945.72, '40', false, false, false, false, 0.0, 200.0, NULL, NULL, NULL, NULL, NULL, 7.28, true, false, NULL, '2026-02-07T21:51:20.798147+00:00', NULL);
 
 -- Table: asset_types
 -- 163 rows

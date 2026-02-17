@@ -154,12 +154,12 @@ CREATE TABLE IF NOT EXISTS validation_rules (
     updated_at TIMESTAMP WITH TIME ZONE
 );
 
--- Insert default admin user (password: admin123)
+-- Insert default admin user (password: WaveLync1342#)
 INSERT INTO users (username, email, hashed_password, full_name, role)
 VALUES (
     'admin',
     'admin@assetflow.com',
-    '$2b$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQJqhN8/LewY5kuWcx5HnIzCe',
+    '$2b$12$yJpbXUgFbwwfcbVpk./FTeuPeEVdixhXhFsk7b1iGv/B/UqF0b9ae',
     'System Administrator',
     'admin'
 ) ON CONFLICT (username) DO NOTHING;

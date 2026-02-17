@@ -1,0 +1,49 @@
+# Deploy React frontend to Azure Static Web Apps (no Docker)
+# Requires: GitHub repo secret AZURE_STATIC_WEB_APPS_API_TOKEN (from Static Web App → Manage deployment token)
+# Optional: Repo variable or secret VITE_API_URL (e.g. https://buildingsmanager-api.azurewebsites.net/api) for API URL at build time
+name: Deploy Frontend to Azure
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'src/**'
+      - 'public/**'
+      - 'index.html'
+      - 'vite.config.ts'
+      - 'package.json'
+      - 'package-lock.json'
+      - '.github/workflows/azure-frontend.yml'
+  workflow_dispatch:
+
+jobs:
+  build_and_deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build
+        env:
+          # Point frontend to your backend API URL (set in GitHub repo secrets or vars)
+          # Set vars.VITE_API_URL or secrets.VITE_API_URL to https://www.wavelync.com/api for production
+          VITE_API_URL: ${{ vars.VITE_API_URL || secrets.VITE_API_URL || 'https://buildingsmanager-api.azurewebsites.net/api' }}
+        run: npm run build
+
+      - name: Deploy to Azure Static Web Apps
+        uses: Azure/static-web-apps-deploy@v1
+        with:
+          azure_static_web_apps_api_token: ${{ secrets.AZURE_STATIC_WEB_APPS_API_TOKEN }}
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          action: upload
+          app_location: /
+          output_location: dist

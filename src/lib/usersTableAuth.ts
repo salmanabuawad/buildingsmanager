@@ -1,4 +1,4 @@
-import { supabase } from './supabase';
+import { apiClient } from './apiClient';
 
 const STORAGE_KEY = 'buildingsmanager_users_table_session';
 
@@ -10,10 +10,22 @@ export interface UsersTableSession {
 
 export function getSession(): UsersTableSession | null {
   try {
-    const raw = sessionStorage.getItem(STORAGE_KEY);
-    if (!raw) return null;
+    let raw = sessionStorage.getItem(STORAGE_KEY);
+    if (!raw) {
+      const user = apiClient.getCurrentUser();
+      if (user?.username) {
+        const session: UsersTableSession = {
+          user_id: 0,
+          user_name: user.username,
+          user_role: (user.role === 'admin' ? 'admin' : 'user') as 'admin' | 'user',
+        };
+        setSession(session);
+        return session;
+      }
+      return null;
+    }
     const s = JSON.parse(raw) as UsersTableSession;
-    if (!s?.user_id || !s?.user_name) return null;
+    if (!s?.user_name) return null;
     return s;
   } catch {
     return null;
@@ -28,21 +40,18 @@ export function clearSession(): void {
   sessionStorage.removeItem(STORAGE_KEY);
 }
 
-/** Pass to RPCs as p_user_id (auth_user_id). Users-table users use uid:user_id. */
+/** Pass to RPCs as p_user_id (auth_user_id). Backend uses JWT; this is for compatibility. */
 export function getAuthUserIdForRpc(): string | null {
   const s = getSession();
   return s ? `uid:${s.user_id}` : null;
 }
 
 function authLoginErrorToHebrew(msg: string): string {
-  if (msg.includes('user_name and password (min 6 chars) required')) {
-    return 'נדרשים שם משתמש וסיסמה (לפחות 6 תווים).';
-  }
-  if (msg.includes('invalid credentials')) {
+  if (msg.includes('Incorrect username or password') || msg.includes('invalid credentials')) {
     return 'פרטי התחברות לא תקינים.';
   }
-  if (msg.includes('user has no password set')) {
-    return 'למשתמש לא הוגדרה סיסמה.';
+  if (msg.includes('User account is inactive')) {
+    return 'חשבון המשתמש לא פעיל.';
   }
   return msg;
 }
@@ -52,37 +61,20 @@ export async function loginUsersTable(
   password: string
 ): Promise<{ success: true; session: UsersTableSession } | { success: false; error: string }> {
   try {
-    const { data, error } = await supabase.rpc('auth_login', {
-      p_user_name: user_name.trim(),
-      p_password: password,
-    });
-
-    if (error) {
-      const msg = error.message || 'שגיאה בהתחברות';
-      return { success: false, error: authLoginErrorToHebrew(msg) };
-    }
-
-    const d = data as { user_id: number; user_name: string; user_role: string } | null;
-    if (!d?.user_id || !d?.user_name) {
-      return { success: false, error: 'שגיאה בהתחברות.' };
-    }
-
-    const role = (d.user_role === 'admin' ? 'admin' : 'user') as 'admin' | 'user';
+    const data = await apiClient.login(user_name.trim(), password);
     const session: UsersTableSession = {
-      user_id: d.user_id,
-      user_name: d.user_name,
-      user_role: role,
+      user_id: 0,
+      user_name: data.user.username,
+      user_role: (data.user.role === 'admin' ? 'admin' : 'user') as 'admin' | 'user',
     };
     setSession(session);
     return { success: true, session };
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
-    if (msg === 'Failed to fetch' || msg.includes('fetch')) {
+    if (msg === 'Failed to fetch' || msg.includes('fetch') || msg.includes('Network')) {
       return {
         success: false,
-        error:
-          'לא ניתן להגיע לשרת.\n' +
-          'בדוק חיבור לאינטרנט, וודא שכתובת Supabase והמפתח בסביבת הבנייה נכונים (וכן שהפרויקט לא מושהה).',
+        error: 'לא ניתן להגיע לשרת. בדוק חיבור לאינטרנט וכתובת ה-API.',
       };
     }
     return { success: false, error: authLoginErrorToHebrew(msg) || 'שגיאה בהתחברות.' };
@@ -90,5 +82,6 @@ export async function loginUsersTable(
 }
 
 export function logoutUsersTable(): void {
+  apiClient.logout();
   clearSession();
 }

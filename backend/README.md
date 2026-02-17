@@ -149,7 +149,7 @@ curl -H "Authorization: Bearer <your_token>" http://localhost:8000/api/buildings
 After setting up the database, you can login with:
 
 - **Username**: admin
-- **Password**: admin123
+- **Password**: WaveLync1342#
 
 **Important**: Change the default password immediately after first login!
 
@@ -161,7 +161,7 @@ After setting up the database, you can login with:
 # Login
 curl -X POST http://localhost:8000/api/auth/login \
   -H "Content-Type: application/json" \
-  -d '{"username": "admin", "password": "admin123"}'
+  -d '{"username": "admin", "password": "WaveLync1342#"}'
 
 # Get buildings (replace TOKEN with your actual token)
 curl http://localhost:8000/api/buildings \
@@ -172,17 +172,10 @@ curl http://localhost:8000/api/buildings \
 
 Navigate to http://localhost:8000/docs for interactive API documentation.
 
-## Deployment
+## Deployment (no Docker)
 
-See [AZURE_DEPLOYMENT_GUIDE.md](../AZURE_DEPLOYMENT_GUIDE.md) for detailed deployment instructions.
-
-### Quick Deploy to Azure
-
-```bash
-# From project root
-chmod +x deploy-to-azure.sh
-./deploy-to-azure.sh
-```
+- **Azure:** App Service (Python) + Static Web Apps. See **[docs/DEPLOYMENT.md](../docs/DEPLOYMENT.md)** for full steps, GitHub Actions, and Bicep.
+- Backend is deployed as a zip to App Service; frontend is built and deployed to Azure Static Web Apps.
 
 ## Environment Variables Reference
 

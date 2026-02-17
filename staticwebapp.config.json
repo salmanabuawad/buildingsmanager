@@ -1,7 +1,13 @@
 {
   "navigationFallback": {
     "rewrite": "/index.html",
-    "exclude": ["/images/*.{png,jpg,gif,ico}", "/css/*"]
+    "exclude": ["/assets/*", "/images/*", "/*.{js,css,ico,png,jpg,gif,svg,woff2}"]
+  },
+  "responseOverrides": {
+    "404": {
+      "rewrite": "/index.html",
+      "statusCode": 200
+    }
   },
   "mimeTypes": {
     ".json": "application/json",
@@ -9,10 +15,7 @@
     ".css": "text/css"
   },
   "routes": [
-    {
-      "route": "/api/*",
-      "allowedRoles": ["anonymous"]
-    }
+    { "route": "/api/*", "allowedRoles": ["anonymous"] }
   ],
   "globalHeaders": {
     "Access-Control-Allow-Origin": "*",

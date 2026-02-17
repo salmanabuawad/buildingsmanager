@@ -71,12 +71,14 @@ psql "host=$DB_SERVER_NAME.postgres.database.azure.com port=5432 dbname=$DB_NAME
 
 Write-Host ""
 Write-Host "Step 4: Creating Storage Account..." -ForegroundColor Green
+$env:AZURE_CORE_ONLY_SHOW_ERRORS = "true"
 az storage account create `
   --name $STORAGE_ACCOUNT `
   --resource-group $RESOURCE_GROUP `
   --location $LOCATION `
   --sku Standard_LRS `
-  --kind StorageV2
+  --kind StorageV2 `
+  --min-tls-version TLS1_2
 
 az storage container create `
   --name assetflow-files `
@@ -87,6 +89,8 @@ $STORAGE_CONNECTION = az storage account show-connection-string `
   --name $STORAGE_ACCOUNT `
   --resource-group $RESOURCE_GROUP `
   --output tsv
+
+$env:AZURE_CORE_ONLY_SHOW_ERRORS = ""
 
 Write-Host ""
 Write-Host "Step 5: Creating and Deploying Backend API..." -ForegroundColor Green
@@ -121,6 +125,7 @@ az webapp config appsettings set `
   --name $BACKEND_APP_NAME `
   --settings `
     "DATABASE_URL=$DATABASE_URL" `
+    "PGSSLMODE=require" `
     "SECRET_KEY=$SECRET_KEY" `
     "ALGORITHM=HS256" `
     "ACCESS_TOKEN_EXPIRE_MINUTES=30" `
@@ -136,16 +141,21 @@ az webapp config set `
 
 Write-Host ""
 Write-Host "Step 8: Deploying Backend Code..." -ForegroundColor Green
-Push-Location backend
-Compress-Archive -Path * -DestinationPath ../backend.zip -Force
-Pop-Location
+$repoRoot = Get-Location
+$tempDir = Join-Path $env:TEMP "assetflow-deploy"
+if (Test-Path $tempDir) { Remove-Item $tempDir -Recurse -Force }
+New-Item -ItemType Directory -Force -Path $tempDir | Out-Null
+robocopy backend $tempDir /E /XD venv __pycache__ .git /XF .env .env.* *.pyc *.pyo /NFL /NDL /NJH /NJS /NC /NS | Out-Null
+$zipPath = Join-Path $repoRoot "backend.zip"
+Compress-Archive -Path "$tempDir\*" -DestinationPath $zipPath -Force
+Remove-Item $tempDir -Recurse -Force -ErrorAction SilentlyContinue
 
 az webapp deployment source config-zip `
   --resource-group $RESOURCE_GROUP `
   --name $BACKEND_APP_NAME `
-  --src backend.zip
+  --src $zipPath
 
-Remove-Item backend.zip
+Remove-Item $zipPath -Force -ErrorAction SilentlyContinue
 
 Write-Host ""
 Write-Host "Step 9: Building and Deploying Frontend..." -ForegroundColor Green
@@ -174,10 +184,11 @@ Write-Host "Frontend: $FRONTEND_URL" -ForegroundColor White
 Write-Host ""
 Write-Host "Default Login:" -ForegroundColor Yellow
 Write-Host "  Username: admin" -ForegroundColor Yellow
-Write-Host "  Password: admin123" -ForegroundColor Yellow
-Write-Host ""
-Write-Host "IMPORTANT: Change the default admin password after first login!" -ForegroundColor Red
+Write-Host "  Password: WaveLync1342#" -ForegroundColor Yellow
 Write-Host ""
 Write-Host "Database URL (save this): $DATABASE_URL" -ForegroundColor Cyan
 Write-Host "Secret Key (save this): $SECRET_KEY" -ForegroundColor Cyan
+Write-Host ""
+Write-Host "--- GitHub Actions (for future deploys) ---" -ForegroundColor Cyan
+Write-Host "Add secret AZURE_WEBAPP_PUBLISH_PROFILE_BACKEND (publish profile from App Service) and AZURE_STATIC_WEB_APPS_API_TOKEN (from Static Web App). See docs/DEPLOYMENT.md."
 Write-Host ""

@@ -4523,7 +4523,7 @@ export const api = {
             { user: 'admin', success: true, message: 'admin מוכן' },
             { user: 'user', success: true, message: 'user מוכן' },
           ],
-          message: 'משתמשי ברירת מחדל מוכנים. התחבר עם admin / admin123 או user / user123.',
+          message: 'משתמשי ברירת מחדל מוכנים. התחבר עם admin / WaveLync1342# או user / user123.',
         };
       } catch (e) {
         const msg = e instanceof Error ? e.message : 'שגיאה';

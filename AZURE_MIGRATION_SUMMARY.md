@@ -36,7 +36,7 @@ backend/
 - **File**: `azure_postgres_schema.sql`
 - Compatible with Azure PostgreSQL 14+
 - Includes all tables: users, buildings, assets, asset_types, asset_files, audit, etc.
-- Default admin user with credentials: admin/admin123
+- Default admin user with credentials: admin / WaveLync1342#
 
 ### Deployment Scripts
 
@@ -265,7 +265,7 @@ curl https://your-backend.azurewebsites.net/health
 ```bash
 curl -X POST https://your-backend.azurewebsites.net/api/auth/login \
   -H "Content-Type: application/json" \
-  -d '{"username": "admin", "password": "admin123"}'
+  -d '{"username": "admin", "password": "WaveLync1342#"}'
 ```
 
 ### 3. Get Buildings

@@ -257,7 +257,7 @@ Enable monitoring in Azure Portal for:
 
 1. **Deploy**: Use the automated deployment script
 2. **Access**: Open your deployed application
-3. **Login**: Use default credentials (admin/admin123)
+3. **Login**: Use default credentials (admin / WaveLync1342#)
 4. **Secure**: Change the default password
 5. **Test**: Verify all functionality works
 6. **Monitor**: Enable Application Insights

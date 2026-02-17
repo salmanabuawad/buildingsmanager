@@ -21,6 +21,11 @@ dist-ssr
 *.sln
 *.sw?
 .env
+.env.*
+.deploy-token
+
+# Backend static (built frontend when using combined deploy)
+backend/static
 
 # Playwright
 playwright-report/

@@ -231,7 +231,7 @@ az webapp config appsettings set \
 1. Open your frontend URL: `https://assetflow-frontend.azurestaticapps.net`
 2. Login with default credentials:
    - Username: `admin`
-   - Password: `admin123`
+   - Password: `WaveLync1342#`
 3. Test creating buildings, assets, and uploading files
 
 ## Step 7: Configure Custom Domain (Optional)

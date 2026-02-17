@@ -18,11 +18,8 @@ const customLogger = {
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '');
-  // API URL for FastAPI backend (Azure: set in build/deploy env)
-  const apiUrl = env.VITE_API_URL ?? env.REACT_APP_API_URL ?? '';
-  // Support both Vite (VITE_*) and CRA-style (REACT_APP_*) env vars for Supabase (legacy)
-  const supabaseUrl = env.VITE_SUPABASE_URL ?? env.REACT_APP_SUPABASE_URL ?? '';
-  const supabaseAnonKey = env.VITE_SUPABASE_ANON_KEY ?? env.REACT_APP_SUPABASE_PUBLISHABLE_DEFAULT_KEY ?? '';
+  // FastAPI backend on Azure. Set VITE_API_URL in GitHub Actions / deploy if different.
+  const apiUrl = env.VITE_API_URL ?? env.REACT_APP_API_URL ?? 'https://buildingsmanager-api.azurewebsites.net/api';
 
   return {
     customLogger,
@@ -34,8 +31,6 @@ export default defineConfig(({ mode }) => {
     },
     define: {
       'import.meta.env.VITE_API_URL': JSON.stringify(apiUrl),
-      'import.meta.env.VITE_SUPABASE_URL': JSON.stringify(supabaseUrl),
-      'import.meta.env.VITE_SUPABASE_ANON_KEY': JSON.stringify(supabaseAnonKey),
     },
   };
 });

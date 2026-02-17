@@ -1,7 +1,7 @@
 // FastAPI Client for AssetFlow
 // Replaces Supabase client with REST API calls to FastAPI backend
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api';
+const API_URL = import.meta.env.VITE_API_URL || 'https://buildingsmanager-api.azurewebsites.net/api';
 
 interface AuthResponse {
   access_token: string;

@@ -1,26 +1,63 @@
-// Supabase client – only created when env vars are set.
-// When not set (e.g. Azure backend only), a stub is exported so the app loads without Supabase.
-import { createClient, SupabaseClient } from '@supabase/supabase-js';
+/**
+ * Data layer stub – backend is FastAPI only. This module exists so code that
+ * still imports "supabase" does not break; all calls return empty/error.
+ * Auth and API calls use apiClient (FastAPI).
+ */
+const empty = { data: null, error: { message: 'Use FastAPI backend (apiClient).' } };
+const emptyPromise = Promise.resolve(empty);
 
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
-
-function stub(): never {
-  throw new Error('Supabase is not configured. Set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY, or use the API backend only.');
+function noopRpc(): Promise<{ data: null; error: { message: string } }> {
+  return emptyPromise;
 }
 
-function createStubClient(): any {
-  const chain = () => ({ eq: chain, select: chain, single: chain, maybeSingle: chain, then: (fn: (x: { data: null; error: any }) => void) => fn({ data: null, error: { message: 'Supabase not configured' } }) });
-  return {
-    from: () => ({ select: chain, insert: () => ({ select: chain, then: stub }), update: () => ({ eq: chain, then: stub }), upsert: () => ({ then: stub }), delete: () => ({ eq: chain, then: stub }) }),
-    rpc: stub,
-    storage: { from: () => ({ upload: stub, getPublicUrl: () => ({ data: { publicUrl: '' } }), createSignedUrl: stub, download: stub, remove: stub }) },
+function createChain(): any {
+  const c: any = () => c;
+  c.eq = c;
+  c.neq = c;
+  c.not = c;
+  c.in = c;
+  c.is = c;
+  c.like = c;
+  c.ilike = c;
+  c.select = c;
+  c.order = c;
+  c.limit = c;
+  c.range = c;
+  c.single = c;
+  c.maybeSingle = c;
+  c.count = c;
+  c.then = (fn: (x: typeof empty) => void) => {
+    fn(empty);
+    return emptyPromise;
   };
+  return c;
 }
 
-export const supabase: SupabaseClient = (supabaseUrl && supabaseAnonKey)
-  ? createClient(supabaseUrl, supabaseAnonKey, { realtime: { params: { eventsPerSecond: 10 } } })
-  : (createStubClient() as SupabaseClient);
+const chain = createChain();
+
+const fromStub = () => ({
+  select: (..._args: any[]) => chain,
+  insert: () => ({ select: () => chain, then: () => emptyPromise }),
+  update: () => ({ eq: () => chain, then: () => emptyPromise }),
+  upsert: () => ({ then: () => emptyPromise }),
+  delete: () => ({ eq: () => chain, then: () => emptyPromise }),
+});
+
+const storageStub = {
+  from: () => ({
+    upload: () => emptyPromise,
+    getPublicUrl: () => ({ data: { publicUrl: '' } }),
+    createSignedUrl: () => emptyPromise,
+    download: () => emptyPromise,
+    remove: () => emptyPromise,
+  }),
+};
+
+export const supabase = {
+  from: fromStub,
+  rpc: noopRpc,
+  storage: storageStub,
+};
 
 export interface Building {
   id: string;

@@ -17,22 +17,29 @@ def _config_ok():
     return True, None
 
 
+def _normalize_origin(origin: str) -> str:
+    """Strip trailing slash so matching is consistent."""
+    return (origin or "").strip().rstrip("/")
+
+
 def _is_allowed_origin(origin: str) -> bool:
     """Allow *.azurestaticapps.net, wavelync.com, and localhost (http or https)."""
-    if not origin or not origin.startswith(("http://", "https://")):
+    o = _normalize_origin(origin)
+    if not o or not o.startswith(("http://", "https://")):
         return False
     return (
-        origin.endswith(".azurestaticapps.net")
-        or "wavelync.com" in origin
-        or "localhost" in origin
+        ".azurestaticapps.net" in o
+        or "wavelync.com" in o
+        or "localhost" in o
     )
 
 
 class AzureStaticWebAppCORSMiddleware(BaseHTTPMiddleware):
-    """Allow *.azurestaticapps.net and wavelync.com origins for CORS. Handle all OPTIONS here so app never returns 4xx."""
+    """Allow *.azurestaticapps.net and wavelync.com origins for CORS. Handle all OPTIONS here."""
 
     async def dispatch(self, request: Request, call_next):
-        origin = (request.headers.get("origin") or "").strip()
+        origin_raw = (request.headers.get("origin") or "").strip()
+        origin = _normalize_origin(origin_raw) or origin_raw
         allowed = _is_allowed_origin(origin)
 
         if request.method == "OPTIONS":
@@ -43,7 +50,11 @@ class AzureStaticWebAppCORSMiddleware(BaseHTTPMiddleware):
                 "Access-Control-Max-Age": "86400",
                 "Vary": "Origin",
             }
-            if allowed and origin:
+            if origin and allowed:
+                headers["Access-Control-Allow-Origin"] = origin
+                headers["Access-Control-Allow-Credentials"] = "true"
+            elif origin:
+                # Echo origin so preflight succeeds even if we're strict later
                 headers["Access-Control-Allow-Origin"] = origin
                 headers["Access-Control-Allow-Credentials"] = "true"
             return Response(status_code=200, headers=headers)

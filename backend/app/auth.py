@@ -1,6 +1,5 @@
 from datetime import datetime, timedelta
 from typing import Optional
-from jose import JWTError, jwt
 from passlib.context import CryptContext
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
@@ -21,6 +20,7 @@ def get_password_hash(password: str) -> str:
 
 
 def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
+    from jose import jwt
     to_encode = data.copy()
     if expires_delta:
         expire = datetime.utcnow() + expires_delta
@@ -32,6 +32,7 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
 
 
 def decode_token(token: str) -> dict:
+    from jose import JWTError, jwt
     try:
         payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
         return payload

@@ -40,10 +40,9 @@ jobs:
           resource-group-name: ${{ env.AZURE_WEBAPP_RG }}
           package: backend.zip
 
-      - name: Set startup command with PYTHONPATH
+      - name: Set startup to script (PYTHONPATH in startup.sh)
         run: |
-          az webapp config set --resource-group ${{ env.AZURE_WEBAPP_RG }} --name ${{ env.AZURE_WEBAPP_NAME }} \
-            --startup-file "export PYTHONPATH=/home/site/wwwroot/.python_packages && gunicorn --chdir /home/site/wwwroot app.main:app --workers 2 --worker-class uvicorn.workers.UvicornWorker --bind 0.0.0.0:8000"
+          az webapp config set --resource-group ${{ env.AZURE_WEBAPP_RG }} --name ${{ env.AZURE_WEBAPP_NAME }} --startup-file "bash /home/site/wwwroot/startup.sh"
 
   frontend:
     runs-on: ubuntu-latest

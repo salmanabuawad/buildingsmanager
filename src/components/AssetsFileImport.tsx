@@ -1858,7 +1858,9 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
         }
       }
 
-      // Prepare all valid assets for bulk insert
+      // Prepare all valid assets for bulk insert.
+      // On import with distribution: compute scaled sizes and building business_shared_area only; do NOT set asset business_distribution_area.
+      const buildingDistributionSumMap = new Map<number, number>();
       let assetsToInsert: Partial<Asset>[] = validAssets.map(asset => {
         const buildingNum = typeof asset.building_number === 'number'
           ? asset.building_number
@@ -1929,6 +1931,11 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
             : ((asset.asset_total_area ?? asset.asset_size) ?? 0);
         }
 
+        // Accumulate distribution area for building update (do not store on asset)
+        if (businessDistributionArea > 0 && !isNaN(buildingNum)) {
+          buildingDistributionSumMap.set(buildingNum, (buildingDistributionSumMap.get(buildingNum) || 0) + businessDistributionArea);
+        }
+
         const assetData: Partial<Asset> = {
           building_number: asset.building_number!,
           payer_id: asset.payer_id || null,
@@ -1949,7 +1956,7 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
           sub_asset_size_5: subAssetSize5,
           sub_asset_type_6: asset.sub_asset_type_6 || null,
           sub_asset_size_6: subAssetSize6,
-          business_distribution_area: businessDistributionArea,
+          business_distribution_area: 0,  // Do not update asset shared business area on import
           apartment_number: asset.apartment_number || null,
           apartment_floor: asset.apartment_floor || null,
           storage_number: asset.storage_number || null,
@@ -2387,23 +2394,17 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
           }
         }
 
-        // When overload_ratio > 0, set building business_shared_area to sum of distribution areas of inserted assets
+        // When overload_ratio > 0, set building business_shared_area from computed distribution sum (assets do not store business_distribution_area on import)
         for (const buildingNum of affectedBuildingNumbers) {
           const overloadRatioPct = buildingOverloadRatioMap.get(buildingNum);
           if (overloadRatioPct != null && overloadRatioPct > 0) {
-            let sumDistributionArea = 0;
-            insertedAssetsResult.forEach((savedAsset: any) => {
-              const bn = savedAsset.building_number != null
-                ? (typeof savedAsset.building_number === 'string' ? parseInt(savedAsset.building_number, 10) : savedAsset.building_number)
-                : null;
-              if (bn === buildingNum && !isNaN(bn)) {
-                sumDistributionArea += Number(savedAsset.business_distribution_area) || 0;
+            const sumDistributionArea = buildingDistributionSumMap.get(buildingNum) || 0;
+            if (sumDistributionArea > 0) {
+              try {
+                await api.buildings.update(buildingNum, { business_shared_area: sumDistributionArea });
+              } catch (sharedAreaError) {
+                console.warn(`Failed to update business_shared_area for building ${buildingNum} after import:`, sharedAreaError);
               }
-            });
-            try {
-              await api.buildings.update(buildingNum, { business_shared_area: sumDistributionArea });
-            } catch (sharedAreaError) {
-              console.warn(`Failed to update business_shared_area for building ${buildingNum} after import:`, sharedAreaError);
             }
           }
         }

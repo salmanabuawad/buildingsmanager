@@ -16,3 +16,5 @@ pandas==2.2.3
 bcrypt==4.2.1
 email-validator==2.2.0
 gunicorn==21.2.0
+# Pin cryptography<=43.0.3 to avoid GLIBC_2.33 requirement on Azure App Service (older image)
+cryptography>=41.0.0,<=43.0.3

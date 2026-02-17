@@ -1,7 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, status
 from sqlalchemy.orm import Session
 from typing import List
-from azure.storage.blob import BlobServiceClient
 from app.database import get_db
 from app.models import AssetFile, Asset, User
 from app.schemas import AssetFileResponse
@@ -14,6 +13,7 @@ router = APIRouter()
 
 
 def get_blob_service_client():
+    from azure.storage.blob import BlobServiceClient
     return BlobServiceClient.from_connection_string(settings.AZURE_STORAGE_CONNECTION_STRING)
 
 

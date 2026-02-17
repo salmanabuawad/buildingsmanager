@@ -1049,18 +1049,14 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
     setSelectedAssets(new Set());
   }, [buildingNumber, taxRegion]);
 
-  // Refresh building state periodically and when window/tab gains focus to catch external updates
+  // Refresh building state on mount and when window/tab gains focus (no periodic polling)
   useEffect(() => {
     if (!buildingNumber) return;
 
     const refreshBuilding = async () => {
       try {
-        // Refresh building data to get latest flags (e.g., need_residence_distribution)
         const updatedBuilding = await api.buildings.getOne(buildingNumber);
-        
-        // Always update building state to ensure flags are current
         setBuilding(prevBuilding => {
-          // Only update if something actually changed to avoid unnecessary re-renders
           if (!prevBuilding || 
               updatedBuilding.need_residence_distribution !== prevBuilding.need_residence_distribution ||
               updatedBuilding.need_business_distribution !== prevBuilding.need_business_distribution ||
@@ -1071,39 +1067,23 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
           return prevBuilding;
         });
       } catch (err) {
-        // Silently fail - don't disrupt user experience
         if (process.env.NODE_ENV === 'development') {
           console.warn('[AssetsList] Failed to refresh building:', err);
         }
       }
     };
 
-    const handleFocus = () => refreshBuilding();
-    const handleVisibilityChange = () => {
-      if (!document.hidden) {
-        refreshBuilding();
-      }
-    };
-
-    // Refresh immediately when component mounts or buildingNumber changes
     refreshBuilding();
-
-    // Set up periodic refresh every 3 seconds (only when tab is visible)
-    const intervalId = setInterval(() => {
-      if (!document.hidden) {
-        refreshBuilding();
-      }
-    }, 3000);
+    const handleFocus = () => refreshBuilding();
+    const handleVisibilityChange = () => { if (!document.hidden) refreshBuilding(); };
 
     window.addEventListener('focus', handleFocus);
     document.addEventListener('visibilitychange', handleVisibilityChange);
-    
     return () => {
-      clearInterval(intervalId);
       window.removeEventListener('focus', handleFocus);
       document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
-  }, [buildingNumber]); // Only depend on buildingNumber, not building
+  }, [buildingNumber]);
 
   // Refresh grid when validation errors change to show error styling
   useEffect(() => {

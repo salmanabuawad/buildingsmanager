@@ -1,4 +1,6 @@
 from pathlib import Path
+from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.requests import Request
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse, JSONResponse
@@ -14,12 +16,31 @@ def _config_ok():
         return False, "PGPASSWORD (or DATABASE_URL)"
     return True, None
 
+
+class AzureStaticWebAppCORSMiddleware(BaseHTTPMiddleware):
+    """Allow any *.azurestaticapps.net origin so Static Web Apps work without configuring each URL."""
+
+    async def dispatch(self, request: Request, call_next):
+        origin = request.headers.get("origin") or ""
+        response = await call_next(request)
+        if origin and origin.endswith(".azurestaticapps.net"):
+            response.headers["Access-Control-Allow-Origin"] = origin
+            response.headers["Vary"] = "Origin"
+            if request.method == "OPTIONS":
+                response.headers.setdefault("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS")
+                response.headers.setdefault("Access-Control-Allow-Headers", "Content-Type, Authorization")
+                response.headers.setdefault("Access-Control-Allow-Credentials", "true")
+        return response
+
+
 app = FastAPI(
     title="AssetFlow API",
     description="Backend API for AssetFlow - Building and Asset Management System",
     version="1.0.0"
 )
 
+# Allow *.azurestaticapps.net first so preflight gets correct headers
+app.add_middleware(AzureStaticWebAppCORSMiddleware)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.cors_origins,

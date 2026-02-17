@@ -1,6 +1,6 @@
 # Deploy FastAPI backend to Azure App Service (Python runtime, no Docker)
-# Requires: GitHub repo secret AZURE_WEBAPP_PUBLISH_PROFILE_BACKEND (publish profile from App Service)
-# Optional: Create GitHub Environment "production" in Settings → Environments (or remove "environment: production" below)
+# Requires GitHub secret: AZURE_CREDENTIALS (service principal JSON from az ad sp create-for-rbac ... --sdk-auth)
+# If using environment: production, add AZURE_CREDENTIALS to the environment's secrets or repo secrets.
 name: Deploy Backend to Azure
 
 on:
@@ -10,6 +10,7 @@ on:
 
 env:
   AZURE_WEBAPP_NAME: buildingsmanager-api
+  AZURE_WEBAPP_RG: buildingsmanager-israel-rg
   PYTHON_VERSION: '3.11'
 
 jobs:
@@ -37,9 +38,14 @@ jobs:
           cd backend && zip -r ../backend.zip . -x "venv/*" -x "__pycache__/*" -x "*.pyc" -x ".env" -x ".env.*" -x "*.pyo"
           cd ..
 
+      - name: Azure Login
+        uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
       - name: Deploy to Azure Web App
         uses: azure/webapps-deploy@v3
         with:
           app-name: ${{ env.AZURE_WEBAPP_NAME }}
-          publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE_BACKEND }}
+          resource-group-name: ${{ env.AZURE_WEBAPP_RG }}
           package: backend.zip

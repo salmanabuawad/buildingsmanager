@@ -1,5 +1,5 @@
 # Combined Azure deploy: backend (App Service) + frontend (Static Web Apps)
-# Secrets: AZURE_WEBAPP_PUBLISH_PROFILE_BACKEND, AZURE_STATIC_WEB_APPS_API_TOKEN
+# Secrets: AZURE_CREDENTIALS (service principal JSON), AZURE_STATIC_WEB_APPS_API_TOKEN
 # Optional var: VITE_API_URL (e.g. https://buildingsmanager-api.azurewebsites.net/api)
 name: Deploy to Azure
 
@@ -10,6 +10,7 @@ on:
 
 env:
   AZURE_WEBAPP_NAME: buildingsmanager-api
+  AZURE_WEBAPP_RG: buildingsmanager-israel-rg
   PYTHON_VERSION: '3.11'
 
 jobs:
@@ -28,11 +29,15 @@ jobs:
       - name: Zip backend
         run: |
           cd backend && zip -r ../backend.zip . -x "venv/*" -x "__pycache__/*" -x "*.pyc" -x ".env" -x ".env.*" -x "*.pyo" && cd ..
+      - name: Azure Login
+        uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
       - name: Deploy to Azure Web App
         uses: azure/webapps-deploy@v3
         with:
           app-name: ${{ env.AZURE_WEBAPP_NAME }}
-          publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE_BACKEND }}
+          resource-group-name: ${{ env.AZURE_WEBAPP_RG }}
           package: backend.zip
 
   frontend:

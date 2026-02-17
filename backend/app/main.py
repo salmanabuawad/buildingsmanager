@@ -6,7 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from app.config import settings
-from app.routers import auth, buildings, assets, asset_types, files, audit, email
+from app.routers import auth, buildings, assets, asset_types, audit, email
 
 # Fail fast with a clear message if required production config is missing
 def _config_ok():
@@ -75,7 +75,10 @@ app.include_router(auth.router, prefix="/api/auth", tags=["Authentication"])
 app.include_router(buildings.router, prefix="/api/buildings", tags=["Buildings"])
 app.include_router(assets.router, prefix="/api/assets", tags=["Assets"])
 app.include_router(asset_types.router, prefix="/api/asset-types", tags=["Asset Types"])
-app.include_router(files.router, prefix="/api/files", tags=["Files"])
+# Only load files router when Azure Storage is configured (avoids importing cryptography/azure at startup on older glibc)
+if settings.use_azure_storage:
+    from app.routers import files
+    app.include_router(files.router, prefix="/api/files", tags=["Files"])
 app.include_router(audit.router, prefix="/api/audit", tags=["Audit"])
 app.include_router(email.router, prefix="/api/email", tags=["Email"])
 

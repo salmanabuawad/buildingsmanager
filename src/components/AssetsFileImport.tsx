@@ -1868,32 +1868,25 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
         const isBusinessAsset = assetType?.business_residence === 'עסקים';
         // Only apply distribution to assets accountable for distribution (non_accountable_for_distribution !== true)
         const isAccountableForDistribution = assetType ? (assetType.non_accountable_for_distribution !== true) : false;
-        // y = total area for distribution: if asset has subtypes, sum sizes of accountable subtypes only (exclude main); else asset_total_area or asset_size.
-        // x = business shared area, z = main size, h = overload ratio (0..1).
-        // Relation: x = h * (y - x)  =>  x = h*y / (1 + h).  Then z = y - x.
+        // y = total area for distribution: if asset has subtypes, use only accountable subtype 1 size; else asset_total_area or asset_size.
+        // Main asset_size = sum of all subtypes. Distribution portion (x) computed from subtype 1 only when accountable.
+        // x = business shared area, h = overload ratio (0..1). Relation: x = h*y / (1 + h).
         const hasSubtypes = !!(asset.sub_asset_type_1 && String(asset.sub_asset_type_1).trim() !== '');
         let y: number;
-        const accountableSubtypeIndices: number[] = [];  // 1..6 only; main is excluded when hasSubtypes
+        let isSubtype1Accountable = false;
         if (hasSubtypes) {
-          // When subtypes exist: use only accountable subtypes for distribution; leave main asset type unchanged
-          for (let i = 1; i <= 6; i++) {
-            const subTypeField = `sub_asset_type_${i}` as keyof ImportAssetRow;
-            const subSizeField = `sub_asset_size_${i}` as keyof ImportAssetRow;
-            const subType = asset[subTypeField] as string | undefined;
-            const subSize = (asset[subSizeField] as number) ?? 0;
-            if (subType && String(subType).trim() !== '' && subSize > 0) {
-              const subAssetType = typesForImport.find(at => at.name === subType);
-              if (subAssetType && subAssetType.non_accountable_for_distribution !== true) {
-                accountableSubtypeIndices.push(i);
-              }
-            }
+          const subType1 = asset.sub_asset_type_1;
+          const subSize1 = asset.sub_asset_size_1 ?? 0;
+          if (subType1 && String(subType1).trim() !== '' && subSize1 > 0) {
+            const subAssetType1 = typesForImport.find(at => at.name === subType1);
+            isSubtype1Accountable = !!(subAssetType1 && subAssetType1.non_accountable_for_distribution !== true);
           }
-          y = accountableSubtypeIndices.reduce((sum, i) => sum + ((asset[`sub_asset_size_${i}` as keyof ImportAssetRow] as number) ?? 0), 0);
+          y = isSubtype1Accountable ? subSize1 : 0;
         } else {
           y = (asset.asset_total_area ?? asset.asset_size) ?? 0;
         }
         const h = overloadRatioPct != null && overloadRatioPct > 0 ? overloadRatioPct / 100 : 0;
-        const hasAtLeastOneAccountable = !hasSubtypes ? isAccountableForDistribution : accountableSubtypeIndices.length > 0;
+        const hasAtLeastOneAccountable = !hasSubtypes ? isAccountableForDistribution : isSubtype1Accountable;
         let assetSize: number;
         let businessDistributionArea: number;
         let subAssetSize1: number;
@@ -1905,15 +1898,15 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
         if (isBusinessAsset && hasAtLeastOneAccountable && h > 0 && y > 0) {
           const x = (h * y) / (1 + h);
           businessDistributionArea = x;
-          const scale = (y - x) / y;  // scale factor for accountable subtypes only
+          const scale = (y - x) / y;  // scale factor for subtype 1 only
           if (hasSubtypes) {
-            assetSize = (asset.asset_total_area ?? asset.asset_size) ?? 0;  // main unchanged
-            subAssetSize1 = accountableSubtypeIndices.includes(1) ? (asset.sub_asset_size_1 ?? 0) * scale : (asset.sub_asset_size_1 ?? 0);
-            subAssetSize2 = accountableSubtypeIndices.includes(2) ? (asset.sub_asset_size_2 ?? 0) * scale : (asset.sub_asset_size_2 ?? 0);
-            subAssetSize3 = accountableSubtypeIndices.includes(3) ? (asset.sub_asset_size_3 ?? 0) * scale : (asset.sub_asset_size_3 ?? 0);
-            subAssetSize4 = accountableSubtypeIndices.includes(4) ? (asset.sub_asset_size_4 ?? 0) * scale : (asset.sub_asset_size_4 ?? 0);
-            subAssetSize5 = accountableSubtypeIndices.includes(5) ? (asset.sub_asset_size_5 ?? 0) * scale : (asset.sub_asset_size_5 ?? 0);
-            subAssetSize6 = accountableSubtypeIndices.includes(6) ? (asset.sub_asset_size_6 ?? 0) * scale : (asset.sub_asset_size_6 ?? 0);
+            subAssetSize1 = isSubtype1Accountable ? (asset.sub_asset_size_1 ?? 0) * scale : (asset.sub_asset_size_1 ?? 0);
+            subAssetSize2 = asset.sub_asset_size_2 ?? 0;
+            subAssetSize3 = asset.sub_asset_size_3 ?? 0;
+            subAssetSize4 = asset.sub_asset_size_4 ?? 0;
+            subAssetSize5 = asset.sub_asset_size_5 ?? 0;
+            subAssetSize6 = asset.sub_asset_size_6 ?? 0;
+            assetSize = subAssetSize1 + subAssetSize2 + subAssetSize3 + subAssetSize4 + subAssetSize5 + subAssetSize6;  // main = sum of all subtypes
           } else {
             assetSize = (asset.asset_total_area ?? asset.asset_size ?? 0) - x;
             subAssetSize1 = asset.sub_asset_size_1 || 0;
@@ -1924,7 +1917,6 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
             subAssetSize6 = asset.sub_asset_size_6 || 0;
           }
         } else {
-          assetSize = (asset.asset_total_area ?? asset.asset_size) ?? 0;
           businessDistributionArea = 0;
           subAssetSize1 = asset.sub_asset_size_1 || 0;
           subAssetSize2 = asset.sub_asset_size_2 || 0;
@@ -1932,6 +1924,9 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
           subAssetSize4 = asset.sub_asset_size_4 || 0;
           subAssetSize5 = asset.sub_asset_size_5 || 0;
           subAssetSize6 = asset.sub_asset_size_6 || 0;
+          assetSize = hasSubtypes
+            ? subAssetSize1 + subAssetSize2 + subAssetSize3 + subAssetSize4 + subAssetSize5 + subAssetSize6
+            : ((asset.asset_total_area ?? asset.asset_size) ?? 0);
         }
 
         const assetData: Partial<Asset> = {

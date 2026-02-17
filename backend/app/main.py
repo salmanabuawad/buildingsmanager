@@ -75,10 +75,7 @@ app.include_router(auth.router, prefix="/api/auth", tags=["Authentication"])
 app.include_router(buildings.router, prefix="/api/buildings", tags=["Buildings"])
 app.include_router(assets.router, prefix="/api/assets", tags=["Assets"])
 app.include_router(asset_types.router, prefix="/api/asset-types", tags=["Asset Types"])
-# Only load files router when Azure Storage is configured (avoids importing cryptography/azure at startup on older glibc)
-if settings.use_azure_storage:
-    from app.routers import files
-    app.include_router(files.router, prefix="/api/files", tags=["Files"])
+# File upload (Azure Blob) disabled for now
 app.include_router(audit.router, prefix="/api/audit", tags=["Audit"])
 app.include_router(email.router, prefix="/api/email", tags=["Email"])
 

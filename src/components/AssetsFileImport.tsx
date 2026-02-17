@@ -1868,19 +1868,77 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
         const isBusinessAsset = assetType?.business_residence === 'עסקים';
         // Only apply distribution to assets accountable for distribution (non_accountable_for_distribution !== true)
         const isAccountableForDistribution = assetType ? (assetType.non_accountable_for_distribution !== true) : false;
-        // y = total area (from file; use asset_total_area if mapped, else asset_size), x = business shared area, z = main size, h = overload ratio (0..1).
+        // y = total area for distribution: if asset has subtypes, sum sizes of accountable types only; else asset_total_area or asset_size.
+        // x = business shared area, z = main size, h = overload ratio (0..1).
         // Relation: x = h * (y - x)  =>  x = h*y / (1 + h).  Then z = y - x.
-        const y = (asset.asset_total_area ?? asset.asset_size) ?? 0;
+        const hasSubtypes = !!(asset.sub_asset_type_1 && String(asset.sub_asset_type_1).trim() !== '');
+        let y: number;
+        const accountableEntries: Array<{ key: 'main' | 1 | 2 | 3 | 4 | 5 | 6; size: number; typeName: string }> = [];
+        if (hasSubtypes) {
+          // Main type
+          const mainType = typesForImport.find(at => at.name === (asset.main_asset_type || ''));
+          const mainSize = (asset.asset_total_area ?? asset.asset_size) ?? 0;
+          if (mainType && mainType.non_accountable_for_distribution !== true && mainSize > 0) {
+            accountableEntries.push({ key: 'main', size: mainSize, typeName: asset.main_asset_type || '' });
+          }
+          // Subtypes 1-6
+          for (let i = 1; i <= 6; i++) {
+            const subTypeField = `sub_asset_type_${i}` as keyof ImportAssetRow;
+            const subSizeField = `sub_asset_size_${i}` as keyof ImportAssetRow;
+            const subType = asset[subTypeField] as string | undefined;
+            const subSize = (asset[subSizeField] as number) ?? 0;
+            if (subType && String(subType).trim() !== '' && subSize > 0) {
+              const subAssetType = typesForImport.find(at => at.name === subType);
+              if (subAssetType && subAssetType.non_accountable_for_distribution !== true) {
+                accountableEntries.push({ key: i as 1 | 2 | 3 | 4 | 5 | 6, size: subSize, typeName: subType });
+              }
+            }
+          }
+          y = accountableEntries.reduce((sum, e) => sum + e.size, 0);
+        } else {
+          y = (asset.asset_total_area ?? asset.asset_size) ?? 0;
+        }
         const h = overloadRatioPct != null && overloadRatioPct > 0 ? overloadRatioPct / 100 : 0;
-        let assetSize: number;       // z = main size
-        let businessDistributionArea: number;  // x = shared area
-        if (isBusinessAsset && isAccountableForDistribution && h > 0 && y > 0) {
+        const hasAtLeastOneAccountable = !hasSubtypes ? isAccountableForDistribution : accountableEntries.length > 0;
+        let assetSize: number;
+        let businessDistributionArea: number;
+        let subAssetSize1: number;
+        let subAssetSize2: number;
+        let subAssetSize3: number;
+        let subAssetSize4: number;
+        let subAssetSize5: number;
+        let subAssetSize6: number;
+        if (isBusinessAsset && hasAtLeastOneAccountable && h > 0 && y > 0) {
           const x = (h * y) / (1 + h);
           businessDistributionArea = x;
-          assetSize = y - x;  // z = y - x
+          const scale = (y - x) / y;  // scale factor for accountable types
+          if (hasSubtypes) {
+            const mainOrig = (asset.asset_total_area ?? asset.asset_size) ?? 0;
+            assetSize = accountableEntries.some(e => e.key === 'main') ? mainOrig * scale : mainOrig;
+            subAssetSize1 = accountableEntries.some(e => e.key === 1) ? (asset.sub_asset_size_1 ?? 0) * scale : (asset.sub_asset_size_1 ?? 0);
+            subAssetSize2 = accountableEntries.some(e => e.key === 2) ? (asset.sub_asset_size_2 ?? 0) * scale : (asset.sub_asset_size_2 ?? 0);
+            subAssetSize3 = accountableEntries.some(e => e.key === 3) ? (asset.sub_asset_size_3 ?? 0) * scale : (asset.sub_asset_size_3 ?? 0);
+            subAssetSize4 = accountableEntries.some(e => e.key === 4) ? (asset.sub_asset_size_4 ?? 0) * scale : (asset.sub_asset_size_4 ?? 0);
+            subAssetSize5 = accountableEntries.some(e => e.key === 5) ? (asset.sub_asset_size_5 ?? 0) * scale : (asset.sub_asset_size_5 ?? 0);
+            subAssetSize6 = accountableEntries.some(e => e.key === 6) ? (asset.sub_asset_size_6 ?? 0) * scale : (asset.sub_asset_size_6 ?? 0);
+          } else {
+            assetSize = (asset.asset_total_area ?? asset.asset_size ?? 0) - x;
+            subAssetSize1 = asset.sub_asset_size_1 || 0;
+            subAssetSize2 = asset.sub_asset_size_2 || 0;
+            subAssetSize3 = asset.sub_asset_size_3 || 0;
+            subAssetSize4 = asset.sub_asset_size_4 || 0;
+            subAssetSize5 = asset.sub_asset_size_5 || 0;
+            subAssetSize6 = asset.sub_asset_size_6 || 0;
+          }
         } else {
-          assetSize = y;
+          assetSize = (asset.asset_total_area ?? asset.asset_size) ?? 0;
           businessDistributionArea = 0;
+          subAssetSize1 = asset.sub_asset_size_1 || 0;
+          subAssetSize2 = asset.sub_asset_size_2 || 0;
+          subAssetSize3 = asset.sub_asset_size_3 || 0;
+          subAssetSize4 = asset.sub_asset_size_4 || 0;
+          subAssetSize5 = asset.sub_asset_size_5 || 0;
+          subAssetSize6 = asset.sub_asset_size_6 || 0;
         }
 
         const assetData: Partial<Asset> = {
@@ -1892,17 +1950,17 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
           asset_size: assetSize,
           tax_region: asset.tax_region || null,
           sub_asset_type_1: asset.sub_asset_type_1 || null,
-          sub_asset_size_1: asset.sub_asset_size_1 || 0,
+          sub_asset_size_1: subAssetSize1,
           sub_asset_type_2: asset.sub_asset_type_2 || null,
-          sub_asset_size_2: asset.sub_asset_size_2 || 0,
+          sub_asset_size_2: subAssetSize2,
           sub_asset_type_3: asset.sub_asset_type_3 || null,
-          sub_asset_size_3: asset.sub_asset_size_3 || 0,
+          sub_asset_size_3: subAssetSize3,
           sub_asset_type_4: asset.sub_asset_type_4 || null,
-          sub_asset_size_4: asset.sub_asset_size_4 || 0,
+          sub_asset_size_4: subAssetSize4,
           sub_asset_type_5: asset.sub_asset_type_5 || null,
-          sub_asset_size_5: asset.sub_asset_size_5 || 0,
+          sub_asset_size_5: subAssetSize5,
           sub_asset_type_6: asset.sub_asset_type_6 || null,
-          sub_asset_size_6: asset.sub_asset_size_6 || 0,
+          sub_asset_size_6: subAssetSize6,
           business_distribution_area: businessDistributionArea,
           apartment_number: asset.apartment_number || null,
           apartment_floor: asset.apartment_floor || null,

@@ -29,27 +29,27 @@ def _is_allowed_origin(origin: str) -> bool:
 
 
 class AzureStaticWebAppCORSMiddleware(BaseHTTPMiddleware):
-    """Allow *.azurestaticapps.net and wavelync.com origins for CORS."""
+    """Allow *.azurestaticapps.net and wavelync.com origins for CORS. Handle all OPTIONS here so app never returns 4xx."""
 
     async def dispatch(self, request: Request, call_next):
         origin = (request.headers.get("origin") or "").strip()
         allowed = _is_allowed_origin(origin)
 
-        if request.method == "OPTIONS" and allowed:
+        if request.method == "OPTIONS":
             from starlette.responses import Response
-            return Response(
-                status_code=200,
-                headers={
-                    "Access-Control-Allow-Origin": origin,
-                    "Access-Control-Allow-Methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
-                    "Access-Control-Allow-Headers": "Content-Type, Authorization",
-                    "Access-Control-Allow-Credentials": "true",
-                    "Access-Control-Max-Age": "86400",
-                    "Vary": "Origin",
-                },
-            )
+            headers = {
+                "Access-Control-Allow-Methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
+                "Access-Control-Allow-Headers": "Content-Type, Authorization",
+                "Access-Control-Max-Age": "86400",
+                "Vary": "Origin",
+            }
+            if allowed and origin:
+                headers["Access-Control-Allow-Origin"] = origin
+                headers["Access-Control-Allow-Credentials"] = "true"
+            return Response(status_code=200, headers=headers)
+
         response = await call_next(request)
-        if allowed:
+        if allowed and origin:
             response.headers["Access-Control-Allow-Origin"] = origin
             response.headers["Vary"] = "Origin"
         return response

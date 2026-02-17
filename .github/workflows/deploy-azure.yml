@@ -1,0 +1,67 @@
+# Combined Azure deploy: backend (App Service) + frontend (Static Web Apps)
+# Secrets: AZURE_WEBAPP_PUBLISH_PROFILE_BACKEND, AZURE_STATIC_WEB_APPS_API_TOKEN
+# Optional var: VITE_API_URL (e.g. https://buildingsmanager-api.azurewebsites.net/api)
+name: Deploy to Azure
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'backend/**'
+      - 'src/**'
+      - 'public/**'
+      - 'index.html'
+      - 'vite.config.ts'
+      - 'package.json'
+      - 'package-lock.json'
+      - '.github/workflows/deploy-azure.yml'
+  workflow_dispatch:
+
+env:
+  AZURE_WEBAPP_NAME: buildingsmanager-api
+  PYTHON_VERSION: '3.11'
+
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r backend/requirements.txt
+      - name: Zip backend
+        run: |
+          cd backend && zip -r ../backend.zip . -x "venv/*" -x "__pycache__/*" -x "*.pyc" -x ".env" -x ".env.*" -x "*.pyo" && cd ..
+      - name: Deploy to Azure Web App
+        uses: azure/webapps-deploy@v3
+        with:
+          app-name: ${{ env.AZURE_WEBAPP_NAME }}
+          publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE_BACKEND }}
+          package: backend.zip
+
+  frontend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      - run: npm ci
+      - name: Build
+        env:
+          VITE_API_URL: ${{ vars.VITE_API_URL || 'https://buildingsmanager-api.azurewebsites.net/api' }}
+        run: npm run build
+      - name: Deploy to Azure Static Web Apps
+        uses: Azure/static-web-apps-deploy@v1
+        with:
+          azure_static_web_apps_api_token: ${{ secrets.AZURE_STATIC_WEB_APPS_API_TOKEN }}
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          action: upload
+          app_location: /
+          output_location: dist

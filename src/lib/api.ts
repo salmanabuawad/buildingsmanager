@@ -1104,7 +1104,7 @@ export const api = {
     getAll: async (): Promise<Building[]> => {
       if (USE_FASTAPI) {
         const list = (await apiClient.getBuildings(0, 1000)) as Record<string, unknown>[];
-        const withNumber = (list || []).map((row: any) => ({ ...row, building_number: row.id ?? Number(row.building_id) || 0 }));
+        const withNumber = (list || []).map((row: any) => ({ ...row, building_number: (row.id ?? Number(row.building_id)) || 0 }));
         return withNumber.map(normalizeBuildingForUi);
       }
       const { data, error } = await supabase

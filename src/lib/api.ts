@@ -1,9 +1,13 @@
 import { supabase } from './supabase';
+import { apiClient } from './apiClient';
 import { getSession, getAuthUserIdForRpc } from './usersTableAuth';
 import i18n from '../i18n/i18n';
 import { sanitizeText, sanitizeNumber, sanitizeInteger, sanitizeDate } from './sanitize';
 import { parseDateFromDDMMYYYY } from './dateUtils';
 import { setLatestExportDate } from './validation';
+
+/** When true, use FastAPI backend only (no Supabase); field configs and validation rules return empty. */
+const USE_FASTAPI = typeof import.meta !== 'undefined' && !!(import.meta.env?.VITE_API_URL);
 
 /**
  * ============================================================================
@@ -2801,7 +2805,24 @@ export const api = {
     },
     getLatestExportDate: async (): Promise<{ success: boolean; date: string | null; error?: string }> => {
       try {
-        // Get all exported assets with their export dates
+        if (USE_FASTAPI) {
+          const assets = await apiClient.getAssets(undefined, 0, 5000) as { export_to_automation_at?: string | null }[];
+          const withDate = (assets || []).filter((a) => a.export_to_automation_at);
+          let latestDate: Date | null = null;
+          let latestDateStr: string | null = null;
+          for (const asset of withDate) {
+            const parsed = parseDateFromDDMMYYYY(asset.export_to_automation_at!);
+            if (parsed && (!latestDate || parsed > latestDate)) {
+              latestDate = parsed;
+              latestDateStr = asset.export_to_automation_at!;
+            }
+          }
+          const { setLatestExportDate } = await import('./validation');
+          setLatestExportDate(latestDateStr);
+          return { success: true, date: latestDateStr };
+        }
+
+        // Get all exported assets with their export dates (Supabase)
         const { data: exportedAssets, error: fetchError } = await supabase
           .from('assets')
           .select('export_to_automation_at')
@@ -3743,6 +3764,7 @@ export const api = {
   },
   validationRules: {
     getAll: async (entityType?: string): Promise<ValidationRule[]> => {
+      if (USE_FASTAPI) return [];
       let query = supabase
         .from('validation_rules')
         .select('*')
@@ -3759,6 +3781,7 @@ export const api = {
       return data || [];
     },
     getEnabled: async (entityType?: string): Promise<ValidationRule[]> => {
+      if (USE_FASTAPI) return [];
       let query = supabase
         .from('validation_rules')
         .select('*')
@@ -3947,6 +3970,8 @@ export const api = {
         console.warn('[api.fieldConfigurations.getAll] Could not access in-memory cache, falling back to database');
       }
 
+      if (USE_FASTAPI) return [];
+
       // Fallback to database query if cache is not available
       let query = supabase
         .from('field_configurations')
@@ -3965,6 +3990,7 @@ export const api = {
       return data || [];
     },
     getOne: async (gridName: string, fieldName: string): Promise<FieldConfiguration | null> => {
+      if (USE_FASTAPI) return null;
       const { data, error } = await supabase
         .from('field_configurations')
         .select('*')

@@ -11,6 +11,7 @@ from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from email.mime.base import MIMEBase
 from email import encoders
+from email.utils import formataddr
 import base64
 import io
 
@@ -50,6 +51,11 @@ class SendEmailResponse(BaseModel):
     error: Optional[str] = None
 
 
+class TestEmailRequest(BaseModel):
+    email_config: EmailConfig
+    test_to: str
+
+
 def send_email_with_smtp(
     config: EmailConfig,
     to: List[str],
@@ -77,7 +83,8 @@ def send_email_with_smtp(
     try:
         # Create message
         msg = MIMEMultipart()
-        msg['From'] = config.from_name if config.from_name else config.from_email
+        from_header = formataddr((config.from_name or config.from_email, config.from_email))
+        msg['From'] = from_header
         msg['To'] = ', '.join(to)
         if cc:
             msg['Cc'] = ', '.join(cc)
@@ -169,4 +176,34 @@ async def send_email(request: SendEmailRequest):
         raise HTTPException(
             status_code=500,
             detail=f"Error sending email: {str(e)}"
+        )
+
+
+@router.post("/test", response_model=SendEmailResponse)
+async def send_test_email(request: TestEmailRequest):
+    """
+    Send a test email to verify SMTP configuration.
+    """
+    try:
+        if not request.test_to or "@" not in request.test_to:
+            raise HTTPException(status_code=400, detail="Valid test recipient email required")
+
+        success = send_email_with_smtp(
+            config=request.email_config,
+            to=[request.test_to],
+            subject="AssetFlow – Test Email",
+            body="This is a test email from AssetFlow. If you received this, your email configuration is working.",
+        )
+        if success:
+            return SendEmailResponse(
+                success=True,
+                message="Test email sent successfully",
+            )
+        raise HTTPException(status_code=500, detail="Failed to send test email")
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error sending test email: {str(e)}",
         )

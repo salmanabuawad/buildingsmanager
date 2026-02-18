@@ -167,6 +167,47 @@ class EmailService {
   }
 
   /**
+   * Send a test email to verify SMTP configuration
+   */
+  async sendTestEmail(to: string): Promise<{ success: boolean; error?: string }> {
+    try {
+      const emailConfig = await this.getEmailConfig();
+      if (!emailConfig) {
+        return {
+          success: false,
+          error: 'Email configuration not found. Please configure email settings in System Configuration.'
+        };
+      }
+      if (!to || !to.includes('@')) {
+        return { success: false, error: 'Valid recipient email required' };
+      }
+      const backendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:8000';
+      const response = await fetch(`${backendUrl}/api/email/test`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email_config: emailConfig,
+          test_to: to.trim()
+        })
+      });
+      if (!response.ok) {
+        const err = await response.json().catch(() => ({ detail: response.statusText }));
+        return {
+          success: false,
+          error: err.detail || `HTTP ${response.status}: ${response.statusText}`
+        };
+      }
+      return { success: true };
+    } catch (error) {
+      console.error('Error sending test email:', error);
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown error sending test email'
+      };
+    }
+  }
+
+  /**
    * Send ZIP file to recipients based on tax regions
    */
   async sendZipByTaxRegions(

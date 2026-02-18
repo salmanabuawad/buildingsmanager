@@ -1,8 +1,10 @@
 import { useState, useEffect } from 'react';
 import { api, SystemConfiguration } from '../lib/api';
 import { useUserRole } from '../contexts/UserRoleContext';
-import { Loader2, Settings, Save, RefreshCw, Plus, X, Trash2, AlertCircle, Edit2 } from 'lucide-react';
+import { Loader2, Settings, Save, RefreshCw, Plus, X, Trash2, AlertCircle, Edit2, Mail, Send } from 'lucide-react';
 import { Toast } from './Toast';
+import { emailService } from '../lib/emailService';
+import type { EmailConfig } from '../lib/emailService';
 
 export function SystemConfigurationManager() {
   const { isAdmin } = useUserRole();
@@ -21,8 +23,32 @@ export function SystemConfigurationManager() {
     description: '',
   });
 
+  const [emailConfig, setEmailConfig] = useState<Partial<EmailConfig> | null>(null);
+  const [emailConfigSaving, setEmailConfigSaving] = useState(false);
+  const [emailConfigLoading, setEmailConfigLoading] = useState(true);
+  const [testEmailTo, setTestEmailTo] = useState('');
+  const [sendingTestEmail, setSendingTestEmail] = useState(false);
+  const [showEmailSection, setShowEmailSection] = useState(true);
+
   useEffect(() => {
     fetchConfigurations();
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      setEmailConfigLoading(true);
+      try {
+        const config = await api.systemConfiguration.getEmailConfig();
+        if (!cancelled && config) setEmailConfig(config);
+        else if (!cancelled) setEmailConfig({ smtp_encryption: 'tls', smtp_port: 587 });
+      } catch {
+        if (!cancelled) setEmailConfig({ smtp_encryption: 'tls', smtp_port: 587 });
+      } finally {
+        if (!cancelled) setEmailConfigLoading(false);
+      }
+    })();
+    return () => { cancelled = true; };
   }, []);
 
   const fetchConfigurations = async () => {
@@ -154,6 +180,69 @@ export function SystemConfigurationManager() {
     }
   };
 
+  const handleSaveEmailConfig = async () => {
+    if (!isAdmin) {
+      setToast({ message: 'אין לך הרשאה לשמור הגדרות', type: 'error' });
+      return;
+    }
+    const c = emailConfig;
+    if (!c?.smtp_host?.trim() || !c.from_email?.trim()) {
+      setToast({ message: 'שרת SMTP וכתובת השולח הם שדות חובה', type: 'error' });
+      return;
+    }
+    const port = c.smtp_port ?? 587;
+    if (port < 1 || port > 65535) {
+      setToast({ message: 'פורט SMTP לא תקין', type: 'error' });
+      return;
+    }
+    setEmailConfigSaving(true);
+    setToast(null);
+    try {
+      await api.systemConfiguration.upsert(
+        'email_config',
+        JSON.stringify({
+          smtp_host: c.smtp_host.trim(),
+          smtp_port: port,
+          smtp_encryption: c.smtp_encryption || 'tls',
+          smtp_username: (c.smtp_username ?? '').trim(),
+          smtp_password: (c.smtp_password ?? '').trim(),
+          from_email: c.from_email.trim(),
+          from_name: (c.from_name ?? '').trim() || undefined,
+          reply_to_email: (c.reply_to_email ?? '').trim() || undefined,
+        }),
+        'הגדרות SMTP לשליחת דוא"ל'
+      );
+      setToast({ message: 'הגדרות הדוא"ל נשמרו בהצלחה', type: 'success' });
+    } catch (err) {
+      setToast({
+        message: err instanceof Error ? err.message : 'שגיאה בשמירת הגדרות הדוא"ל',
+        type: 'error',
+      });
+    } finally {
+      setEmailConfigSaving(false);
+    }
+  };
+
+  const handleSendTestEmail = async () => {
+    const to = testEmailTo.trim();
+    if (!to || !to.includes('@')) {
+      setToast({ message: 'הזן כתובת דוא"ל תקינה לשליחת מייל בדיקה', type: 'error' });
+      return;
+    }
+    setSendingTestEmail(true);
+    setToast(null);
+    try {
+      const result = await emailService.sendTestEmail(to);
+      if (result.success) {
+        setToast({ message: 'מייל הבדיקה נשלח בהצלחה', type: 'success' });
+      } else {
+        setToast({ message: result.error || 'שליחת מייל הבדיקה נכשלה', type: 'error' });
+      }
+    } finally {
+      setSendingTestEmail(false);
+    }
+  };
+
   const isJsonValue = (value: string): boolean => {
     try {
       JSON.parse(value);
@@ -210,6 +299,150 @@ export function SystemConfigurationManager() {
           duration={3000}
         />
       )}
+
+      {/* Email (SMTP) settings */}
+      <div className="bg-white rounded-xl shadow-lg border border-blue-100 p-6 mb-6">
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-3">
+            <Mail className="h-6 w-6 text-teal-600" />
+            <h2 className="text-xl font-bold text-slate-800">הגדרות דוא&quot;ל (SMTP)</h2>
+          </div>
+          <button
+            type="button"
+            onClick={() => setShowEmailSection((v) => !v)}
+            className="text-sm text-slate-600 hover:text-slate-800"
+          >
+            {showEmailSection ? 'הסתר' : 'הצג'}
+          </button>
+        </div>
+        {showEmailSection && (
+          <>
+            {emailConfigLoading ? (
+              <div className="flex items-center gap-2 text-slate-600 py-4">
+                <Loader2 className="h-5 w-5 animate-spin" />
+                טוען הגדרות דוא&quot;ל...
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">שרת SMTP *</label>
+                  <input
+                    type="text"
+                    value={emailConfig?.smtp_host ?? ''}
+                    onChange={(e) => setEmailConfig((c) => ({ ...c, smtp_host: e.target.value }))}
+                    placeholder="smtp.example.com"
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">פורט</label>
+                  <input
+                    type="number"
+                    min={1}
+                    max={65535}
+                    value={emailConfig?.smtp_port ?? 587}
+                    onChange={(e) => setEmailConfig((c) => ({ ...c, smtp_port: parseInt(e.target.value, 10) || 587 }))}
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">הצפנה</label>
+                  <select
+                    value={emailConfig?.smtp_encryption ?? 'tls'}
+                    onChange={(e) => setEmailConfig((c) => ({ ...c, smtp_encryption: e.target.value as 'tls' | 'ssl' | 'none' }))}
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm"
+                  >
+                    <option value="tls">TLS</option>
+                    <option value="ssl">SSL</option>
+                    <option value="none">ללא</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">שם משתמש SMTP</label>
+                  <input
+                    type="text"
+                    value={emailConfig?.smtp_username ?? ''}
+                    onChange={(e) => setEmailConfig((c) => ({ ...c, smtp_username: e.target.value }))}
+                    placeholder="אופציונלי"
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">סיסמה SMTP</label>
+                  <input
+                    type="password"
+                    value={emailConfig?.smtp_password ?? ''}
+                    onChange={(e) => setEmailConfig((c) => ({ ...c, smtp_password: e.target.value }))}
+                    placeholder="אופציונלי"
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">כתובת שולח *</label>
+                  <input
+                    type="email"
+                    value={emailConfig?.from_email ?? ''}
+                    onChange={(e) => setEmailConfig((c) => ({ ...c, from_email: e.target.value }))}
+                    placeholder="noreply@example.com"
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">שם השולח</label>
+                  <input
+                    type="text"
+                    value={emailConfig?.from_name ?? ''}
+                    onChange={(e) => setEmailConfig((c) => ({ ...c, from_name: e.target.value }))}
+                    placeholder="מערכת ניהול נכסים"
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">Reply-To</label>
+                  <input
+                    type="email"
+                    value={emailConfig?.reply_to_email ?? ''}
+                    onChange={(e) => setEmailConfig((c) => ({ ...c, reply_to_email: e.target.value }))}
+                    placeholder="אופציונלי"
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm"
+                  />
+                </div>
+              </div>
+            )}
+            {!emailConfigLoading && (
+              <div className="flex flex-wrap items-center gap-3 mt-4 pt-4 border-t border-slate-200">
+                <button
+                  type="button"
+                  onClick={handleSaveEmailConfig}
+                  disabled={emailConfigSaving || !isAdmin}
+                  className="flex items-center gap-2 px-4 py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {emailConfigSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+                  שמור הגדרות דוא&quot;ל
+                </button>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="email"
+                    value={testEmailTo}
+                    onChange={(e) => setTestEmailTo(e.target.value)}
+                    placeholder="כתובת לשליחת מייל בדיקה"
+                    className="px-3 py-2 border border-slate-300 rounded-lg text-sm w-56"
+                  />
+                  <button
+                    type="button"
+                    onClick={handleSendTestEmail}
+                    disabled={sendingTestEmail || !isAdmin}
+                    className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {sendingTestEmail ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+                    שליחת מייל בדיקה
+                  </button>
+                </div>
+              </div>
+            )}
+          </>
+        )}
+      </div>
 
       <div className="bg-white rounded-xl shadow-lg border border-blue-100 p-6">
         <div className="flex items-center justify-between mb-6">

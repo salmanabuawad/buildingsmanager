@@ -326,6 +326,43 @@ class EmailService {
       };
     }
   }
+
+  /**
+   * Send per-operator ZIPs: one email per operator with their data.
+   * Each item is { operator: { id, name, email }, zipBlob, zipFilename }.
+   */
+  async sendZipByOperators(
+    items: Array<{ operator: { id: number; name: string; email: string }; zipBlob: Blob; zipFilename: string }>,
+    subject?: string,
+    bodyTemplate?: (operatorName: string, assetCount?: number) => string
+  ): Promise<{ success: boolean; error?: string; sentCount?: number }> {
+    if (items.length === 0) {
+      return { success: true, sentCount: 0 };
+    }
+    const emailConfig = await this.getEmailConfig();
+    if (!emailConfig) {
+      return {
+        success: false,
+        error: 'Email configuration not found. Please configure email settings in System Configuration.'
+      };
+    }
+    const defaultSubject = subject || `שליחת נתונים - ${new Date().toLocaleDateString('he-IL')}`;
+    let sentCount = 0;
+    for (const { operator, zipBlob, zipFilename } of items) {
+      if (!operator.email || !operator.email.includes('@')) continue;
+      const body = bodyTemplate
+        ? bodyTemplate(operator.name)
+        : `שלום ${operator.name},\n\nמצורפים קבצי הנתונים שלך.\n\nתאריך שליחה: ${new Date().toLocaleDateString('he-IL')}\n\nבברכה,\nמערכת ניהול נכסים`;
+      const result = await this.sendEmail({
+        to: [operator.email],
+        subject: defaultSubject,
+        body,
+        attachments: [{ filename: zipFilename, content: zipBlob, contentType: 'application/zip' }]
+      });
+      if (result.success) sentCount++;
+    }
+    return { success: true, sentCount };
+  }
 }
 
 export const emailService = new EmailService();

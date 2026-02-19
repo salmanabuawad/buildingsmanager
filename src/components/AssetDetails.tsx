@@ -1,7 +1,7 @@
 import { useEffect, useState, useMemo, useRef, useCallback, forwardRef, useImperativeHandle } from 'react';
 import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
-import { Asset, Building, AssetType, AddressList, api } from '../lib/api';
+import { Asset, Building, AssetType, AddressList, Operator, api } from '../lib/api';
 import { Home, Loader2, Save, X, AlertCircle, Upload, Eye, CheckCircle2, Copy, FileText, Edit, Square, Download, ChevronRight, ChevronDown, History, MessageSquare } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { Toast } from './Toast';
@@ -78,6 +78,7 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
   const [selectedMeasurementDateForFiles, setSelectedMeasurementDateForFiles] = useState<string | null | undefined>(undefined);
   const assetFilesModalRef = useRef<AssetFilesModalRef>(null);
   const [assetsWithFiles, setAssetsWithFiles] = useState<Set<number>>(new Set()); // Track which assets have files
+  const [operators, setOperators] = useState<Operator[]>([]);
   
   // Refs for audit detail grid (unified grid for all assets)
   const gridRef = useRef<AgGridReact<Asset>>(null);
@@ -2772,6 +2773,29 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
       tooltipValueGetter: (params) => params.value || ''
     },
     {
+      field: 'operator_id',
+      headerName: 'מפעיל',
+      editable: (params) => {
+        const fieldName = params.colDef?.field || '';
+        return isFieldEditable(params, fieldName);
+      },
+      cellStyle: (params) => getCellStyle(params, 'operator_id'),
+      valueFormatter: (params: any) => {
+        const id = params.value;
+        if (id == null) return '';
+        const o = operators.find(x => x.id === id);
+        return o ? o.name : String(id);
+      },
+      cellEditor: 'agSelectCellEditor',
+      cellEditorParams: () => ({ values: ['', ...operators.map(o => o.name)] }),
+      valueParser: (params: any) => {
+        const name = params.newValue;
+        if (name === '' || name == null) return null;
+        const o = operators.find(x => x.name === name);
+        return o?.id ?? null;
+      }
+    },
+    {
       field: 'main_asset_type',
       headerName: t('mainAssetType'),
       editable: (params) => {
@@ -3000,7 +3024,7 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
       }
       return colDef;
     });
-  }, [t, assetTypes, editMode, isFieldEditable, getCellStyle, structureDrawingCellRenderer, actionsCellRenderer, asset, isBusinessAsset]);
+  }, [t, assetTypes, editMode, isFieldEditable, getCellStyle, structureDrawingCellRenderer, actionsCellRenderer, asset, isBusinessAsset, operators]);
 
   // Apply field configurations to column definitions for main grid
   const configuredColumnDefs = useFieldConfig(columnDefs, 'asset-details-main');
@@ -3021,6 +3045,10 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
 
   // Apply field configurations to column definitions for history grid
   const configuredHistoryColumnDefs = useFieldConfig(historyColumnDefs, 'asset-details-history');
+
+  useEffect(() => {
+    api.operators.getAll().then(setOperators).catch(() => setOperators([]));
+  }, []);
 
   useEffect(() => {
     // Reset state when assetId changes to ensure fresh data is loaded

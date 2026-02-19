@@ -421,6 +421,7 @@ export interface Asset {
   export_to_automation_at?: string; // Date when asset was exported to automation system (DD/MM/YYYY format)
   data_from_automation?: boolean; // Flag indicating if this asset row originated from automation import
   comment?: string; // User comment/notes about the asset (הערה על הנכס)
+  operator_id?: number | null; // Operator responsible for this asset (for grouping export and emailing)
 }
 
 export interface AssetFile {
@@ -488,6 +489,14 @@ export interface AssetType {
 export interface TaxRegionsMailingList {
   id: number;
   tax_region: string;
+  email: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface Operator {
+  id: number;
+  name: string;
   email: string;
   created_at: string;
   updated_at: string;
@@ -4783,6 +4792,39 @@ export const api = {
       
       if (error) throw error;
       return { success: true, count: count || 0 };
+    },
+  },
+  operators: {
+    getAll: async (): Promise<Operator[]> => {
+      const { data, error } = await supabase
+        .from('operators')
+        .select('*')
+        .order('name');
+      if (error) throw error;
+      return data || [];
+    },
+    getOne: async (id: number): Promise<Operator | null> => {
+      const { data, error } = await supabase
+        .from('operators')
+        .select('*')
+        .eq('id', id)
+        .maybeSingle();
+      if (error) throw error;
+      return data;
+    },
+    create: async (input: Omit<Operator, 'id' | 'created_at' | 'updated_at'>): Promise<Operator> => {
+      const { data, error } = await supabase.from('operators').insert(input).select().single();
+      if (error) throw error;
+      return data;
+    },
+    update: async (id: number, input: Partial<Omit<Operator, 'id' | 'created_at' | 'updated_at'>>): Promise<Operator> => {
+      const { data, error } = await supabase.from('operators').update(input).eq('id', id).select().single();
+      if (error) throw error;
+      return data;
+    },
+    delete: async (id: number): Promise<void> => {
+      const { error } = await supabase.from('operators').delete().eq('id', id);
+      if (error) throw error;
     },
   },
 };

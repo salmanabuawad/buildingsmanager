@@ -1035,6 +1035,7 @@ export const MeasuredNotExportedAssets = ({ onSelectAsset }: MeasuredNotExported
       
       // Prepare files array for ZIP
       const zipFiles: Array<{ filename: string; data: Blob }> = [];
+      const operatorFilesMap: Record<number, Array<{ filename: string; data: Blob }>> = {};
       
       // Group assets by tax region for folder organization (for files)
       const assetsByTaxRegion = new Map<string, Array<{ assetId: number; asset: any; files: any[] }>>();
@@ -1205,6 +1206,11 @@ export const MeasuredNotExportedAssets = ({ onSelectAsset }: MeasuredNotExported
                 filename: zipFilePath,
                 data: fileData
               });
+              const opId = asset?.operator_id;
+              if (opId != null) {
+                if (!operatorFilesMap[opId]) operatorFilesMap[opId] = [];
+                operatorFilesMap[opId].push({ filename: `${assetId}_${fileName || urlFileName}`, data: fileData });
+              }
             } catch (err) {
               console.warn(`Error processing file for asset ${assetId}:`, err);
             }
@@ -1282,6 +1288,58 @@ export const MeasuredNotExportedAssets = ({ onSelectAsset }: MeasuredNotExported
           message: `הקובץ הורד, אך שליחת האימייל נכשלה: ${emailResult.error || 'שגיאה לא ידועה'}. אנא בדוק את הגדרות האימייל בהגדרות המערכת.`, 
           type: 'error' 
         });
+      }
+      const byOperator = new Map<number, typeof assetsToExport>();
+      for (const a of assetsToExport) {
+        const id = a.operator_id;
+        if (id != null) {
+          if (!byOperator.has(id)) byOperator.set(id, []);
+          byOperator.get(id)!.push(a);
+        }
+      }
+      const operatorsList = await api.operators.getAll();
+      const operatorZipItems: Array<{ operator: { id: number; name: string; email: string }; zipBlob: Blob; zipFilename: string }> = [];
+      for (const [operatorId, operatorAssets] of byOperator) {
+        const operator = operatorsList.find(o => o.id === operatorId);
+        if (!operator?.email || !operator.email.includes('@')) continue;
+        const opFiles = operatorFilesMap[operatorId] || [];
+        const opRows = operatorAssets.map(asset => [
+          asset.payer_id || '', asset.asset_id != null ? String(asset.asset_id) : '',
+          formatDateToDDMMYYYY(asset.discount_date_from) || '', formatDateToDDMMYYYY(asset.discount_date_to) || '',
+          asset.main_asset_type || '', getExportAssetSize(asset),
+          asset.sub_asset_type_1 || '', asset.sub_asset_size_1 || '', asset.sub_asset_type_2 || '', asset.sub_asset_size_2 || '',
+          asset.sub_asset_type_3 || '', asset.sub_asset_size_3 || '', asset.sub_asset_type_4 || '', asset.sub_asset_size_4 || '',
+          asset.sub_asset_type_5 || '', asset.sub_asset_size_5 || '', asset.sub_asset_type_6 || '', asset.sub_asset_size_6 || '',
+          '', '', '', '', '', ''
+        ]);
+        const opData = [headers, ...opRows];
+        const opExcelBlob = createExcelBlob({
+          filename: `נכסים_מפעיל_${operatorId}_${dateStr}.xlsx`,
+          sheetName: 'נכסים',
+          data: opData,
+          columnWidths: [{ wch: 15 }, { wch: 15 }, { wch: 20 }, { wch: 20 }, { wch: 12 }, { wch: 12 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 10 }, { wch: 12 }, { wch: 12 }, { wch: 12 }, { wch: 15 }, { wch: 15 }]
+        });
+        const opFileListData: any[][] = [['מזהה נכס', 'מזהה משלם', 'שם קובץ']];
+        for (const f of opFiles) {
+          const m = f.filename.match(/^(\d+)_(.+)$/);
+          const aid = m ? m[1] : '';
+          const an = operatorAssets.find(a => String(a.asset_id) === aid);
+          opFileListData.push([aid, an?.payer_id ?? '', m ? m[2] : f.filename]);
+        }
+        const opFileListBlob = opFileListData.length > 1 ? createExcelBlob({ filename: `רשימת_קבצים_מפעיל_${operatorId}_${dateStr}.xlsx`, sheetName: 'רשימת קבצים', data: opFileListData, columnWidths: [{ wch: 15 }, { wch: 15 }, { wch: 30 }] }) : null;
+        const opZipEntries: Array<{ filename: string; data: Blob }> = [
+          { filename: `נכסים_מפעיל_${operatorId}_${dateStr}.xlsx`, data: opExcelBlob },
+          ...(opFileListBlob ? [{ filename: `רשימת_קבצים_מפעיל_${operatorId}_${dateStr}.xlsx`, data: opFileListBlob }] : []),
+          ...opFiles
+        ];
+        const opZipBlob = await createZipBlob(opZipEntries);
+        operatorZipItems.push({ operator: { id: operator.id, name: operator.name, email: operator.email }, zipBlob: opZipBlob, zipFilename: `שליחת_נתונים_מפעיל_${operator.name}_${dateStr}.zip` });
+      }
+      if (operatorZipItems.length > 0) {
+        const opResult = await emailService.sendZipByOperators(operatorZipItems, `שליחת נתונים לעירייה - ${exportDateStr}`, (name) => `שלום ${name},\n\nמצורפים קבצי הנתונים שלך.\n\nתאריך שליחה: ${exportDateStr}\n\nבברכה,\nמערכת ניהול נכסים`);
+        if (opResult.sentCount != null && opResult.sentCount > 0) {
+          setToast(prev => ({ message: (prev?.message ?? '') + (prev?.message ? ' ' : '') + `נשלח אימייל ל-${opResult.sentCount} מפעילים.`, type: 'success' }));
+        }
       }
       setTimeout(() => setToast(null), 8000);
       // Refresh the count after export

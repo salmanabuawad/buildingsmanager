@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useMemo, useRef, useCallback, forwardRef, useImperativeHandle, startTransition } from 'react';
 import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
-import { Asset, Building, AssetType, AddressList, api, validateAndSaveBulkAssets } from '../lib/api';
+import { Asset, Building, AssetType, AddressList, Operator, api, validateAndSaveBulkAssets } from '../lib/api';
 import { assetValidators, validateAll, inputValidators, validateEntity } from '../lib/validation';
 import { AssetValidationHandler } from '../lib/assetValidationHandler';
 import { AgGridReact } from 'ag-grid-react';
@@ -91,6 +91,7 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
   const [selectedAssetIdForFiles, setSelectedAssetIdForFiles] = useState<number | null>(null);
   const [assetFilesModalKey, setAssetFilesModalKey] = useState(0); // Key to force refresh
   const [assetsWithFiles, setAssetsWithFiles] = useState<Set<number>>(new Set()); // Track which assets have files
+  const [operators, setOperators] = useState<Operator[]>([]);
   const fileInputRefs = useRef<Map<string, HTMLInputElement>>(new Map());
   const isRefreshingAfterSaveRef = useRef<boolean>(false);
   // Track assets that were just saved to prevent re-marking them as dirty in fetchData
@@ -753,6 +754,8 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
       
       // Prepare files array for ZIP
       const zipFiles: Array<{ filename: string; data: Blob }> = [];
+      // Per-operator file blobs for emailing each operator their data
+      const operatorFilesMap: Record<number, Array<{ filename: string; data: Blob }>> = {};
       
       // Group assets by tax region for folder organization (for files)
       const assetsByTaxRegion = new Map<string, Array<{ assetId: number; asset: any; files: any[] }>>();
@@ -923,6 +926,15 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
                 filename: zipFilePath,
                 data: fileData
               });
+              // Also add to operator's bucket for per-operator email
+              const opId = asset?.operator_id;
+              if (opId != null) {
+                if (!operatorFilesMap[opId]) operatorFilesMap[opId] = [];
+                operatorFilesMap[opId].push({
+                  filename: `${assetId}_${fileName || urlFileName}`,
+                  data: fileData
+                });
+              }
             } catch (err) {
               console.warn(`[AssetsList] Error processing file for asset ${assetId}:`, err);
             }
@@ -995,6 +1007,91 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
           type: 'error' 
         });
       }
+
+      // Per-operator emails: build a ZIP per operator and send to each operator's email
+      const operatorsList = await api.operators.getAll();
+      const byOperator = new Map<number, typeof assetsForExcel>();
+      for (const a of assetsForExcel) {
+        const id = a.operator_id;
+        if (id != null) {
+          if (!byOperator.has(id)) byOperator.set(id, []);
+          byOperator.get(id)!.push(a);
+        }
+      }
+      const operatorZipItems: Array<{ operator: { id: number; name: string; email: string }; zipBlob: Blob; zipFilename: string }> = [];
+      for (const [operatorId, operatorAssets] of byOperator) {
+        const operator = operatorsList.find(o => o.id === operatorId);
+        if (!operator?.email || !operator.email.includes('@')) continue;
+        const opFiles = operatorFilesMap[operatorId] || [];
+        const opRows = operatorAssets.map(asset => [
+          asset.payer_id || '',
+          asset.asset_id != null ? String(asset.asset_id) : '',
+          formatDateToDDMMYYYY(asset.discount_date_from) || '',
+          formatDateToDDMMYYYY(asset.discount_date_to) || '',
+          asset.main_asset_type || '',
+          getExportAssetSize(asset),
+          asset.sub_asset_type_1 || '',
+          asset.sub_asset_size_1 || '',
+          asset.sub_asset_type_2 || '',
+          asset.sub_asset_size_2 || '',
+          asset.sub_asset_type_3 || '',
+          asset.sub_asset_size_3 || '',
+          asset.sub_asset_type_4 || '',
+          asset.sub_asset_size_4 || '',
+          asset.sub_asset_type_5 || '',
+          asset.sub_asset_size_5 || '',
+          asset.sub_asset_type_6 || '',
+          asset.sub_asset_size_6 || '',
+          '', '', '', '', '', ''
+        ]);
+        const opData = [headers, ...opRows];
+        const opExcelBlob = createExcelBlob({
+          filename: `נכסים_מפעיל_${operatorId}_${dateStr}.xlsx`,
+          sheetName: 'נכסים',
+          data: opData,
+          columnWidths: [
+            { wch: 15 }, { wch: 15 }, { wch: 20 }, { wch: 20 }, { wch: 12 }, { wch: 12 },
+            { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 },
+            { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 },
+            { wch: 10 }, { wch: 12 }, { wch: 12 }, { wch: 12 }, { wch: 15 }, { wch: 15 }
+          ]
+        });
+        const opFileListData: any[][] = [['מזהה נכס', 'מזהה משלם', 'שם קובץ']];
+        for (const f of opFiles) {
+          const m = f.filename.match(/^(\d+)_(.+)$/);
+          const aid = m ? m[1] : '';
+          const an = operatorAssets.find(a => String(a.asset_id) === aid);
+          opFileListData.push([aid, an?.payer_id ?? '', m ? m[2] : f.filename]);
+        }
+        const opFileListBlob = opFileListData.length > 1 ? createExcelBlob({
+          filename: `רשימת_קבצים_מפעיל_${operatorId}_${dateStr}.xlsx`,
+          sheetName: 'רשימת קבצים',
+          data: opFileListData,
+          columnWidths: [{ wch: 15 }, { wch: 15 }, { wch: 30 }]
+        }) : null;
+        const opZipEntries: Array<{ filename: string; data: Blob }> = [
+          { filename: `נכסים_מפעיל_${operatorId}_${dateStr}.xlsx`, data: opExcelBlob },
+          ...(opFileListBlob ? [{ filename: `רשימת_קבצים_מפעיל_${operatorId}_${dateStr}.xlsx`, data: opFileListBlob }] : []),
+          ...opFiles
+        ];
+        const opZipBlob = await createZipBlob(opZipEntries);
+        const opZipFilename = `שליחת_נתונים_מפעיל_${operator.name}_${dateStr}.zip`;
+        operatorZipItems.push({ operator: { id: operator.id, name: operator.name, email: operator.email }, zipBlob: opZipBlob, zipFilename: opZipFilename });
+      }
+      if (operatorZipItems.length > 0) {
+        const opResult = await emailService.sendZipByOperators(
+          operatorZipItems,
+          `שליחת נתונים לעירייה - ${exportDateStr}`,
+          (name, _count) => `שלום ${name},\n\nמצורפים קבצי הנתונים שלך שנשלחו לעירייה.\n\nתאריך שליחה: ${exportDateStr}\n\nבברכה,\nמערכת ניהול נכסים`
+        );
+        if (opResult.sentCount != null && opResult.sentCount > 0) {
+          setToast(prev => ({
+            message: (prev?.message ?? '') + (prev?.message ? ' ' : '') + `נשלח אימייל ל-${opResult.sentCount} מפעילים.`,
+            type: 'success'
+          }));
+        }
+      }
+
       setTimeout(() => setToast(null), 8000);
       
       // Refresh data and export count
@@ -1019,6 +1116,10 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
     fetchData();
     fetchExportToAutomationCount();
   }, [buildingNumber, taxRegion, fetchExportToAutomationCount]);
+
+  useEffect(() => {
+    api.operators.getAll().then(setOperators).catch(() => setOperators([]));
+  }, []);
 
   // Listen for exportToAutomationSuccess event to refresh count
   useEffect(() => {
@@ -5199,6 +5300,30 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
       cellStyle: (params: any) => getCellStyle(params)
     },
     {
+      field: 'operator_id',
+      headerName: 'מפעיל',
+      editable: (params) => {
+        const fieldName = params.colDef?.field || '';
+        return isFieldEditable(params, fieldName);
+      },
+      valueFormatter: (params) => {
+        const id = params.value;
+        if (id == null) return '';
+        const o = operators.find(x => x.id === id);
+        return o ? o.name : String(id);
+      },
+      cellEditor: 'agSelectCellEditor',
+      cellEditorParams: () => ({ values: ['', ...operators.map(o => o.name)] }),
+      valueParser: (params) => {
+        const name = params.newValue;
+        if (name === '' || name == null) return null;
+        const o = operators.find(x => x.name === name);
+        return o?.id ?? null;
+      },
+      headerClass: 'ag-right-aligned-header',
+      cellStyle: (params: any) => getCellStyle(params)
+    },
+    {
       field: 'business_distribution_area',
       headerName: 'גודל שטח משותף',
       editable: false, // Always readonly - only updated through distribution functions
@@ -5262,7 +5387,7 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
       }
       return colDef;
     });
-  }, [t, onSelectAsset, buildingNumber, assetTypes, newAssets, dirtyAssets, building, taxRegion, selectedAssets, deletedAssets, validationErrors, getCellStyle, isResidentTaxRegion, isMultiTaxRegion, isFieldEditable, penthouseCellRenderer, assetsWithFiles, sourceAssetId, applySourceValues]);
+  }, [t, onSelectAsset, buildingNumber, assetTypes, newAssets, dirtyAssets, building, taxRegion, selectedAssets, deletedAssets, validationErrors, getCellStyle, isResidentTaxRegion, isMultiTaxRegion, isFieldEditable, penthouseCellRenderer, assetsWithFiles, sourceAssetId, applySourceValues, operators]);
 
   // Apply field configurations to column definitions (must be after columnDefs is defined)
   const configuredColumnDefs = useFieldConfig(columnDefs, 'assets-list');

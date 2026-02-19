@@ -131,7 +131,7 @@ class EmailService {
       const resolvedAttachments = await Promise.all(attachments);
 
       // Call backend API to send email
-      const backendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:8000';
+      const backendUrl = import.meta.env.VITE_BACKEND_URL || (import.meta.env.PROD ? 'https://profilegroup.bolt.host' : 'http://localhost:8000');
       const response = await fetch(`${backendUrl}/api/email/send`, {
         method: 'POST',
         headers: {
@@ -181,7 +181,7 @@ class EmailService {
       if (!to || !to.includes('@')) {
         return { success: false, error: 'Valid recipient email required' };
       }
-      const backendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:8000';
+      const backendUrl = import.meta.env.VITE_BACKEND_URL || (import.meta.env.PROD ? 'https://profilegroup.bolt.host' : 'http://localhost:8000');
       const response = await fetch(`${backendUrl}/api/email/test`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },

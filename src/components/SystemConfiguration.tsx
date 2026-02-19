@@ -41,9 +41,21 @@ export function SystemConfigurationManager() {
       try {
         const config = await api.systemConfiguration.getEmailConfig();
         if (!cancelled && config) setEmailConfig(config);
-        else if (!cancelled) setEmailConfig({ smtp_encryption: 'tls', smtp_port: 587 });
+        else if (!cancelled) setEmailConfig({
+          smtp_host: 'smtp.gmail.com',
+          smtp_port: 587,
+          smtp_encryption: 'tls',
+          smtp_username: 'profile.group.system@gmail.com',
+          from_email: 'profile.group.system@gmail.com',
+        });
       } catch {
-        if (!cancelled) setEmailConfig({ smtp_encryption: 'tls', smtp_port: 587 });
+        if (!cancelled) setEmailConfig({
+          smtp_host: 'smtp.gmail.com',
+          smtp_port: 587,
+          smtp_encryption: 'tls',
+          smtp_username: 'profile.group.system@gmail.com',
+          from_email: 'profile.group.system@gmail.com',
+        });
       } finally {
         if (!cancelled) setEmailConfigLoading(false);
       }

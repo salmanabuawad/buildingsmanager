@@ -363,6 +363,9 @@ export interface Building {
   gosh?: number; // גוש (Block number)
   helka?: number; // חלקה (Parcel number)
   building_number_in_street?: number; // מספר בניין (Building number in street)
+  parking_area?: number; // שטח חניה (Parking area)
+  shared_parking_area?: number; // שטח חניה משותף (Shared parking area)
+  number_of_parking_units?: number; // מספר יחידות חניה (Number of parking units)
   _tempId?: string; // Hidden field to identify new buildings before saving
   _isNew?: boolean; // Hidden field to mark new buildings
 }
@@ -844,6 +847,18 @@ function sanitizeBuildingInput(input: any): any {
   // Handle boolean distribution flags
   if ('need_residence_distribution' in input) {
     sanitized.need_residence_distribution = input.need_residence_distribution === true || input.need_residence_distribution === 'true';
+  }
+  // Parking fields
+  if (input.parking_area != null) {
+    sanitized.parking_area = sanitizeNumber(input.parking_area);
+  }
+  if (input.shared_parking_area != null) {
+    sanitized.shared_parking_area = sanitizeNumber(input.shared_parking_area);
+  }
+  if (input.number_of_parking_units != null && input.number_of_parking_units !== '') {
+    sanitized.number_of_parking_units = sanitizeInteger(input.number_of_parking_units);
+  } else if ('number_of_parking_units' in input && (input.number_of_parking_units === null || input.number_of_parking_units === '')) {
+    sanitized.number_of_parking_units = null;
   }
   if ('need_business_distribution' in input) {
     sanitized.need_business_distribution = input.need_business_distribution === true || input.need_business_distribution === 'true';

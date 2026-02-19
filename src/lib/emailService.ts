@@ -249,11 +249,12 @@ class EmailService {
     if (!emailConfig) {
       return {
         success: false,
-        error: 'Email configuration not found. Please configure email settings in System Configuration.'
+        error: 'הגדרות אימייל לא נמצאו. יש להגדיר אימייל בהגדרות המערכת.'
       };
     }
     const defaultSubject = subject || `שליחת נתונים - ${new Date().toLocaleDateString('he-IL')}`;
     let sentCount = 0;
+    let lastError: string | undefined;
     for (const { operator, zipBlob, zipFilename } of items) {
       if (!operator.email || !operator.email.includes('@')) continue;
       const body = bodyTemplate
@@ -265,7 +266,14 @@ class EmailService {
         body,
         attachments: [{ filename: zipFilename, content: zipBlob, contentType: 'application/zip' }]
       });
-      if (result.success) sentCount++;
+      if (result.success) {
+        sentCount++;
+      } else {
+        lastError = result.error;
+      }
+    }
+    if (sentCount === 0 && lastError) {
+      return { success: false, error: lastError, sentCount: 0 };
     }
     return { success: true, sentCount };
   }

@@ -1314,14 +1314,23 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
         );
         if (opResult.sentCount != null && opResult.sentCount > 0) {
           successMessage += ` נשלח אימייל ל-${opResult.sentCount} מפעילים.`;
+          setToast({ message: successMessage, type: 'success' });
         } else if (opResult.error) {
-          const filesCount = fileListData.length - 1;
           const { createAndDownloadZip } = await import('../lib/zipExport');
           await createAndDownloadZip(zipFilename, zipFiles);
-          successMessage = `נשלחו ${assetIdsToMark.length} נכסים לעירייה. שליחת אימייל נכשלה: ${opResult.error}. הקובץ הורד.`;
+          setToast({ message: `נשלחו ${assetIdsToMark.length} נכסים. שליחת אימייל נכשלה: ${opResult.error}. הקובץ הורד.`, type: 'error' });
+        } else {
+          setToast({ message: successMessage, type: 'success' });
         }
+      } else {
+        const hasOperatorsWithAssets = byOperator.size > 0;
+        if (hasOperatorsWithAssets) {
+          successMessage += ' לא נשלח אימייל — למפעילים אין כתובת אימייל. יש למלא דוא"ל במסך מפעילים.';
+        } else {
+          successMessage += ' לא נשלח אימייל — יש להקצות מפעיל לנכסים ולמלא כתובת אימייל במסך מפעילים.';
+        }
+        setToast({ message: successMessage, type: 'success' });
       }
-      setToast({ message: successMessage, type: 'success' });
 
       setTimeout(() => setToast(null), 8000);
       

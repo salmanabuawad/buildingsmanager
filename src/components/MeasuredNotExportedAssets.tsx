@@ -1304,13 +1304,23 @@ export const MeasuredNotExportedAssets = ({ onSelectAsset }: MeasuredNotExported
         const opResult = await emailService.sendZipByOperators(operatorZipItems, `שליחת נתונים לעירייה - ${exportDateStr}`, (name) => `שלום ${name},\n\nמצורפים קבצי הנתונים שלך.\n\nתאריך שליחה: ${exportDateStr}\n\nבברכה,\nמערכת ניהול נכסים`);
         if (opResult.sentCount != null && opResult.sentCount > 0) {
           successMessage += ` נשלח אימייל ל-${opResult.sentCount} מפעילים.`;
+          setToast({ message: successMessage, type: 'success' });
         } else if (opResult.error) {
           const { createAndDownloadZip } = await import('../lib/zipExport');
           await createAndDownloadZip(zipFilename, zipFiles);
-          successMessage = `נשלחו ${result.count} נכסים לעירייה. שליחת אימייל נכשלה: ${opResult.error}. הקובץ הורד.`;
+          setToast({ message: `נשלחו ${result.count} נכסים לעירייה. שליחת אימייל נכשלה: ${opResult.error}. הקובץ הורד.`, type: 'error' });
+        } else {
+          setToast({ message: successMessage, type: 'success' });
         }
+      } else {
+        const hasOperatorsWithAssets = byOperator.size > 0;
+        if (hasOperatorsWithAssets) {
+          successMessage += ' לא נשלח אימייל — למפעילים אין כתובת אימייל. יש למלא דוא"ל במסך מפעילים.';
+        } else {
+          successMessage += ' לא נשלח אימייל — יש להקצות מפעיל לנכסים ולמלא כתובת אימייל במסך מפעילים.';
+        }
+        setToast({ message: successMessage, type: 'success' });
       }
-      setToast({ message: successMessage, type: 'success' });
       setTimeout(() => setToast(null), 8000);
       // Refresh the count after export
       await fetchExportToAutomationCount();

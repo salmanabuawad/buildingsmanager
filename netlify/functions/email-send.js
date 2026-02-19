@@ -37,8 +37,8 @@ export async function handler(event) {
     return response(405, { success: false, error: 'Method not allowed' });
   }
 
-  const { user, error: authError } = await getUserFromAuthHeader(event.headers?.authorization);
-  if (authError || !user) {
+  const { user, error: authError, authSkipped } = await getUserFromAuthHeader(event.headers?.authorization);
+  if (!authSkipped && (authError || !user)) {
     return response(401, {
       success: false,
       error: authError?.message || 'Unauthorized. Sign in with Supabase Auth.',

@@ -14,18 +14,13 @@ function getSupabaseEnv() {
 }
 
 /**
- * Get Supabase user from Bearer token. Returns { user, error }.
- * @param {string} authHeader - Value of Authorization header (e.g. "Bearer <jwt>")
+ * Get Supabase user from Bearer token. Returns { user, error, authSkipped }.
+ * When SUPABASE_URL/KEY are missing, returns authSkipped: true so callers can allow the request (e.g. Bolt hosting).
  */
 export async function getUserFromAuthHeader(authHeader) {
   const { url: supabaseUrl, key: supabaseAnonKey } = getSupabaseEnv();
   if (!supabaseUrl || !supabaseAnonKey) {
-    return {
-      user: null,
-      error: new Error(
-        'Missing SUPABASE_URL or SUPABASE_ANON_KEY. Set them in Netlify Dashboard → Site settings → Environment variables (or in netlify.toml [build.environment]).'
-      ),
-    };
+    return { user: null, error: null, authSkipped: true };
   }
   if (!authHeader || typeof authHeader !== 'string' || !authHeader.startsWith('Bearer ')) {
     return { user: null, error: new Error('Missing or invalid Authorization header') };

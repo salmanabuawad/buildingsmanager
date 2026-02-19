@@ -31,6 +31,17 @@ async function getEmailApiHeaders(): Promise<HeadersInit> {
   return headers;
 }
 
+/** Chunked base64 encode to avoid "Maximum call stack size exceeded" on large attachments. */
+function toBase64(bytes: Uint8Array): string {
+  const chunkSize = 8192;
+  let binary = '';
+  for (let i = 0; i < bytes.length; i += chunkSize) {
+    const chunk = bytes.subarray(i, Math.min(i + chunkSize, bytes.length));
+    binary += String.fromCharCode.apply(null, chunk as unknown as number[]);
+  }
+  return btoa(binary);
+}
+
 export interface EmailAttachment {
   filename: string;
   content: Blob | ArrayBuffer | Uint8Array;
@@ -108,19 +119,16 @@ class EmailService {
         };
       }
 
-      // Convert attachments to base64 if needed
+      // Convert attachments to base64 if needed (chunked to avoid stack overflow on large files)
       const attachments = options.attachments?.map(async (att) => {
         let content: string;
         if (att.content instanceof Blob) {
           const arrayBuffer = await att.content.arrayBuffer();
-          const base64 = btoa(String.fromCharCode(...new Uint8Array(arrayBuffer)));
-          content = base64;
+          content = toBase64(new Uint8Array(arrayBuffer));
         } else if (att.content instanceof ArrayBuffer) {
-          const base64 = btoa(String.fromCharCode(...new Uint8Array(att.content)));
-          content = base64;
+          content = toBase64(new Uint8Array(att.content));
         } else if (att.content instanceof Uint8Array) {
-          const base64 = btoa(String.fromCharCode(...att.content));
-          content = base64;
+          content = toBase64(att.content);
         } else {
           content = att.content as string;
         }

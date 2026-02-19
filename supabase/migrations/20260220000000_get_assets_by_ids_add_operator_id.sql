@@ -103,4 +103,4 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
-COMMENT ON FUNCTION get_assets_by_ids IS 'Returns assets by their IDs. Includes business_total_area and operator_id for export and per-operator email.';
+COMMENT ON FUNCTION get_assets_by_ids(bigint[]) IS 'Returns assets by their IDs. Includes business_total_area and operator_id for export and per-operator email.';

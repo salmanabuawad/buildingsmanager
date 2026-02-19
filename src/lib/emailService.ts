@@ -121,21 +121,19 @@ class EmailService {
 
       // Convert attachments to base64 if needed (chunked to avoid stack overflow on large files)
       const attachments = options.attachments?.map(async (att) => {
-        let content: string;
+        let bytes: Uint8Array;
         if (att.content instanceof Blob) {
-          const arrayBuffer = await att.content.arrayBuffer();
-          content = toBase64(new Uint8Array(arrayBuffer));
+          bytes = new Uint8Array(await att.content.arrayBuffer());
         } else if (att.content instanceof ArrayBuffer) {
-          content = toBase64(new Uint8Array(att.content));
+          bytes = new Uint8Array(att.content);
         } else if (att.content instanceof Uint8Array) {
-          content = toBase64(att.content);
+          bytes = att.content;
         } else {
-          content = att.content as string;
+          return { filename: att.filename, content: att.content as string, contentType: att.contentType || 'application/octet-stream' };
         }
-
         return {
           filename: att.filename,
-          content: content,
+          content: toBase64(bytes),
           contentType: att.contentType || 'application/octet-stream'
         };
       }) || [];

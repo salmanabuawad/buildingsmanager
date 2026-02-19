@@ -685,6 +685,7 @@ export function sanitizeAssetInput(input: any): any {
     export_to_automation_at: preConverted.export_to_automation_at != null ? sanitizeDate(preConverted.export_to_automation_at) : undefined,
     comment: preConverted.comment != null ? sanitizeText(preConverted.comment) : undefined,
     is_new_measurement: preConverted.is_new_measurement === true ? true : (preConverted.is_new_measurement === false ? false : undefined),
+    operator_id: ('operator_id' in preConverted) ? (preConverted.operator_id != null && preConverted.operator_id !== '' ? sanitizeInteger(preConverted.operator_id) : null) : undefined,
   };
 
   // Remove undefined values to avoid sending them to the database

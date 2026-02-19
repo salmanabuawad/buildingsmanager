@@ -335,14 +335,36 @@ export function SystemConfigurationManager() {
                 טוען הגדרות דוא&quot;ל...
               </div>
             ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <>
+                <div className="mb-4 space-y-3 p-3 bg-slate-50 rounded-lg border border-slate-200">
+                  <p className="text-sm font-medium text-slate-700">תלוי ב-Supabase Auth</p>
+                  <p className="text-sm text-slate-600">שליחת דוא&quot;ל מהאפליקציה דורשת התחברות עם Supabase Auth (ה-JWT נשלח ל-API). אם משתמשים רק בהתחברות מותאמת, יש ליצור גם סשן Supabase כדי ששליחת המייל תעבוד.</p>
+                  <p className="text-sm text-slate-600">כדי ש-Supabase ישלח מיילי אימות (אישור הרשמה, איפוס סיסמה) דרך Gmail: ב-Dashboard → Authentication → SMTP הגדר את אותו Gmail (smtp.gmail.com, פורט 587, סיסמת אפליקציה).</p>
+                  <hr className="border-slate-200" />
+                  <p className="text-sm text-slate-600">לחיבור Gmail: השתמש בסיסמת אפליקציה (לא סיסמת החשבון). ליצירה: חשבון Google → אבטחה → סיסמאות אפליקציה.</p>
+                  <button
+                    type="button"
+                    onClick={() => setEmailConfig((c) => ({
+                      ...c,
+                      smtp_host: 'smtp.gmail.com',
+                      smtp_port: 587,
+                      smtp_encryption: 'tls',
+                      smtp_username: c?.smtp_username || c?.from_email || 'profile.group.system@gmail.com',
+                      from_email: c?.from_email || 'profile.group.system@gmail.com',
+                    }))}
+                    className="text-sm font-medium text-blue-600 hover:text-blue-800 hover:underline"
+                  >
+                    חיבור עם Gmail – מילוי הגדרות
+                  </button>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-slate-700 mb-1">שרת SMTP *</label>
                   <input
                     type="text"
                     value={emailConfig?.smtp_host ?? ''}
                     onChange={(e) => setEmailConfig((c) => ({ ...c, smtp_host: e.target.value }))}
-                    placeholder="smtp.example.com"
+                    placeholder="smtp.gmail.com"
                     className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm"
                   />
                 </div>
@@ -380,12 +402,12 @@ export function SystemConfigurationManager() {
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">סיסמה SMTP</label>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">סיסמה SMTP (ב-Gmail: סיסמת אפליקציה)</label>
                   <input
                     type="password"
                     value={emailConfig?.smtp_password ?? ''}
                     onChange={(e) => setEmailConfig((c) => ({ ...c, smtp_password: e.target.value }))}
-                    placeholder="אופציונלי"
+                    placeholder="Gmail: 16 תווים מסיסמת אפליקציה"
                     className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm"
                   />
                 </div>
@@ -420,6 +442,7 @@ export function SystemConfigurationManager() {
                   />
                 </div>
               </div>
+              </>
             )}
             {!emailConfigLoading && (
               <div className="flex flex-wrap items-center gap-3 mt-4 pt-4 border-t border-slate-200">

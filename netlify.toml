@@ -8,8 +8,25 @@ publish = "dist"
 # Vite env vars (use VITE_*, not REACT_APP_*). Project: mmqnrwjjxewrgwczezzf
 VITE_SUPABASE_URL = "https://mmqnrwjjxewrgwczezzf.supabase.co"
 VITE_SUPABASE_ANON_KEY = "sb_publishable_UuWn9HaUQ1zKtXTA0Sy3-A_5XD3J-lO"
+# For Netlify functions (Supabase Auth JWT verification)
+SUPABASE_URL = "https://mmqnrwjjxewrgwczezzf.supabase.co"
+SUPABASE_ANON_KEY = "sb_publishable_UuWn9HaUQ1zKtXTA0Sy3-A_5XD3J-lO"
+
+# Email API (Node.js serverless) – must be before SPA fallback
+[[redirects]]
+  from = "/api/email/send"
+  to = "/.netlify/functions/email-send"
+  status = 200
+  force = true
 
 [[redirects]]
-from = "/*"
-to = "/index.html"
-status = 200
+  from = "/api/email/test"
+  to = "/.netlify/functions/email-test"
+  status = 200
+  force = true
+
+# SPA fallback
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200

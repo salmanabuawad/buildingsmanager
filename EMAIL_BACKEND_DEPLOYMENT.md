@@ -1,11 +1,19 @@
-# Email API – Backend must be deployed
+# Email API
 
-The **Send test email** and other email features call the FastAPI backend at:
+The **Send test email** and other email features call:
 
 - `POST /api/email/test`
 - `POST /api/email/send`
 
-If you see **404** on `/api/email/test`, the host serving your app is only serving the **frontend** (static files). The **FastAPI backend** is not running there.
+## Current setup (Bolt / Netlify)
+
+When you publish to **Bolt.new** or **Netlify**, the email API runs as **Node.js serverless functions** in this repo (`netlify/functions/email-test.js`, `netlify/functions/email-send.js`). The frontend calls the **same origin** (`/api/email/*`), and Netlify redirects those paths to the functions.
+
+**Depends on Supabase Auth (hook/session):** The email API requires a valid **Supabase Auth** JWT. The frontend sends `Authorization: Bearer <access_token>` from `supabase.auth.getSession()`. The Netlify functions verify this token via Supabase (auth hook / session). If your app only uses custom (users-table) login, you must also establish a Supabase Auth session (e.g. sign in with Supabase when the user logs in) so the email API accepts the request. Without a valid token, the API returns **401 Unauthorized**.
+
+**Supabase Auth emails via Gmail:** To send Supabase’s own auth emails (signup confirmation, password reset, magic link) through Gmail, configure **Supabase Dashboard → Authentication → SMTP**: use `smtp.gmail.com`, port **587**, TLS, and a Gmail App Password. See [Supabase Auth SMTP](https://supabase.com/docs/guides/auth/auth-smtp) and [Gmail with Supabase](https://supabase.com/docs/guides/troubleshooting/using-google-smtp-with-supabase-custom-smtp-ZZzU4Y).
+
+**Env for functions:** In Netlify, set `SUPABASE_URL` and `SUPABASE_ANON_KEY` (or they fall back to `VITE_SUPABASE_URL` / `VITE_SUPABASE_ANON_KEY` from `netlify.toml`).
 
 ---
 

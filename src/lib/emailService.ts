@@ -1,18 +1,34 @@
 /**
  * Email Service
  * 
- * Service for sending emails with attachments via backend API
+ * Service for sending emails via backend API. When published (e.g. Bolt/Netlify),
+ * uses same-origin /api/email/* (Node serverless) protected by Supabase Auth.
  */
 
 import { api } from './api';
+import { supabase } from './supabase';
 
-/** Backend base URL for email API (no trailing slash). Uses profilegroup.bolt.host when not on localhost. */
+/** Backend base URL for email API (no trailing slash). Same origin when published so Netlify functions handle /api/email/*. */
 function getEmailBackendUrl(): string {
   if (import.meta.env.VITE_BACKEND_URL) return import.meta.env.VITE_BACKEND_URL.replace(/\/$/, '');
   if (typeof window !== 'undefined' && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
-    return 'https://profilegroup.bolt.host';
+    return ''; // same origin: /api/email/test and /api/email/send
   }
-  return import.meta.env.PROD ? 'https://profilegroup.bolt.host' : 'http://localhost:8000';
+  return import.meta.env.PROD ? '' : 'http://localhost:8000';
+}
+
+/** Get headers for email API: Supabase Auth JWT so the serverless function can verify. */
+async function getEmailApiHeaders(): Promise<HeadersInit> {
+  const headers: HeadersInit = { 'Content-Type': 'application/json' };
+  try {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (session?.access_token) {
+      (headers as Record<string, string>)['Authorization'] = `Bearer ${session.access_token}`;
+    }
+  } catch {
+    // no Supabase session
+  }
+  return headers;
 }
 
 export interface EmailAttachment {
@@ -139,13 +155,11 @@ class EmailService {
 
       const resolvedAttachments = await Promise.all(attachments);
 
-      // Call backend API to send email
+      // Call backend API to send email (Netlify function requires Supabase Auth)
       const backendUrl = getEmailBackendUrl();
       const response = await fetch(`${backendUrl}/api/email/send`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: await getEmailApiHeaders(),
         body: JSON.stringify({
           email_config: emailConfig,
           to: options.to,
@@ -158,10 +172,16 @@ class EmailService {
       });
 
       if (!response.ok) {
+        if (response.status === 401) {
+          return {
+            success: false,
+            error: 'Unauthorized. Please sign in with Supabase Auth to send email.'
+          };
+        }
         if (response.status === 404) {
           return {
             success: false,
-            error: 'Email API not found (404). The FastAPI backend may not be deployed at this URL. See EMAIL_BACKEND_DEPLOYMENT.md.'
+            error: 'Email API not found (404). See EMAIL_BACKEND_DEPLOYMENT.md.'
           };
         }
         const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
@@ -199,23 +219,29 @@ class EmailService {
       const backendUrl = getEmailBackendUrl();
       const response = await fetch(`${backendUrl}/api/email/test`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: await getEmailApiHeaders(),
         body: JSON.stringify({
           email_config: emailConfig,
           test_to: to.trim()
         })
       });
       if (!response.ok) {
+        if (response.status === 401) {
+          return {
+            success: false,
+            error: 'Unauthorized. Please sign in with Supabase Auth to send test email.'
+          };
+        }
         if (response.status === 404) {
           return {
             success: false,
-            error: 'Email API not found (404). The FastAPI backend may not be deployed at this URL. See EMAIL_BACKEND_DEPLOYMENT.md.'
+            error: 'Email API not found (404). See EMAIL_BACKEND_DEPLOYMENT.md.'
           };
         }
         const err = await response.json().catch(() => ({ detail: response.statusText }));
         return {
           success: false,
-          error: err.detail || `HTTP ${response.status}: ${response.statusText}`
+          error: err.detail || err.error || `HTTP ${response.status}: ${response.statusText}`
         };
       }
       return { success: true };

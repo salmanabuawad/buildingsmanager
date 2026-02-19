@@ -6,6 +6,15 @@
 
 import { api } from './api';
 
+/** Backend base URL for email API (no trailing slash). Uses profilegroup.bolt.host when not on localhost. */
+function getEmailBackendUrl(): string {
+  if (import.meta.env.VITE_BACKEND_URL) return import.meta.env.VITE_BACKEND_URL.replace(/\/$/, '');
+  if (typeof window !== 'undefined' && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
+    return 'https://profilegroup.bolt.host';
+  }
+  return import.meta.env.PROD ? 'https://profilegroup.bolt.host' : 'http://localhost:8000';
+}
+
 export interface EmailAttachment {
   filename: string;
   content: Blob | ArrayBuffer | Uint8Array;
@@ -131,7 +140,7 @@ class EmailService {
       const resolvedAttachments = await Promise.all(attachments);
 
       // Call backend API to send email
-      const backendUrl = import.meta.env.VITE_BACKEND_URL || (import.meta.env.PROD ? 'https://profilegroup.bolt.host' : 'http://localhost:8000');
+      const backendUrl = getEmailBackendUrl();
       const response = await fetch(`${backendUrl}/api/email/send`, {
         method: 'POST',
         headers: {
@@ -181,7 +190,7 @@ class EmailService {
       if (!to || !to.includes('@')) {
         return { success: false, error: 'Valid recipient email required' };
       }
-      const backendUrl = import.meta.env.VITE_BACKEND_URL || (import.meta.env.PROD ? 'https://profilegroup.bolt.host' : 'http://localhost:8000');
+      const backendUrl = getEmailBackendUrl();
       const response = await fetch(`${backendUrl}/api/email/test`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },

@@ -1,20 +1,21 @@
--- Before applying: run supabase/scripts/sync_with_db_queries.sql in Supabase SQL Editor
--- and confirm current state (e.g. operators table / assets.operator_id missing). Then run this migration.
+-- Synced with live DB: operators.operator_id (PK), name, mail, phone (not id/email).
+-- Run supabase/scripts/sync_with_db_queries.sql first, then apply this migration.
 --
--- Operators table: id, name, email (for grouping assets and sending per-operator emails)
+-- Operators table: operator_id (PK), name, mail, phone (for grouping assets and per-operator emails)
 CREATE TABLE IF NOT EXISTS operators (
-  id BIGSERIAL PRIMARY KEY,
+  operator_id BIGSERIAL PRIMARY KEY,
   name TEXT NOT NULL,
-  email TEXT NOT NULL,
+  mail TEXT NOT NULL,
+  phone TEXT,
   created_at TIMESTAMPTZ DEFAULT now(),
   updated_at TIMESTAMPTZ DEFAULT now()
 );
 
-CREATE INDEX IF NOT EXISTS idx_operators_email ON operators(email);
+CREATE INDEX IF NOT EXISTS idx_operators_mail ON operators(mail);
 COMMENT ON TABLE operators IS 'Operators: each asset can be assigned one; used to group export and email each operator their data';
 
--- Add operator_id to assets (nullable FK)
-ALTER TABLE assets ADD COLUMN IF NOT EXISTS operator_id BIGINT REFERENCES operators(id) ON DELETE SET NULL;
+-- Add operator_id to assets (nullable FK -> operators.operator_id)
+ALTER TABLE assets ADD COLUMN IF NOT EXISTS operator_id BIGINT REFERENCES operators(operator_id) ON DELETE SET NULL;
 CREATE INDEX IF NOT EXISTS idx_assets_operator_id ON assets(operator_id);
 COMMENT ON COLUMN assets.operator_id IS 'Operator responsible for this asset; used when sending to automation to email each operator their assets';
 

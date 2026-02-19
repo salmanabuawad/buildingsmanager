@@ -498,6 +498,7 @@ export interface Operator {
   id: number;
   name: string;
   email: string;
+  phone?: string;
   created_at: string;
   updated_at: string;
 }
@@ -4795,35 +4796,52 @@ export const api = {
     },
   },
   operators: {
+    /** Map DB row (operator_id, mail, phone) to app shape (id, email, phone) */
+    _mapRow: (row: any): Operator => ({
+      id: row.operator_id ?? row.id,
+      name: row.name ?? '',
+      email: row.mail ?? row.email ?? '',
+      phone: row.phone ?? undefined,
+      created_at: row.created_at ?? '',
+      updated_at: row.updated_at ?? '',
+    }),
     getAll: async (): Promise<Operator[]> => {
       const { data, error } = await supabase
         .from('operators')
-        .select('*')
+        .select('operator_id, name, mail, phone, created_at, updated_at')
         .order('name');
       if (error) throw error;
-      return data || [];
+      return (data || []).map(api.operators._mapRow);
     },
     getOne: async (id: number): Promise<Operator | null> => {
       const { data, error } = await supabase
         .from('operators')
-        .select('*')
-        .eq('id', id)
+        .select('operator_id, name, mail, phone, created_at, updated_at')
+        .eq('operator_id', id)
         .maybeSingle();
       if (error) throw error;
-      return data;
+      return data ? api.operators._mapRow(data) : null;
     },
     create: async (input: Omit<Operator, 'id' | 'created_at' | 'updated_at'>): Promise<Operator> => {
-      const { data, error } = await supabase.from('operators').insert(input).select().single();
+      const { data, error } = await supabase.from('operators').insert({
+        name: input.name,
+        mail: input.email,
+        phone: input.phone ?? null,
+      }).select().single();
       if (error) throw error;
-      return data;
+      return api.operators._mapRow(data);
     },
     update: async (id: number, input: Partial<Omit<Operator, 'id' | 'created_at' | 'updated_at'>>): Promise<Operator> => {
-      const { data, error } = await supabase.from('operators').update(input).eq('id', id).select().single();
+      const payload: any = {};
+      if (input.name !== undefined) payload.name = input.name;
+      if (input.email !== undefined) payload.mail = input.email;
+      if (input.phone !== undefined) payload.phone = input.phone;
+      const { data, error } = await supabase.from('operators').update(payload).eq('operator_id', id).select().single();
       if (error) throw error;
-      return data;
+      return api.operators._mapRow(data);
     },
     delete: async (id: number): Promise<void> => {
-      const { error } = await supabase.from('operators').delete().eq('id', id);
+      const { error } = await supabase.from('operators').delete().eq('operator_id', id);
       if (error) throw error;
     },
   },

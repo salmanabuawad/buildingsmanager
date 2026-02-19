@@ -14,21 +14,22 @@ WHERE table_schema = 'public' AND table_name = 'assets'
 ORDER BY ordinal_position;
 
 -- =============================================================================
--- 2) APPLY: Operators table + operator_id on assets (idempotent)
+-- 2) APPLY: Operators table (operator_id PK, name, mail, phone) + operator_id on assets (idempotent)
 -- =============================================================================
 
 CREATE TABLE IF NOT EXISTS operators (
-  id BIGSERIAL PRIMARY KEY,
+  operator_id BIGSERIAL PRIMARY KEY,
   name TEXT NOT NULL,
-  email TEXT NOT NULL,
+  mail TEXT NOT NULL,
+  phone TEXT,
   created_at TIMESTAMPTZ DEFAULT now(),
   updated_at TIMESTAMPTZ DEFAULT now()
 );
 
-CREATE INDEX IF NOT EXISTS idx_operators_email ON operators(email);
+CREATE INDEX IF NOT EXISTS idx_operators_mail ON operators(mail);
 COMMENT ON TABLE operators IS 'Operators: each asset can be assigned one; used to group export and email each operator their data';
 
-ALTER TABLE assets ADD COLUMN IF NOT EXISTS operator_id BIGINT REFERENCES operators(id) ON DELETE SET NULL;
+ALTER TABLE assets ADD COLUMN IF NOT EXISTS operator_id BIGINT REFERENCES operators(operator_id) ON DELETE SET NULL;
 CREATE INDEX IF NOT EXISTS idx_assets_operator_id ON assets(operator_id);
 COMMENT ON COLUMN assets.operator_id IS 'Operator responsible for this asset; used when sending to automation to email each operator their assets';
 

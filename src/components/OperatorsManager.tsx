@@ -33,6 +33,7 @@ export function OperatorsManager() {
   const [formData, setFormData] = useState({
     name: '',
     email: '',
+    phone: '',
   });
 
   useEffect(() => {
@@ -64,6 +65,7 @@ export function OperatorsManager() {
     setFormData({
       name: '',
       email: '',
+      phone: '',
     });
     setIsAdding(false);
   };
@@ -95,6 +97,7 @@ export function OperatorsManager() {
       const newItem = await api.operators.create({
         name: formData.name.trim(),
         email: formData.email.trim(),
+        phone: formData.phone.trim() || undefined,
       });
       setItems([...items, newItem]);
       setOriginalItems([...originalItems, newItem]);
@@ -256,6 +259,21 @@ export function OperatorsManager() {
       }
     },
     {
+      field: 'phone',
+      headerName: 'טלפון',
+      editable: isAdmin,
+      cellEditor: 'agTextCellEditor',
+      cellStyle: (params: any) => {
+        const isDirty = params.data && isFieldDirty(params.data.id, 'phone');
+        return {
+          textAlign: 'left',
+          direction: 'ltr',
+          backgroundColor: isDirty ? '#fef3c7' : undefined,
+          fontWeight: isDirty ? 'bold' : undefined
+        };
+      }
+    },
+    {
       headerName: 'פעולות',
       width: 100,
       pinned: 'right',
@@ -303,6 +321,7 @@ export function OperatorsManager() {
         return {
           'שם מפעיל': dirty.name !== undefined ? dirty.name : item.name,
           'אימייל': dirty.email !== undefined ? dirty.email : item.email,
+          'טלפון': dirty.phone !== undefined ? dirty.phone : item.phone ?? '',
         };
       });
     exportToExcel({
@@ -325,12 +344,13 @@ export function OperatorsManager() {
       const worksheet = workbook.Sheets[sheetName];
       const jsonData = XLSX.utils.sheet_to_json(worksheet) as any[];
 
-      const itemsToAdd: Array<{ name: string; email: string }> = [];
+      const itemsToAdd: Array<{ name: string; email: string; phone?: string }> = [];
       for (const row of jsonData) {
         const name = String(row['שם מפעיל'] || row['name'] || row['Name'] || '').trim();
         const email = String(row['אימייל'] || row['email'] || row['Email'] || '').trim();
+        const phone = String(row['טלפון'] || row['phone'] || row['Phone'] || '').trim();
         if (name && email && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-          itemsToAdd.push({ name, email });
+          itemsToAdd.push({ name, email, phone: phone || undefined });
         }
       }
 
@@ -445,6 +465,16 @@ export function OperatorsManager() {
                   value={formData.email}
                   onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                   placeholder="example@domain.com"
+                  className="w-full px-3 py-2 border-2 border-slate-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">טלפון</label>
+                <input
+                  type="text"
+                  value={formData.phone}
+                  onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                  placeholder="טלפון"
                   className="w-full px-3 py-2 border-2 border-slate-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500"
                 />
               </div>

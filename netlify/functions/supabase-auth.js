@@ -1,21 +1,31 @@
 /**
  * Supabase Auth: verify JWT from Authorization header.
- * Use this in Netlify functions to require Supabase Auth.
- * Set env: SUPABASE_URL, SUPABASE_ANON_KEY (or use VITE_* from build.environment).
+ * Requires env at runtime: SUPABASE_URL, SUPABASE_ANON_KEY (or VITE_SUPABASE_URL, VITE_SUPABASE_ANON_KEY).
+ * On Netlify: set in Dashboard → Site settings → Environment variables, or in netlify.toml [build.environment].
  */
 
 import { createClient } from '@supabase/supabase-js';
 
-const supabaseUrl = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
-const supabaseAnonKey = process.env.SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_ANON_KEY;
+function getSupabaseEnv() {
+  return {
+    url: process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL,
+    key: process.env.SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_ANON_KEY,
+  };
+}
 
 /**
  * Get Supabase user from Bearer token. Returns { user, error }.
  * @param {string} authHeader - Value of Authorization header (e.g. "Bearer <jwt>")
  */
 export async function getUserFromAuthHeader(authHeader) {
+  const { url: supabaseUrl, key: supabaseAnonKey } = getSupabaseEnv();
   if (!supabaseUrl || !supabaseAnonKey) {
-    return { user: null, error: new Error('Missing SUPABASE_URL or SUPABASE_ANON_KEY') };
+    return {
+      user: null,
+      error: new Error(
+        'Missing SUPABASE_URL or SUPABASE_ANON_KEY. Set them in Netlify Dashboard → Site settings → Environment variables (or in netlify.toml [build.environment]).'
+      ),
+    };
   }
   if (!authHeader || typeof authHeader !== 'string' || !authHeader.startsWith('Bearer ')) {
     return { user: null, error: new Error('Missing or invalid Authorization header') };

@@ -8,7 +8,15 @@ publish = "dist"
 # Vite env vars (use VITE_*, not REACT_APP_*). Project: mmqnrwjjxewrgwczezzf
 VITE_SUPABASE_URL = "https://mmqnrwjjxewrgwczezzf.supabase.co"
 VITE_SUPABASE_ANON_KEY = "sb_publishable_UuWn9HaUQ1zKtXTA0Sy3-A_5XD3J-lO"
-# For Netlify functions (Supabase Auth JWT verification)
+# Required by Netlify functions (email API Supabase Auth). Also set in Netlify Dashboard if missing.
+SUPABASE_URL = "https://mmqnrwjjxewrgwczezzf.supabase.co"
+SUPABASE_ANON_KEY = "sb_publishable_UuWn9HaUQ1zKtXTA0Sy3-A_5XD3J-lO"
+
+# Ensure functions get Supabase env in all contexts (production, branch deploys)
+[context.production.environment]
+SUPABASE_URL = "https://mmqnrwjjxewrgwczezzf.supabase.co"
+SUPABASE_ANON_KEY = "sb_publishable_UuWn9HaUQ1zKtXTA0Sy3-A_5XD3J-lO"
+[context.deploy-preview.environment]
 SUPABASE_URL = "https://mmqnrwjjxewrgwczezzf.supabase.co"
 SUPABASE_ANON_KEY = "sb_publishable_UuWn9HaUQ1zKtXTA0Sy3-A_5XD3J-lO"
 

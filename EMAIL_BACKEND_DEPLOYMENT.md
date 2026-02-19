@@ -13,7 +13,7 @@ When you publish to **Bolt.new** or **Netlify**, the email API runs as **Node.js
 
 **Supabase Auth emails via Gmail:** To send Supabase’s own auth emails (signup confirmation, password reset, magic link) through Gmail, configure **Supabase Dashboard → Authentication → SMTP**: use `smtp.gmail.com`, port **587**, TLS, and a Gmail App Password. See [Supabase Auth SMTP](https://supabase.com/docs/guides/auth/auth-smtp) and [Gmail with Supabase](https://supabase.com/docs/guides/troubleshooting/using-google-smtp-with-supabase-custom-smtp-ZZzU4Y).
 
-**Env for functions:** In Netlify, set `SUPABASE_URL` and `SUPABASE_ANON_KEY` (or they fall back to `VITE_SUPABASE_URL` / `VITE_SUPABASE_ANON_KEY` from `netlify.toml`).
+**Env for functions:** The email API needs `SUPABASE_URL` and `SUPABASE_ANON_KEY` at runtime. They are set in `netlify.toml`; if you see **"Missing SUPABASE_URL or SUPABASE_ANON_KEY"**, add them in **Netlify Dashboard → Site settings → Environment variables** (key/value for both), then trigger a new deploy. If you use Bolt hosting (not Netlify), set the same variables in your host’s environment/config if it supports serverless env.
 
 ---
 

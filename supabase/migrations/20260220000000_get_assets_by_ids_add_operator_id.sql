@@ -50,7 +50,7 @@ RETURNS TABLE (
   apartment_floor text,
   storage_number text,
   storage_floor text,
-  operator_id integer
+  operator_id bigint
 ) AS $$
 BEGIN
   RETURN QUERY

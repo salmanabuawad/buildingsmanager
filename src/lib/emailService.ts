@@ -158,6 +158,12 @@ class EmailService {
       });
 
       if (!response.ok) {
+        if (response.status === 404) {
+          return {
+            success: false,
+            error: 'Email API not found (404). The FastAPI backend may not be deployed at this URL. See EMAIL_BACKEND_DEPLOYMENT.md.'
+          };
+        }
         const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
         return {
           success: false,
@@ -200,6 +206,12 @@ class EmailService {
         })
       });
       if (!response.ok) {
+        if (response.status === 404) {
+          return {
+            success: false,
+            error: 'Email API not found (404). The FastAPI backend may not be deployed at this URL. See EMAIL_BACKEND_DEPLOYMENT.md.'
+          };
+        }
         const err = await response.json().catch(() => ({ detail: response.statusText }));
         return {
           success: false,

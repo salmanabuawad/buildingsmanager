@@ -89,27 +89,6 @@ class EmailService {
   }
 
   /**
-   * Get recipients for tax regions from tax_regions_mailing_list
-   */
-  async getRecipientsForTaxRegions(taxRegions: string[]): Promise<string[]> {
-    try {
-      const allRecipients = await api.taxRegionsMailingList.getAll();
-      
-      // Filter by tax regions and extract unique emails
-      const emails = new Set<string>();
-      for (const taxRegion of taxRegions) {
-        const recipients = allRecipients.filter(r => r.tax_region === taxRegion);
-        recipients.forEach(r => emails.add(r.email));
-      }
-      
-      return Array.from(emails);
-    } catch (error) {
-      console.error('Error loading recipients:', error);
-      return [];
-    }
-  }
-
-  /**
    * Send email with attachments via backend API
    */
   async sendEmail(options: SendEmailOptions): Promise<{ success: boolean; error?: string }> {
@@ -250,79 +229,6 @@ class EmailService {
       return {
         success: false,
         error: error instanceof Error ? error.message : 'Unknown error sending test email'
-      };
-    }
-  }
-
-  /**
-   * Send ZIP file to recipients based on tax regions
-   */
-  async sendZipByTaxRegions(
-    zipBlob: Blob,
-    zipFilename: string,
-    taxRegions: string[],
-    subject?: string,
-    body?: string
-  ): Promise<{ success: boolean; error?: string; recipientsCount?: number }> {
-    try {
-      // Get recipients for tax regions
-      const recipients = await this.getRecipientsForTaxRegions(taxRegions);
-      
-      if (recipients.length === 0) {
-        return {
-          success: false,
-          error: `No email recipients found for tax regions: ${taxRegions.join(', ')}`
-        };
-      }
-
-      // Get email config for sender
-      const emailConfig = await this.getEmailConfig();
-      if (!emailConfig) {
-        return {
-          success: false,
-          error: 'Email configuration not found. Please configure email settings in System Configuration.'
-        };
-      }
-
-      // Default subject and body
-      const defaultSubject = subject || `שליחת נתונים - ${new Date().toLocaleDateString('he-IL')}`;
-      const defaultBody = body || `
-        שלום רב,
-        
-        מצורפים קבצי הנתונים שנשלחו לעירייה.
-        
-        תאריך שליחה: ${new Date().toLocaleDateString('he-IL')}
-        אזורי מס: ${taxRegions.join(', ')}
-        
-        בברכה,
-        מערכת ניהול נכסים
-      `;
-
-      // Send email with ZIP attachment
-      const result = await this.sendEmail({
-        to: recipients,
-        subject: defaultSubject,
-        body: defaultBody,
-        attachments: [{
-          filename: zipFilename,
-          content: zipBlob,
-          contentType: 'application/zip'
-        }]
-      });
-
-      if (result.success) {
-        return {
-          success: true,
-          recipientsCount: recipients.length
-        };
-      } else {
-        return result;
-      }
-    } catch (error) {
-      console.error('Error sending ZIP by tax regions:', error);
-      return {
-        success: false,
-        error: error instanceof Error ? error.message : 'Unknown error sending ZIP'
       };
     }
   }

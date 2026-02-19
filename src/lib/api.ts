@@ -486,14 +486,6 @@ export interface AssetType {
   updated_at: string;
 }
 
-export interface TaxRegionsMailingList {
-  id: number;
-  tax_region: string;
-  email: string;
-  created_at: string;
-  updated_at: string;
-}
-
 export interface Operator {
   id: number;
   name: string;
@@ -4724,76 +4716,6 @@ export const api = {
         }
       }
       return null;
-    },
-  },
-  taxRegionsMailingList: {
-    getAll: async (): Promise<TaxRegionsMailingList[]> => {
-      const { data, error } = await supabase
-        .from('tax_regions_mailing_list')
-        .select('*')
-        .order('tax_region')
-        .order('email');
-      
-      if (error) throw error;
-      return data || [];
-    },
-    getOne: async (id: number): Promise<TaxRegionsMailingList | null> => {
-      const { data, error } = await supabase
-        .from('tax_regions_mailing_list')
-        .select('*')
-        .eq('id', id)
-        .maybeSingle();
-      
-      if (error) throw error;
-      return data;
-    },
-    getByTaxRegion: async (taxRegion: string): Promise<TaxRegionsMailingList[]> => {
-      const { data, error } = await supabase
-        .from('tax_regions_mailing_list')
-        .select('*')
-        .eq('tax_region', taxRegion)
-        .order('email');
-      
-      if (error) throw error;
-      return data || [];
-    },
-    create: async (input: Omit<TaxRegionsMailingList, 'id' | 'created_at' | 'updated_at'>): Promise<TaxRegionsMailingList> => {
-      const { data, error } = await supabase
-        .from('tax_regions_mailing_list')
-        .insert(input)
-        .select()
-        .single();
-      
-      if (error) throw error;
-      return data;
-    },
-    update: async (id: number, input: Partial<Omit<TaxRegionsMailingList, 'id' | 'created_at' | 'updated_at'>>): Promise<TaxRegionsMailingList> => {
-      const { data, error } = await supabase
-        .from('tax_regions_mailing_list')
-        .update(input)
-        .eq('id', id)
-        .select()
-        .single();
-      
-      if (error) throw error;
-      return data;
-    },
-    delete: async (id: number): Promise<void> => {
-      const { error } = await supabase
-        .from('tax_regions_mailing_list')
-        .delete()
-        .eq('id', id);
-      
-      if (error) throw error;
-    },
-    deleteBulk: async (ids: number[]): Promise<{ success: boolean; count: number }> => {
-      const { error, count } = await supabase
-        .from('tax_regions_mailing_list')
-        .delete()
-        .in('id', ids);
-      
-      if (error) throw error;
-      return { success: true, count: count || 0 };
     },
   },
   operators: {

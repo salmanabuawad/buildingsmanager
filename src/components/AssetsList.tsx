@@ -1233,47 +1233,9 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
       const { createZipBlob } = await import('../lib/zipExport');
       const zipBlob = await createZipBlob(zipFiles);
       
-      // Extract unique tax regions from exported assets
-      const taxRegionsSet = new Set<string>();
-      assetsForExcel.forEach(asset => {
-        if (asset.tax_region) {
-          const taxRegionStr = String(asset.tax_region).trim();
-          if (taxRegionStr) {
-            taxRegionsSet.add(taxRegionStr);
-          }
-        }
-      });
-      const taxRegions = Array.from(taxRegionsSet);
-      
-      // Send ZIP file by email
-      const { emailService } = await import('../lib/emailService');
-      setToast({ message: 'שולח אימייל עם קובץ ZIP...', type: 'info' });
-      
-      const emailResult = await emailService.sendZipByTaxRegions(
-        zipBlob,
-        zipFilename,
-        taxRegions,
-        `שליחת נתונים לעירייה - ${exportDateStr}`,
-        `שלום רב,\n\nמצורפים קבצי הנתונים שנשלחו לעירייה.\n\nתאריך שליחה: ${exportDateStr}\nמספר נכסים: ${assetIdsToMark.length}\nאזורי מס: ${taxRegions.join(', ') || 'לא צוין'}\n\nבברכה,\nמערכת ניהול נכסים`
-      );
-      
-      if (emailResult.success) {
-        const filesCount = fileListData.length - 1; // Subtract header row
-        const successMessage = filesCount > 0 
-          ? `נשלחו ${assetIdsToMark.length} נכסים לעירייה בהצלחה (כולל ${filesCount} קבצים בקובץ ZIP) ונשלח אימייל ל-${emailResult.recipientsCount} נמענים`
-          : `נשלחו ${assetIdsToMark.length} נכסים לעירייה בהצלחה ונשלח אימייל ל-${emailResult.recipientsCount} נמענים`;
-        setToast({ message: successMessage, type: 'success' });
-      } else {
-        // If email fails, still download the ZIP file as fallback
-        const { createAndDownloadZip } = await import('../lib/zipExport');
-        await createAndDownloadZip(zipFilename, zipFiles);
-        setToast({ 
-          message: `הקובץ הורד, אך שליחת האימייל נכשלה: ${emailResult.error || 'שגיאה לא ידועה'}. אנא בדוק את הגדרות האימייל בהגדרות המערכת.`, 
-          type: 'error' 
-        });
-      }
-
       // Per-operator emails: build a ZIP per operator and send to each operator's email
+      const { emailService } = await import('../lib/emailService');
+      setToast({ message: 'שולח אימייל למפעילים...', type: 'info' });
       const operatorsList = await api.operators.getAll();
       const byOperator = new Map<number, typeof assetsForExcel>();
       for (const a of assetsForExcel) {
@@ -1343,6 +1305,7 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
         const opZipFilename = `שליחת_נתונים_מפעיל_${operator.name}_${dateStr}.zip`;
         operatorZipItems.push({ operator: { id: operator.id, name: operator.name, email: operator.email }, zipBlob: opZipBlob, zipFilename: opZipFilename });
       }
+      let successMessage = `נשלחו ${assetIdsToMark.length} נכסים לעירייה בהצלחה.`;
       if (operatorZipItems.length > 0) {
         const opResult = await emailService.sendZipByOperators(
           operatorZipItems,
@@ -1350,12 +1313,15 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
           (name, _count) => `שלום ${name},\n\nמצורפים קבצי הנתונים שלך שנשלחו לעירייה.\n\nתאריך שליחה: ${exportDateStr}\n\nבברכה,\nמערכת ניהול נכסים`
         );
         if (opResult.sentCount != null && opResult.sentCount > 0) {
-          setToast(prev => ({
-            message: (prev?.message ?? '') + (prev?.message ? ' ' : '') + `נשלח אימייל ל-${opResult.sentCount} מפעילים.`,
-            type: 'success'
-          }));
+          successMessage += ` נשלח אימייל ל-${opResult.sentCount} מפעילים.`;
+        } else if (opResult.error) {
+          const filesCount = fileListData.length - 1;
+          const { createAndDownloadZip } = await import('../lib/zipExport');
+          await createAndDownloadZip(zipFilename, zipFiles);
+          successMessage = `נשלחו ${assetIdsToMark.length} נכסים לעירייה. שליחת אימייל נכשלה: ${opResult.error}. הקובץ הורד.`;
         }
       }
+      setToast({ message: successMessage, type: 'success' });
 
       setTimeout(() => setToast(null), 8000);
       

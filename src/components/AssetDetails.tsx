@@ -1064,6 +1064,7 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
           payer_id: currentAssetData.payer_id || null,
           asset_id: currentAssetData.asset_id,
           measurement_date: currentAssetData.measurement_date,
+          operator_id: currentAssetData.operator_id ?? null,
           main_asset_type: currentAssetData.main_asset_type || undefined,
           asset_size: currentAssetData.asset_size || 0,
           tax_region: taxRegionValue,

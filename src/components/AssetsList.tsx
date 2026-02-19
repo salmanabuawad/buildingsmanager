@@ -1670,6 +1670,16 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
         }
       }
 
+      // operator_id: ensure we always store id (number) or null; editor may pass name (string)
+      if (field === 'operator_id' && operators?.length) {
+        if (typeof newValue === 'string' && newValue.trim()) {
+          const o = operators.find(x => x.name === newValue.trim());
+          newValue = o?.id ?? null;
+        } else if (typeof newValue !== 'number' || isNaN(newValue)) {
+          newValue = null;
+        }
+      }
+
       // Quick normalization for comparison
       const normalizeQuick = (val: any): any => {
         if (val == null || val === '') {
@@ -1784,7 +1794,7 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
       setToast({ message: 'Failed to track change', type: 'error' });
       setTimeout(() => setToast(null), 3000);
     }
-  }, [validationTaxRegion, assetTypes, building, setAssets, taxRegion, newAssets, originalAssets]);
+  }, [validationTaxRegion, assetTypes, building, setAssets, taxRegion, newAssets, originalAssets, operators]);
 
   // Track when cell editing starts - store initial value
   const onCellEditingStarted = useCallback((event: any) => {
@@ -5306,8 +5316,23 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
         const fieldName = params.colDef?.field || '';
         return isFieldEditable(params, fieldName);
       },
+      valueGetter: (params) => {
+        const id = params.data?.operator_id;
+        if (id == null) return '';
+        const o = operators.find(x => x.id === id);
+        return o ? o.name : String(id);
+      },
+      valueSetter: (params) => {
+        const name = params.newValue;
+        if (name === '' || name == null) {
+          params.data.operator_id = null;
+          return;
+        }
+        const o = operators.find(x => x.name === name);
+        params.data.operator_id = o?.id ?? null;
+      },
       valueFormatter: (params) => {
-        const id = params.value;
+        const id = params.data?.operator_id ?? params.value;
         if (id == null) return '';
         const o = operators.find(x => x.id === id);
         return o ? o.name : String(id);

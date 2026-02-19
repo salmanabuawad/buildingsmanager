@@ -1923,6 +1923,9 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
           { wch: 18 }, // שטח משותף עסקים
           { wch: 12 }, // ס"כ גודל
           { wch: 12 }, // שטח לבקרה
+          { wch: 12 }, // שטח חניה
+          { wch: 12 }, // שטח חניה משותף
+          { wch: 12 }, // מספר יחידות חניה
           { wch: 8 },  // מעלית
           { wch: 35 }, // בית פרטי חד משפחתי דו משפחתי
           { wch: 12 }, // בית משותף

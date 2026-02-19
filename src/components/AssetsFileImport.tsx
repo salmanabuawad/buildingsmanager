@@ -4170,6 +4170,49 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
 
                   <div>
                     <label className="block text-sm font-medium text-slate-700 mb-1">
+                      שטח חניה
+                    </label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      value={buildingCreateData.parking_area ?? ''}
+                      onChange={(e) => setBuildingCreateData(prev => ({ ...prev, parking_area: e.target.value ? parseFloat(e.target.value) : undefined }))}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                      disabled={isCreatingBuilding}
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">
+                      שטח חניה משותף
+                    </label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      value={buildingCreateData.shared_parking_area ?? ''}
+                      onChange={(e) => setBuildingCreateData(prev => ({ ...prev, shared_parking_area: e.target.value ? parseFloat(e.target.value) : undefined }))}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                      disabled={isCreatingBuilding}
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">
+                      מספר יחידות חניה
+                    </label>
+                    <input
+                      type="number"
+                      step="1"
+                      min="0"
+                      value={buildingCreateData.number_of_parking_units ?? ''}
+                      onChange={(e) => setBuildingCreateData(prev => ({ ...prev, number_of_parking_units: e.target.value ? parseInt(e.target.value, 10) : undefined }))}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                      disabled={isCreatingBuilding}
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">
                       שטח בניין כולל
                     </label>
                     <input

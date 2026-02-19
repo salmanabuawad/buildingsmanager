@@ -15,9 +15,10 @@ import { AuditLog } from './components/AuditLog';
 import { UserManagement } from './components/UserManagement';
 import { SystemConfigurationManager } from './components/SystemConfiguration';
 import { OperatorsManager } from './components/OperatorsManager';
+import { ManagersManager } from './components/ManagersManager';
 import { MeasuredNotExportedAssets } from './components/MeasuredNotExportedAssets';
 import { MeasurementProgressDashboard } from './components/MeasurementProgressDashboard';
-import { X, Settings, Building, Home, Tag, Search, Plus, Building2, Upload, ChevronDown, ChevronLeft, Trash2, Database, CheckCircle2, AlertCircle, Loader2, Menu, MapPin, Edit, Square, Save, FileText, RefreshCw, Download, LogOut, Users, BarChart3, Mail } from 'lucide-react';
+import { X, Settings, Building, Home, Tag, Search, Plus, Building2, Upload, ChevronDown, ChevronLeft, Trash2, Database, CheckCircle2, AlertCircle, Loader2, Menu, MapPin, Edit, Square, Save, FileText, RefreshCw, Download, LogOut, Users, UserCog, BarChart3, Mail } from 'lucide-react';
 import { api, AssetType } from './lib/api';
 import { getSession, logoutUsersTable } from './lib/usersTableAuth';
 import { assetValidators, validateEntity, getAssetTypes, getLatestExportDate as getCachedLatestExportDate } from './lib/validation';
@@ -27,7 +28,7 @@ import { Login } from './components/Login';
 
 interface Tab {
   id: string;
-  type: 'buildings' | 'assets' | 'admin' | 'asset-types' | 'asset-search' | 'validation-rules' | 'building-list-import' | 'assets-file-import' | 'assets-skeleton-import' | 'asset-details' | 'transfer-areas' | 'address-list' | 'field-config' | 'asset-data-entry' | 'audit-log' | 'user-management' | 'system-configuration' | 'operators' | 'measured-not-exported-assets' | 'measurement-progress-dashboard';
+  type: 'buildings' | 'assets' | 'admin' | 'asset-types' | 'asset-search' | 'validation-rules' | 'building-list-import' | 'assets-file-import' | 'assets-skeleton-import' | 'asset-details' | 'transfer-areas' | 'address-list' | 'field-config' | 'asset-data-entry' | 'audit-log' | 'user-management' | 'system-configuration' | 'operators' | 'managers' | 'measured-not-exported-assets' | 'measurement-progress-dashboard';
   buildingNumber?: number;
   label: string;
   refreshKey?: number;
@@ -902,6 +903,16 @@ function App() {
     openTab(newTab);
   }
 
+  function openManagers() {
+    const managersTabId = 'managers-panel';
+    const newTab: Tab = {
+      id: managersTabId,
+      type: 'managers',
+      label: 'מנהלים',
+    };
+    openTab(newTab);
+  }
+
   async function exportSchemaToCSV() {
     try {
       const data = await api.schema.getTablesFieldsTypes();
@@ -1585,6 +1596,15 @@ function App() {
                 )}
                 {isAdmin && (
                   <button
+                    onClick={openManagers}
+                    className="w-full flex items-center gap-2 px-3 py-2 text-right bg-pink-50/50 hover:bg-pink-100 rounded-lg transition-all text-xs shadow-sm hover:shadow"
+                  >
+                    <span className="font-medium text-slate-700">מנהלים</span>
+                    <UserCog className="h-3.5 w-3.5 text-pink-600" />
+                  </button>
+                )}
+                {isAdmin && (
+                  <button
                     onClick={openResetExportModal}
                     disabled={resetExportLoading}
                     className="w-full flex items-center gap-2 px-3 py-2 text-right bg-pink-50/50 hover:bg-pink-100 rounded-lg transition-all text-xs shadow-sm hover:shadow disabled:opacity-50 disabled:cursor-not-allowed"
@@ -1805,6 +1825,9 @@ function App() {
             )}
             {activeTab?.type === 'operators' && (
               <OperatorsManager key={activeTab.refreshKey} />
+            )}
+            {activeTab?.type === 'managers' && (
+              <ManagersManager key={activeTab.refreshKey} />
             )}
             {activeTab?.type === 'measured-not-exported-assets' && (
               <MeasuredNotExportedAssets

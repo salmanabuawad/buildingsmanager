@@ -495,6 +495,16 @@ export interface Operator {
   updated_at: string;
 }
 
+export interface Manager {
+  id: number;
+  name: string;
+  tax_regions: string;
+  email: string;
+  phone?: string;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface AddressList {
   id?: number; // Primary key (added in migration)
   street_code: number;
@@ -4765,6 +4775,58 @@ export const api = {
     },
     delete: async (id: number): Promise<void> => {
       const { error } = await supabase.from('operators').delete().eq('operator_id', id);
+      if (error) throw error;
+    },
+  },
+  managers: {
+    _mapRow: (row: any): Manager => ({
+      id: row.manager_id ?? row.id,
+      name: row.name ?? '',
+      tax_regions: row.tax_regions ?? '',
+      email: row.mail ?? row.email ?? '',
+      phone: row.phone ?? undefined,
+      created_at: row.created_at ?? '',
+      updated_at: row.updated_at ?? '',
+    }),
+    getAll: async (): Promise<Manager[]> => {
+      const { data, error } = await supabase
+        .from('managers')
+        .select('manager_id, name, tax_regions, mail, phone, created_at, updated_at')
+        .order('name');
+      if (error) throw error;
+      return (data || []).map(api.managers._mapRow);
+    },
+    getOne: async (id: number): Promise<Manager | null> => {
+      const { data, error } = await supabase
+        .from('managers')
+        .select('manager_id, name, tax_regions, mail, phone, created_at, updated_at')
+        .eq('manager_id', id)
+        .maybeSingle();
+      if (error) throw error;
+      return data ? api.managers._mapRow(data) : null;
+    },
+    create: async (input: Omit<Manager, 'id' | 'created_at' | 'updated_at'>): Promise<Manager> => {
+      const { data, error } = await supabase.from('managers').insert({
+        name: input.name,
+        tax_regions: input.tax_regions,
+        mail: input.email,
+        phone: input.phone ?? null,
+      }).select().single();
+      if (error) throw error;
+      return api.managers._mapRow(data);
+    },
+    update: async (id: number, input: Partial<Omit<Manager, 'id' | 'created_at' | 'updated_at'>>): Promise<Manager> => {
+      const payload: any = {};
+      if (input.name !== undefined) payload.name = input.name;
+      if (input.tax_regions !== undefined) payload.tax_regions = input.tax_regions;
+      if (input.email !== undefined) payload.mail = input.email;
+      if (input.phone !== undefined) payload.phone = input.phone;
+      const { data, error } = await supabase.from('managers').update(payload).eq('manager_id', id).select().single();
+      if (error) throw error;
+      return api.managers._mapRow(data);
+    },
+    delete: async (id: number): Promise<void> => {
+      const { error } = await supabase.from('managers').delete().eq('manager_id', id);
       if (error) throw error;
     },
   },

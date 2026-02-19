@@ -57,40 +57,48 @@ const OperatorCellEditor = React.forwardRef<any, OperatorCellEditorParams>((prop
   const [searchValue, setSearchValue] = useState<string>('');
   const [showDropdown, setShowDropdown] = useState<boolean>(true);
   const [selectedIndex, setSelectedIndex] = useState<number>(-1);
+  const [selectedValue, setSelectedValue] = useState<number | null>(null);
   const selectedValueRef = useRef<number | null>(null);
+  const dataRef = useRef(props.data);
+  useEffect(() => {
+    dataRef.current = props.data;
+  }, [props.data]);
 
   const { operators = [] } = props;
   const fieldName = props.column?.getColId() || 'operator_id';
 
   useImperativeHandle(ref, () => ({
     getValue: () => {
-      const value = selectedValueRef.current;
+      let value = selectedValueRef.current;
       if (value != null) {
         const numValue = Number(value);
-        return !isNaN(numValue) && numValue > 0 ? numValue : null;
+        if (!isNaN(numValue) && numValue > 0) return numValue;
+        return null;
       }
       return null;
     },
     isPopup: () => false
-  }), []);
+  }), [selectedValue, fieldName]);
 
   useEffect(() => {
     let operatorId = props.value;
-    if (operatorId == null && props.data) {
-      operatorId = props.data[fieldName];
-    }
+    if (operatorId == null && props.data) operatorId = props.data[fieldName];
+    if (operatorId == null && dataRef.current) operatorId = dataRef.current[fieldName];
     if (operatorId != null) {
       const num = Number(operatorId);
       if (!isNaN(num) && num > 0) {
         selectedValueRef.current = num;
+        setSelectedValue(num);
         const o = operators.find(x => x.id === num);
         setSearchValue(o ? `${o.id} - ${o.name}` : String(num));
       } else {
         selectedValueRef.current = null;
+        setSelectedValue(null);
         setSearchValue('');
       }
     } else {
       selectedValueRef.current = null;
+      setSelectedValue(null);
       setSearchValue('');
     }
     setTimeout(() => {
@@ -115,6 +123,7 @@ const OperatorCellEditor = React.forwardRef<any, OperatorCellEditorParams>((prop
   const selectOperator = useCallback((operator: Operator) => {
     const id = Number(operator.id);
     selectedValueRef.current = id;
+    setSelectedValue(id);
     setSearchValue(`${operator.id} - ${operator.name}`);
     setShowDropdown(false);
     props.stopEditing();
@@ -122,14 +131,27 @@ const OperatorCellEditor = React.forwardRef<any, OperatorCellEditorParams>((prop
     const column = props.column;
     const api = props.api;
     setTimeout(() => {
-      if (node && column && node.data) {
-        node.data[fieldName] = id;
-        if (api) {
-          api.refreshCells({ rowNodes: [node], columns: [column.getColId()], force: true });
+      if (node && column) {
+        const colId = column.getColId();
+        const currentValue = node.data?.[fieldName];
+        if (currentValue !== id) {
+          node.setDataValue(colId, id);
+          if (api) {
+            api.refreshCells({ rowNodes: [node], columns: [colId], force: true });
+            api.redrawRows({ rowNodes: [node] });
+          }
+        } else if (api) {
+          api.refreshCells({ rowNodes: [node], columns: [colId], force: true });
           api.redrawRows({ rowNodes: [node] });
         }
       }
     }, 50);
+    setTimeout(() => {
+      if (node && column && api) {
+        api.refreshCells({ rowNodes: [node], columns: [column.getColId()], force: true });
+        api.redrawRows({ rowNodes: [node] });
+      }
+    }, 100);
   }, [fieldName]);
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
@@ -188,9 +210,10 @@ const OperatorCellEditor = React.forwardRef<any, OperatorCellEditorParams>((prop
   }, []);
 
   return (
-    <div style={{ position: 'relative', width: '100%', height: '100%' }}>
+    <div style={{ position: 'relative', width: '100%', minHeight: 28, height: '100%' }}>
       <input
         ref={inputRef}
+        key="operator-editor-input"
         type="text"
         value={searchValue}
         onChange={(e) => {
@@ -199,62 +222,94 @@ const OperatorCellEditor = React.forwardRef<any, OperatorCellEditorParams>((prop
           setSelectedIndex(-1);
         }}
         onKeyDown={handleKeyDown}
+        onFocus={() => setShowDropdown(true)}
         style={{
           width: '100%',
+          minHeight: 28,
           height: '100%',
           padding: '4px 8px',
           border: '1px solid #ccc',
           borderRadius: '4px',
           direction: 'rtl',
-          textAlign: 'right'
+          textAlign: 'right',
+          boxSizing: 'border-box'
         }}
       />
-      {showDropdown && (
-        <div
-          ref={dropdownRef}
-          style={{
-            position: 'absolute',
-            top: '100%',
-            left: 0,
-            right: 0,
-            zIndex: 1000,
-            maxHeight: 200,
-            overflow: 'auto',
-            backgroundColor: 'white',
-            border: '1px solid #ccc',
-            borderRadius: '4px',
-            boxShadow: '0 2px 8px rgba(0,0,0,0.15)'
-          }}
-        >
-          {filteredOperators.length === 0 ? (
-            <div style={{ padding: '8px 12px', color: '#666', fontSize: '0.9em' }}>
-              {operators.length === 0 ? 'אין מפעילים זמינים' : 'לא נמצאו תוצאות'}
+      {showDropdown && createPortal(
+        (() => {
+          let dropdownTop = 0;
+          let dropdownLeft = 0;
+          let dropdownWidth = 300;
+          if (inputRef.current) {
+            const inputRect = inputRef.current.getBoundingClientRect();
+            dropdownTop = inputRect.bottom;
+            dropdownLeft = inputRect.left;
+            dropdownWidth = Math.max(inputRect.width, 300);
+          } else if (props.eGridCell) {
+            const cellRect = props.eGridCell.getBoundingClientRect();
+            dropdownTop = cellRect.bottom;
+            dropdownLeft = cellRect.left;
+            dropdownWidth = Math.max(cellRect.width, 300);
+          }
+          return (
+            <div
+              ref={dropdownRef}
+              style={{
+                position: 'fixed',
+                top: `${dropdownTop}px`,
+                left: `${dropdownLeft}px`,
+                width: `${dropdownWidth}px`,
+                maxHeight: '200px',
+                overflowY: 'auto',
+                backgroundColor: 'white',
+                border: '1px solid #ccc',
+                borderRadius: '4px',
+                boxShadow: '0 4px 12px rgba(0,0,0,0.2)',
+                zIndex: 99999,
+                direction: 'rtl',
+                textAlign: 'right'
+              }}
+            >
+              {filteredOperators.length > 0 ? (
+                filteredOperators.map((operator, index) => (
+                  <div
+                    key={operator.id}
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      setTimeout(() => selectOperator(operator), 0);
+                    }}
+                    onMouseDown={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                    }}
+                    onMouseEnter={() => setSelectedIndex(index)}
+                    style={{
+                      padding: '8px 12px',
+                      cursor: 'pointer',
+                      backgroundColor: selectedIndex === index ? '#e3f2fd' : 'white',
+                      borderBottom: index < filteredOperators.length - 1 ? '1px solid #eee' : 'none',
+                      userSelect: 'none'
+                    }}
+                  >
+                    <div style={{ fontWeight: 'bold' }}>{operator.id}</div>
+                    <div style={{ fontSize: '0.9em', color: '#666' }}>{operator.name}</div>
+                  </div>
+                ))
+              ) : (
+                <div style={{ padding: '8px 12px', color: '#666', fontStyle: 'italic' }}>
+                  {operators.length === 0 ? 'אין מפעילים זמינים' : 'לא נמצאו תוצאות'}
+                </div>
+              )}
             </div>
-          ) : (
-            filteredOperators.map((operator, index) => (
-              <div
-                key={operator.id}
-                onClick={() => selectOperator(operator)}
-                onMouseEnter={() => setSelectedIndex(index)}
-                style={{
-                  padding: '8px 12px',
-                  cursor: 'pointer',
-                  backgroundColor: selectedIndex === index ? '#e3f2fd' : 'white',
-                  borderBottom: index < filteredOperators.length - 1 ? '1px solid #eee' : 'none',
-                  direction: 'rtl',
-                  textAlign: 'right'
-                }}
-              >
-                <div style={{ fontWeight: 'bold' }}>{operator.id}</div>
-                <div style={{ fontSize: '0.9em', color: '#666' }}>{operator.name}</div>
-              </div>
-            ))
-          )}
-        </div>
+          );
+        })(),
+        document.body
       )}
     </div>
   );
 });
+OperatorCellEditor.displayName = 'OperatorCellEditor';
 
 function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsListRef>) {
   const { buildingNumber, taxRegion, onSelectAsset, onOpenTransferAreas, onOpenNewAsset, selectedAssetIds, onOpenAssetsTab, onCloseTabAndOpenMultiTax, onCloseTab, isErrorFixingMode = false } = props;
@@ -5534,8 +5589,10 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
         if (params.data) {
           const newValue = params.newValue;
           const numValue = newValue != null && newValue !== '' ? Number(newValue) : null;
-          params.data.operator_id = (numValue != null && !isNaN(numValue) && numValue > 0) ? numValue : null;
+          const finalValue = (numValue != null && !isNaN(numValue) && numValue > 0) ? numValue : null;
+          params.data.operator_id = finalValue;
         }
+        return true;
       },
       cellRenderer: (params: any) => {
         const asset = params.data as Asset;
@@ -5543,10 +5600,12 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
         const operatorId = params.value != null ? params.value : (asset.operator_id ?? null);
         if (operatorId == null) return '';
         const o = operators.find(x => x.id === operatorId);
-        return o ? `${o.id} - ${o.name}` : String(operatorId);
+        return o ? o.name : String(operatorId);
       },
       cellEditor: OperatorCellEditor,
-      cellEditorParams: () => ({ operators: operators || [] }),
+      cellEditorParams: (params: any) => ({
+        operators: operators || [],
+      }),
       headerClass: 'ag-right-aligned-header',
       cellStyle: (params: any) => getCellStyle(params)
     },

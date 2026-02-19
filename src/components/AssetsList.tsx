@@ -5,7 +5,7 @@ import { Asset, Building, AssetType, AddressList, Operator, api, validateAndSave
 import { assetValidators, validateAll, inputValidators, validateEntity } from '../lib/validation';
 import { AssetValidationHandler } from '../lib/assetValidationHandler';
 import { AgGridReact } from 'ag-grid-react';
-import { ColDef, IDetailCellRendererParams } from 'ag-grid-community';
+import { ColDef, IDetailCellRendererParams, ICellEditorParams } from 'ag-grid-community';
 import { Building as BuildingIcon, AlertCircle, ChevronDown, ChevronRight, Loader2, Save, X, Plus, Trash2, CheckCircle2, Download, MoveLeft, Upload, FileSpreadsheet, History, Share2, MapPin, MessageSquare, FileText, BarChart3, Copy } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { ValidationResultModal, BatchValidationResults, ValidationProgress } from './ValidationResultModal';
@@ -45,6 +45,216 @@ interface AssetsListProps {
 export interface AssetsListRef {
   hasUnsavedChanges: () => boolean;
 }
+
+// Custom cell editor for operator dropdown with filtering (same pattern as address in BuildingsList)
+interface OperatorCellEditorParams extends ICellEditorParams {
+  operators: Operator[];
+}
+
+const OperatorCellEditor = React.forwardRef<any, OperatorCellEditorParams>((props, ref) => {
+  const inputRef = useRef<HTMLInputElement>(null);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+  const [searchValue, setSearchValue] = useState<string>('');
+  const [showDropdown, setShowDropdown] = useState<boolean>(true);
+  const [selectedIndex, setSelectedIndex] = useState<number>(-1);
+  const selectedValueRef = useRef<number | null>(null);
+
+  const { operators = [] } = props;
+  const fieldName = props.column?.getColId() || 'operator_id';
+
+  useImperativeHandle(ref, () => ({
+    getValue: () => {
+      const value = selectedValueRef.current;
+      if (value != null) {
+        const numValue = Number(value);
+        return !isNaN(numValue) && numValue > 0 ? numValue : null;
+      }
+      return null;
+    },
+    isPopup: () => false
+  }), []);
+
+  useEffect(() => {
+    let operatorId = props.value;
+    if (operatorId == null && props.data) {
+      operatorId = props.data[fieldName];
+    }
+    if (operatorId != null) {
+      const num = Number(operatorId);
+      if (!isNaN(num) && num > 0) {
+        selectedValueRef.current = num;
+        const o = operators.find(x => x.id === num);
+        setSearchValue(o ? `${o.id} - ${o.name}` : String(num));
+      } else {
+        selectedValueRef.current = null;
+        setSearchValue('');
+      }
+    } else {
+      selectedValueRef.current = null;
+      setSearchValue('');
+    }
+    setTimeout(() => {
+      if (inputRef.current) {
+        inputRef.current.focus();
+        const length = inputRef.current.value.length;
+        inputRef.current.setSelectionRange(length, length);
+      }
+    }, 0);
+  }, [operators, fieldName]);
+
+  const filteredOperators = useMemo(() => {
+    if (!searchValue.trim()) return operators;
+    const searchLower = searchValue.toLowerCase();
+    return operators.filter(o =>
+      String(o.id).toLowerCase().includes(searchLower) ||
+      (o.name || '').toLowerCase().includes(searchLower) ||
+      `${o.id} - ${o.name}`.toLowerCase().includes(searchLower)
+    );
+  }, [searchValue, operators]);
+
+  const selectOperator = useCallback((operator: Operator) => {
+    const id = Number(operator.id);
+    selectedValueRef.current = id;
+    setSearchValue(`${operator.id} - ${operator.name}`);
+    setShowDropdown(false);
+    props.stopEditing();
+    const node = props.node;
+    const column = props.column;
+    const api = props.api;
+    setTimeout(() => {
+      if (node && column && node.data) {
+        node.data[fieldName] = id;
+        if (api) {
+          api.refreshCells({ rowNodes: [node], columns: [column.getColId()], force: true });
+          api.redrawRows({ rowNodes: [node] });
+        }
+      }
+    }, 50);
+  }, [fieldName]);
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      setSelectedIndex(prev => (prev < filteredOperators.length - 1 ? prev + 1 : prev));
+      setShowDropdown(true);
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      setSelectedIndex(prev => (prev > 0 ? prev - 1 : -1));
+      setShowDropdown(true);
+    } else if (e.key === 'Enter') {
+      e.preventDefault();
+      if (searchValue.trim() === '') {
+        selectedValueRef.current = null;
+        props.stopEditing();
+        const node = props.node;
+        const column = props.column;
+        const api = props.api;
+        if (node?.data && column) {
+          node.data[fieldName] = null;
+          if (api) api.refreshCells({ rowNodes: [node], columns: [column.getColId()], force: true });
+        }
+        return;
+      }
+      if (selectedIndex >= 0 && selectedIndex < filteredOperators.length) {
+        selectOperator(filteredOperators[selectedIndex]);
+      } else if (filteredOperators.length === 1) {
+        selectOperator(filteredOperators[0]);
+      } else {
+        const parsed = Number(searchValue.trim());
+        if (!isNaN(parsed) && parsed > 0) {
+          const match = operators.find(o => o.id === parsed);
+          if (match) selectOperator(match);
+          else props.stopEditing();
+        } else {
+          props.stopEditing();
+        }
+      }
+    } else if (e.key === 'Escape') {
+      props.stopEditing();
+    }
+  };
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as Node;
+      const clickedOnDropdown = dropdownRef.current?.contains(target);
+      const clickedOnInput = inputRef.current?.contains(target);
+      if (dropdownRef.current && !clickedOnDropdown && inputRef.current && !clickedOnInput) {
+        setTimeout(() => props.stopEditing(), 100);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  return (
+    <div style={{ position: 'relative', width: '100%', height: '100%' }}>
+      <input
+        ref={inputRef}
+        type="text"
+        value={searchValue}
+        onChange={(e) => {
+          setSearchValue(e.target.value);
+          setShowDropdown(true);
+          setSelectedIndex(-1);
+        }}
+        onKeyDown={handleKeyDown}
+        style={{
+          width: '100%',
+          height: '100%',
+          padding: '4px 8px',
+          border: '1px solid #ccc',
+          borderRadius: '4px',
+          direction: 'rtl',
+          textAlign: 'right'
+        }}
+      />
+      {showDropdown && (
+        <div
+          ref={dropdownRef}
+          style={{
+            position: 'absolute',
+            top: '100%',
+            left: 0,
+            right: 0,
+            zIndex: 1000,
+            maxHeight: 200,
+            overflow: 'auto',
+            backgroundColor: 'white',
+            border: '1px solid #ccc',
+            borderRadius: '4px',
+            boxShadow: '0 2px 8px rgba(0,0,0,0.15)'
+          }}
+        >
+          {filteredOperators.length === 0 ? (
+            <div style={{ padding: '8px 12px', color: '#666', fontSize: '0.9em' }}>
+              {operators.length === 0 ? 'אין מפעילים זמינים' : 'לא נמצאו תוצאות'}
+            </div>
+          ) : (
+            filteredOperators.map((operator, index) => (
+              <div
+                key={operator.id}
+                onClick={() => selectOperator(operator)}
+                onMouseEnter={() => setSelectedIndex(index)}
+                style={{
+                  padding: '8px 12px',
+                  cursor: 'pointer',
+                  backgroundColor: selectedIndex === index ? '#e3f2fd' : 'white',
+                  borderBottom: index < filteredOperators.length - 1 ? '1px solid #eee' : 'none',
+                  direction: 'rtl',
+                  textAlign: 'right'
+                }}
+              >
+                <div style={{ fontWeight: 'bold' }}>{operator.id}</div>
+                <div style={{ fontSize: '0.9em', color: '#666' }}>{operator.name}</div>
+              </div>
+            ))
+          )}
+        </div>
+      )}
+    </div>
+  );
+});
 
 function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsListRef>) {
   const { buildingNumber, taxRegion, onSelectAsset, onOpenTransferAreas, onOpenNewAsset, selectedAssetIds, onOpenAssetsTab, onCloseTabAndOpenMultiTax, onCloseTab, isErrorFixingMode = false } = props;
@@ -5316,35 +5526,27 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
         const fieldName = params.colDef?.field || '';
         return isFieldEditable(params, fieldName);
       },
-      valueGetter: (params) => {
-        const id = params.data?.operator_id;
-        if (id == null) return '';
-        const o = operators.find(x => x.id === id);
-        return o ? o.name : String(id);
+      valueGetter: (params: any) => {
+        const value = params.data?.operator_id ?? null;
+        return value;
       },
-      valueSetter: (params) => {
-        const name = params.newValue;
-        if (name === '' || name == null) {
-          params.data.operator_id = null;
-          return;
+      valueSetter: (params: any) => {
+        if (params.data) {
+          const newValue = params.newValue;
+          const numValue = newValue != null && newValue !== '' ? Number(newValue) : null;
+          params.data.operator_id = (numValue != null && !isNaN(numValue) && numValue > 0) ? numValue : null;
         }
-        const o = operators.find(x => x.name === name);
-        params.data.operator_id = o?.id ?? null;
       },
-      valueFormatter: (params) => {
-        const id = params.data?.operator_id ?? params.value;
-        if (id == null) return '';
-        const o = operators.find(x => x.id === id);
-        return o ? o.name : String(id);
+      cellRenderer: (params: any) => {
+        const asset = params.data as Asset;
+        if (!asset) return '';
+        const operatorId = params.value != null ? params.value : (asset.operator_id ?? null);
+        if (operatorId == null) return '';
+        const o = operators.find(x => x.id === operatorId);
+        return o ? `${o.id} - ${o.name}` : String(operatorId);
       },
-      cellEditor: 'agSelectCellEditor',
-      cellEditorParams: () => ({ values: ['', ...operators.map(o => o.name)] }),
-      valueParser: (params) => {
-        const name = params.newValue;
-        if (name === '' || name == null) return null;
-        const o = operators.find(x => x.name === name);
-        return o?.id ?? null;
-      },
+      cellEditor: OperatorCellEditor,
+      cellEditorParams: () => ({ operators: operators || [] }),
       headerClass: 'ag-right-aligned-header',
       cellStyle: (params: any) => getCellStyle(params)
     },

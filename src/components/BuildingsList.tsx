@@ -2845,6 +2845,12 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
     }
   };
 
+  // Parking fields (shared_parking_area, etc.) only for business or dual (business+residence) buildings
+  const hasBuildingBusiness = useCallback((b: Building | null | undefined): boolean => {
+    if (!b) return false;
+    return b.need_business_distribution === true || (b.business_shared_area != null && Number(b.business_shared_area) !== 0);
+  }, []);
+
   // Column definitions
   const columnDefs: ColDef<Building>[] = useMemo(() => {
     const defs: ColDef<Building>[] = [
@@ -3180,10 +3186,12 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
         if (isReadOnly) return false;
         if (!params || !params.data) return false;
         const building = params.data as Building;
+        if (!hasBuildingBusiness(building)) return false;
         const isNew = isNewBuilding(building);
         const buildingKey = getBuildingKey(building);
         return isNew || !buildingsToDelete.has(buildingKey);
       },
+      valueGetter: (params) => (params?.data && hasBuildingBusiness(params.data)) ? params.data.parking_area : undefined,
       valueParser: (params: any) => {
         if (!params) return null;
         const newValue = params.newValue;
@@ -3193,12 +3201,12 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
       },
       cellRenderer: (params: any) => {
         const building = params.data as Building;
-        if (!building) return '';
+        if (!building || !hasBuildingBusiness(building)) return '';
         const isNew = isNewBuilding(building);
         if (isNew && (params.value === null || params.value === undefined)) {
           return '';
         }
-        const value = params.value && params.value !== 0 ? params.value.toLocaleString() : '';
+        const value = params.value != null && params.value !== 0 ? String(params.value).replace(/\B(?=(\d{3})+(?!\d))/g, ',') : '';
         return value;
       },
       cellStyle: (params) => getCellStyle(params, 'parking_area')
@@ -3210,10 +3218,12 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
         if (isReadOnly) return false;
         if (!params || !params.data) return false;
         const building = params.data as Building;
+        if (!hasBuildingBusiness(building)) return false;
         const isNew = isNewBuilding(building);
         const buildingKey = getBuildingKey(building);
         return isNew || !buildingsToDelete.has(buildingKey);
       },
+      valueGetter: (params) => (params?.data && hasBuildingBusiness(params.data)) ? params.data.shared_parking_area : undefined,
       valueParser: (params: any) => {
         if (!params) return null;
         const newValue = params.newValue;
@@ -3223,12 +3233,12 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
       },
       cellRenderer: (params: any) => {
         const building = params.data as Building;
-        if (!building) return '';
+        if (!building || !hasBuildingBusiness(building)) return '';
         const isNew = isNewBuilding(building);
         if (isNew && (params.value === null || params.value === undefined)) {
           return '';
         }
-        const value = params.value && params.value !== 0 ? params.value.toLocaleString() : '';
+        const value = params.value != null && params.value !== 0 ? String(params.value).replace(/\B(?=(\d{3})+(?!\d))/g, ',') : '';
         return value;
       },
       cellStyle: (params) => getCellStyle(params, 'shared_parking_area')
@@ -3240,10 +3250,12 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
         if (isReadOnly) return false;
         if (!params || !params.data) return false;
         const building = params.data as Building;
+        if (!hasBuildingBusiness(building)) return false;
         const isNew = isNewBuilding(building);
         const buildingKey = getBuildingKey(building);
         return isNew || !buildingsToDelete.has(buildingKey);
       },
+      valueGetter: (params) => (params?.data && hasBuildingBusiness(params.data)) ? params.data.number_of_parking_units : undefined,
       valueParser: (params: any) => {
         if (!params) return null;
         const newValue = params.newValue;
@@ -3253,12 +3265,12 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
       },
       cellRenderer: (params: any) => {
         const building = params.data as Building;
-        if (!building) return '';
+        if (!building || !hasBuildingBusiness(building)) return '';
         const isNew = isNewBuilding(building);
         if (isNew && (params.value === null || params.value === undefined)) {
           return '';
         }
-        const value = params.value && params.value !== 0 ? params.value.toLocaleString() : '';
+        const value = params.value != null && params.value !== 0 ? String(params.value).replace(/\B(?=(\d{3})+(?!\d))/g, ',') : '';
         return value;
       },
       cellStyle: (params) => getCellStyle(params, 'number_of_parking_units')
@@ -3582,7 +3594,7 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
       }
       return colDef;
     });
-  }, [onSelectBuilding, handleDeleteBuilding, buildingsToDelete, t, invalidTaxRegions, validationErrors, dirtyBuildings, newBuildings, isNewBuilding, getBuildingKey, handleCheckboxChange, addressList]);
+  }, [onSelectBuilding, handleDeleteBuilding, buildingsToDelete, t, invalidTaxRegions, validationErrors, dirtyBuildings, newBuildings, isNewBuilding, getBuildingKey, handleCheckboxChange, addressList, hasBuildingBusiness, isReadOnly]);
 
   // Apply field configurations to column definitions
   const configuredColumnDefs = useFieldConfig(columnDefs, 'buildings-list');

@@ -2728,6 +2728,18 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
       valueFormatter: (params) => formatDateToDDMMYYYY(params.value)
     },
     {
+      field: 'shared_parking_area',
+      headerName: 'שטח חניה משותף',
+      width: 120,
+      sortable: true,
+      filter: true,
+      editable: (params) => isBusinessContext && isFieldEditable(params, 'shared_parking_area'),
+      headerClass: 'ag-right-aligned-header',
+      cellStyle: { textAlign: 'right' },
+      valueFormatter: (params: any) => formatNumberToTwoDecimals(params.value),
+      hide: !isBusinessContext // Only business assets have shared parking area
+    },
+    {
       field: 'comment',
       headerName: 'הערה',
       editable: (params) => {
@@ -3025,7 +3037,7 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
       }
       return colDef;
     });
-  }, [t, assetTypes, editMode, isFieldEditable, getCellStyle, structureDrawingCellRenderer, actionsCellRenderer, asset, isBusinessAsset, operators]);
+  }, [t, assetTypes, editMode, isFieldEditable, getCellStyle, structureDrawingCellRenderer, actionsCellRenderer, asset, isBusinessAsset, isBusinessContext, operators]);
 
   // Apply field configurations to column definitions for main grid
   const configuredColumnDefs = useFieldConfig(columnDefs, 'asset-details-main');

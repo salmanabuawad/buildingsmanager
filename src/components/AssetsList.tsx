@@ -4892,6 +4892,11 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
   }, [buildingNumber, isResidentTaxRegion, isMultiTaxRegion]);
 
   const columnDefs: ColDef<Asset>[] = useMemo(() => {
+    const isBusinessAssetRow = (params: any) => {
+      if (!params?.data?.main_asset_type || !assetTypes?.length) return false;
+      const at = assetTypes.find((t: any) => t.name === params.data.main_asset_type);
+      return at?.business_residence === 'עסקים';
+    };
     const defs: ColDef<Asset>[] = [
     {
       colId: 'actions',
@@ -5629,6 +5634,29 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
       }),
       headerClass: 'ag-right-aligned-header',
       cellStyle: (params: any) => getCellStyle(params)
+    },
+    {
+      field: 'shared_parking_area',
+      headerName: 'שטח חניה משותף',
+      editable: (params) => !isResidentTaxRegion && isBusinessAssetRow(params) && isFieldEditable(params, 'shared_parking_area'),
+      type: 'numericColumn',
+      valueFormatter: (params) => {
+        if (isResidentTaxRegion || !isBusinessAssetRow(params)) return '';
+        const val = params.value;
+        if (val === null || val === undefined || val === '' || val === 0) return '';
+        const num = typeof val === 'number' ? val : parseFloat(val);
+        return isNaN(num) || num === 0 ? '' : num.toFixed(2);
+      },
+      valueParser: (params) => {
+        if (!params) return null;
+        const newValue = params.newValue;
+        if (newValue === null || newValue === undefined || newValue === '') return null;
+        const numValue = Number(newValue);
+        return isNaN(numValue) ? null : numValue;
+      },
+      headerClass: 'ag-right-aligned-header',
+      cellStyle: (params: any) => getCellStyle(params),
+      hide: isResidentTaxRegion // Only business assets have shared parking area
     },
     {
       field: 'business_distribution_area',

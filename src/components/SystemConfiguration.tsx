@@ -553,9 +553,9 @@ export function SystemConfigurationManager() {
           <h2 className="text-xl font-bold text-slate-800">תבניות דוא&quot;ל (נשמרות במערכת)</h2>
         </div>
         <p className="text-sm text-slate-600 mb-4">
-          משתנים דינמיים: <code className="bg-slate-100 px-1 rounded">{{'{{name}}'}}</code> (שם מקבל),{' '}
-          <code className="bg-slate-100 px-1 rounded">{{'{{date}}'}}</code> (תאריך שליחה),{' '}
-          <code className="bg-slate-100 px-1 rounded">{{'{{assetCount}}'}}</code> (מספר נכסים).
+          משתנים דינמיים: <code className="bg-slate-100 px-1 rounded">{"{{name}}"}</code> (שם מקבל),{' '}
+          <code className="bg-slate-100 px-1 rounded">{"{{date}}"}</code> (תאריך שליחה),{' '}
+          <code className="bg-slate-100 px-1 rounded">{"{{assetCount}}"}</code> (מספר נכסים).
         </p>
         {emailTemplatesLoading ? (
           <div className="flex items-center gap-2 text-slate-600 py-4">

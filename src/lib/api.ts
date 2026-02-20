@@ -692,7 +692,9 @@ export function sanitizeAssetInput(input: any): any {
     comment: preConverted.comment != null ? sanitizeText(preConverted.comment) : undefined,
     is_new_measurement: preConverted.is_new_measurement === true ? true : (preConverted.is_new_measurement === false ? false : undefined),
     operator_id: ('operator_id' in preConverted) ? (preConverted.operator_id != null && preConverted.operator_id !== '' ? sanitizeInteger(preConverted.operator_id) : null) : undefined,
-    shared_parking_area: preConverted.shared_parking_area != null ? sanitizeNumber(preConverted.shared_parking_area) : undefined,
+    shared_parking_area: ('shared_parking_area' in preConverted)
+      ? (preConverted.shared_parking_area != null && preConverted.shared_parking_area !== '' ? sanitizeNumber(preConverted.shared_parking_area) : null)
+      : undefined,
   };
 
   // Remove undefined values to avoid sending them to the database
@@ -850,12 +852,16 @@ function sanitizeBuildingInput(input: any): any {
   if ('need_residence_distribution' in input) {
     sanitized.need_residence_distribution = input.need_residence_distribution === true || input.need_residence_distribution === 'true';
   }
-  // Parking fields
-  if (input.parking_area != null) {
+  // Parking fields (allow explicit null/empty to clear in DB)
+  if (input.parking_area != null && input.parking_area !== '') {
     sanitized.parking_area = sanitizeNumber(input.parking_area);
+  } else if ('parking_area' in input && (input.parking_area === null || input.parking_area === '')) {
+    sanitized.parking_area = null;
   }
-  if (input.shared_parking_area != null) {
+  if (input.shared_parking_area != null && input.shared_parking_area !== '') {
     sanitized.shared_parking_area = sanitizeNumber(input.shared_parking_area);
+  } else if ('shared_parking_area' in input && (input.shared_parking_area === null || input.shared_parking_area === '')) {
+    sanitized.shared_parking_area = null;
   }
   if (input.number_of_parking_units != null && input.number_of_parking_units !== '') {
     sanitized.number_of_parking_units = sanitizeInteger(input.number_of_parking_units);

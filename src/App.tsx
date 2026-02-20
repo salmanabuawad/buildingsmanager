@@ -1560,6 +1560,7 @@ function App() {
                     <MapPin className="h-3.5 w-3.5 text-pink-600" />
                   </button>
                 )}
+                {false && (
                 <button
                   onClick={openAuditLog}
                   className="w-full flex items-center gap-2 px-3 py-2 text-right bg-pink-50/50 hover:bg-pink-100 rounded-lg transition-all text-xs shadow-sm hover:shadow"
@@ -1567,6 +1568,7 @@ function App() {
                   <span className="font-medium text-slate-700">יומן ביקורת</span>
                   <FileText className="h-3.5 w-3.5 text-pink-600" />
                 </button>
+                )}
                 {isAdmin && (
                   <button
                     onClick={openUserManagement}

@@ -46,6 +46,7 @@ interface ImportAssetRow {
   discount_date_from?: string;
   discount_date_to?: string;
   comment?: string;
+  shared_parking_area?: number;
   _validationErrors?: string[];
   _isDirty?: boolean;
 }
@@ -274,7 +275,8 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
         'discount_type': 'סוג הנחה',
         'discount_date_from': 'תאריך הנחה מ',
         'discount_date_to': 'תאריך הנחה עד',
-        'comment': 'הערה'
+        'comment': 'הערה',
+        'shared_parking_area': 'שטח חניה משותף'
       };
 
       // Match headers by exact name only (case-insensitive, trimmed)
@@ -475,6 +477,10 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
         }
         if (headerMap['comment'] !== undefined) {
           asset.comment = values[headerMap['comment']] || undefined;
+        }
+        if (headerMap['shared_parking_area'] !== undefined) {
+          const value = values[headerMap['shared_parking_area']] || '';
+          asset.shared_parking_area = value ? (parseFloat(value) || undefined) : undefined;
         }
 
         assets.push(asset);

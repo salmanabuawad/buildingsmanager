@@ -425,6 +425,7 @@ export interface Asset {
   data_from_automation?: boolean; // Flag indicating if this asset row originated from automation import
   comment?: string; // User comment/notes about the asset (הערה על הנכס)
   operator_id?: number | null; // Operator responsible for this asset (for grouping export and emailing)
+  shared_parking_area?: number | null; // Per-asset shared parking area (from building distribution)
 }
 
 export interface AssetFile {
@@ -691,6 +692,7 @@ export function sanitizeAssetInput(input: any): any {
     comment: preConverted.comment != null ? sanitizeText(preConverted.comment) : undefined,
     is_new_measurement: preConverted.is_new_measurement === true ? true : (preConverted.is_new_measurement === false ? false : undefined),
     operator_id: ('operator_id' in preConverted) ? (preConverted.operator_id != null && preConverted.operator_id !== '' ? sanitizeInteger(preConverted.operator_id) : null) : undefined,
+    shared_parking_area: preConverted.shared_parking_area != null ? sanitizeNumber(preConverted.shared_parking_area) : undefined,
   };
 
   // Remove undefined values to avoid sending them to the database

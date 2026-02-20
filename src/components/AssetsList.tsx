@@ -4370,6 +4370,7 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
         'סוג נכס משנה 6',
         'גודל נכס משנה 6',
         'גודל שטח משותף',  // business_distribution_area
+        'שטח חניה משותף',  // shared_parking_area
         'הערה'  // comment
       ];
 
@@ -4403,6 +4404,7 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
         asset.sub_asset_type_6 || '',
         asset.sub_asset_size_6 || '',
         asset.business_distribution_area || '',
+        asset.shared_parking_area ?? '',
         asset.comment || ''
       ]);
 
@@ -4443,7 +4445,10 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
           { wch: 12 }, // סוג נכס משנה 5
           { wch: 12 }, // גודל נכס משנה 5
           { wch: 12 }, // סוג נכס משנה 6
-          { wch: 12 }  // גודל נכס משנה 6
+          { wch: 12 }, // גודל נכס משנה 6
+          { wch: 12 }, // גודל שטח משותף
+          { wch: 12 }, // שטח חניה משותף
+          { wch: 12 }  // הערה
         ]
       });
       

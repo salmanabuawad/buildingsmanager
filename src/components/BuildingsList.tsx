@@ -2355,7 +2355,12 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
           { filename: `נכסים_מפעיל_${operatorId}_${dateStr}.xlsx`, data: opExcelBlob }
         ];
         const opZipBlob = await createZipBlob(opZipEntries);
-        operatorZipItems.push({ operator: { id: operator.id, name: operator.name, email: operator.email }, zipBlob: opZipBlob, zipFilename: `שליחת_נתונים_מפעיל_${operator.name}_${dateStr}.zip` });
+        operatorZipItems.push({
+          operator: { id: operator.id, name: operator.name, email: operator.email },
+          zipBlob: opZipBlob,
+          zipFilename: `שליחת_נתונים_מפעיל_${operator.name}_${dateStr}.zip`,
+          assetCount: operatorAssets.length,
+        });
       }
       const managersList = await api.managers.getAll();
       const managerZipItems: Array<{ operator: { id: number; name: string; email: string }; zipBlob: Blob; zipFilename: string }> = [];
@@ -2385,20 +2390,25 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
           columnWidths: [{ wch: 15 }, { wch: 15 }, { wch: 20 }, { wch: 20 }, { wch: 12 }, { wch: 12 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 10 }, { wch: 12 }, { wch: 12 }, { wch: 12 }, { wch: 15 }, { wch: 15 }]
         });
         const mgrZipBlob = await createZipBlob([{ filename: `נכסים_מנהל_${manager.id}_${dateStr}.xlsx`, data: mgrExcelBlob }]);
-        managerZipItems.push({ operator: { id: manager.id, name: manager.name, email: manager.email }, zipBlob: mgrZipBlob, zipFilename: `שליחת_נתונים_מנהל_${manager.name}_${dateStr}.zip` });
+        managerZipItems.push({
+          operator: { id: manager.id, name: manager.name, email: manager.email },
+          zipBlob: mgrZipBlob,
+          zipFilename: `שליחת_נתונים_מנהל_${manager.name}_${dateStr}.zip`,
+          assetCount: managerAssets.length,
+        });
       }
       let successMessage = `נשלחו ${result.count} נכסים לעירייה בהצלחה.`;
       let opSent = 0;
       let mgrSent = 0;
       let lastError: string | undefined;
       if (operatorZipItems.length > 0) {
-        const opResult = await emailService.sendZipByOperators(operatorZipItems, `שליחת נתונים לעירייה - ${exportDateStr}`, (name) => `שלום ${name},\n\nמצורפים קבצי הנתונים שלך.\n\nתאריך שליחה: ${exportDateStr}\n\nבברכה,\nמערכת ניהול נכסים`);
+        const opResult = await emailService.sendZipByOperators(operatorZipItems, undefined, undefined, 'operator');
         opSent = opResult.sentCount ?? 0;
         if (opResult.error) lastError = opResult.error;
       }
       if (managerZipItems.length > 0) {
         setToast({ message: 'שולח אימייל למנהלים...', type: 'info' });
-        const mgrResult = await emailService.sendZipByOperators(managerZipItems, `שליחת נתונים לעירייה - ${exportDateStr}`, (name) => `שלום ${name},\n\nמצורפים רשימת הנכסים לפי אזורי המס שלך שנשלחו לעירייה.\n\nתאריך שליחה: ${exportDateStr}\n\nבברכה,\nמערכת ניהול נכסים`);
+        const mgrResult = await emailService.sendZipByOperators(managerZipItems, undefined, undefined, 'manager');
         mgrSent = mgrResult.sentCount ?? 0;
         if (mgrResult.error) lastError = mgrResult.error;
       }

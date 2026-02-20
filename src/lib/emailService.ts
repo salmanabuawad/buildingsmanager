@@ -240,13 +240,30 @@ class EmailService {
   }
 
   /**
-   * Send per-operator ZIPs: one email per operator with their data.
-   * Each item is { operator: { id, name, email }, zipBlob, zipFilename }.
+   * Replace template placeholders: {{name}}, {{date}}, {{assetCount}}
+   */
+  private applyTemplate(template: string, name: string, dateStr: string, assetCount?: number): string {
+    return template
+      .replace(/\{\{name\}\}/g, name)
+      .replace(/\{\{date\}\}/g, dateStr)
+      .replace(/\{\{assetCount\}\}/g, assetCount != null ? String(assetCount) : '');
+  }
+
+  /**
+   * Send per-operator or per-manager ZIPs: one email per item.
+   * Items can include optional assetCount for template placeholder {{assetCount}}.
+   * When templateKind is 'operator' or 'manager', subject and body are loaded from DB (system_configuration).
    */
   async sendZipByOperators(
-    items: Array<{ operator: { id: number; name: string; email: string }; zipBlob: Blob; zipFilename: string }>,
+    items: Array<{
+      operator: { id: number; name: string; email: string };
+      zipBlob: Blob;
+      zipFilename: string;
+      assetCount?: number;
+    }>,
     subject?: string,
-    bodyTemplate?: (operatorName: string, assetCount?: number) => string
+    bodyTemplate?: (operatorName: string, assetCount?: number) => string,
+    templateKind?: 'operator' | 'manager'
   ): Promise<{ success: boolean; error?: string; sentCount?: number }> {
     if (items.length === 0) {
       return { success: true, sentCount: 0 };
@@ -258,17 +275,35 @@ class EmailService {
         error: 'הגדרות אימייל לא נמצאו. יש להגדיר אימייל בהגדרות המערכת.'
       };
     }
-    const defaultSubject = subject || `שליחת נתונים - ${new Date().toLocaleDateString('he-IL')}`;
+    const dateStr = new Date().toLocaleDateString('he-IL');
+    let dbTemplate: { subject: string; body: string } | null = null;
+    if (templateKind) {
+      try {
+        dbTemplate = await api.systemConfiguration.getEmailTemplate(
+          templateKind === 'operator' ? 'email_template_operator' : 'email_template_manager'
+        );
+      } catch (e) {
+        console.warn('Failed to load email template from DB:', e);
+      }
+    }
+    const defaultSubject = subject || `שליחת נתונים - ${dateStr}`;
     let sentCount = 0;
     let lastError: string | undefined;
-    for (const { operator, zipBlob, zipFilename } of items) {
+    for (const { operator, zipBlob, zipFilename, assetCount } of items) {
       if (!operator.email || !operator.email.includes('@')) continue;
-      const body = bodyTemplate
-        ? bodyTemplate(operator.name)
-        : `שלום ${operator.name},\n\nמצורפים קבצי הנתונים שלך.\n\nתאריך שליחה: ${new Date().toLocaleDateString('he-IL')}\n\nבברכה,\nמערכת ניהול נכסים`;
+      let subj = defaultSubject;
+      let body: string;
+      if (dbTemplate) {
+        subj = this.applyTemplate(dbTemplate.subject, operator.name, dateStr, assetCount);
+        body = this.applyTemplate(dbTemplate.body, operator.name, dateStr, assetCount);
+      } else if (bodyTemplate) {
+        body = bodyTemplate(operator.name, assetCount);
+      } else {
+        body = `שלום ${operator.name},\n\nמצורפים קבצי הנתונים שלך.\n\nתאריך שליחה: ${dateStr}\n\nבברכה,\nמערכת ניהול נכסים`;
+      }
       const result = await this.sendEmail({
         to: [operator.email],
-        subject: defaultSubject,
+        subject: subj,
         body,
         attachments: [{ filename: zipFilename, content: zipBlob, contentType: 'application/zip' }]
       });

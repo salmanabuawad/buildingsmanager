@@ -4742,6 +4742,27 @@ export const api = {
       }
       return null;
     },
+    /** Email templates stored in DB (system_configuration). Placeholders: {{name}}, {{date}}, {{assetCount}} */
+    getEmailTemplate: async (name: 'email_template_operator' | 'email_template_manager'): Promise<{ subject: string; body: string } | null> => {
+      const config = await api.systemConfiguration.getByName(name);
+      if (!config?.value) return null;
+      try {
+        const o = JSON.parse(config.value);
+        if (o && typeof o.subject === 'string' && typeof o.body === 'string') {
+          return { subject: o.subject, body: o.body };
+        }
+      } catch {
+        // ignore
+      }
+      return null;
+    },
+    upsertEmailTemplate: async (
+      name: 'email_template_operator' | 'email_template_manager',
+      template: { subject: string; body: string },
+      description?: string
+    ): Promise<SystemConfiguration> => {
+      return api.systemConfiguration.upsert(name, JSON.stringify(template), description);
+    },
   },
   operators: {
     /** Map DB row (operator_id, mail, phone) to app shape (id, email, phone) */

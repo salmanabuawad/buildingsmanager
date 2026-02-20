@@ -1277,7 +1277,12 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
         ];
         const opZipBlob = await createZipBlob(opZipEntries);
         const opZipFilename = `שליחת_נתונים_מפעיל_${operator.name}_${dateStr}.zip`;
-        operatorZipItems.push({ operator: { id: operator.id, name: operator.name, email: operator.email }, zipBlob: opZipBlob, zipFilename: opZipFilename });
+        operatorZipItems.push({
+          operator: { id: operator.id, name: operator.name, email: operator.email },
+          zipBlob: opZipBlob,
+          zipFilename: opZipFilename,
+          assetCount: operatorAssets.length,
+        });
       }
       // Managers: each gets assets list filtered by their tax_regions (comma-separated)
       const managersList = await api.managers.getAll();
@@ -1323,28 +1328,25 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
         });
         const mgrZipBlob = await createZipBlob([{ filename: `נכסים_מנהל_${manager.id}_${dateStr}.xlsx`, data: mgrExcelBlob }]);
         const mgrZipFilename = `שליחת_נתונים_מנהל_${manager.name}_${dateStr}.zip`;
-        managerZipItems.push({ operator: { id: manager.id, name: manager.name, email: manager.email }, zipBlob: mgrZipBlob, zipFilename: mgrZipFilename });
+        managerZipItems.push({
+          operator: { id: manager.id, name: manager.name, email: manager.email },
+          zipBlob: mgrZipBlob,
+          zipFilename: mgrZipFilename,
+          assetCount: managerAssets.length,
+        });
       }
       let successMessage = `נשלחו ${assetIdsToMark.length} נכסים לעירייה בהצלחה.`;
       let opSent = 0;
       let mgrSent = 0;
       let lastError: string | undefined;
       if (operatorZipItems.length > 0) {
-        const opResult = await emailService.sendZipByOperators(
-          operatorZipItems,
-          `שליחת נתונים לעירייה - ${exportDateStr}`,
-          (name, _count) => `שלום ${name},\n\nמצורפים קבצי הנתונים שלך שנשלחו לעירייה.\n\nתאריך שליחה: ${exportDateStr}\n\nבברכה,\nמערכת ניהול נכסים`
-        );
+        const opResult = await emailService.sendZipByOperators(operatorZipItems, undefined, undefined, 'operator');
         opSent = opResult.sentCount ?? 0;
         if (opResult.error) lastError = opResult.error;
       }
       if (managerZipItems.length > 0) {
         setToast({ message: 'שולח אימייל למנהלים...', type: 'info' });
-        const mgrResult = await emailService.sendZipByOperators(
-          managerZipItems,
-          `שליחת נתונים לעירייה - ${exportDateStr}`,
-          (name) => `שלום ${name},\n\nמצורפים רשימת הנכסים לפי אזורי המס שלך שנשלחו לעירייה.\n\nתאריך שליחה: ${exportDateStr}\n\nבברכה,\nמערכת ניהול נכסים`
-        );
+        const mgrResult = await emailService.sendZipByOperators(managerZipItems, undefined, undefined, 'manager');
         mgrSent = mgrResult.sentCount ?? 0;
         if (mgrResult.error) lastError = mgrResult.error;
       }

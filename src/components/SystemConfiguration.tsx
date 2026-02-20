@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { api, SystemConfiguration } from '../lib/api';
 import { useUserRole } from '../contexts/UserRoleContext';
-import { Loader2, Settings, Save, RefreshCw, Plus, X, Trash2, AlertCircle, Edit2, Mail, Send } from 'lucide-react';
+import { Loader2, Settings, Save, RefreshCw, Plus, X, Trash2, AlertCircle, Edit2, Mail, Send, FileText, Eye, Upload, Download } from 'lucide-react';
 import { Toast } from './Toast';
 import { emailService } from '../lib/emailService';
 import type { EmailConfig } from '../lib/emailService';
@@ -29,6 +29,12 @@ export function SystemConfigurationManager() {
   const [testEmailTo, setTestEmailTo] = useState('');
   const [sendingTestEmail, setSendingTestEmail] = useState(false);
   const [showEmailSection, setShowEmailSection] = useState(true);
+
+  const [emailTemplateOperator, setEmailTemplateOperator] = useState<{ subject: string; body: string } | null>(null);
+  const [emailTemplateManager, setEmailTemplateManager] = useState<{ subject: string; body: string } | null>(null);
+  const [emailTemplatesLoading, setEmailTemplatesLoading] = useState(true);
+  const [emailTemplateSaving, setEmailTemplateSaving] = useState<'operator' | 'manager' | null>(null);
+  const [showTemplateView, setShowTemplateView] = useState<'operator' | 'manager' | null>(null);
 
   useEffect(() => {
     fetchConfigurations();
@@ -58,6 +64,31 @@ export function SystemConfigurationManager() {
         });
       } finally {
         if (!cancelled) setEmailConfigLoading(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      setEmailTemplatesLoading(true);
+      try {
+        const [op, mgr] = await Promise.all([
+          api.systemConfiguration.getEmailTemplate('email_template_operator'),
+          api.systemConfiguration.getEmailTemplate('email_template_manager'),
+        ]);
+        if (!cancelled) {
+          setEmailTemplateOperator(op);
+          setEmailTemplateManager(mgr);
+        }
+      } catch {
+        if (!cancelled) {
+          setEmailTemplateOperator(null);
+          setEmailTemplateManager(null);
+        }
+      } finally {
+        if (!cancelled) setEmailTemplatesLoading(false);
       }
     })();
     return () => { cancelled = true; };
@@ -252,6 +283,42 @@ export function SystemConfigurationManager() {
       }
     } finally {
       setSendingTestEmail(false);
+    }
+  };
+
+  const downloadEmailTemplate = (kind: 'operator' | 'manager') => {
+    const t = kind === 'operator' ? emailTemplateOperator : emailTemplateManager;
+    if (!t) return;
+    const blob = new Blob([JSON.stringify({ subject: t.subject, body: t.body }, null, 2)], { type: 'application/json' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = kind === 'operator' ? 'email_template_operator.json' : 'email_template_manager.json';
+    a.click();
+    URL.revokeObjectURL(a.href);
+  };
+
+  const uploadEmailTemplate = async (kind: 'operator' | 'manager', file: File) => {
+    if (!isAdmin) return;
+    const text = await file.text();
+    try {
+      const parsed = JSON.parse(text);
+      if (typeof parsed?.subject !== 'string' || typeof parsed?.body !== 'string') {
+        setToast({ message: 'הקובץ חייב להכיל שדות נושא וגוף (subject, body) כמחרוזות', type: 'error' });
+        return;
+      }
+      setEmailTemplateSaving(kind);
+      setToast(null);
+      await api.systemConfiguration.upsertEmailTemplate(
+        kind === 'operator' ? 'email_template_operator' : 'email_template_manager',
+        { subject: parsed.subject, body: parsed.body }
+      );
+      if (kind === 'operator') setEmailTemplateOperator({ subject: parsed.subject, body: parsed.body });
+      else setEmailTemplateManager({ subject: parsed.subject, body: parsed.body });
+      setToast({ message: 'התבנית נשמרה בהצלחה', type: 'success' });
+    } catch (e) {
+      setToast({ message: e instanceof Error ? e.message : 'קובץ JSON לא תקין. יש להעלות קובץ עם שדות subject ו-body', type: 'error' });
+    } finally {
+      setEmailTemplateSaving(null);
     }
   };
 
@@ -476,6 +543,120 @@ export function SystemConfigurationManager() {
               </div>
             )}
           </>
+        )}
+      </div>
+
+      {/* Email templates (stored in DB) */}
+      <div className="bg-white rounded-xl shadow-lg border border-blue-100 p-6 mb-6">
+        <div className="flex items-center gap-3 mb-4">
+          <FileText className="h-6 w-6 text-teal-600" />
+          <h2 className="text-xl font-bold text-slate-800">תבניות דוא&quot;ל (נשמרות במערכת)</h2>
+        </div>
+        <p className="text-sm text-slate-600 mb-4">
+          משתנים דינמיים: <code className="bg-slate-100 px-1 rounded">{{'{{name}}'}}</code> (שם מקבל),{' '}
+          <code className="bg-slate-100 px-1 rounded">{{'{{date}}'}}</code> (תאריך שליחה),{' '}
+          <code className="bg-slate-100 px-1 rounded">{{'{{assetCount}}'}}</code> (מספר נכסים).
+        </p>
+        {emailTemplatesLoading ? (
+          <div className="flex items-center gap-2 text-slate-600 py-4">
+            <Loader2 className="h-5 w-5 animate-spin" />
+            טוען תבניות...
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="border border-slate-200 rounded-lg p-4 bg-slate-50">
+              <h3 className="font-semibold text-slate-800 mb-3">תבנית מפעיל</h3>
+              <div className="flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  onClick={() => setShowTemplateView((v) => (v === 'operator' ? null : 'operator'))}
+                  className="flex items-center gap-1 px-3 py-1.5 text-sm bg-slate-200 text-slate-800 rounded-lg hover:bg-slate-300"
+                >
+                  <Eye className="h-4 w-4" />
+                  הצג
+                </button>
+                <label className="flex items-center gap-1 px-3 py-1.5 text-sm bg-blue-100 text-blue-800 rounded-lg hover:bg-blue-200 cursor-pointer">
+                  <Upload className="h-4 w-4" />
+                  העלה
+                  <input
+                    type="file"
+                    accept=".json,application/json"
+                    className="hidden"
+                    onChange={(e) => {
+                      const f = e.target.files?.[0];
+                      if (f) uploadEmailTemplate('operator', f);
+                      e.target.value = '';
+                    }}
+                    disabled={!isAdmin || emailTemplateSaving !== null}
+                  />
+                </label>
+                <button
+                  type="button"
+                  onClick={() => downloadEmailTemplate('operator')}
+                  disabled={!emailTemplateOperator}
+                  className="flex items-center gap-1 px-3 py-1.5 text-sm bg-green-100 text-green-800 rounded-lg hover:bg-green-200 disabled:opacity-50"
+                >
+                  <Download className="h-4 w-4" />
+                  הורד
+                </button>
+              </div>
+              {showTemplateView === 'operator' && emailTemplateOperator && (
+                <div className="mt-3 p-3 bg-white border border-slate-200 rounded text-sm">
+                  <div className="mb-2"><span className="font-medium text-slate-600">נושא:</span> {emailTemplateOperator.subject}</div>
+                  <pre className="whitespace-pre-wrap break-words text-slate-700">{emailTemplateOperator.body}</pre>
+                </div>
+              )}
+            </div>
+            <div className="border border-slate-200 rounded-lg p-4 bg-slate-50">
+              <h3 className="font-semibold text-slate-800 mb-3">תבנית מנהל</h3>
+              <div className="flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  onClick={() => setShowTemplateView((v) => (v === 'manager' ? null : 'manager'))}
+                  className="flex items-center gap-1 px-3 py-1.5 text-sm bg-slate-200 text-slate-800 rounded-lg hover:bg-slate-300"
+                >
+                  <Eye className="h-4 w-4" />
+                  הצג
+                </button>
+                <label className="flex items-center gap-1 px-3 py-1.5 text-sm bg-blue-100 text-blue-800 rounded-lg hover:bg-blue-200 cursor-pointer">
+                  <Upload className="h-4 w-4" />
+                  העלה
+                  <input
+                    type="file"
+                    accept=".json,application/json"
+                    className="hidden"
+                    onChange={(e) => {
+                      const f = e.target.files?.[0];
+                      if (f) uploadEmailTemplate('manager', f);
+                      e.target.value = '';
+                    }}
+                    disabled={!isAdmin || emailTemplateSaving !== null}
+                  />
+                </label>
+                <button
+                  type="button"
+                  onClick={() => downloadEmailTemplate('manager')}
+                  disabled={!emailTemplateManager}
+                  className="flex items-center gap-1 px-3 py-1.5 text-sm bg-green-100 text-green-800 rounded-lg hover:bg-green-200 disabled:opacity-50"
+                >
+                  <Download className="h-4 w-4" />
+                  הורד
+                </button>
+              </div>
+              {showTemplateView === 'manager' && emailTemplateManager && (
+                <div className="mt-3 p-3 bg-white border border-slate-200 rounded text-sm">
+                  <div className="mb-2"><span className="font-medium text-slate-600">נושא:</span> {emailTemplateManager.subject}</div>
+                  <pre className="whitespace-pre-wrap break-words text-slate-700">{emailTemplateManager.body}</pre>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+        {emailTemplateSaving && (
+          <div className="mt-2 text-sm text-slate-600 flex items-center gap-2">
+            <Loader2 className="h-4 w-4 animate-spin" />
+            שומר תבנית...
+          </div>
         )}
       </div>
 

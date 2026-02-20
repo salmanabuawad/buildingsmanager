@@ -4128,6 +4128,7 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
               }}
               rowData={selectedRowForEdit}
               assetTypes={assetTypes}
+              operators={operators}
               onSave={handleSaveFromModal}
             />
 

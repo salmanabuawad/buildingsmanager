@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { X, Save } from 'lucide-react';
-import { Asset, AssetType } from '../lib/api';
+import { Asset, AssetType, Operator } from '../lib/api';
 import { useTranslation } from 'react-i18next';
 
 interface RowEditModalProps {
@@ -8,10 +8,11 @@ interface RowEditModalProps {
   onClose: () => void;
   rowData: Asset | null;
   assetTypes: AssetType[];
+  operators?: Operator[];
   onSave: (updatedData: Partial<Asset>) => void;
 }
 
-export function RowEditModal({ isOpen, onClose, rowData, assetTypes, onSave }: RowEditModalProps) {
+export function RowEditModal({ isOpen, onClose, rowData, assetTypes, operators = [], onSave }: RowEditModalProps) {
   const { t } = useTranslation();
   const [formData, setFormData] = useState<Partial<Asset>>({});
   const [dateError, setDateError] = useState<string | null>(null);
@@ -217,6 +218,25 @@ export function RowEditModal({ isOpen, onClose, rowData, assetTypes, onSave }: R
                 className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-right"
                 placeholder="אזור מס"
               />
+            </div>
+
+            {/* Operator */}
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1">
+                מפעיל
+              </label>
+              <select
+                value={formData.operator_id != null ? String(formData.operator_id) : ''}
+                onChange={(e) => handleFieldChange('operator_id', e.target.value === '' ? null : parseInt(e.target.value, 10))}
+                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-right"
+              >
+                <option value="">—</option>
+                {operators.map((o) => (
+                  <option key={o.id} value={String(o.id)}>
+                    {o.name}
+                  </option>
+                ))}
+              </select>
             </div>
 
             {/* Main Asset Type */}

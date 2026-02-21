@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Float, Boolean, DateTime, ForeignKey, Text, Numeric
+from sqlalchemy import Column, Integer, BigInteger, String, Float, Boolean, DateTime, ForeignKey, Text, Numeric
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
@@ -124,3 +124,20 @@ class AuditLog(Base):
     changed_by = Column(UUID(as_uuid=True), ForeignKey("users.id"))
     changed_at = Column(DateTime(timezone=True), server_default=func.now())
     tax_region = Column(String(50))
+
+
+class ExportEmailQueue(Base):
+    """תור שליחת מיילי ייצוא – נצרך על ידי worker ברקע."""
+    __tablename__ = "export_email_queue"
+
+    id = Column(BigInteger, primary_key=True, autoincrement=True)
+    to_email = Column(Text, nullable=False)
+    to_name = Column(Text, nullable=False)
+    subject = Column(Text, nullable=False)
+    body_he = Column(Text, nullable=False)
+    attachment_base64 = Column(Text, nullable=False)
+    attachment_filename = Column(Text, nullable=False)
+    status = Column(String(20), nullable=False, default="pending")
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    sent_at = Column(DateTime(timezone=True))
+    error_message = Column(Text)

@@ -1238,15 +1238,16 @@ export const MeasuredNotExportedAssets = ({ onSelectAsset }: MeasuredNotExported
       const { createZipBlob } = await import('../lib/zipExport');
       const zipBlob = await createZipBlob(zipFiles);
       
-      const exportDate = new Date();
-      const day = String(exportDate.getDate()).padStart(2, '0');
-      const month = String(exportDate.getMonth() + 1).padStart(2, '0');
-      const year = exportDate.getFullYear();
-      const exportDateStr = `${day}/${month}/${year}`;
-      
+      const dateStrHe = new Date().toLocaleDateString('he-IL');
       const { emailService } = await import('../lib/emailService');
-      setToast({ message: 'שולח אימייל למפעילים...', type: 'info' });
-      
+      setToast({ message: 'מוסיף מיילים לתור...', type: 'info' });
+      const [templateOp, templateMgr] = await Promise.all([
+        api.systemConfiguration.getEmailTemplate('email_template_operator'),
+        api.systemConfiguration.getEmailTemplate('email_template_manager'),
+      ]);
+      const applyTpl = (t: string, name: string, assetCount?: number) =>
+        t.replace(/\{\{name\}\}/g, name).replace(/\{\{date\}\}/g, dateStrHe).replace(/\{\{assetCount\}\}/g, assetCount != null ? String(assetCount) : '');
+
       const byOperator = new Map<number, typeof assetsToExport>();
       for (const a of assetsToExport) {
         const id = a.operator_id;
@@ -1256,7 +1257,7 @@ export const MeasuredNotExportedAssets = ({ onSelectAsset }: MeasuredNotExported
         }
       }
       const operatorsList = await api.operators.getAll();
-      const operatorZipItems: Array<{ operator: { id: number; name: string; email: string }; zipBlob: Blob; zipFilename: string }> = [];
+      const enqueueItems: Array<{ to: string; recipientName: string; subject: string; body: string; attachmentFilename: string; attachmentBlob: Blob }> = [];
       for (const [operatorId, operatorAssets] of byOperator) {
         const operator = operatorsList.find(o => o.id === operatorId);
         if (!operator?.email || !operator.email.includes('@')) continue;
@@ -1276,20 +1277,48 @@ export const MeasuredNotExportedAssets = ({ onSelectAsset }: MeasuredNotExported
           data: opData,
           columnWidths: [{ wch: 15 }, { wch: 15 }, { wch: 20 }, { wch: 20 }, { wch: 12 }, { wch: 12 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 10 }, { wch: 12 }, { wch: 12 }, { wch: 12 }, { wch: 15 }, { wch: 15 }]
         });
-        // Operator email: only the assets list (no file list, no structure drawings)
-        const opZipEntries: Array<{ filename: string; data: Blob }> = [
-          { filename: `נכסים_מפעיל_${operatorId}_${dateStr}.xlsx`, data: opExcelBlob }
-        ];
-        const opZipBlob = await createZipBlob(opZipEntries);
-        operatorZipItems.push({
-          operator: { id: operator.id, name: operator.name, email: operator.email },
-          zipBlob: opZipBlob,
-          zipFilename: `שליחת_נתונים_מפעיל_${operator.name}_${dateStr}.zip`,
-          assetCount: operatorAssets.length,
+        const subj = templateOp ? applyTpl(templateOp.subject, operator.name, operatorAssets.length) : `שליחת נתונים - ${dateStrHe}`;
+        const body = templateOp ? applyTpl(templateOp.body, operator.name, operatorAssets.length) : `שלום ${operator.name},\n\nמצורף קובץ הנתונים.\nתאריך: ${dateStrHe}\n\nבברכה,\nמערכת ניהול נכסים`;
+        enqueueItems.push({
+          to: operator.email,
+          recipientName: operator.name,
+          subject: subj,
+          body,
+          attachmentFilename: `נכסים_מפעיל_${operator.name}_${dateStr}.xlsx`,
+          attachmentBlob: opExcelBlob,
         });
       }
+      if (enqueueItems.length === 0) {
+        const fullRows = assetsToExport.map((asset: any) => [
+          asset.payer_id || '', asset.asset_id != null ? String(asset.asset_id) : '',
+          formatDateToDDMMYYYY(asset.discount_date_from) || '', formatDateToDDMMYYYY(asset.discount_date_to) || '',
+          asset.main_asset_type || '', getExportAssetSize(asset),
+          asset.sub_asset_type_1 || '', asset.sub_asset_size_1 || '', asset.sub_asset_type_2 || '', asset.sub_asset_size_2 || '',
+          asset.sub_asset_type_3 || '', asset.sub_asset_size_3 || '', asset.sub_asset_type_4 || '', asset.sub_asset_size_4 || '',
+          asset.sub_asset_type_5 || '', asset.sub_asset_size_5 || '', asset.sub_asset_type_6 || '', asset.sub_asset_size_6 || '',
+          '', '', '', '', '', ''
+        ]);
+        const fullExcelBlob = createExcelBlob({
+          filename: `נכסים_שליחה_${dateStr}.xlsx`,
+          sheetName: 'נכסים',
+          data: [headers, ...fullRows],
+          columnWidths: [{ wch: 15 }, { wch: 15 }, { wch: 20 }, { wch: 20 }, { wch: 12 }, { wch: 12 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 10 }, { wch: 12 }, { wch: 12 }, { wch: 12 }, { wch: 15 }, { wch: 15 }]
+        });
+        for (const operator of operatorsList) {
+          if (!operator?.email || !operator.email.includes('@')) continue;
+          const subj = templateOp ? applyTpl(templateOp.subject, operator.name, assetsToExport.length) : `שליחת נתונים - ${dateStrHe}`;
+          const body = templateOp ? applyTpl(templateOp.body, operator.name, assetsToExport.length) : `שלום ${operator.name},\n\nמצורף קובץ הנתונים.\nתאריך: ${dateStrHe}\n\nבברכה,\nמערכת ניהול נכסים`;
+          enqueueItems.push({
+            to: operator.email,
+            recipientName: operator.name,
+            subject: subj,
+            body,
+            attachmentFilename: `נכסים_שליחה_${dateStr}.xlsx`,
+            attachmentBlob: fullExcelBlob,
+          });
+        }
+      }
       const managersList = await api.managers.getAll();
-      const managerZipItems: Array<{ operator: { id: number; name: string; email: string }; zipBlob: Blob; zipFilename: string }> = [];
       for (const manager of managersList) {
         if (!manager.email || !manager.email.includes('@')) continue;
         const regionStrs = (manager.tax_regions || '').split(',').map((s: string) => s.trim()).filter(Boolean);
@@ -1315,51 +1344,32 @@ export const MeasuredNotExportedAssets = ({ onSelectAsset }: MeasuredNotExported
           data: mgrData,
           columnWidths: [{ wch: 15 }, { wch: 15 }, { wch: 20 }, { wch: 20 }, { wch: 12 }, { wch: 12 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 10 }, { wch: 12 }, { wch: 12 }, { wch: 12 }, { wch: 15 }, { wch: 15 }]
         });
-        const mgrZipBlob = await createZipBlob([{ filename: `נכסים_מנהל_${manager.id}_${dateStr}.xlsx`, data: mgrExcelBlob }]);
-        managerZipItems.push({
-          operator: { id: manager.id, name: manager.name, email: manager.email },
-          zipBlob: mgrZipBlob,
-          zipFilename: `שליחת_נתונים_מנהל_${manager.name}_${dateStr}.zip`,
-          assetCount: managerAssets.length,
+        const subj = templateMgr ? applyTpl(templateMgr.subject, manager.name, managerAssets.length) : `שליחת נתונים - ${dateStrHe}`;
+        const body = templateMgr ? applyTpl(templateMgr.body, manager.name, managerAssets.length) : `שלום ${manager.name},\n\nמצורף קובץ הנתונים.\nתאריך: ${dateStrHe}\n\nבברכה,\nמערכת ניהול נכסים`;
+        enqueueItems.push({
+          to: manager.email,
+          recipientName: manager.name,
+          subject: subj,
+          body,
+          attachmentFilename: `נכסים_מנהל_${manager.name}_${dateStr}.xlsx`,
+          attachmentBlob: mgrExcelBlob,
         });
       }
-      let successMessage = `נשלחו ${result.count} נכסים לעירייה בהצלחה.`;
-      let opSent = 0;
-      let mgrSent = 0;
-      let lastError: string | undefined;
-      if (operatorZipItems.length > 0) {
-        const opResult = await emailService.sendZipByOperators(operatorZipItems, undefined, undefined, 'operator');
-        opSent = opResult.sentCount ?? 0;
-        if (opResult.error) lastError = opResult.error;
-      }
-      if (managerZipItems.length > 0) {
-        setToast({ message: 'שולח אימייל למנהלים...', type: 'info' });
-        const mgrResult = await emailService.sendZipByOperators(managerZipItems, undefined, undefined, 'manager');
-        mgrSent = mgrResult.sentCount ?? 0;
-        if (mgrResult.error) lastError = mgrResult.error;
-      }
-      if (opSent > 0 || mgrSent > 0) {
-        const parts = [];
-        if (opSent > 0) parts.push(`נשלח אימייל ל-${opSent} מפעילים`);
-        if (mgrSent > 0) parts.push(`ל-${mgrSent} מנהלים`);
-        if (parts.length) successMessage += ' ' + parts.join(' ו-');
-        successMessage += '.';
+      const { createAndDownloadZip } = await import('../lib/zipExport');
+      await createAndDownloadZip(zipFilename, zipFiles);
+      let successMessage = `נשלחו ${result.count} נכסים לעירייה בהצלחה. הקובץ הורד.`;
+      const enqueueResult = await emailService.enqueueExportEmails(enqueueItems);
+      if (enqueueResult.success && (enqueueResult.enqueued ?? 0) > 0) {
+        successMessage += ` ${enqueueResult.enqueued} מיילים נוספו לתור וישלחו בהמשך.`;
         setToast({ message: successMessage, type: 'success' });
-      } else if (lastError && (operatorZipItems.length > 0 || managerZipItems.length > 0)) {
-        const { createAndDownloadZip } = await import('../lib/zipExport');
-        await createAndDownloadZip(zipFilename, zipFiles);
-        setToast({ message: `נשלחו ${result.count} נכסים לעירייה. שליחת אימייל נכשלה: ${lastError}. הקובץ הורד.`, type: 'error' });
-      } else if (operatorZipItems.length === 0 && managerZipItems.length === 0) {
-        const hasOperatorsWithAssets = byOperator.size > 0;
-        if (hasOperatorsWithAssets) {
-          successMessage += ' לא נשלח אימייל — למפעילים אין כתובת אימייל. יש למלא דוא"ל במסך מפעילים.';
-        } else {
-          successMessage += ' לא נשלח אימייל — יש להקצות מפעיל לנכסים ולמלא כתובת אימייל במסך מפעילים.';
-        }
+      } else if (enqueueResult.error && enqueueItems.length > 0) {
+        setToast({ message: `${successMessage} המיילים לא נוספו לתור: ${enqueueResult.error}`, type: 'info' });
+      } else if (enqueueItems.length === 0) {
+        const hasOperators = operatorsList.some(o => o?.email && o.email.includes('@'));
+        if (!hasOperators) successMessage += ' לא נשלח אימייל — יש למלא דוא"ל במסך מפעילים.';
         setToast({ message: successMessage, type: 'success' });
       } else {
-        successMessage += ' לא נשלח אימייל. אם ציפית לשליחה — בדוק הגדרות אימייל בהגדרות המערכת וכתובות במסך מפעילים/מנהלים.';
-        setToast({ message: successMessage, type: 'info' });
+        setToast({ message: successMessage, type: 'success' });
       }
       setTimeout(() => setToast(null), 8000);
       // Refresh the count after export

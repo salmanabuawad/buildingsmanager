@@ -1222,9 +1222,16 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
       const { createZipBlob } = await import('../lib/zipExport');
       const zipBlob = await createZipBlob(zipFiles);
       
-      // Per-operator emails: build a ZIP per operator and send to each operator's email
       const { emailService } = await import('../lib/emailService');
-      setToast({ message: 'שולח אימייל למפעילים...', type: 'info' });
+      setToast({ message: 'מוסיף מיילים לתור...', type: 'info' });
+      const dateStrHe = new Date().toLocaleDateString('he-IL');
+      const [templateOp, templateMgr] = await Promise.all([
+        api.systemConfiguration.getEmailTemplate('email_template_operator'),
+        api.systemConfiguration.getEmailTemplate('email_template_manager'),
+      ]);
+      const applyTpl = (t: string, name: string, assetCount?: number) =>
+        t.replace(/\{\{name\}\}/g, name).replace(/\{\{date\}\}/g, dateStrHe).replace(/\{\{assetCount\}\}/g, assetCount != null ? String(assetCount) : '');
+
       const operatorsList = await api.operators.getAll();
       const byOperator = new Map<number, typeof assetsForExcel>();
       for (const a of assetsForExcel) {
@@ -1234,29 +1241,17 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
           byOperator.get(id)!.push(a);
         }
       }
-      const operatorZipItems: Array<{ operator: { id: number; name: string; email: string }; zipBlob: Blob; zipFilename: string }> = [];
+      const enqueueItems: Array<{ to: string; recipientName: string; subject: string; body: string; attachmentFilename: string; attachmentBlob: Blob }> = [];
       for (const [operatorId, operatorAssets] of byOperator) {
         const operator = operatorsList.find(o => o.id === operatorId);
         if (!operator?.email || !operator.email.includes('@')) continue;
         const opRows = operatorAssets.map(asset => [
-          asset.payer_id || '',
-          asset.asset_id != null ? String(asset.asset_id) : '',
-          formatDateToDDMMYYYY(asset.discount_date_from) || '',
-          formatDateToDDMMYYYY(asset.discount_date_to) || '',
-          asset.main_asset_type || '',
-          getExportAssetSize(asset),
-          asset.sub_asset_type_1 || '',
-          asset.sub_asset_size_1 || '',
-          asset.sub_asset_type_2 || '',
-          asset.sub_asset_size_2 || '',
-          asset.sub_asset_type_3 || '',
-          asset.sub_asset_size_3 || '',
-          asset.sub_asset_type_4 || '',
-          asset.sub_asset_size_4 || '',
-          asset.sub_asset_type_5 || '',
-          asset.sub_asset_size_5 || '',
-          asset.sub_asset_type_6 || '',
-          asset.sub_asset_size_6 || '',
+          asset.payer_id || '', asset.asset_id != null ? String(asset.asset_id) : '',
+          formatDateToDDMMYYYY(asset.discount_date_from) || '', formatDateToDDMMYYYY(asset.discount_date_to) || '',
+          asset.main_asset_type || '', getExportAssetSize(asset),
+          asset.sub_asset_type_1 || '', asset.sub_asset_size_1 || '', asset.sub_asset_type_2 || '', asset.sub_asset_size_2 || '',
+          asset.sub_asset_type_3 || '', asset.sub_asset_size_3 || '', asset.sub_asset_type_4 || '', asset.sub_asset_size_4 || '',
+          asset.sub_asset_type_5 || '', asset.sub_asset_size_5 || '', asset.sub_asset_type_6 || '', asset.sub_asset_size_6 || '',
           '', '', '', '', '', ''
         ]);
         const opData = [headers, ...opRows];
@@ -1271,47 +1266,69 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
             { wch: 10 }, { wch: 12 }, { wch: 12 }, { wch: 12 }, { wch: 15 }, { wch: 15 }
           ]
         });
-        // Operator email: only the assets list (no file list, no structure drawings)
-        const opZipEntries: Array<{ filename: string; data: Blob }> = [
-          { filename: `נכסים_מפעיל_${operatorId}_${dateStr}.xlsx`, data: opExcelBlob }
-        ];
-        const opZipBlob = await createZipBlob(opZipEntries);
-        const opZipFilename = `שליחת_נתונים_מפעיל_${operator.name}_${dateStr}.zip`;
-        operatorZipItems.push({
-          operator: { id: operator.id, name: operator.name, email: operator.email },
-          zipBlob: opZipBlob,
-          zipFilename: opZipFilename,
-          assetCount: operatorAssets.length,
+        const subj = templateOp ? applyTpl(templateOp.subject, operator.name, operatorAssets.length) : `שליחת נתונים - ${dateStrHe}`;
+        const body = templateOp ? applyTpl(templateOp.body, operator.name, operatorAssets.length) : `שלום ${operator.name},\n\nמצורף קובץ הנתונים.\nתאריך: ${dateStrHe}\n\nבברכה,\nמערכת ניהול נכסים`;
+        enqueueItems.push({
+          to: operator.email,
+          recipientName: operator.name,
+          subject: subj,
+          body,
+          attachmentFilename: `נכסים_מפעיל_${operator.name}_${dateStr}.xlsx`,
+          attachmentBlob: opExcelBlob,
         });
       }
-      // Managers: each gets assets list filtered by their tax_regions (comma-separated)
+      if (enqueueItems.length === 0) {
+        const fullRows = assetsForExcel.map((asset: any) => [
+          asset.payer_id || '', asset.asset_id != null ? String(asset.asset_id) : '',
+          formatDateToDDMMYYYY(asset.discount_date_from) || '', formatDateToDDMMYYYY(asset.discount_date_to) || '',
+          asset.main_asset_type || '', getExportAssetSize(asset),
+          asset.sub_asset_type_1 || '', asset.sub_asset_size_1 || '', asset.sub_asset_type_2 || '', asset.sub_asset_size_2 || '',
+          asset.sub_asset_type_3 || '', asset.sub_asset_size_3 || '', asset.sub_asset_type_4 || '', asset.sub_asset_size_4 || '',
+          asset.sub_asset_type_5 || '', asset.sub_asset_size_5 || '', asset.sub_asset_type_6 || '', asset.sub_asset_size_6 || '',
+          '', '', '', '', '', ''
+        ]);
+        const fullExcelBlob = createExcelBlob({
+          filename: `נכסים_שליחה_${dateStr}.xlsx`,
+          sheetName: 'נכסים',
+          data: [headers, ...fullRows],
+          columnWidths: [
+            { wch: 15 }, { wch: 15 }, { wch: 20 }, { wch: 20 }, { wch: 12 }, { wch: 12 },
+            { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 },
+            { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 },
+            { wch: 10 }, { wch: 12 }, { wch: 12 }, { wch: 12 }, { wch: 15 }, { wch: 15 }
+          ]
+        });
+        for (const operator of operatorsList) {
+          if (!operator?.email || !operator.email.includes('@')) continue;
+          const subj = templateOp ? applyTpl(templateOp.subject, operator.name, assetsForExcel.length) : `שליחת נתונים - ${dateStrHe}`;
+          const body = templateOp ? applyTpl(templateOp.body, operator.name, assetsForExcel.length) : `שלום ${operator.name},\n\nמצורף קובץ הנתונים.\nתאריך: ${dateStrHe}\n\nבברכה,\nמערכת ניהול נכסים`;
+          enqueueItems.push({
+            to: operator.email,
+            recipientName: operator.name,
+            subject: subj,
+            body,
+            attachmentFilename: `נכסים_שליחה_${dateStr}.xlsx`,
+            attachmentBlob: fullExcelBlob,
+          });
+        }
+      }
       const managersList = await api.managers.getAll();
-      const managerZipItems: Array<{ operator: { id: number; name: string; email: string }; zipBlob: Blob; zipFilename: string }> = [];
       for (const manager of managersList) {
         if (!manager.email || !manager.email.includes('@')) continue;
         const regionStrs = (manager.tax_regions || '').split(',').map((s: string) => s.trim()).filter(Boolean);
-        const regionSet = new Set(regionStrs.map((s: string) => {
-          const n = parseInt(s, 10);
-          return isNaN(n) ? null : n;
-        }).filter((n: number | null): n is number => n !== null));
+        const regionSet = new Set(regionStrs.map((s: string) => { const n = parseInt(s, 10); return isNaN(n) ? null : n; }).filter((n: number | null): n is number => n !== null));
         const managerAssets = assetsForExcel.filter((a: any) => {
           const tr = a.tax_region != null ? (typeof a.tax_region === 'string' ? parseInt(a.tax_region, 10) : a.tax_region) : null;
           return tr != null && regionSet.has(tr);
         });
         if (managerAssets.length === 0) continue;
         const mgrRows = managerAssets.map((asset: any) => [
-          asset.payer_id || '',
-          asset.asset_id != null ? String(asset.asset_id) : '',
-          formatDateToDDMMYYYY(asset.discount_date_from) || '',
-          formatDateToDDMMYYYY(asset.discount_date_to) || '',
-          asset.main_asset_type || '',
-          getExportAssetSize(asset),
-          asset.sub_asset_type_1 || '', asset.sub_asset_size_1 || '',
-          asset.sub_asset_type_2 || '', asset.sub_asset_size_2 || '',
-          asset.sub_asset_type_3 || '', asset.sub_asset_size_3 || '',
-          asset.sub_asset_type_4 || '', asset.sub_asset_size_4 || '',
-          asset.sub_asset_type_5 || '', asset.sub_asset_size_5 || '',
-          asset.sub_asset_type_6 || '', asset.sub_asset_size_6 || '',
+          asset.payer_id || '', asset.asset_id != null ? String(asset.asset_id) : '',
+          formatDateToDDMMYYYY(asset.discount_date_from) || '', formatDateToDDMMYYYY(asset.discount_date_to) || '',
+          asset.main_asset_type || '', getExportAssetSize(asset),
+          asset.sub_asset_type_1 || '', asset.sub_asset_size_1 || '', asset.sub_asset_type_2 || '', asset.sub_asset_size_2 || '',
+          asset.sub_asset_type_3 || '', asset.sub_asset_size_3 || '', asset.sub_asset_type_4 || '', asset.sub_asset_size_4 || '',
+          asset.sub_asset_type_5 || '', asset.sub_asset_size_5 || '', asset.sub_asset_type_6 || '', asset.sub_asset_size_6 || '',
           '', '', '', '', '', ''
         ]);
         const mgrData = [headers, ...mgrRows];
@@ -1326,52 +1343,32 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
             { wch: 10 }, { wch: 12 }, { wch: 12 }, { wch: 12 }, { wch: 15 }, { wch: 15 }
           ]
         });
-        const mgrZipBlob = await createZipBlob([{ filename: `נכסים_מנהל_${manager.id}_${dateStr}.xlsx`, data: mgrExcelBlob }]);
-        const mgrZipFilename = `שליחת_נתונים_מנהל_${manager.name}_${dateStr}.zip`;
-        managerZipItems.push({
-          operator: { id: manager.id, name: manager.name, email: manager.email },
-          zipBlob: mgrZipBlob,
-          zipFilename: mgrZipFilename,
-          assetCount: managerAssets.length,
+        const subj = templateMgr ? applyTpl(templateMgr.subject, manager.name, managerAssets.length) : `שליחת נתונים - ${dateStrHe}`;
+        const body = templateMgr ? applyTpl(templateMgr.body, manager.name, managerAssets.length) : `שלום ${manager.name},\n\nמצורף קובץ הנתונים.\nתאריך: ${dateStrHe}\n\nבברכה,\nמערכת ניהול נכסים`;
+        enqueueItems.push({
+          to: manager.email,
+          recipientName: manager.name,
+          subject: subj,
+          body,
+          attachmentFilename: `נכסים_מנהל_${manager.name}_${dateStr}.xlsx`,
+          attachmentBlob: mgrExcelBlob,
         });
       }
-      let successMessage = `נשלחו ${assetIdsToMark.length} נכסים לעירייה בהצלחה.`;
-      let opSent = 0;
-      let mgrSent = 0;
-      let lastError: string | undefined;
-      if (operatorZipItems.length > 0) {
-        const opResult = await emailService.sendZipByOperators(operatorZipItems, undefined, undefined, 'operator');
-        opSent = opResult.sentCount ?? 0;
-        if (opResult.error) lastError = opResult.error;
-      }
-      if (managerZipItems.length > 0) {
-        setToast({ message: 'שולח אימייל למנהלים...', type: 'info' });
-        const mgrResult = await emailService.sendZipByOperators(managerZipItems, undefined, undefined, 'manager');
-        mgrSent = mgrResult.sentCount ?? 0;
-        if (mgrResult.error) lastError = mgrResult.error;
-      }
-      if (opSent > 0 || mgrSent > 0) {
-        const parts = [];
-        if (opSent > 0) parts.push(`נשלח אימייל ל-${opSent} מפעילים`);
-        if (mgrSent > 0) parts.push(`ל-${mgrSent} מנהלים`);
-        if (parts.length) successMessage += ' ' + parts.join(' ו-');
-        successMessage += '.';
+      const { createAndDownloadZip } = await import('../lib/zipExport');
+      await createAndDownloadZip(zipFilename, zipFiles);
+      let successMessage = `נשלחו ${assetIdsToMark.length} נכסים לעירייה בהצלחה. הקובץ הורד.`;
+      const enqueueResult = await emailService.enqueueExportEmails(enqueueItems);
+      if (enqueueResult.success && (enqueueResult.enqueued ?? 0) > 0) {
+        successMessage += ` ${enqueueResult.enqueued} מיילים נוספו לתור וישלחו בהמשך.`;
         setToast({ message: successMessage, type: 'success' });
-      } else if (lastError && (operatorZipItems.length > 0 || managerZipItems.length > 0)) {
-        const { createAndDownloadZip } = await import('../lib/zipExport');
-        await createAndDownloadZip(zipFilename, zipFiles);
-        setToast({ message: `נשלחו ${assetIdsToMark.length} נכסים. שליחת אימייל נכשלה: ${lastError}. הקובץ הורד.`, type: 'error' });
-      } else if (operatorZipItems.length === 0 && managerZipItems.length === 0) {
-        const hasOperatorsWithAssets = byOperator.size > 0;
-        if (hasOperatorsWithAssets) {
-          successMessage += ' לא נשלח אימייל — למפעילים אין כתובת אימייל. יש למלא דוא"ל במסך מפעילים.';
-        } else {
-          successMessage += ' לא נשלח אימייל — יש להקצות מפעיל לנכסים ולמלא כתובת אימייל במסך מפעילים.';
-        }
+      } else if (enqueueResult.error && enqueueItems.length > 0) {
+        setToast({ message: `${successMessage} המיילים לא נוספו לתור: ${enqueueResult.error}`, type: 'info' });
+      } else if (enqueueItems.length === 0) {
+        const hasOperators = operatorsList.some(o => o?.email && o.email.includes('@'));
+        if (!hasOperators) successMessage += ' לא נשלח אימייל — יש למלא דוא"ל במסך מפעילים.';
         setToast({ message: successMessage, type: 'success' });
       } else {
-        successMessage += ' לא נשלח אימייל. אם ציפית לשליחה — בדוק הגדרות אימייל בהגדרות המערכת וכתובות במסך מפעילים/מנהלים.';
-        setToast({ message: successMessage, type: 'info' });
+        setToast({ message: successMessage, type: 'success' });
       }
 
       setTimeout(() => setToast(null), 8000);

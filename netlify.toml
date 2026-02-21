@@ -33,6 +33,12 @@ SUPABASE_ANON_KEY = "sb_publishable_UuWn9HaUQ1zKtXTA0Sy3-A_5XD3J-lO"
   status = 200
   force = true
 
+[[redirects]]
+  from = "/api/email/enqueue"
+  to = "/.netlify/functions/email-enqueue"
+  status = 200
+  force = true
+
 # SPA fallback
 [[redirects]]
   from = "/*"

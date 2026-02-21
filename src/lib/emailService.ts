@@ -247,6 +247,71 @@ class EmailService {
   }
 
   /**
+   * Enqueue export emails (one Excel per recipient). Daemon sends them in the background.
+   * Items: to, recipientName, subject, body, attachmentFilename, attachmentBlob (single Excel).
+   */
+  async enqueueExportEmails(
+    items: Array<{
+      to: string;
+      recipientName: string;
+      subject: string;
+      body: string;
+      attachmentFilename: string;
+      attachmentBlob: Blob;
+    }>
+  ): Promise<{ success: boolean; enqueued?: number; error?: string }> {
+    if (items.length === 0) {
+      return { success: true, enqueued: 0 };
+    }
+    const payload = await Promise.all(
+      items
+        .filter((item) => item.to && item.to.includes('@'))
+        .map(async (item) => {
+          const buf = await item.attachmentBlob.arrayBuffer();
+          const base64 = toBase64(new Uint8Array(buf));
+          return {
+            to: item.to.trim(),
+            recipientName: item.recipientName,
+            subject: item.subject,
+            body: item.body,
+            attachmentFilename: item.attachmentFilename,
+            attachmentContentBase64: base64,
+          };
+        })
+    );
+    if (payload.length === 0) {
+      return { success: false, error: 'אין נמענים עם כתובת אימייל תקינה', enqueued: 0 };
+    }
+    try {
+      const backendUrl = getEmailBackendUrl();
+      const response = await fetch(`${backendUrl}/api/email/enqueue`, {
+        method: 'POST',
+        headers: await getEmailApiHeaders(),
+        body: JSON.stringify({ items: payload }),
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        return {
+          success: false,
+          error: (data as any).error || `HTTP ${response.status}`,
+          enqueued: 0,
+        };
+      }
+      return {
+        success: true,
+        enqueued: (data as any).enqueued ?? payload.length,
+      };
+    } catch (error) {
+      console.error('Enqueue error:', error);
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'שגיאה בהוספה לתור',
+        enqueued: 0,
+      };
+    }
+  }
+
+  /**
    * Replace template placeholders: {{name}}, {{date}}, {{assetCount}}
    */
   private applyTemplate(template: string, name: string, dateStr: string, assetCount?: number): string {

@@ -1,6 +1,6 @@
 """
 Email Router
-Handles email sending functionality
+Handles email sending and export email queue (enqueue for worker).
 """
 
 from fastapi import APIRouter, HTTPException, Depends
@@ -14,6 +14,9 @@ from email import encoders
 from email.utils import formataddr
 import base64
 import io
+from sqlalchemy.orm import Session
+from app.database import get_db
+from app.models import ExportEmailQueue
 
 router = APIRouter()
 
@@ -207,3 +210,51 @@ async def send_test_email(request: TestEmailRequest):
             status_code=500,
             detail=f"Error sending test email: {str(e)}",
         )
+
+
+# --- Export email queue (worker consumes; frontend enqueues) ---
+
+class EnqueueItem(BaseModel):
+    to: str
+    recipientName: str
+    subject: str
+    body: str
+    attachmentFilename: str
+    attachmentContentBase64: str
+
+
+class EnqueueRequest(BaseModel):
+    items: List[EnqueueItem]
+
+
+class EnqueueResponse(BaseModel):
+    success: bool
+    enqueued: int
+    error: Optional[str] = None
+
+
+@router.post("/enqueue", response_model=EnqueueResponse)
+async def enqueue_export_emails(request: EnqueueRequest, db: Session = Depends(get_db)):
+    """
+    Add export emails to the queue. Worker sends them in the background.
+    Each item is one email with one Excel attachment (no ZIP).
+    """
+    if not request.items:
+        return EnqueueResponse(success=True, enqueued=0)
+    enqueued = 0
+    for item in request.items:
+        if not item.to or "@" not in item.to:
+            continue
+        row = ExportEmailQueue(
+            to_email=item.to.strip(),
+            to_name=item.recipientName or "",
+            subject=item.subject or "",
+            body_he=item.body or "",
+            attachment_base64=item.attachmentContentBase64,
+            attachment_filename=item.attachmentFilename or "export.xlsx",
+            status="pending",
+        )
+        db.add(row)
+        enqueued += 1
+    db.commit()
+    return EnqueueResponse(success=True, enqueued=enqueued)

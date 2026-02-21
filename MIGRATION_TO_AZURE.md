@@ -69,7 +69,7 @@ The frontend needs to be updated to use the new FastAPI backend instead of Supab
 
 #### 2.1 Update Dependencies
 
-The current implementation uses `@supabase/supabase-js`. You don't need to remove it immediately, but you'll replace its usage with the new `apiClient`.
+The current implementation uses `@supabase/supabase-js`. You don't need to remove it immediately, but you'll replace its usage with a new FastAPI client (implement as described below; no in-repo reference implementation).
 
 #### 2.2 Replace Supabase Client Calls
 
@@ -90,9 +90,7 @@ const { data, error } = await supabase
 
 **After (FastAPI):**
 ```typescript
-import { apiClient } from './lib/apiClient';
-
-// Fetch buildings
+// Use your FastAPI client (implement getBuildings, createBuilding, etc.)
 const buildings = await apiClient.getBuildings();
 
 // Create building
@@ -116,8 +114,8 @@ const { data: { user } } = await supabase.auth.getUser();
 
 **After (FastAPI JWT):**
 ```typescript
-const response = await apiClient.login('username', 'password');
-const user = apiClient.getCurrentUser();
+const response = await yourApiClient.login('username', 'password');
+const user = yourApiClient.getCurrentUser();
 ```
 
 #### 2.4 Update File Uploads
@@ -131,7 +129,7 @@ const { data, error } = await supabase.storage
 
 **After (Azure Blob Storage via FastAPI):**
 ```typescript
-const fileData = await apiClient.uploadFile(assetId, file, measurementDate);
+const fileData = await yourApiClient.uploadFile(assetId, file, measurementDate);
 ```
 
 #### 2.5 Environment Variables

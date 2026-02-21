@@ -18,7 +18,9 @@
     "deploy:preview": "npm run build && netlify deploy",
     "db:setup": "node -e \"console.log('Run: ./scripts/setup-db.sh (Mac/Linux) or .\\\\scripts\\\\setup-db.bat (Windows)')\"",
     "db:backup": "node -e \"console.log('Run: pg_dump -U postgres buildings_manager > backup.sql')\"",
-    "db:restore": "node -e \"console.log('Run: psql -U postgres buildings_manager < backup.sql')\""
+    "db:restore": "node -e \"console.log('Run: psql -U postgres buildings_manager < backup.sql')\"",
+    "db:sync": "node supabase/scripts/sync-with-db.mjs",
+    "db:apply": "node supabase/scripts/apply-migration-via-api.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.80.0",

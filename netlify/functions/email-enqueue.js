@@ -53,8 +53,16 @@ export async function handler(event) {
     return response(405, { success: false, error: 'Method not allowed' });
   }
 
-  const authHeader = event.headers?.authorization;
-  const usersSessionHeader = event.headers?.['x-users-table-session'];
+  const headers = event.headers || {};
+  const getHeader = (name) => {
+    const lower = name.toLowerCase();
+    for (const k of Object.keys(headers)) {
+      if (k.toLowerCase() === lower) return headers[k];
+    }
+    return undefined;
+  };
+  const authHeader = getHeader('authorization');
+  const usersSessionHeader = getHeader('x-users-table-session');
   const supabaseUrl = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
   const supabaseAnonKey = process.env.SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_ANON_KEY;
   const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -72,7 +80,7 @@ export async function handler(event) {
     supabase = createClient(supabaseUrl, supabaseServiceKey || supabaseAnonKey);
     const { data: userRow, error: userError } = await supabase
       .from('users')
-      .select('id')
+      .select('user_id')
       .eq('user_id', session.user_id)
       .maybeSingle();
     if (userError || !userRow) {

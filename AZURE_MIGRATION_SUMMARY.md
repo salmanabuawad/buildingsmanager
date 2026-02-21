@@ -51,7 +51,7 @@ backend/
 
 ### Frontend API Client
 
-- **File**: `src/lib/apiClient.ts`
+- **File**: Implement a FastAPI client (see MIGRATION_TO_AZURE.md)
 - Replaces Supabase client with REST API calls
 - Handles JWT authentication
 - Compatible with all existing components
@@ -213,7 +213,7 @@ If you're currently using Supabase:
    ```
 
 4. **Update Frontend**
-   - Replace Supabase client calls with apiClient
+   - Replace Supabase client calls with your FastAPI client
    - Update environment variables
    - Test all functionality
 

@@ -77,7 +77,7 @@ assetflow/
 │   └── .env.example
 ├── src/
 │   ├── lib/
-│   │   ├── apiClient.ts       # NEW: FastAPI client
+│   │   ├── (your FastAPI client)  # Implement per MIGRATION_TO_AZURE.md
 │   │   └── supabase.ts        # OLD: Can be replaced
 │   └── components/
 ├── azure_postgres_schema.sql  # NEW: Database schema
@@ -268,7 +268,7 @@ Enable monitoring in Azure Portal for:
 This is a production-ready setup. Customize as needed:
 - Add more API endpoints in `backend/app/routers/`
 - Modify database schema in `azure_postgres_schema.sql`
-- Update frontend API calls in `src/lib/apiClient.ts`
+- Update frontend API calls to use your FastAPI client (see MIGRATION_TO_AZURE.md)
 - Adjust deployment scripts for your needs
 
 ## 📄 License

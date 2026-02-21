@@ -4218,14 +4218,19 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
         // For clearing distribution (overloadRatio = 0), set to 0; otherwise set to new value
         changes.business_distribution_area = newDistributionArea;
 
-        // Distribute shared parking area to each business asset: building.shared_parking_area / number_of_parking_units per asset
+        // Distribute shared parking area to each business asset: building.shared_parking_area / number_of_parking_units per asset.
+        // When building shared_parking_area is zero or missing, assets' shared_parking_area must be zero.
         const sharedParkingNum = Number(building.shared_parking_area);
         const numParkingUnitsNum = Number(building.number_of_parking_units);
         const hasParkingData = !isNaN(sharedParkingNum) && !isNaN(numParkingUnitsNum) && numParkingUnitsNum > 0;
-        if (hasParkingData && !isClearingDistribution) {
-          changes.shared_parking_area = sharedParkingNum / numParkingUnitsNum;
-        } else if (isClearingDistribution) {
+        if (isClearingDistribution) {
           changes.shared_parking_area = null;
+        } else if (sharedParkingNum === 0 || building.shared_parking_area == null || building.shared_parking_area === '') {
+          changes.shared_parking_area = 0;
+        } else if (hasParkingData) {
+          changes.shared_parking_area = sharedParkingNum / numParkingUnitsNum;
+        } else {
+          changes.shared_parking_area = 0;
         }
 
         // If clearing distribution and shared area asset type exists, remove it from sub_asset_types

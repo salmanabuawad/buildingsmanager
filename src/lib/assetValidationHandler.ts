@@ -156,6 +156,65 @@ export class AssetValidationHandler {
       results.push(...batchResults);
     }
 
+    // Building-level parking validations (business assets only)
+    const building = cachedData?.building;
+    let assetTypes = cachedData?.assetTypes;
+    if (!assetTypes?.length && building) {
+      try {
+        const { api } = await import('./api');
+        assetTypes = await api.assetTypes.getAll();
+      } catch {
+        assetTypes = [];
+      }
+    }
+    const businessTypeNames = new Set(
+      (assetTypes || [])
+        .filter((at: any) => at.business_residence === 'עסקים')
+        .map((at: any) => String(at?.name ?? '').trim())
+    );
+    let assetsSharedParkingSum = 0;
+    const businessAssetIds = new Set<string | number>();
+    for (const asset of assetsToValidate) {
+      const typeStr = String(asset.main_asset_type ?? '').trim();
+      if (!typeStr || !businessTypeNames.has(typeStr)) continue;
+      businessAssetIds.add(asset.asset_id);
+      const v = asset.shared_parking_area;
+      if (v != null && v !== '') assetsSharedParkingSum += Number(v) || 0;
+    }
+    const tolerance = 0.01;
+
+    // 1) Sum of assets' shared_parking_area must equal building.shared_parking_area
+    const buildingSharedParking = building?.shared_parking_area != null && building?.shared_parking_area !== ''
+      ? Number(building.shared_parking_area)
+      : null;
+    if (buildingSharedParking != null && !isNaN(buildingSharedParking)) {
+      if (Math.abs(assetsSharedParkingSum - buildingSharedParking) > tolerance) {
+        const err = `סכום שטח חניה משותף בנכסים (${assetsSharedParkingSum}) אינו שווה לשטח חניה משותף במבנה (${buildingSharedParking})`;
+        for (let i = 0; i < results.length; i++) {
+          if (businessAssetIds.has(assetsToValidate[i].asset_id)) {
+            if (!results[i].errors.includes(err)) results[i].errors.push(err);
+            results[i].valid = false;
+          }
+        }
+      }
+    }
+
+    // 2) Sum of assets' (shared) parking area must equal building.parking_area
+    const buildingParkingArea = building?.parking_area != null && building?.parking_area !== ''
+      ? Number(building.parking_area)
+      : null;
+    if (buildingParkingArea != null && !isNaN(buildingParkingArea)) {
+      if (Math.abs(assetsSharedParkingSum - buildingParkingArea) > tolerance) {
+        const err = `סכום שטח חניה בנכסים (${assetsSharedParkingSum}) אינו שווה לשטח חניה במבנה (${buildingParkingArea})`;
+        for (let i = 0; i < results.length; i++) {
+          if (businessAssetIds.has(assetsToValidate[i].asset_id)) {
+            if (!results[i].errors.includes(err)) results[i].errors.push(err);
+            results[i].valid = false;
+          }
+        }
+      }
+    }
+
     const valid = results.filter(r => r.valid).length;
     const invalid = results.filter(r => !r.valid).length;
 

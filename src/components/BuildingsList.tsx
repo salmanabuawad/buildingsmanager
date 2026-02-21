@@ -1990,11 +1990,11 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
         return;
       }
 
-      // Call RPC function (POST request) instead of GET with .in() or .eq() to avoid type mismatch
-      const { data: exportedAssets, error: fetchError } = await supabase
-        .rpc('get_assets_by_ids', { p_asset_ids: numericAssetIdsForQuery });
-
-      if (fetchError) {
+      // Fetch assets in batches to avoid timeouts with large exports
+      let exportedAssets: any[];
+      try {
+        exportedAssets = await api.assets.getAssetsByIdsBatched(numericAssetIdsForQuery);
+      } catch (fetchError: any) {
         console.error('Error fetching exported assets:', fetchError);
         setToast({ message: 'הנכסים סומנו כייצאו אך לא ניתן היה לייצא אותם לקובץ Excel', type: 'error' });
         setTimeout(() => setToast(null), 5000);

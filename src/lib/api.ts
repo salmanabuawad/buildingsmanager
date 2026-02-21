@@ -2573,6 +2573,36 @@ export const api = {
         return { success: false, count: 0, assetIds: [], error: error.message || 'Unknown error' };
       }
     },
+    /**
+     * Fetch assets by IDs in batches to avoid timeouts and payload limits.
+     * Uses get_assets_by_ids RPC in parallel chunks (default 800 IDs per chunk, 5 concurrent).
+     */
+    getAssetsByIdsBatched: async (
+      assetIds: number[],
+      options?: { chunkSize?: number; concurrency?: number }
+    ): Promise<any[]> => {
+      const chunkSize = options?.chunkSize ?? 800;
+      const concurrency = options?.concurrency ?? 5;
+      if (assetIds.length === 0) return [];
+      const chunks: number[][] = [];
+      for (let i = 0; i < assetIds.length; i += chunkSize) {
+        chunks.push(assetIds.slice(i, i + chunkSize));
+      }
+      const runBatch = async (chunk: number[]) => {
+        const { data, error } = await supabase.rpc('get_assets_by_ids', { p_asset_ids: chunk });
+        if (error) throw error;
+        return data ?? [];
+      };
+      const results: any[][] = [];
+      for (let i = 0; i < chunks.length; i += concurrency) {
+        const batch = chunks.slice(i, i + concurrency);
+        const batchResults = await Promise.all(batch.map(runBatch));
+        results.push(...batchResults);
+      }
+      const merged = results.flat();
+      merged.sort((a, b) => (Number(a?.asset_id ?? 0) - Number(b?.asset_id ?? 0)));
+      return merged;
+    },
     getMeasuredNotExported: async (): Promise<Asset[]> => {
       try {
         // Fetch assets that:

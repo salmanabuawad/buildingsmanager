@@ -788,9 +788,9 @@ export const MeasuredNotExportedAssets = ({ onSelectAsset }: MeasuredNotExported
         return;
       }
 
-      // STEP 2: Validate all assets before export
+      // STEP 2: Validate all assets before export (parallel by building for speed)
       setToast({ message: 'מאמת נכסים לפני שליחה...', type: 'info' });
-      
+
       // Group assets by building number for validation
       const assetsByBuilding = new Map<number, Asset[]>();
       for (const asset of assetsToExport) {
@@ -801,51 +801,51 @@ export const MeasuredNotExportedAssets = ({ onSelectAsset }: MeasuredNotExported
         assetsByBuilding.get(buildingNumber)!.push(asset);
       }
 
-      // Validate assets for each building
-      const allValidationResults: Array<{ assetId: string; buildingNumber: number; errors: string[] }> = [];
-      
-      for (const [buildingNumber, buildingAssets] of assetsByBuilding.entries()) {
-        // Get building data
-        const building = buildings.get(buildingNumber) || await api.buildings.getOne(buildingNumber);
-        
-        // Prepare cached data for validation
-        const cachedData = {
-          assetTypes: assetTypes.length > 0 ? assetTypes : await api.assetTypes.getAll(),
-          building: building
-        };
+      const buildingEntries = Array.from(assetsByBuilding.entries());
+      const typesForValidation = assetTypes.length > 0 ? assetTypes : await api.assetTypes.getAll();
 
-        // Validate assets for this building
-        const batchResult = await AssetValidationHandler.validateBuildingAssets(
-          buildingAssets,
-          buildingNumber,
-          {
-            mode: 'building',
-            validateOnlyLatest: false,
-            cachedData: cachedData,
-            onProgress: (progress) => {
-              // Update toast with progress
-              setToast({ 
-                message: `מאמת נכסים... ${progress.current}/${progress.total} - ${progress.currentAsset}`, 
-                type: 'info' 
+      // Pre-fetch missing buildings in parallel
+      const missingBuildingNumbers = buildingEntries
+        .map(([bn]) => bn)
+        .filter(bn => !buildings.get(bn));
+      const fetchedBuildings = await Promise.all(
+        missingBuildingNumbers.map(bn => api.buildings.getOne(bn))
+      );
+      const buildingsMap = new Map(buildings);
+      missingBuildingNumbers.forEach((bn, i) => buildingsMap.set(bn, fetchedBuildings[i]));
+
+      const allValidationResults: Array<{ assetId: string; buildingNumber: number; errors: string[] }> = [];
+      const VALIDATION_CONCURRENCY = 5;
+
+      for (let i = 0; i < buildingEntries.length; i += VALIDATION_CONCURRENCY) {
+        const chunk = buildingEntries.slice(i, i + VALIDATION_CONCURRENCY);
+        const batchResults = await Promise.all(
+          chunk.map(([buildingNumber, buildingAssets]) => {
+            const building = buildingsMap.get(buildingNumber)!;
+            return AssetValidationHandler.validateBuildingAssets(buildingAssets, buildingNumber, {
+              mode: 'building',
+              validateOnlyLatest: false,
+              cachedData: { assetTypes: typesForValidation, building },
+              onProgress: (progress) => {
+                setToast({
+                  message: `מאמת נכסים... ${progress.current}/${progress.total} - ${progress.currentAsset}`,
+                  type: 'info'
+                });
+              }
+            });
+          })
+        );
+        for (let j = 0; j < chunk.length; j++) {
+          const [buildingNumber] = chunk[j];
+          const batchResult = batchResults[j];
+          for (const result of batchResult.results) {
+            if (!result.valid && result.errors && result.errors.length > 0) {
+              allValidationResults.push({
+                assetId: typeof result.assetId === 'string' ? result.assetId : String(result.assetId),
+                buildingNumber,
+                errors: result.errors
               });
             }
-          }
-        );
-
-        // Collect validation errors
-        for (const result of batchResult.results) {
-          if (!result.valid && result.errors && result.errors.length > 0) {
-            // result.assetId is string | number, result.assetIdentifier is the display string
-            // Use assetId directly (convert to string if needed) or extract from assetIdentifier
-            const assetId = typeof result.assetId === 'string' 
-              ? result.assetId 
-              : String(result.assetId);
-            
-            allValidationResults.push({
-              assetId: assetId,
-              buildingNumber: buildingNumber,
-              errors: result.errors
-            });
           }
         }
       }
@@ -909,17 +909,17 @@ export const MeasuredNotExportedAssets = ({ onSelectAsset }: MeasuredNotExported
         return;
       }
 
-      // Call RPC function (POST request) instead of GET with .in() or .eq() to avoid type mismatch
-      const { data: exportedAssets, error: fetchError } = await supabase
-        .rpc('get_assets_by_ids', { p_asset_ids: numericAssetIdsForQuery });
-
-      if (fetchError) {
+      // Fetch assets in batches to avoid timeouts with large exports
+      let exportedAssets: any[];
+      try {
+        exportedAssets = await api.assets.getAssetsByIdsBatched(numericAssetIdsForQuery);
+      } catch (fetchError: any) {
         console.error('Error fetching exported assets:', fetchError);
         console.error('Supabase request failed', {
-          message: fetchError.message,
-          details: fetchError.details,
-          hint: fetchError.hint,
-          code: fetchError.code,
+          message: fetchError?.message,
+          details: fetchError?.details,
+          hint: fetchError?.hint,
+          code: fetchError?.code,
           assetIds: numericAssetIdsForQuery
         });
         setToast({ message: 'הנכסים סומנו כייצאו אך לא ניתן היה לייצא אותם לקובץ Excel', type: 'error' });

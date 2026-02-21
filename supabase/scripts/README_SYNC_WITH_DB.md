@@ -2,7 +2,17 @@
 
 **The live database is the single source of truth.** Migration files and code may be out of sync with what is actually deployed.
 
-**Always check with the DB** before applying migrations or making DB-related code changes.
+**Always sync with the DB before applying any migration.**
+
+## Sync before apply (standard workflow)
+
+1. **Sync first** – Probe the live DB so you know current state:
+   - **With Supabase MCP**: Use `list_migrations` and `execute_sql` (e.g. run queries from `sync_with_db_queries.sql`) to see applied migrations and table/column state.
+   - **Without MCP**: Run `npm run db:sync` (requires `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` in `.env`), then run the queries in **Supabase Dashboard → SQL Editor** from `sync_with_db_queries.sql`.
+2. **Apply only if needed** – Apply a migration only when:
+   - It is **not** already in the applied migrations list, and
+   - The schema change is not already present in the DB (e.g. column already exists).
+3. **Never apply blindly** – Skipping sync can lead to duplicate migrations, missing columns, or trigger errors (e.g. referencing dropped columns like `floor`).
 
 ## Quick probe (runnable script)
 

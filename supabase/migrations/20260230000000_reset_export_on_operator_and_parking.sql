@@ -36,7 +36,10 @@ NEW.condo IS DISTINCT FROM OLD.condo OR
 NEW.townhouses IS DISTINCT FROM OLD.townhouses OR
 NEW.penthouse IS DISTINCT FROM OLD.penthouse OR
 NEW.structure_drawing_url IS DISTINCT FROM OLD.structure_drawing_url OR
-NEW.floor IS DISTINCT FROM OLD.floor OR
+NEW.apartment_number IS DISTINCT FROM OLD.apartment_number OR
+NEW.apartment_floor IS DISTINCT FROM OLD.apartment_floor OR
+NEW.storage_number IS DISTINCT FROM OLD.storage_number OR
+NEW.storage_floor IS DISTINCT FROM OLD.storage_floor OR
 NEW.discount_type IS DISTINCT FROM OLD.discount_type OR
 NEW.discount_date_from IS DISTINCT FROM OLD.discount_date_from OR
 NEW.discount_date_to IS DISTINCT FROM OLD.discount_date_to OR

@@ -183,7 +183,7 @@ export class AssetValidationHandler {
     }
     const tolerance = 0.01;
 
-    // 1) Sum of assets' shared_parking_area must equal building.shared_parking_area.
+    // 1) Sum of assets' shared_parking_area must be equal or less than building.shared_parking_area.
     //    When building shared_parking_area is zero, all business assets must have shared_parking_area zero.
     const buildingSharedParking = building?.shared_parking_area != null && building?.shared_parking_area !== ''
       ? Number(building.shared_parking_area)
@@ -200,8 +200,8 @@ export class AssetValidationHandler {
             results[i].valid = false;
           }
         }
-      } else if (Math.abs(assetsSharedParkingSum - buildingSharedParking) > tolerance) {
-        const err = `סכום שטח חניה משותף בנכסים (${assetsSharedParkingSum}) אינו שווה לשטח חניה משותף במבנה (${buildingSharedParking})`;
+      } else if (assetsSharedParkingSum > buildingSharedParking + tolerance) {
+        const err = `סכום שטח חניה משותף בנכסים (${assetsSharedParkingSum}) גדול משטח חניה משותף במבנה (${buildingSharedParking}) – הסכום חייב להיות שווה או קטן`;
         for (let i = 0; i < results.length; i++) {
           if (businessAssetIds.has(assetsToValidate[i].asset_id)) {
             if (!results[i].errors.includes(err)) results[i].errors.push(err);

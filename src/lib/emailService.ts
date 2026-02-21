@@ -156,11 +156,13 @@ class EmailService {
         }),
       });
 
+      const responseData = await response.json().catch(() => ({}));
+
       if (!response.ok) {
         if (response.status === 401) {
           return {
             success: false,
-            error: 'Unauthorized. Please sign in with Supabase Auth to send email.'
+            error: (responseData as any).error || 'Unauthorized. Please sign in with Supabase Auth to send email.'
           };
         }
         if (response.status === 404) {
@@ -169,13 +171,15 @@ class EmailService {
             error: 'Email API not found (404). See EMAIL_BACKEND_DEPLOYMENT.md.'
           };
         }
-        const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
         return {
           success: false,
-          error: errorData.error || `HTTP ${response.status}: ${response.statusText}`
+          error: (responseData as any).error || `HTTP ${response.status}: ${response.statusText}`
         };
       }
 
+      if ((responseData as any)?.success === false && (responseData as any)?.error) {
+        return { success: false, error: (responseData as any).error };
+      }
       return { success: true };
     } catch (error) {
       console.error('Error sending email:', error);
@@ -210,11 +214,12 @@ class EmailService {
           test_to: to.trim()
         })
       });
+      const testResponseData = await response.json().catch(() => ({}));
       if (!response.ok) {
         if (response.status === 401) {
           return {
             success: false,
-            error: 'Unauthorized. Please sign in with Supabase Auth to send test email.'
+            error: (testResponseData as any).error || 'Unauthorized. Please sign in with Supabase Auth to send test email.'
           };
         }
         if (response.status === 404) {
@@ -223,11 +228,13 @@ class EmailService {
             error: 'Email API not found (404). See EMAIL_BACKEND_DEPLOYMENT.md.'
           };
         }
-        const err = await response.json().catch(() => ({ detail: response.statusText }));
         return {
           success: false,
-          error: err.detail || err.error || `HTTP ${response.status}: ${response.statusText}`
+          error: (testResponseData as any).error || (testResponseData as any).detail || `HTTP ${response.status}: ${response.statusText}`
         };
+      }
+      if ((testResponseData as any)?.success === false && (testResponseData as any)?.error) {
+        return { success: false, error: (testResponseData as any).error };
       }
       return { success: true };
     } catch (error) {
@@ -311,10 +318,12 @@ class EmailService {
         sentCount++;
       } else {
         lastError = result.error;
+        console.warn('[emailService] Send failed for', operator.email, result.error);
       }
     }
-    if (sentCount === 0 && lastError) {
-      return { success: false, error: lastError, sentCount: 0 };
+    if (sentCount === 0) {
+      const error = lastError || 'לא נשלח אימייל — לכל הנמענים חסרה כתובת אימייל תקינה או שהשליחה נכשלה.';
+      return { success: false, error, sentCount: 0 };
     }
     return { success: true, sentCount };
   }

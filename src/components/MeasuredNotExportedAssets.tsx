@@ -1358,7 +1358,8 @@ export const MeasuredNotExportedAssets = ({ onSelectAsset }: MeasuredNotExported
         }
         setToast({ message: successMessage, type: 'success' });
       } else {
-        setToast({ message: successMessage, type: 'success' });
+        successMessage += ' לא נשלח אימייל. אם ציפית לשליחה — בדוק הגדרות אימייל בהגדרות המערכת וכתובות במסך מפעילים/מנהלים.';
+        setToast({ message: successMessage, type: 'info' });
       }
       setTimeout(() => setToast(null), 8000);
       // Refresh the count after export

@@ -82,6 +82,8 @@ export const MeasuredNotExportedAssets = ({ onSelectAsset }: MeasuredNotExported
   const [buildings, setBuildings] = useState<Map<number, Building>>(new Map());
   const [assetTypes, setAssetTypes] = useState<AssetType[]>([]);
   const [loading, setLoading] = useState(true);
+  const [exporting, setExporting] = useState(false);
+  const [exportProgressMessage, setExportProgressMessage] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [toast, setToast] = useState<{ message: string; type: 'error' | 'success' | 'info' } | null>(null);
   const [exportToAutomationCount, setExportToAutomationCount] = useState<number>(0);
@@ -773,7 +775,8 @@ export const MeasuredNotExportedAssets = ({ onSelectAsset }: MeasuredNotExported
 
   // Export assets to automation system
   const handleExportToAutomation = useCallback(async () => {
-    setLoading(true);
+    setExporting(true);
+    setExportProgressMessage('טוען נכסים...');
     setError(null);
     document.body.style.cursor = 'wait';
 
@@ -784,13 +787,15 @@ export const MeasuredNotExportedAssets = ({ onSelectAsset }: MeasuredNotExported
       if (assetsToExport.length === 0) {
         setToast({ message: 'אין נכסים לשליחה - כל הנכסים כבר נשלחו לעירייה', type: 'info' });
         setTimeout(() => setToast(null), 5000);
-        setLoading(false);
+        setExporting(false);
+        setExportProgressMessage('');
+        document.body.style.cursor = '';
         setExportToAutomationCount(0);
         return;
       }
 
       // STEP 2: Validate all assets before export (parallel by building for speed)
-      setToast({ message: 'מאמת נכסים לפני שליחה...', type: 'info' });
+      setExportProgressMessage('מאמת נכסים לפני שליחה...');
 
       // Group assets by building number for validation
       const assetsByBuilding = new Map<number, Asset[]>();
@@ -828,10 +833,7 @@ export const MeasuredNotExportedAssets = ({ onSelectAsset }: MeasuredNotExported
               validateOnlyLatest: false,
               cachedData: { assetTypes: typesForValidation, building },
               onProgress: (progress) => {
-                setToast({
-                  message: `מאמת נכסים... ${progress.current}/${progress.total} - ${progress.currentAsset}`,
-                  type: 'info'
-                });
+                setExportProgressMessage(`מאמת נכסים... ${progress.current}/${progress.total}`);
               }
             });
           })
@@ -866,12 +868,14 @@ export const MeasuredNotExportedAssets = ({ onSelectAsset }: MeasuredNotExported
           type: 'error' 
         });
         setTimeout(() => setToast(null), 15000);
-        setLoading(false);
+        setExporting(false);
+        setExportProgressMessage('');
+        document.body.style.cursor = '';
         return;
       }
 
       // STEP 4: All assets passed validation - proceed with export
-      setToast({ message: 'כל הנכסים עברו אימות בהצלחה. מתחיל שליחה...', type: 'success' });
+      setExportProgressMessage('מתחיל שליחה...');
       
       // Call API to export assets and mark them as exported
       const result = await api.assets.exportToAutomation();
@@ -879,14 +883,18 @@ export const MeasuredNotExportedAssets = ({ onSelectAsset }: MeasuredNotExported
       if (!result.success) {
         setToast({ message: result.error || 'שגיאה בשליחת נכסים לעירייה', type: 'error' });
         setTimeout(() => setToast(null), 5000);
-        setLoading(false);
+        setExporting(false);
+        setExportProgressMessage('');
+        document.body.style.cursor = '';
         return;
       }
 
       if (result.count === 0) {
         setToast({ message: 'אין נכסים לשליחה - כל הנכסים כבר נשלחו לעירייה', type: 'info' });
         setTimeout(() => setToast(null), 5000);
-        setLoading(false);
+        setExporting(false);
+        setExportProgressMessage('');
+        document.body.style.cursor = '';
         setExportToAutomationCount(0);
         return;
       }
@@ -907,6 +915,9 @@ export const MeasuredNotExportedAssets = ({ onSelectAsset }: MeasuredNotExported
       if (numericAssetIdsForQuery.length === 0) {
         setToast({ message: 'לא נמצאו נכסים לייצוא', type: 'error' });
         setTimeout(() => setToast(null), 5000);
+        setExporting(false);
+        setExportProgressMessage('');
+        document.body.style.cursor = '';
         return;
       }
 
@@ -925,14 +936,18 @@ export const MeasuredNotExportedAssets = ({ onSelectAsset }: MeasuredNotExported
         });
         setToast({ message: 'הנכסים סומנו כייצאו אך לא ניתן היה לייצא אותם לקובץ Excel', type: 'error' });
         setTimeout(() => setToast(null), 5000);
-        setLoading(false);
+        setExporting(false);
+        setExportProgressMessage('');
+        document.body.style.cursor = '';
         return;
       }
 
       if (!exportedAssets || exportedAssets.length === 0) {
         setToast({ message: `סומנו ${result.count} נכסים כייצאו בהצלחה`, type: 'success' });
         setTimeout(() => setToast(null), 5000);
-        setLoading(false);
+        setExporting(false);
+        setExportProgressMessage('');
+        document.body.style.cursor = '';
         setExportToAutomationCount(0);
         return;
       }
@@ -1061,7 +1076,7 @@ export const MeasuredNotExportedAssets = ({ onSelectAsset }: MeasuredNotExported
         });
       }
       
-      setToast({ message: 'מכין קבצים ל-ZIP...', type: 'info' });
+      setExportProgressMessage('מכין קבצים ל-ZIP...');
       // Process each tax region: create Excel file and download files
       // Iterate over all tax regions that have assets (not just those with files)
       for (const [taxRegion, regionAssetsForExcel] of assetsByTaxRegionForExcel.entries()) {
@@ -1249,7 +1264,7 @@ export const MeasuredNotExportedAssets = ({ onSelectAsset }: MeasuredNotExported
       const applyTpl = (t: string, name: string, assetCount?: number) =>
         t.replace(/\{\{name\}\}/g, name).replace(/\{\{date\}\}/g, dateStrHe).replace(/\{\{assetCount\}\}/g, assetCount != null ? String(assetCount) : '');
 
-      setToast({ message: 'מכין מיילים למפעילים ולמנהלים...', type: 'info' });
+      setExportProgressMessage('מכין מיילים למפעילים ולמנהלים...');
       const byOperator = new Map<number, typeof assetsToExport>();
       for (const a of assetsToExport) {
         const id = a.operator_id;
@@ -1349,12 +1364,12 @@ export const MeasuredNotExportedAssets = ({ onSelectAsset }: MeasuredNotExported
           {
             concurrency: 3,
             onProgress: (sent, total) =>
-              setToast({ message: `שולח מיילים ${sent} מתוך ${total}...`, type: 'info' }),
+              setExportProgressMessage(`שולח מיילים ${sent} מתוך ${total}...`),
           }
         );
         sentCount = n;
       }
-      setToast({ message: 'מוריד קובץ ZIP...', type: 'info' });
+      setExportProgressMessage('מוריד קובץ ZIP...');
       const { createAndDownloadZip } = await import('../lib/zipExport');
       await createAndDownloadZip(zipFilename, zipFiles);
       let successMessage = `נשלחו ${result.count} נכסים לעירייה בהצלחה. הקובץ הורד.`;
@@ -1372,7 +1387,8 @@ export const MeasuredNotExportedAssets = ({ onSelectAsset }: MeasuredNotExported
       setToast({ message: error.message || 'שגיאה בשליחת נכסים לעירייה', type: 'error' });
       setTimeout(() => setToast(null), 5000);
     } finally {
-      setLoading(false);
+      setExporting(false);
+      setExportProgressMessage('');
       document.body.style.cursor = '';
     }
   }, [fetchExportToAutomationCount, fetchData, buildings, assetTypes]);
@@ -1463,6 +1479,16 @@ export const MeasuredNotExportedAssets = ({ onSelectAsset }: MeasuredNotExported
 
   return (
     <div className="h-full flex flex-col bg-white">
+      {/* Export progress modal - progress message in modal, not toast */}
+      {exporting && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 z-[9999] flex items-center justify-center" style={{ cursor: 'wait' }}>
+          <div className="bg-white rounded-lg p-6 shadow-xl flex flex-col items-center gap-4 min-w-[280px]">
+            <Loader2 className="h-12 w-12 text-purple-600 animate-spin" />
+            <p className="text-slate-700 font-medium text-lg text-center">שולח נתונים לעירייה</p>
+            <p className="text-slate-600 text-sm text-center">{exportProgressMessage || 'מתחיל...'}</p>
+          </div>
+        </div>
+      )}
       {/* Header */}
       <div className="flex items-center justify-between p-4 border-b border-purple-200 bg-gradient-to-r from-purple-50 to-indigo-50">
         <div className="flex items-center gap-3">
@@ -1490,10 +1516,10 @@ export const MeasuredNotExportedAssets = ({ onSelectAsset }: MeasuredNotExported
           <button
             type="button"
             onClick={handleExportToAutomation}
-            disabled={loading}
+            disabled={loading || exporting}
             className="flex items-center gap-1.5 px-3 py-1.5 text-sm bg-purple-500 hover:bg-purple-600 active:bg-purple-700 text-white rounded-md transition-all duration-200 shadow-sm hover:shadow-md font-medium disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none"
           >
-            {loading ? (
+            {exporting ? (
               <Loader2 className="h-4 w-4 animate-spin" />
             ) : (
               <Download className="h-4 w-4" />

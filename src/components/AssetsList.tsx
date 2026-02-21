@@ -321,6 +321,8 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
   const [assetTypes, setAssetTypes] = useState<AssetType[]>([]);
   const [buildingAddress, setBuildingAddress] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [exporting, setExporting] = useState(false); // Export to automation in progress - keep content visible
+  const [exportProgressMessage, setExportProgressMessage] = useState(''); // Progress text in modal, not toast
   const [isSaving, setIsSaving] = useState(false); // Separate saving state to avoid full refresh appearance
   const [toast, setToast] = useState<{ message: string; type: 'error' | 'success' | 'info' } | null>(null);
   const [dirtyAssets, setDirtyAssets] = useState<Map<string, Partial<Asset>>>(new Map());
@@ -661,7 +663,8 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
       return;
     }
 
-    setLoading(true);
+    setExporting(true);
+    setExportProgressMessage('טוען נכסים...');
     setToast(null);
     document.body.style.cursor = 'wait';
 
@@ -684,14 +687,17 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
         console.error('[AssetsList] Error fetching assets to export:', fetchAssetsError);
         setToast({ message: 'שגיאה בטעינת נכסים לשליחה', type: 'error' });
         setTimeout(() => setToast(null), 5000);
-        setLoading(false);
+        setExporting(false);
+        setExportProgressMessage('');
+        document.body.style.cursor = '';
         return;
       }
       
       if (!filteredAssets || filteredAssets.length === 0) {
         setToast({ message: 'אין נכסים לשליחה - כל הנכסים כבר נשלחו לעירייה', type: 'info' });
         setTimeout(() => setToast(null), 5000);
-        setLoading(false);
+        setExporting(false);
+        document.body.style.cursor = '';
         setExportToAutomationCount(0);
         return;
       }
@@ -754,11 +760,13 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
           type: 'error' 
         });
         setTimeout(() => setToast(null), 15000);
-        setLoading(false);
+        setExporting(false);
+        document.body.style.cursor = '';
         return;
       }
 
       // STEP 4: All assets passed validation - proceed with export
+      setExportProgressMessage('מתחיל שליחה...');
       setToast({ message: 'כל הנכסים עברו אימות בהצלחה. מתחיל שליחה...', type: 'success' });
       
       // Get asset IDs from filtered assets (only assets in current building/tax region)
@@ -772,7 +780,9 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
       if (assetIdsToMark.length === 0) {
         setToast({ message: 'אין נכסים לשליחה', type: 'info' });
         setTimeout(() => setToast(null), 5000);
-        setLoading(false);
+        setExporting(false);
+        setExportProgressMessage('');
+        document.body.style.cursor = '';
         setExportToAutomationCount(0);
         return;
       }
@@ -803,7 +813,9 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
         console.error('[AssetsList] Error marking assets as exported:', updateError);
         setToast({ message: 'שגיאה בסימון נכסים כייצאו', type: 'error' });
         setTimeout(() => setToast(null), 5000);
-        setLoading(false);
+        setExporting(false);
+        setExportProgressMessage('');
+        document.body.style.cursor = '';
         return;
       }
 
@@ -818,7 +830,9 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
       if (numericAssetIdsForQuery.length === 0) {
         setToast({ message: 'לא נמצאו נכסים לייצוא', type: 'error' });
         setTimeout(() => setToast(null), 5000);
-        setLoading(false);
+        setExporting(false);
+        setExportProgressMessage('');
+        document.body.style.cursor = '';
         return;
       }
 
@@ -830,14 +844,18 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
         console.error('[AssetsList] Error fetching exported assets:', fetchError);
         setToast({ message: 'הנכסים סומנו כייצאו אך לא ניתן היה לייצא אותם לקובץ Excel', type: 'error' });
         setTimeout(() => setToast(null), 5000);
-        setLoading(false);
+        setExporting(false);
+        setExportProgressMessage('');
+        document.body.style.cursor = '';
         return;
       }
 
       if (!exportedAssets || exportedAssets.length === 0) {
         setToast({ message: `סומנו ${assetIdsToMark.length} נכסים כייצאו בהצלחה`, type: 'success' });
         setTimeout(() => setToast(null), 5000);
-        setLoading(false);
+        setExporting(false);
+        setExportProgressMessage('');
+        document.body.style.cursor = '';
         setExportToAutomationCount(0);
         await fetchData(false);
         await fetchExportToAutomationCount();
@@ -1018,7 +1036,7 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
         }
       });
       
-      setToast({ message: 'מכין קבצים ל-ZIP...', type: 'info' });
+      setExportProgressMessage('מכין קבצים ל-ZIP...');
       // Prepare files array for ZIP
       const zipFiles: Array<{ filename: string; data: Blob }> = [];
 
@@ -1241,7 +1259,7 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
           byOperator.get(id)!.push(a);
         }
       }
-      setToast({ message: 'מכין מיילים למפעילים ולמנהלים...', type: 'info' });
+      setExportProgressMessage('מכין מיילים למפעילים ולמנהלים...');
       const sendItems: Array<{ to: string; recipientName: string; subject: string; body: string; attachmentFilename: string; attachmentBlob: Blob }> = [];
       for (const [operatorId, operatorAssets] of byOperator) {
         const operator = operatorsList.find(o => o.id === operatorId);
@@ -1332,12 +1350,12 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
           {
             concurrency: 3,
             onProgress: (sent, total) =>
-              setToast({ message: `שולח מיילים ${sent} מתוך ${total}...`, type: 'info' }),
+              setExportProgressMessage(`שולח מיילים ${sent} מתוך ${total}...`),
           }
         );
         sentCount = n;
       }
-      setToast({ message: 'מוריד קובץ ZIP...', type: 'info' });
+      setExportProgressMessage('מוריד קובץ ZIP...');
       const { createAndDownloadZip } = await import('../lib/zipExport');
       await createAndDownloadZip(zipFilename, zipFiles);
       let successMessage = `נשלחו ${assetIdsToMark.length} נכסים לעירייה בהצלחה. הקובץ הורד.`;
@@ -1360,7 +1378,8 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
       });
       setTimeout(() => setToast(null), 5000);
     } finally {
-      setLoading(false);
+      setExporting(false);
+      setExportProgressMessage('');
       document.body.style.cursor = '';
     }
   }, [buildingNumber, building, assetTypes, validationTaxRegion, fetchExportToAutomationCount, fetchData]);
@@ -5823,6 +5842,16 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
           </div>
         </div>
       )}
+      {/* Loading overlay for export to automation - progress in modal */}
+      {exporting && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 z-[9999] flex items-center justify-center" style={{ cursor: 'wait' }}>
+          <div className="bg-white rounded-lg p-6 shadow-xl flex flex-col items-center gap-4 min-w-[280px]">
+            <Loader2 className="h-12 w-12 text-teal-600 animate-spin" />
+            <p className="text-slate-700 font-medium text-lg">שולח נתונים לעירייה</p>
+            <p className="text-slate-600 text-sm text-center">{exportProgressMessage || 'מתחיל...'}</p>
+          </div>
+        </div>
+      )}
       {/* Loading overlay modal for file upload */}
       {uploadProgress && (
         <div className="fixed inset-0 bg-black bg-opacity-50 z-[9999] flex items-center justify-center" style={{ cursor: 'wait' }}>
@@ -6030,11 +6059,11 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
               <button
                 type="button"
                 onClick={handleExportToAutomation}
-                disabled={loading || exportToAutomationCount === 0}
+                disabled={loading || exporting || exportToAutomationCount === 0}
                 className="flex items-center gap-2 px-4 py-2 text-sm bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 active:from-orange-700 active:to-orange-800 disabled:from-gray-400 disabled:to-gray-500  text-white rounded-lg transition-all duration-200 shadow-md hover:shadow-lg disabled:shadow-none disabled:cursor-not-allowed font-semibold border border-orange-700/20 disabled:border-gray-500/20"
                 title={exportToAutomationCount > 0 ? `שלח ${exportToAutomationCount} נכסים שנמדדו ולא נשלחו לעירייה` : 'אין נכסים לשליחה - כל הנכסים כבר נשלחו לעירייה'}
               >
-                <Upload className="h-4 w-4" />
+                {exporting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
                 שליחת נתונים לעירייה{exportToAutomationCount > 0 ? ` (${exportToAutomationCount})` : ''}
               </button>
             )}

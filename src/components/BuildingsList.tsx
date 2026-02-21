@@ -491,6 +491,8 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
   const [filteredBuildings, setFilteredBuildings] = useState<Building[]>([]);
   const [buildingFilter, setBuildingFilter] = useState<string>('');
   const [loading, setLoading] = useState(true);
+  const [exporting, setExporting] = useState(false); // Export to automation in progress - keep content visible
+  const [exportProgressMessage, setExportProgressMessage] = useState(''); // Progress text in modal, not toast
   const [isSaving, setIsSaving] = useState(false); // Separate saving state to avoid full refresh appearance
   const [toast, setToast] = useState<{ message: string; type: 'error' | 'success' | 'info' } | null>(null);
   const [invalidTaxRegions, setInvalidTaxRegions] = useState<Set<number>>(new Set());
@@ -1949,7 +1951,8 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
 
   // Export assets to automation system
   const handleExportToAutomation = useCallback(async () => {
-    setLoading(true);
+    setExporting(true);
+    setExportProgressMessage('מתחיל שליחה...');
     setToast(null);
     document.body.style.cursor = 'wait';
 
@@ -1960,14 +1963,18 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
       if (!result.success) {
         setToast({ message: result.error || 'שגיאה בשליחת נכסים לעירייה', type: 'error' });
         setTimeout(() => setToast(null), 5000);
-        setLoading(false);
+        setExporting(false);
+        setExportProgressMessage('');
+        document.body.style.cursor = '';
         return;
       }
 
       if (result.count === 0) {
         setToast({ message: 'אין נכסים לשליחה - כל הנכסים כבר נשלחו לעירייה', type: 'info' });
         setTimeout(() => setToast(null), 5000);
-        setLoading(false);
+        setExporting(false);
+        setExportProgressMessage('');
+        document.body.style.cursor = '';
         setExportToAutomationCount(0);
         return;
       }
@@ -1988,6 +1995,9 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
       if (numericAssetIdsForQuery.length === 0) {
         setToast({ message: 'לא נמצאו נכסים לייצוא', type: 'error' });
         setTimeout(() => setToast(null), 5000);
+        setExporting(false);
+        setExportProgressMessage('');
+        document.body.style.cursor = '';
         return;
       }
 
@@ -1999,14 +2009,18 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
         console.error('Error fetching exported assets:', fetchError);
         setToast({ message: 'הנכסים סומנו כייצאו אך לא ניתן היה לייצא אותם לקובץ Excel', type: 'error' });
         setTimeout(() => setToast(null), 5000);
-        setLoading(false);
+        setExporting(false);
+        setExportProgressMessage('');
+        document.body.style.cursor = '';
         return;
       }
 
       if (!exportedAssets || exportedAssets.length === 0) {
         setToast({ message: `סומנו ${result.count} נכסים כייצאו בהצלחה`, type: 'success' });
         setTimeout(() => setToast(null), 5000);
-        setLoading(false);
+        setExporting(false);
+        setExportProgressMessage('');
+        document.body.style.cursor = '';
         setExportToAutomationCount(0);
         return;
       }
@@ -2108,7 +2122,7 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
         }
       });
       
-      setToast({ message: 'מכין קבצים ל-ZIP...', type: 'info' });
+      setExportProgressMessage('מכין קבצים ל-ZIP...');
       // Prepare files array for ZIP
       const zipFiles: Array<{ filename: string; data: Blob }> = [];
 
@@ -2323,7 +2337,7 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
       const applyTpl = (t: string, name: string, assetCount?: number) =>
         t.replace(/\{\{name\}\}/g, name).replace(/\{\{date\}\}/g, dateStrHe).replace(/\{\{assetCount\}\}/g, assetCount != null ? String(assetCount) : '');
       const operatorsList = await api.operators.getAll();
-      setToast({ message: 'מכין מיילים למפעילים ולמנהלים...', type: 'info' });
+      setExportProgressMessage('מכין מיילים למפעילים ולמנהלים...');
       const byOperator = new Map<number, typeof exportedAssets>();
       for (const a of exportedAssets) {
         const id = a.operator_id;
@@ -2422,12 +2436,12 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
           {
             concurrency: 3,
             onProgress: (sent, total) =>
-              setToast({ message: `שולח מיילים ${sent} מתוך ${total}...`, type: 'info' }),
+              setExportProgressMessage(`שולח מיילים ${sent} מתוך ${total}...`),
           }
         );
         sentCount = n;
       }
-      setToast({ message: 'מוריד קובץ ZIP...', type: 'info' });
+      setExportProgressMessage('מוריד קובץ ZIP...');
       const { createAndDownloadZip } = await import('../lib/zipExport');
       await createAndDownloadZip(zipFilename, zipFiles);
 
@@ -2444,7 +2458,8 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
       setToast({ message: error.message || 'שגיאה בשליחת נכסים לעירייה', type: 'error' });
       setTimeout(() => setToast(null), 5000);
     } finally {
-      setLoading(false);
+      setExporting(false);
+      setExportProgressMessage('');
       document.body.style.cursor = '';
     }
   }, [fetchExportToAutomationCount]);
@@ -3653,6 +3668,16 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
 
   return (
     <>
+      {/* Overlay when exporting to automation - progress in modal */}
+      {exporting && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 z-[9999] flex items-center justify-center" style={{ cursor: 'wait' }}>
+          <div className="bg-white rounded-lg p-6 shadow-xl flex flex-col items-center gap-4 min-w-[280px]">
+            <Loader2 className="h-12 w-12 text-teal-600 animate-spin" />
+            <p className="text-slate-700 font-medium text-lg">שולח נתונים לעירייה</p>
+            <p className="text-slate-600 text-sm text-center">{exportProgressMessage || 'מתחיל...'}</p>
+          </div>
+        </div>
+      )}
       <div className="w-full px-2 sm:px-4 md:px-6 py-2 sm:py-4">
         <div className="mb-4 bg-gradient-to-r from-teal-600 to-blue-600 rounded-xl shadow-lg p-4">
           <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-3">

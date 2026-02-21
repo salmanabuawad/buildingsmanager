@@ -5,7 +5,7 @@
  *           and project ref in SUPABASE_PROJECT_REF or from VITE_SUPABASE_URL.
  *
  * Usage: SUPABASE_ACCESS_TOKEN=xxx node supabase/scripts/apply-migration-via-api.mjs [migration-name]
- * Default migration: add_export_email_queue (20260228000000)
+ * Pass migration name as first arg; script path as second or use default.
  */
 
 import { readFileSync, existsSync } from 'fs';
@@ -43,8 +43,12 @@ if (!token) {
   process.exit(1);
 }
 
-const migrationName = process.argv[2] || 'add_export_email_queue';
-const migrationFile = resolve(__dirname, '../migrations/20260228000000_add_export_email_queue.sql');
+const migrationName = process.argv[2];
+const migrationFile = process.argv[3] ? resolve(process.cwd(), process.argv[3]) : resolve(__dirname, '../migrations/20260229000000_drop_export_email_queue.sql');
+if (!migrationName) {
+  console.error('Usage: node apply-migration-via-api.mjs <migration_name> [migration_file.sql]');
+  process.exit(1);
+}
 
 if (!existsSync(migrationFile)) {
   console.error('Migration file not found:', migrationFile);

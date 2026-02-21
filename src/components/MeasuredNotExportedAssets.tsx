@@ -1240,11 +1240,10 @@ export const MeasuredNotExportedAssets = ({ onSelectAsset }: MeasuredNotExported
       
       const dateStrHe = new Date().toLocaleDateString('he-IL');
       const { emailService } = await import('../lib/emailService');
-      setToast({ message: 'מוסיף מיילים לתור...', type: 'info' });
       const [templateOp, templateMgr] = await Promise.all([
         api.systemConfiguration.getEmailTemplate('email_template_operator'),
         api.systemConfiguration.getEmailTemplate('email_template_manager'),
-      ]);
+      ]).catch(() => [null, null]);
       const applyTpl = (t: string, name: string, assetCount?: number) =>
         t.replace(/\{\{name\}\}/g, name).replace(/\{\{date\}\}/g, dateStrHe).replace(/\{\{assetCount\}\}/g, assetCount != null ? String(assetCount) : '');
 
@@ -1257,7 +1256,7 @@ export const MeasuredNotExportedAssets = ({ onSelectAsset }: MeasuredNotExported
         }
       }
       const operatorsList = await api.operators.getAll();
-      const enqueueItems: Array<{ to: string; recipientName: string; subject: string; body: string; attachmentFilename: string; attachmentBlob: Blob }> = [];
+      const sendItems: Array<{ to: string; recipientName: string; subject: string; body: string; attachmentFilename: string; attachmentBlob: Blob }> = [];
       for (const [operatorId, operatorAssets] of byOperator) {
         const operator = operatorsList.find(o => o.id === operatorId);
         if (!operator?.email || !operator.email.includes('@')) continue;
@@ -1279,16 +1278,9 @@ export const MeasuredNotExportedAssets = ({ onSelectAsset }: MeasuredNotExported
         });
         const subj = templateOp ? applyTpl(templateOp.subject, operator.name, operatorAssets.length) : `שליחת נתונים - ${dateStrHe}`;
         const body = templateOp ? applyTpl(templateOp.body, operator.name, operatorAssets.length) : `שלום ${operator.name},\n\nמצורף קובץ הנתונים.\nתאריך: ${dateStrHe}\n\nבברכה,\nמערכת ניהול נכסים`;
-        enqueueItems.push({
-          to: operator.email,
-          recipientName: operator.name,
-          subject: subj,
-          body,
-          attachmentFilename: `נכסים_מפעיל_${operator.name}_${dateStr}.xlsx`,
-          attachmentBlob: opExcelBlob,
-        });
+        sendItems.push({ to: operator.email, recipientName: operator.name, subject: subj, body, attachmentFilename: `נכסים_מפעיל_${operator.name}_${dateStr}.xlsx`, attachmentBlob: opExcelBlob });
       }
-      if (enqueueItems.length === 0) {
+      if (sendItems.length === 0) {
         const fullRows = assetsToExport.map((asset: any) => [
           asset.payer_id || '', asset.asset_id != null ? String(asset.asset_id) : '',
           formatDateToDDMMYYYY(asset.discount_date_from) || '', formatDateToDDMMYYYY(asset.discount_date_to) || '',
@@ -1308,14 +1300,7 @@ export const MeasuredNotExportedAssets = ({ onSelectAsset }: MeasuredNotExported
           if (!operator?.email || !operator.email.includes('@')) continue;
           const subj = templateOp ? applyTpl(templateOp.subject, operator.name, assetsToExport.length) : `שליחת נתונים - ${dateStrHe}`;
           const body = templateOp ? applyTpl(templateOp.body, operator.name, assetsToExport.length) : `שלום ${operator.name},\n\nמצורף קובץ הנתונים.\nתאריך: ${dateStrHe}\n\nבברכה,\nמערכת ניהול נכסים`;
-          enqueueItems.push({
-            to: operator.email,
-            recipientName: operator.name,
-            subject: subj,
-            body,
-            attachmentFilename: `נכסים_שליחה_${dateStr}.xlsx`,
-            attachmentBlob: fullExcelBlob,
-          });
+          sendItems.push({ to: operator.email, recipientName: operator.name, subject: subj, body, attachmentFilename: `נכסים_שליחה_${dateStr}.xlsx`, attachmentBlob: fullExcelBlob });
         }
       }
       const managersList = await api.managers.getAll();
@@ -1346,31 +1331,26 @@ export const MeasuredNotExportedAssets = ({ onSelectAsset }: MeasuredNotExported
         });
         const subj = templateMgr ? applyTpl(templateMgr.subject, manager.name, managerAssets.length) : `שליחת נתונים - ${dateStrHe}`;
         const body = templateMgr ? applyTpl(templateMgr.body, manager.name, managerAssets.length) : `שלום ${manager.name},\n\nמצורף קובץ הנתונים.\nתאריך: ${dateStrHe}\n\nבברכה,\nמערכת ניהול נכסים`;
-        enqueueItems.push({
-          to: manager.email,
-          recipientName: manager.name,
-          subject: subj,
-          body,
-          attachmentFilename: `נכסים_מנהל_${manager.name}_${dateStr}.xlsx`,
-          attachmentBlob: mgrExcelBlob,
-        });
+        sendItems.push({ to: manager.email, recipientName: manager.name, subject: subj, body, attachmentFilename: `נכסים_מנהל_${manager.name}_${dateStr}.xlsx`, attachmentBlob: mgrExcelBlob });
+      }
+      let sentCount = 0;
+      if (sendItems.length > 0) {
+        setToast({ message: 'שולח מיילים למפעילים ולמנהלים...', type: 'info' });
+        for (const item of sendItems) {
+          const result = await emailService.sendEmail({
+            to: [item.to],
+            subject: item.subject,
+            body: item.body,
+            attachments: [{ filename: item.attachmentFilename, content: item.attachmentBlob, contentType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }],
+          });
+          if (result.success) sentCount++;
+        }
       }
       const { createAndDownloadZip } = await import('../lib/zipExport');
       await createAndDownloadZip(zipFilename, zipFiles);
       let successMessage = `נשלחו ${result.count} נכסים לעירייה בהצלחה. הקובץ הורד.`;
-      const enqueueResult = await emailService.enqueueExportEmails(enqueueItems);
-      if (enqueueResult.success && (enqueueResult.enqueued ?? 0) > 0) {
-        successMessage += ` ${enqueueResult.enqueued} מיילים נוספו לתור וישלחו בהמשך.`;
-        setToast({ message: successMessage, type: 'success' });
-      } else if (enqueueResult.error && enqueueItems.length > 0) {
-        setToast({ message: `${successMessage} המיילים לא נוספו לתור: ${enqueueResult.error}`, type: 'info' });
-      } else if (enqueueItems.length === 0) {
-        const hasOperators = operatorsList.some(o => o?.email && o.email.includes('@'));
-        if (!hasOperators) successMessage += ' לא נשלח אימייל — יש למלא דוא"ל במסך מפעילים.';
-        setToast({ message: successMessage, type: 'success' });
-      } else {
-        setToast({ message: successMessage, type: 'success' });
-      }
+      if (sentCount > 0) successMessage += ` ${sentCount} מיילים נשלחו למפעילים ולמנהלים.`;
+      setToast({ message: successMessage, type: 'success' });
       setTimeout(() => setToast(null), 8000);
       // Refresh the count after export
       await fetchExportToAutomationCount();

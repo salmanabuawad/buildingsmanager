@@ -67,17 +67,6 @@ uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 
 The API will be available at: http://localhost:8000
 
-### 5. Run Email Queue Worker (daemon)
-
-Export emails are enqueued via `POST /api/email/enqueue` and sent in the background by a worker. Run the worker as a separate process (same `DATABASE_URL`; reads `email_config` from `system_configuration`):
-
-```bash
-# From backend directory, with venv activated
-python -m app.worker_email_queue
-```
-
-The worker polls `export_email_queue` every 5 seconds and sends one Excel attachment per row (no ZIP). Keep it running (e.g. systemd, PM2, or a separate process in your deployment).
-
 API documentation (Swagger): http://localhost:8000/docs
 
 ## Project Structure

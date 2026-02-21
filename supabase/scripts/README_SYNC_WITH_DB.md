@@ -12,7 +12,7 @@ From the project root, with `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` in 
 npm run db:sync
 ```
 
-This runs **`sync-with-db.mjs`**: it probes the live Supabase DB for `export_email_queue`, `users`, `assets`, `operators` and reports whether each table exists. Use this to confirm state before applying changes.
+This runs **`sync-with-db.mjs`**: it probes the live Supabase DB for `users`, `assets`, `operators` and reports whether each table exists. Use this to confirm state before applying changes.
 
 ## Mandatory workflow
 

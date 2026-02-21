@@ -39,19 +39,13 @@ SELECT trigger_name, event_manipulation
 FROM information_schema.triggers
 WHERE event_object_table = 'operators';
 
--- 7) export_email_queue table (for email enqueue / worker)
-SELECT column_name, data_type, is_nullable
-FROM information_schema.columns
-WHERE table_schema = 'public' AND table_name = 'export_email_queue'
-ORDER BY ordinal_position;
-
--- 8) users table columns (for auth_login / X-Users-Table-Session validation)
+-- 7) users table columns (for auth_login / X-Users-Table-Session validation)
 SELECT column_name, data_type, is_nullable
 FROM information_schema.columns
 WHERE table_schema = 'public' AND table_name = 'users'
 ORDER BY ordinal_position;
 
--- 9) Applied migrations (Supabase CLI history; may not exist on hosted project)
+-- 8) Applied migrations (Supabase CLI history; may not exist on hosted project)
 -- If this errors with "schema does not exist", ignore; use Dashboard or CLI to see migration history.
 SELECT version, name
 FROM supabase_migrations.schema_migrations

@@ -57,7 +57,6 @@ async function main() {
   console.log('');
 
   const checks = [
-    { name: 'export_email_queue', table: 'export_email_queue', col: 'id' },
     { name: 'users (user_id)', table: 'users', col: 'user_id' },
     { name: 'assets', table: 'assets', col: 'asset_id' },
     { name: 'operators', table: 'operators', col: 'operator_id' },
@@ -75,9 +74,8 @@ async function main() {
 
   console.log('');
   console.log('Next steps:');
-  console.log('  1. If export_email_queue is missing, apply: supabase/migrations/20260228000000_add_export_email_queue.sql');
-  console.log('  2. Run full sync queries in Supabase SQL Editor: supabase/scripts/sync_with_db_queries.sql');
-  console.log('  3. Apply only migrations that are not yet reflected in the live DB.');
+  console.log('  1. Run full sync queries in Supabase SQL Editor: supabase/scripts/sync_with_db_queries.sql');
+  console.log('  2. Apply only migrations that are not yet reflected in the live DB.');
 }
 
 main().catch((e) => {

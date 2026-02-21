@@ -2,11 +2,12 @@
  * Email Service
  * 
  * Service for sending emails via backend API. When published (e.g. Bolt/Netlify),
- * uses same-origin /api/email/* (Node serverless) protected by Supabase Auth.
+ * uses same-origin /api/email/* (Node serverless). Accepts Supabase Auth or users-table session.
  */
 
 import { api } from './api';
 import { supabase } from './supabase';
+import { getSession } from './usersTableAuth';
 
 /** Backend base URL for email API (no trailing slash). Same origin when published so Netlify functions handle /api/email/*. */
 function getEmailBackendUrl(): string {
@@ -17,16 +18,31 @@ function getEmailBackendUrl(): string {
   return import.meta.env.PROD ? '' : 'http://localhost:8000';
 }
 
-/** Get headers for email API: Supabase Auth JWT so the serverless function can verify. */
+/** Get headers for email API: Supabase Auth JWT, or backend JWT, or users-table session (X-Users-Table-Session). */
 async function getEmailApiHeaders(): Promise<HeadersInit> {
   const headers: HeadersInit = { 'Content-Type': 'application/json' };
   try {
     const { data: { session } } = await supabase.auth.getSession();
     if (session?.access_token) {
       (headers as Record<string, string>)['Authorization'] = `Bearer ${session.access_token}`;
+      return headers;
     }
   } catch {
     // no Supabase session
+  }
+  const backendToken = typeof localStorage !== 'undefined' ? localStorage.getItem('auth_token') : null;
+  if (backendToken) {
+    (headers as Record<string, string>)['Authorization'] = `Bearer ${backendToken}`;
+    return headers;
+  }
+  const usersSession = getSession();
+  if (usersSession) {
+    const payload = JSON.stringify({
+      user_id: usersSession.user_id,
+      user_name: usersSession.user_name,
+      user_role: usersSession.user_role,
+    });
+    (headers as Record<string, string>)['X-Users-Table-Session'] = btoa(unescape(encodeURIComponent(payload)));
   }
   return headers;
 }

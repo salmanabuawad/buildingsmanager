@@ -1,6 +1,6 @@
 # Email queue daemon
 
-Processes the `email_queue` table: sends one Excel attachment per row, then marks the row as sent or failed.
+Processes the `export_email_queue` table: sends one Excel attachment per row, then marks the row as sent or failed.
 
 ## Run
 

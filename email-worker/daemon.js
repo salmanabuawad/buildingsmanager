@@ -1,8 +1,9 @@
 #!/usr/bin/env node
 /**
- * Email queue daemon: polls email_queue, sends one Excel per row, updates status.
+ * Email queue daemon: polls export_email_queue, sends one Excel per row, updates status.
  * Run: SUPABASE_URL=... SUPABASE_SERVICE_ROLE_KEY=... node email-worker/daemon.js
  * Requires: email_config in system_configuration (SMTP settings).
+ * Schema: export_email_queue (to_email, to_name, subject, body_he, attachment_base64, attachment_filename, status).
  */
 
 import { createClient } from '@supabase/supabase-js';
@@ -67,8 +68,8 @@ async function run() {
       }
 
       const { data: rows, error: fetchErr } = await supabase
-        .from('email_queue')
-        .select('id, to_email, recipient_name, subject, body, attachment_filename, attachment_content_base64')
+        .from('export_email_queue')
+        .select('id, to_email, to_name, subject, body_he, attachment_filename, attachment_base64')
         .eq('status', 'pending')
         .order('created_at', { ascending: true })
         .limit(BATCH_SIZE);
@@ -90,16 +91,11 @@ async function run() {
         : emailConfig.from_email;
 
       for (const row of rows) {
-        await supabase
-          .from('email_queue')
-          .update({ status: 'sending' })
-          .eq('id', row.id);
-
         const attachments = [];
-        if (row.attachment_filename && row.attachment_content_base64) {
+        if (row.attachment_filename && row.attachment_base64) {
           attachments.push({
             filename: row.attachment_filename,
-            content: Buffer.from(row.attachment_content_base64, 'base64'),
+            content: Buffer.from(row.attachment_base64, 'base64'),
             contentType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
           });
         }
@@ -110,18 +106,18 @@ async function run() {
             to: row.to_email,
             replyTo: emailConfig.reply_to_email || undefined,
             subject: row.subject || '',
-            text: row.body || '',
+            text: row.body_he || '',
             attachments,
           });
           await supabase
-            .from('email_queue')
+            .from('export_email_queue')
             .update({ status: 'sent', sent_at: new Date().toISOString(), error_message: null })
             .eq('id', row.id);
           console.log(`Sent queue id=${row.id} to ${row.to_email}`);
         } catch (err) {
           console.error(`Send failed id=${row.id}:`, err.message);
           await supabase
-            .from('email_queue')
+            .from('export_email_queue')
             .update({
               status: 'failed',
               sent_at: null,

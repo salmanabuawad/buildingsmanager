@@ -403,7 +403,7 @@ export function SystemConfigurationManager() {
               </div>
             ) : (
               <>
-                <div className="mb-4 space-y-3 p-3 bg-slate-50 rounded-lg border border-slate-200">
+                <div className="mb-4 space-y-3 p-3 bg-slate-50 rounded-lg border border-slate-200 hidden" aria-hidden="true">
                   <p className="text-sm font-medium text-slate-700">תלוי ב-Supabase Auth</p>
                   <p className="text-sm text-slate-600">שליחת דוא&quot;ל מהאפליקציה דורשת התחברות עם Supabase Auth (ה-JWT נשלח ל-API). אם משתמשים רק בהתחברות מותאמת, יש ליצור גם סשן Supabase כדי ששליחת המייל תעבוד.</p>
                   <p className="text-sm text-slate-600">כדי ש-Supabase ישלח מיילי אימות (אישור הרשמה, איפוס סיסמה) דרך Gmail: ב-Dashboard → Authentication → SMTP הגדר את אותו Gmail (smtp.gmail.com, פורט 587, סיסמת אפליקציה).</p>
@@ -762,7 +762,9 @@ export function SystemConfigurationManager() {
               אין הגדרות להצגה
             </div>
           ) : (
-            configurations.map((config) => (
+            configurations
+              .filter((config) => config.name !== 'ui_config')
+              .map((config) => (
               <div
                 key={config.id}
                 className="p-4 border border-slate-200 bg-slate-50 rounded-lg"

@@ -211,6 +211,20 @@ export class AssetValidationHandler {
       }
     }
 
+    // 1b) Each asset's shared_parking_area must not exceed the building's shared_parking_area.
+    if (buildingSharedParking != null && !isNaN(buildingSharedParking)) {
+      for (let i = 0; i < results.length; i++) {
+        if (!businessAssetIds.has(assetsToValidate[i].asset_id)) continue;
+        const v = assetsToValidate[i].shared_parking_area;
+        const assetVal = (v != null && v !== '') ? Number(v) : 0;
+        if (!isNaN(assetVal) && assetVal > buildingSharedParking) {
+          const err = `שטח חניה משותף בנכס (${assetVal}) גדול משטח חניה משותף במבנה (${buildingSharedParking})`;
+          if (!results[i].errors.includes(err)) results[i].errors.push(err);
+          results[i].valid = false;
+        }
+      }
+    }
+
     // 2) Sum of assets' (shared) parking area must equal building.parking_area
     const buildingParkingArea = building?.parking_area != null && building?.parking_area !== ''
       ? Number(building.parking_area)

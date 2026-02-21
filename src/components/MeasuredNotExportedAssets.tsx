@@ -821,7 +821,7 @@ export const MeasuredNotExportedAssets = ({ onSelectAsset }: MeasuredNotExported
       missingBuildingNumbers.forEach((bn, i) => buildingsMap.set(bn, fetchedBuildings[i]));
 
       const allValidationResults: Array<{ assetId: string; buildingNumber: number; errors: string[] }> = [];
-      const VALIDATION_CONCURRENCY = 5;
+      const VALIDATION_CONCURRENCY = 8;
 
       for (let i = 0; i < buildingEntries.length; i += VALIDATION_CONCURRENCY) {
         const chunk = buildingEntries.slice(i, i + VALIDATION_CONCURRENCY);
@@ -924,7 +924,7 @@ export const MeasuredNotExportedAssets = ({ onSelectAsset }: MeasuredNotExported
       // Fetch assets in batches to avoid timeouts with large exports
       let exportedAssets: any[];
       try {
-        exportedAssets = await api.assets.getAssetsByIdsBatched(numericAssetIdsForQuery);
+        exportedAssets = await api.assets.getAssetsByIdsBatched(numericAssetIdsForQuery, { concurrency: 8 });
       } catch (fetchError: any) {
         console.error('Error fetching exported assets:', fetchError);
         console.error('Supabase request failed', {
@@ -1159,71 +1159,66 @@ export const MeasuredNotExportedAssets = ({ onSelectAsset }: MeasuredNotExported
           ['מזהה נכס', 'מזהה משלם', 'שם קובץ']
         ];
         
-        // Download and add files for this tax region
+        // Build list of storage download tasks for this region (then run in parallel)
+        const downloadTasks: Array<{ filePath: string; assetId: number; fileName: string; urlFileName: string }> = [];
         for (const { assetId, asset, files } of regionAssets) {
           const payerId = asset?.payer_id || '';
-          
           for (const file of files) {
-            // Extract file name from URL if file_name is not available
             let fileName = file.file_name;
             if (!fileName && file.file_url) {
               const urlParts = file.file_url.split('/');
               fileName = urlParts[urlParts.length - 1].split('?')[0];
             }
-            
-            // Add row to file list Excel: asset_id, payer_id, file_name
-            fileListData.push([
-              assetId,
-              payerId,
-              fileName || ''
-            ]);
-            
-            // Download file from storage and add to ZIP
-            try {
-              // Extract file path from URL
-              const urlParts = file.file_url.split('/');
-              const urlFileName = urlParts[urlParts.length - 1].split('?')[0];
-              
-              // Try to extract path from URL (format: .../structure-drawings/{assetId}/{filename})
-              let filePath = '';
-              const structureDrawingsIndex = file.file_url.indexOf('structure-drawings/');
-              if (structureDrawingsIndex !== -1) {
-                filePath = file.file_url.substring(structureDrawingsIndex + 'structure-drawings/'.length).split('?')[0];
-              } else {
-                // Fallback: construct path from assetId and filename
-                filePath = `${assetId}/${urlFileName}`;
-              }
-              
-              // Download file from storage
-              const { data: fileData, error: downloadError } = await supabase.storage
-                .from('structure-drawings')
-                .download(filePath);
-              
-              if (downloadError || !fileData) {
-                // Check for bucket not found error
-                if (downloadError?.message?.includes('Bucket not found') || downloadError?.statusCode === '404') {
-                  console.error(
-                    'Storage bucket "structure-drawings" not found. ' +
-                    'Please create the bucket in Supabase Dashboard: Storage → New bucket → Name: "structure-drawings". ' +
-                    'See CREATE_STORAGE_BUCKETS.md for detailed instructions.'
-                  );
-                  // Show error to user
-                  setToast({ message: 'Storage bucket "structure-drawings" not found. Please create it in Supabase Dashboard. See CREATE_STORAGE_BUCKETS.md for instructions.', type: 'error' });
-                  setTimeout(() => setToast(null), 10000);
-                  continue;
+            fileListData.push([assetId, payerId, fileName || '']);
+            const urlParts = file.file_url.split('/');
+            const urlFileName = urlParts[urlParts.length - 1].split('?')[0];
+            let filePath = '';
+            const structureDrawingsIndex = file.file_url.indexOf('structure-drawings/');
+            if (structureDrawingsIndex !== -1) {
+              filePath = file.file_url.substring(structureDrawingsIndex + 'structure-drawings/'.length).split('?')[0];
+            } else {
+              filePath = `${assetId}/${urlFileName}`;
+            }
+            downloadTasks.push({ filePath, assetId, fileName: fileName || urlFileName, urlFileName });
+          }
+        }
+        
+        const STORAGE_DOWNLOAD_CONCURRENCY = 6;
+        let bucketNotFoundShown = false;
+        for (let i = 0; i < downloadTasks.length; i += STORAGE_DOWNLOAD_CONCURRENCY) {
+          const batch = downloadTasks.slice(i, i + STORAGE_DOWNLOAD_CONCURRENCY);
+          const results = await Promise.all(
+            batch.map(async (task) => {
+              try {
+                const { data: fileData, error: downloadError } = await supabase.storage
+                  .from('structure-drawings')
+                  .download(task.filePath);
+                if (downloadError || !fileData) {
+                  if (downloadError?.message?.includes('Bucket not found') || downloadError?.statusCode === '404') {
+                    return { kind: 'bucket_not_found' as const };
+                  }
+                  console.warn(`Error downloading file for asset ${task.assetId}:`, downloadError);
+                  return { kind: 'error' as const };
                 }
-                console.warn(`Error downloading file for asset ${assetId}:`, downloadError);
-                continue;
+                return { kind: 'ok' as const, data: fileData, task };
+              } catch (err) {
+                console.warn(`Error processing file for asset ${task.assetId}:`, err);
+                return { kind: 'error' as const };
               }
-              
-              // Add file to ZIP in tax region folder: {tax_region}/{assetId}_{filename}
-              const zipFilePath = `${taxRegion}/${assetId}_${fileName || urlFileName}`;
-              zipFiles.push({
-                filename: zipFilePath,
-                data: fileData
-              });
-            } catch (err) {
-              console.warn(`Error processing file for asset ${assetId}:`, err);
+            })
+          );
+          for (const r of results) {
+            if (r.kind === 'bucket_not_found') {
+              if (!bucketNotFoundShown) {
+                bucketNotFoundShown = true;
+                setToast({ message: 'Storage bucket "structure-drawings" not found. Please create it in Supabase Dashboard. See CREATE_STORAGE_BUCKETS.md for instructions.', type: 'error' });
+                setTimeout(() => setToast(null), 10000);
+              }
+              continue;
+            }
+            if (r.kind === 'ok' && r.data && r.task) {
+              const zipFilePath = `${taxRegion}/${r.task.assetId}_${r.task.fileName}`;
+              zipFiles.push({ filename: zipFilePath, data: r.data });
             }
           }
         }

@@ -1951,6 +1951,7 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
   const handleExportToAutomation = useCallback(async () => {
     setLoading(true);
     setToast(null);
+    document.body.style.cursor = 'wait';
 
     try {
       // Call API to export assets and mark them as exported
@@ -2107,6 +2108,7 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
         }
       });
       
+      setToast({ message: 'מכין קבצים ל-ZIP...', type: 'info' });
       // Prepare files array for ZIP
       const zipFiles: Array<{ filename: string; data: Blob }> = [];
 
@@ -2321,6 +2323,7 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
       const applyTpl = (t: string, name: string, assetCount?: number) =>
         t.replace(/\{\{name\}\}/g, name).replace(/\{\{date\}\}/g, dateStrHe).replace(/\{\{assetCount\}\}/g, assetCount != null ? String(assetCount) : '');
       const operatorsList = await api.operators.getAll();
+      setToast({ message: 'מכין מיילים למפעילים ולמנהלים...', type: 'info' });
       const byOperator = new Map<number, typeof exportedAssets>();
       for (const a of exportedAssets) {
         const id = a.operator_id;
@@ -2408,17 +2411,23 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
       }
       let sentCount = 0;
       if (sendItems.length > 0) {
-        setToast({ message: 'שולח מיילים למפעילים ולמנהלים...', type: 'info' });
-        for (const item of sendItems) {
-          const sendResult = await emailService.sendEmail({
-            to: [item.to],
+        const { sentCount: n } = await emailService.sendExportEmailsWithProgress(
+          sendItems.map((item) => ({
+            to: item.to,
             subject: item.subject,
             body: item.body,
-            attachments: [{ filename: item.attachmentFilename, content: item.attachmentBlob, contentType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }],
-          });
-          if (sendResult.success) sentCount++;
-        }
+            attachmentFilename: item.attachmentFilename,
+            attachmentBlob: item.attachmentBlob,
+          })),
+          {
+            concurrency: 3,
+            onProgress: (sent, total) =>
+              setToast({ message: `שולח מיילים ${sent} מתוך ${total}...`, type: 'info' }),
+          }
+        );
+        sentCount = n;
       }
+      setToast({ message: 'מוריד קובץ ZIP...', type: 'info' });
       const { createAndDownloadZip } = await import('../lib/zipExport');
       await createAndDownloadZip(zipFilename, zipFiles);
 
@@ -2436,6 +2445,7 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
       setTimeout(() => setToast(null), 5000);
     } finally {
       setLoading(false);
+      document.body.style.cursor = '';
     }
   }, [fetchExportToAutomationCount]);
 

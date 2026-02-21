@@ -207,6 +207,49 @@ class EmailService {
   }
 
   /**
+   * Send multiple export emails in parallel (batched by concurrency) with progress callback.
+   * Use for operator/manager Excel emails so the UI can show "שולח מייל X מתוך Y".
+   */
+  async sendExportEmailsWithProgress(
+    items: Array<{
+      to: string;
+      subject: string;
+      body: string;
+      attachmentFilename: string;
+      attachmentBlob: Blob;
+    }>,
+    options: { concurrency?: number; onProgress?: (sent: number, total: number) => void } = {}
+  ): Promise<{ sentCount: number }> {
+    const { concurrency = 3, onProgress } = options;
+    if (items.length === 0) {
+      return { sentCount: 0 };
+    }
+    let sentCount = 0;
+    const total = items.length;
+
+    for (let i = 0; i < items.length; i += concurrency) {
+      const batch = items.slice(i, i + concurrency);
+      const results = await Promise.all(
+        batch.map((item) =>
+          this.sendEmail({
+            to: [item.to],
+            subject: item.subject,
+            body: item.body,
+            attachments: [{
+              filename: item.attachmentFilename,
+              content: item.attachmentBlob,
+              contentType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            }],
+          })
+        )
+      );
+      sentCount += results.filter((r) => r.success).length;
+      onProgress?.(sentCount, total);
+    }
+    return { sentCount };
+  }
+
+  /**
    * Send a test email to verify SMTP configuration
    */
   async sendTestEmail(to: string): Promise<{ success: boolean; error?: string }> {

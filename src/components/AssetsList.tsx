@@ -663,6 +663,7 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
 
     setLoading(true);
     setToast(null);
+    document.body.style.cursor = 'wait';
 
     try {
       // STEP 1: Get assets in this building that match export condition
@@ -1017,6 +1018,7 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
         }
       });
       
+      setToast({ message: 'מכין קבצים ל-ZIP...', type: 'info' });
       // Prepare files array for ZIP
       const zipFiles: Array<{ filename: string; data: Blob }> = [];
 
@@ -1239,6 +1241,7 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
           byOperator.get(id)!.push(a);
         }
       }
+      setToast({ message: 'מכין מיילים למפעילים ולמנהלים...', type: 'info' });
       const sendItems: Array<{ to: string; recipientName: string; subject: string; body: string; attachmentFilename: string; attachmentBlob: Blob }> = [];
       for (const [operatorId, operatorAssets] of byOperator) {
         const operator = operatorsList.find(o => o.id === operatorId);
@@ -1318,17 +1321,23 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
       }
       let sentCount = 0;
       if (sendItems.length > 0) {
-        setToast({ message: 'שולח מיילים למפעילים ולמנהלים...', type: 'info' });
-        for (const item of sendItems) {
-          const result = await emailService.sendEmail({
-            to: [item.to],
+        const { sentCount: n } = await emailService.sendExportEmailsWithProgress(
+          sendItems.map((item) => ({
+            to: item.to,
             subject: item.subject,
             body: item.body,
-            attachments: [{ filename: item.attachmentFilename, content: item.attachmentBlob, contentType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }],
-          });
-          if (result.success) sentCount++;
-        }
+            attachmentFilename: item.attachmentFilename,
+            attachmentBlob: item.attachmentBlob,
+          })),
+          {
+            concurrency: 3,
+            onProgress: (sent, total) =>
+              setToast({ message: `שולח מיילים ${sent} מתוך ${total}...`, type: 'info' }),
+          }
+        );
+        sentCount = n;
       }
+      setToast({ message: 'מוריד קובץ ZIP...', type: 'info' });
       const { createAndDownloadZip } = await import('../lib/zipExport');
       await createAndDownloadZip(zipFilename, zipFiles);
       let successMessage = `נשלחו ${assetIdsToMark.length} נכסים לעירייה בהצלחה. הקובץ הורד.`;
@@ -1352,6 +1361,7 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
       setTimeout(() => setToast(null), 5000);
     } finally {
       setLoading(false);
+      document.body.style.cursor = '';
     }
   }, [buildingNumber, building, assetTypes, validationTaxRegion, fetchExportToAutomationCount, fetchData]);
 

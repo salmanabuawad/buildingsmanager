@@ -775,6 +775,7 @@ export const MeasuredNotExportedAssets = ({ onSelectAsset }: MeasuredNotExported
   const handleExportToAutomation = useCallback(async () => {
     setLoading(true);
     setError(null);
+    document.body.style.cursor = 'wait';
 
     try {
       // STEP 1: Get assets that will be exported (measured but not exported)
@@ -1060,6 +1061,7 @@ export const MeasuredNotExportedAssets = ({ onSelectAsset }: MeasuredNotExported
         });
       }
       
+      setToast({ message: 'מכין קבצים ל-ZIP...', type: 'info' });
       // Process each tax region: create Excel file and download files
       // Iterate over all tax regions that have assets (not just those with files)
       for (const [taxRegion, regionAssetsForExcel] of assetsByTaxRegionForExcel.entries()) {
@@ -1247,6 +1249,7 @@ export const MeasuredNotExportedAssets = ({ onSelectAsset }: MeasuredNotExported
       const applyTpl = (t: string, name: string, assetCount?: number) =>
         t.replace(/\{\{name\}\}/g, name).replace(/\{\{date\}\}/g, dateStrHe).replace(/\{\{assetCount\}\}/g, assetCount != null ? String(assetCount) : '');
 
+      setToast({ message: 'מכין מיילים למפעילים ולמנהלים...', type: 'info' });
       const byOperator = new Map<number, typeof assetsToExport>();
       for (const a of assetsToExport) {
         const id = a.operator_id;
@@ -1335,17 +1338,23 @@ export const MeasuredNotExportedAssets = ({ onSelectAsset }: MeasuredNotExported
       }
       let sentCount = 0;
       if (sendItems.length > 0) {
-        setToast({ message: 'שולח מיילים למפעילים ולמנהלים...', type: 'info' });
-        for (const item of sendItems) {
-          const result = await emailService.sendEmail({
-            to: [item.to],
+        const { sentCount: n } = await emailService.sendExportEmailsWithProgress(
+          sendItems.map((item) => ({
+            to: item.to,
             subject: item.subject,
             body: item.body,
-            attachments: [{ filename: item.attachmentFilename, content: item.attachmentBlob, contentType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }],
-          });
-          if (result.success) sentCount++;
-        }
+            attachmentFilename: item.attachmentFilename,
+            attachmentBlob: item.attachmentBlob,
+          })),
+          {
+            concurrency: 3,
+            onProgress: (sent, total) =>
+              setToast({ message: `שולח מיילים ${sent} מתוך ${total}...`, type: 'info' }),
+          }
+        );
+        sentCount = n;
       }
+      setToast({ message: 'מוריד קובץ ZIP...', type: 'info' });
       const { createAndDownloadZip } = await import('../lib/zipExport');
       await createAndDownloadZip(zipFilename, zipFiles);
       let successMessage = `נשלחו ${result.count} נכסים לעירייה בהצלחה. הקובץ הורד.`;
@@ -1364,6 +1373,7 @@ export const MeasuredNotExportedAssets = ({ onSelectAsset }: MeasuredNotExported
       setTimeout(() => setToast(null), 5000);
     } finally {
       setLoading(false);
+      document.body.style.cursor = '';
     }
   }, [fetchExportToAutomationCount, fetchData, buildings, assetTypes]);
 

@@ -2643,6 +2643,85 @@ export const buildingValidators = {
     }
   },
 
+  /**
+   * Validate that sum of assets' number_of_parking_units equals building.number_of_parking_units
+   * and sum of assets' shared_parking_area equals building.shared_parking_area.
+   * Only assets whose main type or any subtype has use_for_parking_shared_area are counted.
+   */
+  validateParkingTotals: async (buildingNumber: number, building: any): Promise<ValidationResult> => {
+    try {
+      const hasParkingData = (building.shared_parking_area != null && building.shared_parking_area !== '') ||
+        (building.number_of_parking_units != null && building.number_of_parking_units !== '');
+      if (!hasParkingData) return { valid: true };
+
+      const assets = await api.assets.getAll(buildingNumber);
+      if (!assets || assets.length === 0) {
+        const units = Number(building.number_of_parking_units);
+        const area = Number(building.shared_parking_area);
+        if ((!isNaN(units) && units !== 0) || (!isNaN(area) && area !== 0)) {
+          return {
+            valid: false,
+            error: 'במבנה אין נכסים – סכום יחידות חניה ושטח חניה משותף בנכסים חייבים להיות שווים לערכי המבנה (0)'
+          };
+        }
+        return { valid: true };
+      }
+
+      const assetTypes = await api.assetTypes.getAll();
+      const typeNameToParking = new Map<string, boolean>();
+      for (const at of assetTypes || []) {
+        const name = String(at?.name ?? '').trim();
+        if (name) typeNameToParking.set(name, at.use_for_parking_shared_area === true);
+        const num = parseInt(name, 10);
+        if (!isNaN(num)) typeNameToParking.set(String(num), at.use_for_parking_shared_area === true);
+      }
+      const isParkingEligible = (a: any) => {
+        const main = String(a.main_asset_type ?? '').trim();
+        if (main && typeNameToParking.get(main)) return true;
+        const subs = [
+          a.sub_asset_type_1, a.sub_asset_type_2, a.sub_asset_type_3,
+          a.sub_asset_type_4, a.sub_asset_type_5, a.sub_asset_type_6
+        ];
+        for (const s of subs) {
+          const t = String(s ?? '').trim();
+          if (t && typeNameToParking.get(t)) return true;
+        }
+        return false;
+      };
+
+      let sumUnits = 0;
+      let sumArea = 0;
+      for (const asset of assets) {
+        if (!isParkingEligible(asset)) continue;
+        const u = asset.number_of_parking_units;
+        const v = asset.shared_parking_area;
+        if (u != null && u !== '') sumUnits += Number(u) || 0;
+        if (v != null && v !== '') sumArea += Number(v) || 0;
+      }
+
+      const buildingUnits = building.number_of_parking_units != null && building.number_of_parking_units !== ''
+        ? Number(building.number_of_parking_units) : null;
+      const buildingArea = building.shared_parking_area != null && building.shared_parking_area !== ''
+        ? Number(building.shared_parking_area) : null;
+      const tolerance = 0.01;
+      const errors: string[] = [];
+
+      if (buildingUnits != null && !isNaN(buildingUnits) && sumUnits !== buildingUnits) {
+        errors.push(`סכום מספר יחידות חניה בנכסים (${sumUnits}) אינו שווה למספר יחידות חניה במבנה (${buildingUnits})`);
+      }
+      if (buildingArea != null && !isNaN(buildingArea) && Math.abs(sumArea - buildingArea) > tolerance) {
+        errors.push(`סכום שטח חניה משותף בנכסים (${sumArea}) אינו שווה לשטח חניה משותף במבנה (${buildingArea})`);
+      }
+      if (errors.length > 0) {
+        return { valid: false, error: errors.join('; ') };
+      }
+      return { valid: true };
+    } catch (error) {
+      console.error('Error validating parking totals:', error);
+      return { valid: false, error: 'שגיאה בבדיקת סכומי חניה' };
+    }
+  },
+
   validateAssetAreaDistribution: async (buildingNumber: number): Promise<ValidationResult> => {
     try {
       // Get building data - catch error if building doesn't exist
@@ -2781,7 +2860,15 @@ export const buildingValidators = {
         errors.tax_region = taxRegionsByTypeResult.error || 'אזורי מס לא תקפים לפי סוג עסק';
       }
 
-      // Note: Asset area distribution validation removed - building validation only checks area_for_control vs total_building_area
+      // Validate parking totals: sum(assets number_of_parking_units) = building.number_of_parking_units, sum(assets shared_parking_area) = building.shared_parking_area
+      const hasParkingData = (building.shared_parking_area != null && building.shared_parking_area !== '') ||
+        (building.number_of_parking_units != null && building.number_of_parking_units !== '');
+      if (hasParkingData) {
+        const parkingTotalsResult = await buildingValidators.validateParkingTotals(building.building_number, building);
+        if (!parkingTotalsResult.valid) {
+          errors.shared_parking_area = parkingTotalsResult.error || 'סכומי חניה בנכסים אינם תואמים למבנה';
+        }
+      }
     }
 
     // Validate area_for_control (should be positive number if provided)

@@ -156,7 +156,7 @@ export class AssetValidationHandler {
       results.push(...batchResults);
     }
 
-    // Building-level parking validations (business assets only)
+    // Building-level parking validations: only assets whose main type or any subtype has use_for_parking_shared_area
     const building = cachedData?.building;
     let assetTypes = cachedData?.assetTypes;
     if (!assetTypes?.length && building) {
@@ -167,31 +167,64 @@ export class AssetValidationHandler {
         assetTypes = [];
       }
     }
-    const businessTypeNames = new Set(
-      (assetTypes || [])
-        .filter((at: any) => at.business_residence === 'עסקים')
-        .map((at: any) => String(at?.name ?? '').trim())
-    );
+    const typeNameToParking = new Map<string, boolean>();
+    for (const at of assetTypes || []) {
+      const name = String(at?.name ?? '').trim();
+      if (name) typeNameToParking.set(name, at.use_for_parking_shared_area === true);
+      const num = parseInt(name, 10);
+      if (!isNaN(num)) typeNameToParking.set(String(num), at.use_for_parking_shared_area === true);
+    }
+    const isParkingEligible = (a: Asset) => {
+      const main = String(a.main_asset_type ?? '').trim();
+      if (main && typeNameToParking.get(main)) return true;
+      const subs = [
+        a.sub_asset_type_1, a.sub_asset_type_2, a.sub_asset_type_3,
+        a.sub_asset_type_4, a.sub_asset_type_5, a.sub_asset_type_6
+      ];
+      for (const s of subs) {
+        const t = String(s ?? '').trim();
+        if (t && typeNameToParking.get(t)) return true;
+      }
+      return false;
+    };
+    const parkingEligibleIds = new Set<string | number>();
     let assetsSharedParkingSum = 0;
-    const businessAssetIds = new Set<string | number>();
+    let assetsParkingUnitsSum = 0;
     for (const asset of assetsToValidate) {
-      const typeStr = String(asset.main_asset_type ?? '').trim();
-      if (!typeStr || !businessTypeNames.has(typeStr)) continue;
-      businessAssetIds.add(asset.asset_id);
+      if (!isParkingEligible(asset)) continue;
+      parkingEligibleIds.add(asset.asset_id);
       const v = (asset as any).shared_parking_area;
       if (v != null && v !== '') assetsSharedParkingSum += Number(v) || 0;
+      const u = (asset as any).number_of_parking_units;
+      if (u != null && u !== '') assetsParkingUnitsSum += Number(u) || 0;
     }
     const tolerance = 0.01;
 
-    // 1) Sum of assets' shared_parking_area must be equal or less than building.shared_parking_area.
-    //    When building shared_parking_area is zero, all business assets must have shared_parking_area zero.
     const buildingSharedParking = building?.shared_parking_area != null && building?.shared_parking_area !== ''
       ? Number(building.shared_parking_area)
       : null;
+    const buildingParkingUnits = building?.number_of_parking_units != null && building?.number_of_parking_units !== ''
+      ? Number(building.number_of_parking_units)
+      : null;
+
+    // When building has parking data: sum of assets' number_of_parking_units must equal building.number_of_parking_units
+    if (buildingParkingUnits != null && !isNaN(buildingParkingUnits)) {
+      if (assetsParkingUnitsSum !== buildingParkingUnits) {
+        const err = `סכום מספר יחידות חניה בנכסים (${assetsParkingUnitsSum}) אינו שווה למספר יחידות חניה במבנה (${buildingParkingUnits})`;
+        for (let i = 0; i < results.length; i++) {
+          if (parkingEligibleIds.has(assetsToValidate[i].asset_id)) {
+            if (!results[i].errors.includes(err)) results[i].errors.push(err);
+            results[i].valid = false;
+          }
+        }
+      }
+    }
+
+    // When building has parking area: sum of assets' shared_parking_area must equal building.shared_parking_area
     if (buildingSharedParking != null && !isNaN(buildingSharedParking)) {
       if (buildingSharedParking === 0) {
         for (let i = 0; i < results.length; i++) {
-          if (!businessAssetIds.has(assetsToValidate[i].asset_id)) continue;
+          if (!parkingEligibleIds.has(assetsToValidate[i].asset_id)) continue;
           const v = (assetsToValidate[i] as any).shared_parking_area;
           const assetVal = (v != null && v !== '') ? Number(v) : 0;
           if (assetVal !== 0 && !isNaN(assetVal)) {
@@ -200,10 +233,10 @@ export class AssetValidationHandler {
             results[i].valid = false;
           }
         }
-      } else if (assetsSharedParkingSum > buildingSharedParking + tolerance) {
-        const err = `סכום שטח חניה משותף בנכסים (${assetsSharedParkingSum}) גדול משטח חניה משותף במבנה (${buildingSharedParking}) – הסכום חייב להיות שווה או קטן`;
+      } else if (Math.abs(assetsSharedParkingSum - buildingSharedParking) > tolerance) {
+        const err = `סכום שטח חניה משותף בנכסים (${assetsSharedParkingSum}) אינו שווה לשטח חניה משותף במבנה (${buildingSharedParking})`;
         for (let i = 0; i < results.length; i++) {
-          if (businessAssetIds.has(assetsToValidate[i].asset_id)) {
+          if (parkingEligibleIds.has(assetsToValidate[i].asset_id)) {
             if (!results[i].errors.includes(err)) results[i].errors.push(err);
             results[i].valid = false;
           }
@@ -211,10 +244,10 @@ export class AssetValidationHandler {
       }
     }
 
-    // 1b) Each asset's shared_parking_area must not exceed the building's shared_parking_area.
+    // Each asset's shared_parking_area must not exceed the building's shared_parking_area
     if (buildingSharedParking != null && !isNaN(buildingSharedParking)) {
       for (let i = 0; i < results.length; i++) {
-        if (!businessAssetIds.has(assetsToValidate[i].asset_id)) continue;
+        if (!parkingEligibleIds.has(assetsToValidate[i].asset_id)) continue;
         const v = (assetsToValidate[i] as any).shared_parking_area;
         const assetVal = (v != null && v !== '') ? Number(v) : 0;
         if (!isNaN(assetVal) && assetVal > buildingSharedParking) {

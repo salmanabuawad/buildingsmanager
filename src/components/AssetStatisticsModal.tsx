@@ -33,7 +33,7 @@ export function AssetStatisticsModal({ isOpen, onClose, assets, assetTypes, buil
   const { statistics, excludedTypes, noMainTypeCount } = useMemo(() => {
     const statsMap = new Map<string, StatisticsRow>();
     const excludedTypeCounts = new Map<string, number>();
-    const NO_MAIN_TYPE_KEY = '__no_main_type__';
+    let noMainTypeCountRef = 0;
 
     // Helper function to get asset type description
     const getTypeDescription = (typeName: string | undefined | null): string => {
@@ -76,23 +76,8 @@ export function AssetStatisticsModal({ isOpen, onClose, assets, assetTypes, buil
           }
         }
       } else {
-        // Asset without main asset type
-        const existing = statsMap.get(NO_MAIN_TYPE_KEY);
-        const area = asset.asset_size || 0;
-        const sharedParking = Number((asset as any).shared_parking_area) || 0;
-        if (existing) {
-          existing.totalArea += area;
-          existing.totalSharedParkingArea += sharedParking;
-          existing.count += 1;
-        } else {
-          statsMap.set(NO_MAIN_TYPE_KEY, {
-            type: '—',
-            typeDescription: 'ללא סוג נכס ראשי',
-            totalArea: area,
-            totalSharedParkingArea: sharedParking,
-            count: 1
-          });
-        }
+        // Asset without main asset type - counted only for lower part (לא נכלל בסטיסטיקה), not in main table
+        noMainTypeCountRef += 1;
       }
 
       // Process sub asset types (1-6) - do not add shared_parking_area here (per-asset, counted in main type only) - combine with main types if same type code
@@ -129,16 +114,13 @@ export function AssetStatisticsModal({ isOpen, onClose, assets, assetTypes, buil
       }
     });
 
-    // Convert map to array: "no main type" row last, rest sorted by type name
-    const noMainRow = statsMap.get(NO_MAIN_TYPE_KEY);
-    statsMap.delete(NO_MAIN_TYPE_KEY);
-    const restArray = Array.from(statsMap.values()).sort((a, b) => {
+    // Convert map to array, sort by type name (no "no main type" row in main table)
+    const statsArray = Array.from(statsMap.values()).sort((a, b) => {
       const aNum = parseInt(a.type, 10);
       const bNum = parseInt(b.type, 10);
       if (!isNaN(aNum) && !isNaN(bNum)) return aNum - bNum;
       return a.type.localeCompare(b.type);
     });
-    const statsArray = noMainRow ? [...restArray, noMainRow] : restArray;
 
     const excludedTypesList: ExcludedTypeRow[] = Array.from(excludedTypeCounts.entries())
       .map(([typeKey, count]) => {
@@ -156,8 +138,7 @@ export function AssetStatisticsModal({ isOpen, onClose, assets, assetTypes, buil
         return a.name.localeCompare(b.name);
       });
 
-    const noMainTypeCount = noMainRow?.count ?? 0;
-    return { statistics: statsArray, excludedTypes: excludedTypesList, noMainTypeCount };
+    return { statistics: statsArray, excludedTypes: excludedTypesList, noMainTypeCount: noMainTypeCountRef };
   }, [assets, assetTypes]);
 
   // Calculate total area (used for percentage)

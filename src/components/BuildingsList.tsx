@@ -2619,11 +2619,12 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
               errors.push(`מבנה ${buildingKey}: לא ניתן לעדכן מבנה עם מזהה מבנה לא תקין`);
               continue;
             }
-            // Merge current building state for shared/parking fields so displayed values are always sent (handles valueGetter + batching)
+            // Merge current building state for shared/parking fields so displayed values are always sent
             const updates: Record<string, unknown> = { ...changes };
             const sharedAndParkingKeys = ['residence_shared_area', 'business_shared_area', 'shared_parking_area', 'number_of_parking_units'] as const;
             for (const k of sharedAndParkingKeys) {
-              if (k in building) (updates as any)[k] = (building as any)[k];
+              const v = (building as any)[k];
+              if (v !== undefined) (updates as any)[k] = v;
             }
             buildingsToUpdate.push({ building_number: actualBuildingNumber, updates });
             successfullySaved.add(buildingKey);
@@ -3250,6 +3251,12 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
         return !buildingsToDelete.has(buildingKey);
       },
       valueGetter: (params) => params?.data?.shared_parking_area,
+      valueSetter: (params: any) => {
+        if (params?.data == null) return;
+        const newValue = params.newValue;
+        const num = (newValue === null || newValue === undefined || newValue === '') ? null : (Number(newValue));
+        (params.data as any).shared_parking_area = (num != null && !isNaN(num)) ? num : null;
+      },
       valueParser: (params: any) => {
         if (!params) return null;
         const newValue = params.newValue;
@@ -3280,6 +3287,12 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
         return !buildingsToDelete.has(buildingKey);
       },
       valueGetter: (params) => params?.data?.number_of_parking_units,
+      valueSetter: (params: any) => {
+        if (params?.data == null) return;
+        const newValue = params.newValue;
+        const num = (newValue === null || newValue === undefined || newValue === '') ? null : (Number(newValue));
+        (params.data as any).number_of_parking_units = (num != null && !isNaN(num) && Number.isInteger(num)) ? num : null;
+      },
       valueParser: (params: any) => {
         if (!params) return null;
         const newValue = params.newValue;

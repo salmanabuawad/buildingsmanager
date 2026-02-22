@@ -4210,18 +4210,18 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
         changes.business_distribution_area = newDistributionArea;
 
         // Distribute shared parking area to each business asset: building.shared_parking_area / number_of_parking_units per asset.
-        // When building shared_parking_area is zero or missing, assets' parking_shared_area must be zero.
+        // When building shared_parking_area is zero or missing, assets' shared_parking_area must be zero.
         const sharedParkingNum = Number(building.shared_parking_area);
         const numParkingUnitsNum = Number(building.number_of_parking_units);
         const hasParkingData = !isNaN(sharedParkingNum) && !isNaN(numParkingUnitsNum) && numParkingUnitsNum > 0;
         if (isClearingDistribution) {
-          changes.parking_shared_area = null;
+          changes.shared_parking_area = null;
         } else if (sharedParkingNum === 0 || building.shared_parking_area == null || building.shared_parking_area === '') {
-          changes.parking_shared_area = 0;
+          changes.shared_parking_area = 0;
         } else if (hasParkingData) {
-          changes.parking_shared_area = sharedParkingNum / numParkingUnitsNum;
+          changes.shared_parking_area = sharedParkingNum / numParkingUnitsNum;
         } else {
-          changes.parking_shared_area = 0;
+          changes.shared_parking_area = 0;
         }
 
         // If clearing distribution and shared area asset type exists, remove it from sub_asset_types
@@ -4410,7 +4410,7 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
         asset.sub_asset_type_6 || '',
         asset.sub_asset_size_6 || '',
         asset.business_distribution_area || '',
-        (asset as any).parking_shared_area ?? (asset as any).shared_parking_area ?? '',
+        (asset as any).shared_parking_area ?? '',
         asset.comment || ''
       ]);
 
@@ -5642,9 +5642,9 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
       cellStyle: (params: any) => getCellStyle(params)
     },
     {
-      field: 'parking_shared_area',
+      field: 'shared_parking_area',
       headerName: 'שטח חניה משותף',
-      editable: (params) => !isResidentTaxRegion && isBusinessAssetRow(params) && isFieldEditable(params, 'parking_shared_area'),
+      editable: (params) => !isResidentTaxRegion && isBusinessAssetRow(params) && isFieldEditable(params, 'shared_parking_area'),
       type: 'numericColumn',
       valueFormatter: (params) => {
         if (isResidentTaxRegion || !isBusinessAssetRow(params)) return '';

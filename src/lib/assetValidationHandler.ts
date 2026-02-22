@@ -178,7 +178,7 @@ export class AssetValidationHandler {
       const typeStr = String(asset.main_asset_type ?? '').trim();
       if (!typeStr || !businessTypeNames.has(typeStr)) continue;
       businessAssetIds.add(asset.asset_id);
-      const v = (asset as any).parking_shared_area ?? (asset as any).shared_parking_area;
+      const v = (asset as any).shared_parking_area;
       if (v != null && v !== '') assetsSharedParkingSum += Number(v) || 0;
     }
     const tolerance = 0.01;
@@ -192,7 +192,7 @@ export class AssetValidationHandler {
       if (buildingSharedParking === 0) {
         for (let i = 0; i < results.length; i++) {
           if (!businessAssetIds.has(assetsToValidate[i].asset_id)) continue;
-          const v = (assetsToValidate[i] as any).parking_shared_area ?? (assetsToValidate[i] as any).shared_parking_area;
+          const v = (assetsToValidate[i] as any).shared_parking_area;
           const assetVal = (v != null && v !== '') ? Number(v) : 0;
           if (assetVal !== 0 && !isNaN(assetVal)) {
             const err = `שטח חניה משותף במבנה הוא 0 – שטח חניה משותף בנכס חייב להיות 0`;
@@ -211,11 +211,11 @@ export class AssetValidationHandler {
       }
     }
 
-    // 1b) Each asset's parking_shared_area must not exceed the building's shared_parking_area.
+    // 1b) Each asset's shared_parking_area must not exceed the building's shared_parking_area.
     if (buildingSharedParking != null && !isNaN(buildingSharedParking)) {
       for (let i = 0; i < results.length; i++) {
         if (!businessAssetIds.has(assetsToValidate[i].asset_id)) continue;
-        const v = (assetsToValidate[i] as any).parking_shared_area ?? (assetsToValidate[i] as any).shared_parking_area;
+        const v = (assetsToValidate[i] as any).shared_parking_area;
         const assetVal = (v != null && v !== '') ? Number(v) : 0;
         if (!isNaN(assetVal) && assetVal > buildingSharedParking) {
           const err = `שטח חניה משותף בנכס (${assetVal}) גדול משטח חניה משותף במבנה (${buildingSharedParking})`;

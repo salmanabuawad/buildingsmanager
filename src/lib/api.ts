@@ -598,7 +598,7 @@ export type AuditLog = DistributionAudit;
 function convertHebrewBooleans(obj: any): any {
   if (!obj || typeof obj !== 'object') return obj;
   
-  const booleanFields = ['elevator', 'single_double_family', 'condo', 'townhouses', 'penthouse', 'exported_to_automation'];
+  const booleanFields = ['elevator', 'single_double_family', 'condo', 'townhouses', 'penthouse', 'is_new_measurement', 'exported_to_automation', 'data_from_automation'];
   const converted = { ...obj };
   
   booleanFields.forEach(field => {
@@ -962,7 +962,8 @@ export async function validateAndSaveBulkAssets(
     
     if (!fetchError && existingAssets) {
       existingAssets.forEach(asset => {
-        existingAssetsMap.set(Number(asset.asset_id), asset);
+        // Normalize so merged asset never has "כן"/"לא" for boolean fields (grid doesn't send them; raw DB/driver might)
+        existingAssetsMap.set(Number(asset.asset_id), convertHebrewBooleans(asset));
       });
     }
   }
@@ -1069,9 +1070,8 @@ export async function validateAndSaveBulkAssets(
   const assetsForDatabase = preparedAssetsData.map(asset => {
     const { id, ...assetWithoutId } = asset as any;
     
-    // Explicitly convert any "כן" values to true before sanitization
-    // Handle all possible formats: string "כן", string "לא", boolean, null, undefined
-    const booleanFields = ['elevator', 'single_double_family', 'condo', 'townhouses', 'penthouse', 'exported_to_automation'];
+    // Normalize all asset boolean columns so DB never receives "כן" (existing merge can reintroduce it if raw fetch returns string)
+    const booleanFields = ['elevator', 'single_double_family', 'condo', 'townhouses', 'penthouse', 'is_new_measurement', 'exported_to_automation', 'data_from_automation'];
     booleanFields.forEach(field => {
       const value = assetWithoutId[field];
       if (value === 'כן' || value === 'yes' || value === 'YES' || value === '1' || value === 'true' || value === 'TRUE') {

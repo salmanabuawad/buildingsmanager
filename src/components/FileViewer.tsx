@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import { Document, Page, pdfjs } from 'react-pdf';
-import { ZoomIn, ZoomOut, Download, RotateCw, ChevronLeft, ChevronRight, File as FileIcon } from 'lucide-react';
+import { ZoomIn, ZoomOut, Download, RotateCw, ChevronLeft, ChevronRight, File as FileIcon, Printer } from 'lucide-react';
 import { sanitizeFilename } from '../lib/sanitize';
 import { getFileTypeCategory } from '../lib/fileCompression';
 import { supabase } from '../lib/supabase';
@@ -230,6 +230,29 @@ export function FileViewer({ fileUrl, fileName }: FileViewerProps) {
     }
   }
 
+  function handlePrint() {
+    const urlToPrint = actualFileUrl || fileUrl;
+    if (!urlToPrint) {
+      alert('כתובת הקובץ אינה זמינה. נסה שוב.');
+      return;
+    }
+    const printWindow = window.open(urlToPrint, '_blank', 'noopener,noreferrer');
+    if (printWindow) {
+      printWindow.onload = () => {
+        setTimeout(() => {
+          try {
+            printWindow.print();
+            printWindow.onafterprint = () => printWindow.close();
+          } catch (e) {
+            printWindow.close();
+          }
+        }, 500);
+      };
+    } else {
+      alert('לא ניתן לפתוח חלון להדפסה. ייתכן שחוסם חלונות קופצים חוסם את הפעולה.');
+    }
+  }
+
   // Loading state
   if (fileType === 'loading') {
     return (
@@ -296,12 +319,20 @@ export function FileViewer({ fileUrl, fileName }: FileViewerProps) {
                 <RotateCw className="h-4 w-4 text-black" />
               </button>
               <button
+                onClick={handlePrint}
+                className="flex items-center gap-2 px-3 py-1 bg-white border border-slate-300 rounded hover:bg-slate-50 text-sm"
+                title="הדפסה"
+              >
+                <Printer className="h-4 w-4 text-black" />
+                הדפסה
+              </button>
+              <button
                 onClick={handleDownload}
                 className="flex items-center gap-2 px-3 py-1 bg-slate-800 text-white rounded hover:bg-slate-700 text-sm"
                 title="Download PDF"
               >
                 <Download className="h-4 w-4" />
-                Download
+                הורדה
               </button>
             </div>
           </div>
@@ -337,13 +368,20 @@ export function FileViewer({ fileUrl, fileName }: FileViewerProps) {
                       <li>CORS or authentication issues</li>
                       <li>The storage bucket may not exist</li>
                     </ul>
-                    <div className="mt-4">
+                    <div className="mt-4 flex gap-2">
+                      <button
+                        onClick={handlePrint}
+                        className="flex items-center gap-2 px-4 py-2 bg-slate-600 text-white rounded hover:bg-slate-700 text-sm"
+                      >
+                        <Printer className="h-4 w-4" />
+                        הדפסה
+                      </button>
                       <button
                         onClick={handleDownload}
                         className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 text-sm"
                       >
                         <Download className="h-4 w-4" />
-                        Try Download Instead
+                        הורדה
                       </button>
                     </div>
                   </div>
@@ -403,14 +441,24 @@ export function FileViewer({ fileUrl, fileName }: FileViewerProps) {
                 <RotateCw className="h-4 w-4 text-black" />
               </button>
             </div>
-            <button
-              onClick={handleDownload}
-              className="flex items-center gap-2 px-3 py-1 bg-slate-800 text-white rounded hover:bg-slate-700 text-sm"
-              title="Download Image"
-            >
-              <Download className="h-4 w-4" />
-              Download
-            </button>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={handlePrint}
+                className="flex items-center gap-2 px-3 py-1 bg-white border border-slate-300 rounded hover:bg-slate-50 text-sm"
+                title="הדפסה"
+              >
+                <Printer className="h-4 w-4 text-black" />
+                הדפסה
+              </button>
+              <button
+                onClick={handleDownload}
+                className="flex items-center gap-2 px-3 py-1 bg-slate-800 text-white rounded hover:bg-slate-700 text-sm"
+                title="הורדת תמונה"
+              >
+                <Download className="h-4 w-4" />
+                הורדה
+              </button>
+            </div>
           </div>
         </div>
 
@@ -445,21 +493,32 @@ export function FileViewer({ fileUrl, fileName }: FileViewerProps) {
     );
   }
 
-  // Document or other file types - show download option
+  // Document or other file types - show print and download option
   return (
     <div className="w-full">
       <div className="border border-slate-300 rounded-lg bg-slate-50 p-12 flex flex-col items-center justify-center">
         <FileIcon className="h-16 w-16 text-slate-400 mb-4" />
         <p className="text-slate-700 mb-4">
-          {fileName || 'File preview not available for this file type'}
+          {fileName || 'תצוגה מקדימה אינה זמינה לסוג קובץ זה'}
         </p>
-        <button
-          onClick={handleDownload}
-          className="flex items-center gap-2 px-4 py-2 bg-slate-800 text-white rounded hover:bg-slate-700"
-        >
-          <Download className="h-5 w-5" />
-          Download File
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={handlePrint}
+            className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-300 rounded hover:bg-slate-100"
+            title="הדפסה"
+          >
+            <Printer className="h-5 w-5 text-slate-700" />
+            הדפסה
+          </button>
+          <button
+            onClick={handleDownload}
+            className="flex items-center gap-2 px-4 py-2 bg-slate-800 text-white rounded hover:bg-slate-700"
+            title="הורדת קובץ"
+          >
+            <Download className="h-5 w-5" />
+            הורדה
+          </button>
+        </div>
       </div>
     </div>
   );

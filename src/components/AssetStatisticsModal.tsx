@@ -17,6 +17,7 @@ interface StatisticsRow {
   type: string;
   typeDescription: string;
   totalArea: number;
+  totalSharedParkingArea: number;
   count: number;
 }
 
@@ -53,8 +54,10 @@ export function AssetStatisticsModal({ isOpen, onClose, assets, assetTypes, buil
         const existing = statsMap.get(typeKey);
         const area = asset.asset_size || 0;
         
+        const sharedParking = Number((asset as any).shared_parking_area) || 0;
         if (existing) {
           existing.totalArea += area;
+          existing.totalSharedParkingArea += sharedParking;
           existing.count += 1;
         } else {
           // Add new type entry
@@ -62,13 +65,14 @@ export function AssetStatisticsModal({ isOpen, onClose, assets, assetTypes, buil
             type: asset.main_asset_type,
             typeDescription: getTypeDescription(asset.main_asset_type),
             totalArea: area,
+            totalSharedParkingArea: sharedParking,
             count: 1
           });
         }
         }
       }
 
-      // Process sub asset types (1-6) - combine with main types if same type code
+      // Process sub asset types (1-6) - do not add shared_parking_area here (per-asset, counted in main type only) - combine with main types if same type code
       for (let i = 1; i <= 6; i++) {
         const subTypeField = `sub_asset_type_${i}` as keyof Asset;
         const subSizeField = `sub_asset_size_${i}` as keyof Asset;
@@ -89,11 +93,12 @@ export function AssetStatisticsModal({ isOpen, onClose, assets, assetTypes, buil
             existing.totalArea += area;
             existing.count += 1;
           } else {
-            // Add new type entry
+            // Add new type entry (no shared parking for sub-only entry)
             statsMap.set(typeKey, {
               type: subType,
               typeDescription: getTypeDescription(subType),
               totalArea: area,
+              totalSharedParkingArea: 0,
               count: 1
             });
           }
@@ -129,6 +134,11 @@ export function AssetStatisticsModal({ isOpen, onClose, assets, assetTypes, buil
     return { statistics: statsArray, excludedTypes: excludedTypesList };
   }, [assets, assetTypes]);
 
+  // Calculate total area (used for percentage)
+  const totalArea = useMemo(() => {
+    return statistics.reduce((sum, stat) => sum + stat.totalArea, 0);
+  }, [statistics]);
+
   // Reversed field order (compared to the original)
   const columnDefs: ColDef<StatisticsRow>[] = [
     {
@@ -138,6 +148,30 @@ export function AssetStatisticsModal({ isOpen, onClose, assets, assetTypes, buil
       cellStyle: { textAlign: 'right', fontWeight: '600' },
       valueFormatter: (params) => {
         return params.value ? params.value.toLocaleString('he-IL', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '0.00';
+      }
+    },
+    {
+      headerName: 'אחוז מהשטח הכולל',
+      width: 130,
+      cellStyle: { textAlign: 'right' },
+      valueGetter: (params) => {
+        if (!params.data || totalArea <= 0) return 0;
+        return (params.data.totalArea / totalArea) * 100;
+      },
+      valueFormatter: (params) => {
+        if (params.value == null || totalArea <= 0) return '0.00%';
+        return Number(params.value).toFixed(2) + '%';
+      }
+    },
+    {
+      field: 'totalSharedParkingArea',
+      headerName: 'שטח משותף לחניות',
+      width: 150,
+      cellStyle: { textAlign: 'right' },
+      valueFormatter: (params) => {
+        return params.value != null && params.value !== 0
+          ? Number(params.value).toLocaleString('he-IL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+          : '0.00';
       }
     },
     {
@@ -170,11 +204,6 @@ export function AssetStatisticsModal({ isOpen, onClose, assets, assetTypes, buil
     }
   ];
 
-  // Calculate total area
-  const totalArea = useMemo(() => {
-    return statistics.reduce((sum, stat) => sum + stat.totalArea, 0);
-  }, [statistics]);
-
   // Handle Excel export
   const handleExportToExcel = () => {
     try {
@@ -182,20 +211,29 @@ export function AssetStatisticsModal({ isOpen, onClose, assets, assetTypes, buil
       const today = new Date();
       const dateStr = `${String(today.getDate()).padStart(2, '0')}/${String(today.getMonth() + 1).padStart(2, '0')}/${today.getFullYear()}`;
       
+      const totalSharedParking = statistics.reduce((sum, stat) => sum + (stat.totalSharedParkingArea || 0), 0);
+
       // Create header row (match grid column order)
-      const headerRow = ['סכום שטח', 'כמות', 'תיאור', 'סוג נכס'];
+      const headerRow = ['סכום שטח', 'אחוז מהשטח הכולל', 'שטח משותף לחניות', 'כמות', 'תיאור', 'סוג נכס'];
       
       // Create data rows
-      const dataRows = statistics.map(stat => [
-        stat.totalArea ? Number(stat.totalArea.toFixed(2)) : 0,
-        stat.count || 0,
-        stat.typeDescription || '-',
-        stat.type || ''
-      ]);
+      const dataRows = statistics.map(stat => {
+        const pct = totalArea > 0 ? ((stat.totalArea / totalArea) * 100).toFixed(2) + '%' : '0.00%';
+        return [
+          stat.totalArea ? Number(stat.totalArea.toFixed(2)) : 0,
+          pct,
+          stat.totalSharedParkingArea ? Number(stat.totalSharedParkingArea.toFixed(2)) : 0,
+          stat.count || 0,
+          stat.typeDescription || '-',
+          stat.type || ''
+        ];
+      });
       
       // Add summary row
       const summaryRow = [
         totalArea ? Number(totalArea.toFixed(2)) : 0,
+        '100%',
+        totalSharedParking ? Number(totalSharedParking.toFixed(2)) : 0,
         assets.length,
         '',
         'סה"כ'
@@ -214,6 +252,8 @@ export function AssetStatisticsModal({ isOpen, onClose, assets, assetTypes, buil
         data: excelData,
         columnWidths: [
           { wch: 18 }, // סכום שטח
+          { wch: 18 }, // אחוז מהשטח הכולל
+          { wch: 18 }, // שטח משותף לחניות
           { wch: 12 }, // כמות
           { wch: 30 }, // תיאור
           { wch: 15 }  // סוג נכס

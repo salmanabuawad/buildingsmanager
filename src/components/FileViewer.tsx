@@ -321,18 +321,18 @@ export function FileViewer({ fileUrl, fileName }: FileViewerProps) {
               <button
                 onClick={handlePrint}
                 className="flex items-center gap-2 px-3 py-1 bg-white border border-slate-300 rounded hover:bg-slate-50 text-sm"
-                title="הדפסה"
+                title="הדפסת מסמך"
               >
                 <Printer className="h-4 w-4 text-black" />
-                הדפסה
+                הדפסת מסמך
               </button>
               <button
                 onClick={handleDownload}
                 className="flex items-center gap-2 px-3 py-1 bg-slate-800 text-white rounded hover:bg-slate-700 text-sm"
-                title="Download PDF"
+                title="הורדת מסמך"
               >
                 <Download className="h-4 w-4" />
-                הורדה
+                הורדת מסמך
               </button>
             </div>
           </div>
@@ -372,16 +372,18 @@ export function FileViewer({ fileUrl, fileName }: FileViewerProps) {
                       <button
                         onClick={handlePrint}
                         className="flex items-center gap-2 px-4 py-2 bg-slate-600 text-white rounded hover:bg-slate-700 text-sm"
+                        title="הדפסת מסמך"
                       >
                         <Printer className="h-4 w-4" />
-                        הדפסה
+                        הדפסת מסמך
                       </button>
                       <button
                         onClick={handleDownload}
                         className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 text-sm"
+                        title="הורדת מסמך"
                       >
                         <Download className="h-4 w-4" />
-                        הורדה
+                        הורדת מסמך
                       </button>
                     </div>
                   </div>
@@ -445,18 +447,18 @@ export function FileViewer({ fileUrl, fileName }: FileViewerProps) {
               <button
                 onClick={handlePrint}
                 className="flex items-center gap-2 px-3 py-1 bg-white border border-slate-300 rounded hover:bg-slate-50 text-sm"
-                title="הדפסה"
+                title="הדפסת מסמך"
               >
                 <Printer className="h-4 w-4 text-black" />
-                הדפסה
+                הדפסת מסמך
               </button>
               <button
                 onClick={handleDownload}
                 className="flex items-center gap-2 px-3 py-1 bg-slate-800 text-white rounded hover:bg-slate-700 text-sm"
-                title="הורדת תמונה"
+                title="הורדת מסמך"
               >
                 <Download className="h-4 w-4" />
-                הורדה
+                הורדת מסמך
               </button>
             </div>
           </div>
@@ -505,18 +507,18 @@ export function FileViewer({ fileUrl, fileName }: FileViewerProps) {
           <button
             onClick={handlePrint}
             className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-300 rounded hover:bg-slate-100"
-            title="הדפסה"
+            title="הדפסת מסמך"
           >
             <Printer className="h-5 w-5 text-slate-700" />
-            הדפסה
+            הדפסת מסמך
           </button>
           <button
             onClick={handleDownload}
             className="flex items-center gap-2 px-4 py-2 bg-slate-800 text-white rounded hover:bg-slate-700"
-            title="הורדת קובץ"
+            title="הורדת מסמך"
           >
             <Download className="h-5 w-5" />
-            הורדה
+            הורדת מסמך
           </button>
         </div>
       </div>

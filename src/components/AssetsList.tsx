@@ -539,6 +539,14 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
     return parts.join('\n');
   }, [assetTypes]);
 
+  // מהות שימוש: description of main_asset_type from asset_types
+  const getMainAssetTypeDescription = useCallback((mainAssetTypeName: string | null | undefined): string => {
+    if (!mainAssetTypeName || !assetTypes?.length) return '';
+    const nameStr = String(mainAssetTypeName).trim();
+    const at = assetTypes.find(t => String(t.name).trim() === nameStr);
+    return at?.description ?? '';
+  }, [assetTypes]);
+
   // Calculate total changes: new assets count as 1 each, even if edited
   // Edited existing assets (not in newAssets) + new assets + deleted assets
   // Check if there are any assets with previous residence distribution
@@ -4794,6 +4802,13 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
       cellStyle: (params: any) => getCellStyle(params)
     },
     {
+      field: 'main_asset_type_description',
+      headerName: 'מהות שימוש',
+      editable: false,
+      valueGetter: (params) => getMainAssetTypeDescription(params.data?.main_asset_type),
+      cellStyle: { textAlign: 'right' }
+    },
+    {
       field: 'asset_size',
       headerName: !isResidentTaxRegion ? 'גודל נכס ללא שטח משותף' : t('mainAssetSize'),
       valueFormatter: (params) => params.value ? params.value.toLocaleString() : '',
@@ -5549,6 +5564,14 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
       ...processColumnHeader(t('mainAssetType')),
       editable: (params) => isFieldEditable(params, 'main_asset_type'),
       tooltipValueGetter: (params) => getAssetTypeTooltip(params.value),
+      headerClass: 'ag-right-aligned-header',
+      cellStyle: (params: any) => getCellStyle(params)
+    },
+    {
+      field: 'main_asset_type_description',
+      headerName: 'מהות שימוש',
+      editable: false,
+      valueGetter: (params) => getMainAssetTypeDescription(params.data?.main_asset_type),
       headerClass: 'ag-right-aligned-header',
       cellStyle: (params: any) => getCellStyle(params)
     },

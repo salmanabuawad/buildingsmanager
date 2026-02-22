@@ -558,6 +558,8 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
       'tax_region': 'אזור מיסים',
       'residence_shared_area': 'שטח משותף מגורים',
       'business_shared_area': 'שטח משותף עסקים',
+      'net_area': 'שטח נטו',
+      'asset_count': 'מספר נכסים ברמת בניין',
       'total_building_area': 'סה"כ שטח',
       'area_for_control': 'שטח לבקרה',
       'shared_parking_area': 'שטח חניה משותף',
@@ -591,6 +593,8 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
       'tax_region': 'אזור מיסים',
       'residence_shared_area': 'שטח משותף מגורים',
       'business_shared_area': 'שטח משותף עסקים',
+      'net_area': 'שטח נטו',
+      'asset_count': 'מספר נכסים ברמת בניין',
       'total_building_area': 'סה"כ שטח',
       'overload_ratio': 'אחוז העמסה',
       'single_double_family': 'בית פרטי',
@@ -900,7 +904,7 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
     const userInteracted = cellEditUserInteracted.current.get(cellKey);
     
     // Check if this is a numeric field
-    const isNumericField = ['residence_shared_area', 'business_shared_area', 'area_for_control', 'shared_parking_area', 'number_of_parking_units', 'overload_ratio', 'total_building_area', 'gosh', 'helka', 'building_number_in_street'].includes(field);
+    const isNumericField = ['residence_shared_area', 'business_shared_area', 'area_for_control', 'shared_parking_area', 'number_of_parking_units', 'overload_ratio', 'total_building_area', 'net_area', 'asset_count', 'gosh', 'helka', 'building_number_in_street'].includes(field);
     
     // Quick normalization for comparison
     const normalizeQuick = (val: any): any => {
@@ -1435,7 +1439,7 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
     const { data, column, colDef } = event;
     const field = colDef?.field ?? column?.getColDef?.()?.field;
     if (!field || !data) return;
-    const skip = ['building_number', 'tax_region', 'elevator', 'single_double_family', 'condo', 'townhouses', 'building_address', 'overload_ratio', 'total_building_area', 'area_for_control'];
+    const skip = ['building_number', 'tax_region', 'elevator', 'single_double_family', 'condo', 'townhouses', 'building_address', 'overload_ratio', 'total_building_area', 'net_area', 'asset_count', 'area_for_control'];
     if (skip.includes(field)) return;
     const building = data as Building;
     const buildingKey = getBuildingKey(building);
@@ -1532,7 +1536,7 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
     const cellKey = `${buildingKey}_${field}`;
     
     // Check if this is a numeric field
-    const isNumericField = ['residence_shared_area', 'business_shared_area', 'area_for_control', 'shared_parking_area', 'number_of_parking_units', 'overload_ratio', 'total_building_area', 'gosh', 'helka', 'building_number_in_street'].includes(field);
+    const isNumericField = ['residence_shared_area', 'business_shared_area', 'area_for_control', 'shared_parking_area', 'number_of_parking_units', 'overload_ratio', 'total_building_area', 'net_area', 'asset_count', 'gosh', 'helka', 'building_number_in_street'].includes(field);
     
     // Get initial value from the building data
     let initialValue = (building as any)[field];
@@ -1845,6 +1849,8 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
         'אחוז העמסה',
         'שטח משותף מגורים',
         'שטח משותף עסקים',
+        'שטח נטו',
+        'מספר נכסים ברמת בניין',
         'ס"כ גודל',
         'שטח לבקרה',
         'שטח חניה משותף',
@@ -1884,6 +1890,8 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
         building.overload_ratio != null ? `${Number(building.overload_ratio).toFixed(2)}%` : '',
         building.residence_shared_area != null && building.residence_shared_area !== 0 ? building.residence_shared_area : '',
         building.business_shared_area != null && building.business_shared_area !== 0 ? building.business_shared_area : '',
+        building.net_area != null && building.net_area !== 0 ? building.net_area : '',
+        building.asset_count != null ? building.asset_count : '',
         building.total_building_area != null && building.total_building_area !== 0 ? building.total_building_area : '',
         building.area_for_control != null && building.area_for_control !== 0 ? building.area_for_control : '',
         building.shared_parking_area != null && building.shared_parking_area !== 0 ? building.shared_parking_area : '',
@@ -1918,6 +1926,8 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
           { wch: 12 }, // אחוז העמסה
           { wch: 18 }, // שטח משותף מגורים
           { wch: 18 }, // שטח משותף עסקים
+          { wch: 12 }, // שטח נטו
+          { wch: 10 }, // מספר נכסים ברמת בניין
           { wch: 12 }, // ס"כ גודל
           { wch: 12 }, // שטח לבקרה
           { wch: 12 }, // שטח חניה משותף
@@ -3125,6 +3135,30 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
         return value;
       },
       cellStyle: (params) => getCellStyle(params, 'business_shared_area')
+    },
+    {
+      field: 'net_area',
+      headerName: 'שטח נטו',
+      editable: false,
+      cellRenderer: (params: any) => {
+        const building = params.data as Building;
+        if (!building) return '';
+        const value = params.value != null && params.value !== 0 ? params.value.toLocaleString() : '';
+        return value;
+      },
+      cellStyle: (params) => ({ textAlign: 'right' as const })
+    },
+    {
+      field: 'asset_count',
+      headerName: 'מספר נכסים ברמת בניין',
+      editable: false,
+      cellRenderer: (params: any) => {
+        const building = params.data as Building;
+        if (!building) return '';
+        const value = params.value != null && params.value !== '' ? String(params.value) : '';
+        return value;
+      },
+      cellStyle: (params) => ({ textAlign: 'right' as const })
     },
     {
       field: 'total_building_area',

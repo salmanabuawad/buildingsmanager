@@ -352,6 +352,8 @@ export interface Building {
   area_for_control?: number;
   created_at: string;
   total_building_area?: number;
+  net_area?: number; // שטח נטו - sum of asset_size for building
+  asset_count?: number; // מספר נכסים ברמת בניין
   single_double_family?: string;
   condo?: string;
   townhouses?: string;

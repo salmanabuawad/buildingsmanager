@@ -2867,6 +2867,11 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
         }
       }
 
+      // When saving asset edits that include parking fields, DB sets need_business_distribution; keep UI in sync so distribute button enables
+      const hadParkingChanges = Array.from(dirtyAssets.entries()).some(
+        ([id, ch]) => !deletedAssets.has(id) && ('number_of_parking_units' in ch || 'shared_parking_area' in ch)
+      );
+
       // Determine the new tax region from the assets that will be saved
       // This will be used after successful save to open the correct tab
       let newTaxRegionForTab = taxRegion || ''; // Default to current tax region
@@ -2981,6 +2986,9 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
                 console.error('Error updating distribution history count:', error);
                 // Don't fail the save operation if counter update fails
               });
+          } else if (!isDistributionSave && hadParkingChanges && building) {
+            // Asset number_of_parking_units or shared_parking_area changed; DB sets need_business_distribution
+            setBuilding(prev => prev ? { ...prev, need_business_distribution: true } : null);
           }
         } else {
           setIsSaving(false); // Clear saving state on error
@@ -3981,15 +3989,17 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
   }, [building, assets, assetTypes, dirtyAssets, deletedAssets, hasAtLeastOneAccountableTypeForDistribution]);
 
   const handleDistributeBusinessSharedArea = useCallback(async () => {
-    // Allow distribution if flag is set, even if current area is 0 (to clear previous distribution)
-    if (!building || building.business_shared_area == null) {
+    if (!building) return;
+    // Allow distribution when: (1) building has business_shared_area set, or (2) need_business_distribution and parking data (so parking-only distribution can run)
+    const hasParkingDataAtBuilding = building.shared_parking_area != null && building.shared_parking_area !== '' && building.number_of_parking_units != null && Number(building.number_of_parking_units) > 0;
+    const canRunParkingOnly = building.need_business_distribution === true && hasParkingDataAtBuilding;
+    if (building.business_shared_area == null && !canRunParkingOnly) {
       setToast({ message: 'אין שטח משותף עסקים במבנה', type: 'error' });
       setTimeout(() => setToast(null), 3000);
       return;
     }
-
-    // If area is 0 but flag is set, allow distribution to clear previous distribution
-    if (building.business_shared_area <= 0 && building.need_business_distribution !== true) {
+    // If area is 0 but flag is set, allow distribution (clear previous or run parking-only)
+    if (building.business_shared_area != null && building.business_shared_area <= 0 && building.need_business_distribution !== true && !canRunParkingOnly) {
       setToast({ message: 'אין שטח משותף עסקים במבנה או השטח הוא 0', type: 'error' });
       setTimeout(() => setToast(null), 3000);
       return;
@@ -4070,35 +4080,40 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
         
         return true;
       });
-      
-      // Log summary for debugging
+
+      // Parking type and data: needed to allow parking-only distribution when there are no business assets
+      const parkingAssetType = assetTypes && assetTypes.length > 0
+        ? assetTypes.find((at: any) => at.use_for_parking_shared_area === true)
+        : null;
+      const parkingTypeName = parkingAssetType ? String(parkingAssetType.name).trim() : null;
+      const sharedParkingNum = Number(building.shared_parking_area);
+      const numParkingUnitsNum = Number(building.number_of_parking_units);
+      const hasParkingData = !isNaN(sharedParkingNum) && !isNaN(numParkingUnitsNum) && numParkingUnitsNum > 0;
+      const unitParkingArea = hasParkingData ? sharedParkingNum / numParkingUnitsNum : 0;
+      const parkingTypeAssets = parkingTypeName
+        ? assets.filter(a => !deletedAssets.has(String(a.asset_id)) && String(a.main_asset_type || '').trim() === parkingTypeName)
+        : [];
 
       if (businessAssets.length === 0) {
-        // Provide detailed error message
-        const reasons: string[] = [];
-        if (deletedCount > 0) reasons.push(`${deletedCount} נכסים שנמחקו`);
-        if (notAccountableForDistributionCount > 0) reasons.push(`${notAccountableForDistributionCount} נכסים לא נספרים בפיזור`);
-        if (noMainTypeCount > 0) reasons.push(`${noMainTypeCount} נכסים ללא סוג נכס ראשי`);
-        if (assetTypeNotFoundCount > 0) reasons.push(`${assetTypeNotFoundCount} נכסים עם סוג נכס שלא נמצא`);
-        if (notBusinessCount > 0) reasons.push(`${notBusinessCount} נכסים שאינם מסוג עסקים`);
-        
-        const totalFiltered = deletedCount + notAccountableForDistributionCount + noMainTypeCount + assetTypeNotFoundCount + notBusinessCount;
-        const totalAssets = assets.length;
-        
-        let errorMsg = 'אין נכסי עסקים במבנה לפזר בהם שטח משותף';
-        if (reasons.length > 0) {
-          errorMsg += `. סיבות: ${reasons.join(', ')}`;
+        // Allow continuing when we have parking data and at least one parking-type asset (parking-only distribution)
+        if (!hasParkingData || !parkingTypeName || parkingTypeAssets.length === 0) {
+          const reasons: string[] = [];
+          if (deletedCount > 0) reasons.push(`${deletedCount} נכסים שנמחקו`);
+          if (notAccountableForDistributionCount > 0) reasons.push(`${notAccountableForDistributionCount} נכסים לא נספרים בפיזור`);
+          if (noMainTypeCount > 0) reasons.push(`${noMainTypeCount} נכסים ללא סוג נכס ראשי`);
+          if (assetTypeNotFoundCount > 0) reasons.push(`${assetTypeNotFoundCount} נכסים עם סוג נכס שלא נמצא`);
+          if (notBusinessCount > 0) reasons.push(`${notBusinessCount} נכסים שאינם מסוג עסקים`);
+          const totalFiltered = deletedCount + notAccountableForDistributionCount + noMainTypeCount + assetTypeNotFoundCount + notBusinessCount;
+          const totalAssets = assets.length;
+          let errorMsg = 'אין נכסי עסקים במבנה לפזר בהם שטח משותף';
+          if (reasons.length > 0) errorMsg += `. סיבות: ${reasons.join(', ')}`;
+          if (totalAssets === 0) errorMsg = 'אין נכסים במבנה';
+          else if (totalFiltered === totalAssets) errorMsg += `. כל הנכסים במבנה נפסלו (סה"כ ${totalAssets} נכסים)`;
+          setToast({ message: errorMsg, type: 'error' });
+          setTimeout(() => setToast(null), 5000);
+          setLoading(false);
+          return;
         }
-        if (totalAssets === 0) {
-          errorMsg = 'אין נכסים במבנה';
-        } else if (totalFiltered === totalAssets) {
-          errorMsg += `. כל הנכסים במבנה נפסלו (סה"כ ${totalAssets} נכסים)`;
-        }
-
-        setToast({ message: errorMsg, type: 'error' });
-        setTimeout(() => setToast(null), 5000);
-        setLoading(false);
-        return;
       }
 
       // Denominator for overload_ratio: sum of (main size if no subtypes) + sum of (first subtype size for assets with subtypes)
@@ -4116,8 +4131,8 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
         totalForDistribution += contribSize;
       }
 
-      // If shared area is 0, we're clearing the distribution - allow this even if totalForDistribution is 0
-      const isClearingDistribution = building.business_shared_area! <= 0;
+      // If shared area is 0 or null, we're clearing business distribution (parking-only distribution may still run)
+      const isClearingDistribution = building.business_shared_area == null || building.business_shared_area <= 0;
 
       if (totalForDistribution <= 0 && !isClearingDistribution) {
         setToast({ message: 'סכום שטחי הנכסים העסקיים הוא 0 או שלילי', type: 'error' });
@@ -4154,16 +4169,6 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
         // Fallback: find any asset type with use_shared_area for business
         sharedAreaAssetType = assetTypes.find(at => at.use_shared_area === true);
       }
-
-      // Parking type: main_asset_type with use_for_parking_shared_area gets unit_area * number_of_parking_units; remainder stays on parking-type asset(s)
-      const parkingAssetType = assetTypes && assetTypes.length > 0
-        ? assetTypes.find((at: any) => at.use_for_parking_shared_area === true)
-        : null;
-      const parkingTypeName = parkingAssetType ? String(parkingAssetType.name).trim() : null;
-      const sharedParkingNum = Number(building.shared_parking_area);
-      const numParkingUnitsNum = Number(building.number_of_parking_units);
-      const hasParkingData = !isNaN(sharedParkingNum) && !isNaN(numParkingUnitsNum) && numParkingUnitsNum > 0;
-      const unitParkingArea = hasParkingData ? sharedParkingNum / numParkingUnitsNum : 0;
 
       // Track changes
       const updatedDirtyAssets = new Map(dirtyAssets);
@@ -4231,9 +4236,10 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
         } else if (!hasParkingData || sharedParkingNum === 0 || building.shared_parking_area == null || building.shared_parking_area === '') {
           changes.shared_parking_area = 0;
         } else if (isParkingTypeAsset) {
-          const nUnits = existingChanges.number_of_parking_units !== undefined
+          let nUnits = existingChanges.number_of_parking_units !== undefined
             ? Number(existingChanges.number_of_parking_units)
             : (Number((currentAsset as any)?.number_of_parking_units) || 0);
+          if (nUnits <= 0) nUnits = 1; // Default to 1 unit so parking-type assets receive at least one unit's share
           const assigned = unitParkingArea * nUnits;
           changes.shared_parking_area = assigned;
           parkingTypeAssignments.push({ assetId, assignedArea: assigned });
@@ -4314,6 +4320,35 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
           } as Asset;
         }
 
+        updatedCount++;
+      }
+
+      // Parking-type assets that are not business (e.g. parking type is not "עסקים"): still assign shared_parking_area
+      const businessAssetIds = new Set(businessAssets.map(a => String(a.asset_id)));
+      for (const asset of parkingTypeAssets) {
+        if (businessAssetIds.has(String(asset.asset_id))) continue;
+        const assetId = String(asset.asset_id);
+        const existingChanges = updatedDirtyAssets.get(assetId) || {};
+        const currentAsset = updatedAssets.find(a => String(a.asset_id) === assetId);
+        const changes: Partial<Asset> = { ...existingChanges };
+        if (shouldClearParkingOnly) {
+          changes.shared_parking_area = null;
+        } else if (hasParkingData && sharedParkingNum > 0) {
+          let nUnits = existingChanges.number_of_parking_units !== undefined
+            ? Number(existingChanges.number_of_parking_units)
+            : (Number((currentAsset as any)?.number_of_parking_units) || 0);
+          if (nUnits <= 0) nUnits = 1;
+          const assigned = unitParkingArea * nUnits;
+          changes.shared_parking_area = assigned;
+          parkingTypeAssignments.push({ assetId, assignedArea: assigned });
+        } else {
+          changes.shared_parking_area = 0;
+        }
+        updatedDirtyAssets.set(assetId, changes);
+        const idx = updatedAssets.findIndex(a => String(a.asset_id) === assetId);
+        if (idx !== -1) {
+          updatedAssets[idx] = { ...updatedAssets[idx], ...changes } as Asset;
+        }
         updatedCount++;
       }
 

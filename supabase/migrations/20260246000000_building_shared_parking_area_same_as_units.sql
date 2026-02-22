@@ -120,6 +120,12 @@ BEGIN
       note = CASE WHEN v_final_updates ? 'note' THEN NULLIF(TRIM(v_final_updates->>'note'), '')::TEXT ELSE note END
     WHERE building_number = v_building_number;
 
+    -- Recalculate total_building_area when any shared area or shared_parking_area changed (unless total was explicitly provided)
+    IF (v_updates ? 'residence_shared_area' OR v_updates ? 'business_shared_area' OR v_updates ? 'shared_parking_area')
+       AND NOT (v_updates ? 'total_building_area') THEN
+      PERFORM update_building_total_area(v_building_number);
+    END IF;
+
     IF NOT (v_building_number = ANY(v_affected_buildings)) THEN
       v_affected_buildings := array_append(v_affected_buildings, v_building_number);
     END IF;
@@ -149,4 +155,4 @@ EXCEPTION
 END;
 $function$;
 
-COMMENT ON FUNCTION update_buildings_bulk_with_distribution_flags IS 'Bulk update buildings. shared_parking_area and number_of_parking_units use CASE so 0 is applied when key is present.';
+COMMENT ON FUNCTION update_buildings_bulk_with_distribution_flags IS 'Bulk update buildings. Recalculates total_building_area when residence/business/shared_parking_area change.';

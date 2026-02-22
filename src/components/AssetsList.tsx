@@ -4186,6 +4186,8 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
       const overloadRatioPercent = isClearingDistribution || building.business_shared_area! <= 0
         ? 0
         : (totalForDistribution > 0 ? (building.business_shared_area! / totalForDistribution) * 100 : 0);
+      // Decimal ratio for distribution: newDistributionArea = overloadRatio * contribSize
+      const overloadRatio = overloadRatioPercent / 100;
 
       // Also clear business_distribution_area for non-accountable assets
       const nonAccountableAssets = assets.filter(asset => {

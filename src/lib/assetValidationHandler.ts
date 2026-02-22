@@ -198,6 +198,19 @@ export class AssetValidationHandler {
       const u = (asset as any).number_of_parking_units;
       if (u != null && u !== '') assetsParkingUnitsSum += Number(u) || 0;
     }
+
+    // Parking-eligible assets: number_of_parking_units must be a positive integer
+    const parkingUnitsErr = 'בנכס עם סוג/תת-סוג שימוש לחניה, מספר יחידות חניה חייב להיות מספר שלם גדול מ-0';
+    for (let i = 0; i < results.length; i++) {
+      if (!parkingEligibleIds.has(assetsToValidate[i].asset_id)) continue;
+      const u = (assetsToValidate[i] as any).number_of_parking_units;
+      const num = u != null && u !== '' ? Number(u) : NaN;
+      if (num === undefined || num === null || Number.isNaN(num) || !Number.isInteger(num) || num < 1) {
+        if (!results[i].errors.includes(parkingUnitsErr)) results[i].errors.push(parkingUnitsErr);
+        results[i].valid = false;
+      }
+    }
+
     const tolerance = 0.01;
 
     const buildingSharedParking = building?.shared_parking_area != null && building?.shared_parking_area !== ''

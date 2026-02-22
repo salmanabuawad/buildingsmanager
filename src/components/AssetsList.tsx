@@ -2900,33 +2900,48 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
         // Create description for distribution saves (include Hebrew keywords for database detection)
         let description: string | null = null;
         let afterData: any = undefined;
-        
+        // Computed overload_ratio for business distribution (percentage) - used in afterData and success handler
+        let computedOverloadRatioForSave: number | null = null;
+
         // Determine tab context (business or residence) for passing to API
         const isBusinessContext = !isResidentTaxRegion;
-        
+
         if (isDistributionSave && distributionType && building) {
+          if (distributionType === 'business' && building?.business_shared_area != null) {
+            // Recompute overload_ratio from assets we're saving so it is always correct
+            const isClearing = building.business_shared_area <= 0;
+            let totalForDist = 0;
+            if (!isClearing && assetsToSave.length > 0 && assetTypes?.length) {
+              for (const a of assetsToSave) {
+                const at = assetTypes.find((t: any) => String(t.name) === String(a.main_asset_type));
+                if (at?.business_residence !== 'עסקים') continue;
+                const hasSubtypes = !!(a.sub_asset_type_1 && String(a.sub_asset_type_1).trim() !== '');
+                totalForDist += hasSubtypes ? (Number(a.sub_asset_size_1) || 0) : (Number(a.asset_size) || 0);
+              }
+            }
+            computedOverloadRatioForSave = isClearing || totalForDist <= 0
+              ? 0
+              : (building.business_shared_area / totalForDist) * 100;
+          }
+
           if (distributionType === 'residence' && building?.residence_shared_area) {
             description = `Distributed residence shared area (מגורים) (${building.residence_shared_area.toLocaleString('he-IL')}) to ${assetsToSave.length} assets`;
           } else if (distributionType === 'business' && building?.business_shared_area != null) {
-            // When shared area is 0, overload_ratio should be 0
-            const overloadRatioValue = building.business_shared_area <= 0 
-              ? 0 
-              : (building.overload_ratio ?? 0);
-            const overloadRatio = overloadRatioValue.toFixed(2);
-            const sharedAreaText = building.business_shared_area > 0 
+            const overloadRatioValue = computedOverloadRatioForSave ?? building.overload_ratio ?? 0;
+            const overloadRatioStr = Number(overloadRatioValue).toFixed(2);
+            const sharedAreaText = building.business_shared_area > 0
               ? building.business_shared_area.toLocaleString('he-IL')
               : '0 (clearing previous distribution)';
-            description = `Distributed business shared area (עסקים) (${sharedAreaText}) to ${assetsToSave.length} assets. Overload ratio: ${overloadRatio}%`;
+            description = `Distributed business shared area (עסקים) (${sharedAreaText}) to ${assetsToSave.length} assets. Overload ratio: ${overloadRatioStr}%`;
           }
-          
-          // For distribution operations, prepare after_data with overload_ratio
-          // The database function will collect all assets, but we provide overload_ratio
-          // When shared area is 0, overload_ratio should be 0 (not null or old value)
+
+          // For distribution operations, prepare after_data with overload_ratio (use computed value)
           afterData = {
-            overload_ratio: distributionType === 'business' && building.business_shared_area! <= 0 
-              ? 0 
-              : (building.overload_ratio ?? null)
+            overload_ratio: distributionType === 'business'
+              ? (computedOverloadRatioForSave ?? (building.business_shared_area! <= 0 ? 0 : (building.overload_ratio ?? null)))
+              : undefined
           };
+          if (distributionType === 'residence') delete afterData.overload_ratio;
         }
         
         // Debug logging
@@ -2959,10 +2974,8 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
             // Clear the appropriate distribution flag (database already cleared it in the transaction)
             if (distributionType === 'business') {
               updatedBuilding.need_business_distribution = false;
-              // Also update overload_ratio for business distributions
-              const overloadRatioToSave = building.business_shared_area! <= 0 
-                ? 0 
-                : (building.overload_ratio ?? null);
+              // Use computed overload_ratio (from assets we saved) so it is always correct
+              const overloadRatioToSave = computedOverloadRatioForSave ?? (building.business_shared_area! <= 0 ? 0 : (building.overload_ratio ?? null));
               updatedBuilding.overload_ratio = overloadRatioToSave;
               
               // Save overload_ratio to database in background (non-blocking, don't wait)
@@ -3323,7 +3336,8 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
       discount_type: undefined,
       discount_date_from: undefined,
       discount_date_to: undefined,
-      comment: undefined
+      comment: undefined,
+      use_nature: undefined
     };
 
     setAssets(prev => [newAsset, ...prev]);
@@ -4168,10 +4182,10 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
         return;
       }
 
-      // overload_ratio = business_shared_area / totalForDistribution (as decimal; percentage = *100)
-      const overloadRatio = isClearingDistribution || building.business_shared_area! <= 0
+      // overload_ratio = (business_shared_area / totalForDistribution) * 100 (stored as percentage for display)
+      const overloadRatioPercent = isClearingDistribution || building.business_shared_area! <= 0
         ? 0
-        : (totalForDistribution > 0 ? (building.business_shared_area! / totalForDistribution) : 0);
+        : (totalForDistribution > 0 ? (building.business_shared_area! / totalForDistribution) * 100 : 0);
 
       // Also clear business_distribution_area for non-accountable assets
       const nonAccountableAssets = assets.filter(asset => {
@@ -4442,12 +4456,15 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
       setDirtyAssets(updatedDirtyAssets);
       setIsValidatedForSave(false);
 
+      // Update building with computed overload_ratio so it is correct when user clicks "Save all"
+      setBuilding(prev => prev ? { ...prev, overload_ratio: overloadRatioPercent } : null);
+
       // Show success message
       const sharedAreaText = building.business_shared_area! > 0
         ? building.business_shared_area!.toLocaleString('he-IL')
         : '0 (ניקוי פיזור קודם)';
-      const overloadRatioText = building.business_shared_area! > 0 && building.overload_ratio != null
-        ? ` יחס העמסה: ${building.overload_ratio.toFixed(2)}%.`
+      const overloadRatioText = building.business_shared_area! > 0 && overloadRatioPercent != null
+        ? ` יחס העמסה: ${Number(overloadRatioPercent).toFixed(2)}%.`
         : '';
       setToast({
         message: `חושב פיזור שטח משותף עסקים (${sharedAreaText}) ל-${updatedCount} נכסים.${overloadRatioText} לחץ "שמור הכל" לשמירה.`,
@@ -4802,11 +4819,18 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
       cellStyle: (params: any) => getCellStyle(params)
     },
     {
-      field: 'main_asset_type_description',
+      field: 'use_nature',
       headerName: 'מהות שימוש',
-      editable: false,
-      valueGetter: (params) => getMainAssetTypeDescription(params.data?.main_asset_type),
-      cellStyle: { textAlign: 'right' }
+      editable: (params: any) => {
+        const fieldName = params.colDef?.field || '';
+        return isFieldEditable(params, fieldName);
+      },
+      valueGetter: (params) => {
+        const v = params.data?.use_nature;
+        if (v != null && v !== '') return v;
+        return getMainAssetTypeDescription(params.data?.main_asset_type);
+      },
+      cellStyle: (params: any) => getCellStyle(params)
     },
     {
       field: 'asset_size',
@@ -5568,10 +5592,14 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
       cellStyle: (params: any) => getCellStyle(params)
     },
     {
-      field: 'main_asset_type_description',
+      field: 'use_nature',
       headerName: 'מהות שימוש',
-      editable: false,
-      valueGetter: (params) => getMainAssetTypeDescription(params.data?.main_asset_type),
+      editable: (params) => isFieldEditable(params, 'use_nature'),
+      valueGetter: (params) => {
+        const v = params.data?.use_nature;
+        if (v != null && v !== '') return v;
+        return getMainAssetTypeDescription(params.data?.main_asset_type);
+      },
       headerClass: 'ag-right-aligned-header',
       cellStyle: (params: any) => getCellStyle(params)
     },

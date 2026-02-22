@@ -2997,6 +2997,20 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
       cellStyle: getCellStyle
     },
     {
+      field: 'use_nature',
+      headerName: 'מהות שימוש',
+      editable: true,
+      valueGetter: (params) => {
+        const v = params.data?.use_nature;
+        if (v != null && v !== '') return v;
+        const code = params.data?.main_asset_type;
+        if (!code || !assetTypes?.length) return '';
+        const at = assetTypes.find(t => String(t.name).trim() === String(code).trim());
+        return at?.description ?? '';
+      },
+      cellStyle: getCellStyle
+    },
+    {
       field: 'asset_size',
       headerName: t('mainAssetSize'),
       editable: true,

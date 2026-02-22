@@ -2360,6 +2360,42 @@ export const assetValidators = {
   ): Promise<ValidationResult> => {
     return await validateComplexTypesMustHaveSubAssets(mainAssetType, subAssetTypes);
   },
+
+  /** When asset type or any subtype has use_for_parking_shared_area, number_of_parking_units must be a positive integer. */
+  validateParkingUnitsForParkingType: async (
+    asset: { main_asset_type?: string | null; sub_asset_type_1?: string | null; sub_asset_type_2?: string | null; sub_asset_type_3?: string | null; sub_asset_type_4?: string | null; sub_asset_type_5?: string | null; sub_asset_type_6?: string | null; number_of_parking_units?: number | null },
+    assetTypes: { name: string; use_for_parking_shared_area?: boolean }[]
+  ): Promise<ValidationResult> => {
+    if (!assetTypes?.length) return { valid: true };
+    const typeNameToParking = new Map<string, boolean>();
+    for (const at of assetTypes) {
+      const name = String(at?.name ?? '').trim();
+      if (name) typeNameToParking.set(name, at.use_for_parking_shared_area === true);
+      const num = parseInt(name, 10);
+      if (!isNaN(num)) typeNameToParking.set(String(num), at.use_for_parking_shared_area === true);
+    }
+    const main = String(asset.main_asset_type ?? '').trim();
+    if (main && typeNameToParking.get(main)) {
+      const u = asset.number_of_parking_units;
+      const n = u != null && u !== '' ? Number(u) : NaN;
+      if (n === undefined || n === null || Number.isNaN(n) || !Number.isInteger(n) || n < 1) {
+        return { valid: false, error: 'בנכס עם סוג/תת-סוג שימוש לחניה, מספר יחידות חניה חייב להיות מספר שלם גדול מ-0' };
+      }
+    }
+    const subs = [asset.sub_asset_type_1, asset.sub_asset_type_2, asset.sub_asset_type_3, asset.sub_asset_type_4, asset.sub_asset_type_5, asset.sub_asset_type_6];
+    for (const s of subs) {
+      const t = String(s ?? '').trim();
+      if (t && typeNameToParking.get(t)) {
+        const u = asset.number_of_parking_units;
+        const n = u != null && u !== '' ? Number(u) : NaN;
+        if (n === undefined || n === null || Number.isNaN(n) || !Number.isInteger(n) || n < 1) {
+          return { valid: false, error: 'בנכס עם סוג/תת-סוג שימוש לחניה, מספר יחידות חניה חייב להיות מספר שלם גדול מ-0' };
+        }
+        break;
+      }
+    }
+    return { valid: true };
+  },
 };
 
 export async function validateAll(validations: (ValidationResult | Promise<ValidationResult>)[]): Promise<ValidationResult> {

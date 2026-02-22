@@ -1439,7 +1439,7 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
     const { data, column, colDef } = event;
     const field = colDef?.field ?? column?.getColDef?.()?.field;
     if (!field || !data) return;
-    const skip = ['building_number', 'tax_region', 'elevator', 'single_double_family', 'condo', 'townhouses', 'building_address', 'overload_ratio', 'total_building_area', 'net_area', 'asset_count', 'area_for_control'];
+    const skip = ['building_number', 'tax_region', 'elevator', 'single_double_family', 'condo', 'townhouses', 'building_address', 'overload_ratio', 'total_building_area', 'net_area', 'asset_count'];
     if (skip.includes(field)) return;
     const building = data as Building;
     const buildingKey = getBuildingKey(building);
@@ -1448,15 +1448,17 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
     // Get the new value
     let newValue = event.newValue ?? event.node?.data?.[field];
     if (newValue === '' || newValue === null || newValue === undefined) {
-      const isNumeric = field === 'residence_shared_area' || field === 'business_shared_area';
-      newValue = isNumeric ? 0 : null;
+      const nullableNumeric = ['area_for_control', 'shared_parking_area', 'number_of_parking_units'];
+      newValue = (field === 'residence_shared_area' || field === 'business_shared_area') ? 0 : (nullableNumeric.includes(field) ? null : null);
     }
     
-    // Normalize numeric values for comparison
-    if (field === 'residence_shared_area' || field === 'business_shared_area') {
-      newValue = newValue != null ? Number(newValue) : null;
-      if (newValue !== null && isNaN(newValue)) {
-        newValue = null;
+    // Normalize numeric building fields for comparison and storage
+    if (['residence_shared_area', 'business_shared_area', 'area_for_control', 'shared_parking_area', 'number_of_parking_units'].includes(field)) {
+      if (newValue === '' || newValue === null || newValue === undefined) {
+        newValue = (field === 'residence_shared_area' || field === 'business_shared_area') ? 0 : null;
+      } else {
+        const num = Number(newValue);
+        newValue = isNaN(num) ? null : num;
       }
     }
     

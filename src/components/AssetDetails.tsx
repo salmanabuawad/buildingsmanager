@@ -927,7 +927,8 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
             currentAssetData.sub_asset_type_4,
             currentAssetData.sub_asset_type_5,
             currentAssetData.sub_asset_type_6
-          ])
+          ]),
+          assetValidators.validateParkingUnitsForParkingType(currentAssetData, assetTypes || [])
         ];
 
         if (shouldValidateSubAssets) {
@@ -2165,6 +2166,23 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
       cellStyle: { textAlign: 'right' }
     },
     {
+      field: 'use_nature',
+      headerName: 'מהות שימוש',
+      width: 180,
+      sortable: true,
+      filter: true,
+      headerClass: 'ag-right-aligned-header',
+      cellStyle: { textAlign: 'right' },
+      valueGetter: (params) => {
+        const v = params.data?.use_nature;
+        if (v != null && v !== '') return v;
+        const code = params.data?.main_asset_type;
+        if (!code || !assetTypes?.length) return '';
+        const at = assetTypes.find(t => String(t.name).trim() === String(code).trim());
+        return at?.description ?? '';
+      },
+    },
+    {
       field: 'asset_size',
       headerName: 'גודל נכס',
       width: 120,
@@ -2834,6 +2852,23 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
         const assetType = assetTypes.find(at => at.name === code);
         return assetType?.description || code;
       },
+    },
+    {
+      field: 'use_nature',
+      headerName: 'מהות שימוש',
+      editable: (params) => {
+        const fieldName = params.colDef?.field || '';
+        return isFieldEditable(params, fieldName);
+      },
+      valueGetter: (params) => {
+        const v = params.data?.use_nature;
+        if (v != null && v !== '') return v;
+        const code = params.data?.main_asset_type;
+        if (!code || !assetTypes?.length) return '';
+        const at = assetTypes.find(t => String(t.name).trim() === String(code).trim());
+        return at?.description ?? '';
+      },
+      cellStyle: (params) => getCellStyle(params, 'use_nature'),
     },
     {
       field: 'asset_size',

@@ -425,6 +425,7 @@ export interface Asset {
   export_to_automation_at?: string; // Date when asset was exported to automation system (DD/MM/YYYY format)
   data_from_automation?: boolean; // Flag indicating if this asset row originated from automation import
   comment?: string; // User comment/notes about the asset (הערה על הנכס)
+  use_nature?: string | null; // מהות שימוש - free-text editable; when empty, UI may show asset type description
   operator_id?: number | null; // Operator responsible for this asset (for grouping export and emailing)
   shared_parking_area?: number | null; // Per-asset shared parking area (sqm)
   number_of_parking_units?: number | null; // Number of parking units for this asset
@@ -693,6 +694,7 @@ export function sanitizeAssetInput(input: any): any {
     exported_to_automation: preConverted.exported_to_automation != null ? (preConverted.exported_to_automation === true || preConverted.exported_to_automation === 'true') : undefined,
     export_to_automation_at: preConverted.export_to_automation_at != null ? sanitizeDate(preConverted.export_to_automation_at) : undefined,
     comment: preConverted.comment != null ? sanitizeText(preConverted.comment) : undefined,
+    use_nature: ('use_nature' in preConverted) ? (preConverted.use_nature != null && preConverted.use_nature !== '' ? sanitizeText(preConverted.use_nature) : null) : undefined,
     is_new_measurement: preConverted.is_new_measurement === true ? true : (preConverted.is_new_measurement === false ? false : undefined),
     operator_id: ('operator_id' in preConverted) ? (preConverted.operator_id != null && preConverted.operator_id !== '' ? sanitizeInteger(preConverted.operator_id) : null) : undefined,
     shared_parking_area: ('shared_parking_area' in preConverted)
@@ -758,9 +760,13 @@ function sanitizeBuildingInput(input: any): any {
   if (input.business_shared_area != null) {
     sanitized.business_shared_area = sanitizeNumber(input.business_shared_area);
   }
-  // Database column is 'area_for_control' (matching the interface)
-  if (input.area_for_control != null) {
-    sanitized.area_for_control = sanitizeNumber(input.area_for_control);
+  // Database column is 'area_for_control' (שטח לבקרה) - allow explicit null to clear
+  if ('area_for_control' in input) {
+    if (input.area_for_control == null || input.area_for_control === '') {
+      sanitized.area_for_control = null;
+    } else {
+      sanitized.area_for_control = sanitizeNumber(input.area_for_control);
+    }
   }
   if (input.total_building_area != null) {
     sanitized.total_building_area = sanitizeNumber(input.total_building_area);

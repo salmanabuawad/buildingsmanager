@@ -21,12 +21,19 @@ interface StatisticsRow {
   count: number;
 }
 
+interface ExcludedTypeRow {
+  name: string;
+  description: string;
+  count: number;
+}
+
 export function AssetStatisticsModal({ isOpen, onClose, assets, assetTypes, buildingNumber }: AssetStatisticsModalProps) {
   // Calculate statistics from assets - only show types that exist in the assets list
   // Combine main and sub asset types into a single entry per type code
   const { statistics, excludedTypes } = useMemo(() => {
     const statsMap = new Map<string, StatisticsRow>();
-    const excludedTypeKeys = new Set<string>();
+    const excludedTypeCounts = new Map<string, number>();
+    const NO_MAIN_TYPE_KEY = '__no_main_type__';
 
     // Helper function to get asset type description
     const getTypeDescription = (typeName: string | undefined | null): string => {
@@ -46,29 +53,45 @@ export function AssetStatisticsModal({ isOpen, onClose, assets, assetTypes, buil
     // Combine main and sub asset types into single entries
     assets.forEach(asset => {
       // Process main asset types
-      if (asset.main_asset_type) {
+      if (asset.main_asset_type && asset.main_asset_type.trim()) {
         const typeKey = asset.main_asset_type.trim();
         if (isNotAccountableForStatistics(typeKey)) {
-          excludedTypeKeys.add(typeKey);
+          excludedTypeCounts.set(typeKey, (excludedTypeCounts.get(typeKey) || 0) + 1);
         } else {
-        const existing = statsMap.get(typeKey);
+          const existing = statsMap.get(typeKey);
+          const area = asset.asset_size || 0;
+          const sharedParking = Number((asset as any).shared_parking_area) || 0;
+          if (existing) {
+            existing.totalArea += area;
+            existing.totalSharedParkingArea += sharedParking;
+            existing.count += 1;
+          } else {
+            statsMap.set(typeKey, {
+              type: asset.main_asset_type,
+              typeDescription: getTypeDescription(asset.main_asset_type),
+              totalArea: area,
+              totalSharedParkingArea: sharedParking,
+              count: 1
+            });
+          }
+        }
+      } else {
+        // Asset without main asset type
+        const existing = statsMap.get(NO_MAIN_TYPE_KEY);
         const area = asset.asset_size || 0;
-        
         const sharedParking = Number((asset as any).shared_parking_area) || 0;
         if (existing) {
           existing.totalArea += area;
           existing.totalSharedParkingArea += sharedParking;
           existing.count += 1;
         } else {
-          // Add new type entry
-          statsMap.set(typeKey, {
-            type: asset.main_asset_type,
-            typeDescription: getTypeDescription(asset.main_asset_type),
+          statsMap.set(NO_MAIN_TYPE_KEY, {
+            type: '—',
+            typeDescription: 'ללא סוג נכס ראשי',
             totalArea: area,
             totalSharedParkingArea: sharedParking,
             count: 1
           });
-        }
         }
       }
 
@@ -83,7 +106,7 @@ export function AssetStatisticsModal({ isOpen, onClose, assets, assetTypes, buil
         if (subType && subType.trim() && (subSize != null && subSize > 0)) {
           const typeKey = subType.trim();
           if (isNotAccountableForStatistics(typeKey)) {
-            excludedTypeKeys.add(typeKey);
+            excludedTypeCounts.set(typeKey, (excludedTypeCounts.get(typeKey) || 0) + 1);
             continue;
           }
           const existing = statsMap.get(typeKey);
@@ -106,22 +129,24 @@ export function AssetStatisticsModal({ isOpen, onClose, assets, assetTypes, buil
       }
     });
 
-    // Convert map to array and sort by type name (numeric if possible, otherwise string)
-    const statsArray = Array.from(statsMap.values()).sort((a, b) => {
+    // Convert map to array: "no main type" row last, rest sorted by type name
+    const noMainRow = statsMap.get(NO_MAIN_TYPE_KEY);
+    statsMap.delete(NO_MAIN_TYPE_KEY);
+    const restArray = Array.from(statsMap.values()).sort((a, b) => {
       const aNum = parseInt(a.type, 10);
       const bNum = parseInt(b.type, 10);
-      if (!isNaN(aNum) && !isNaN(bNum)) {
-        return aNum - bNum;
-      }
+      if (!isNaN(aNum) && !isNaN(bNum)) return aNum - bNum;
       return a.type.localeCompare(b.type);
     });
+    const statsArray = noMainRow ? [...restArray, noMainRow] : restArray;
 
-    const excludedTypesList = Array.from(excludedTypeKeys.values())
-      .map(typeKey => {
+    const excludedTypesList: ExcludedTypeRow[] = Array.from(excludedTypeCounts.entries())
+      .map(([typeKey, count]) => {
         const at = assetTypes.find(a => String(a.name).trim() === typeKey);
         return {
           name: typeKey,
-          description: at?.description || ''
+          description: at?.description || '',
+          count
         };
       })
       .sort((a, b) => {
@@ -351,9 +376,10 @@ export function AssetStatisticsModal({ isOpen, onClose, assets, assetTypes, buil
               <div className="rounded-lg border border-gray-200 bg-gray-50 p-3 max-h-40 overflow-auto">
                 <ul className="space-y-1 text-sm text-gray-800">
                   {excludedTypes.map((t) => (
-                    <li key={t.name} className="flex gap-2">
+                    <li key={t.name} className="flex gap-2 items-center">
                       <span className="font-semibold">{t.name}</span>
                       <span className="text-gray-600">{t.description || '-'}</span>
+                      <span className="text-gray-500 font-medium">כמות: {t.count}</span>
                     </li>
                   ))}
                 </ul>

@@ -213,6 +213,9 @@ export class AssetValidationHandler {
 
     const tolerance = 0.01;
 
+    // If sum of building assets' shared parking area (and units) is zero, do not validate building parking shared area
+    const needsBuildingParkingValidation = assetsSharedParkingSum > 0 || assetsParkingUnitsSum > 0;
+
     const buildingSharedParking = building?.shared_parking_area != null && building?.shared_parking_area !== ''
       ? Number(building.shared_parking_area)
       : null;
@@ -220,8 +223,8 @@ export class AssetValidationHandler {
       ? Number(building.number_of_parking_units)
       : null;
 
-    // When building has parking data: sum of assets' number_of_parking_units must equal building.number_of_parking_units
-    if (buildingParkingUnits != null && !isNaN(buildingParkingUnits)) {
+    // When building has parking data and assets have parking: sum of assets' number_of_parking_units must equal building.number_of_parking_units
+    if (needsBuildingParkingValidation && buildingParkingUnits != null && !isNaN(buildingParkingUnits)) {
       if (assetsParkingUnitsSum !== buildingParkingUnits) {
         const err = `סכום מספר יחידות חניה בנכסים (${assetsParkingUnitsSum}) אינו שווה למספר יחידות חניה במבנה (${buildingParkingUnits})`;
         for (let i = 0; i < results.length; i++) {
@@ -233,8 +236,8 @@ export class AssetValidationHandler {
       }
     }
 
-    // When building has parking area: sum of assets' shared_parking_area must equal building.shared_parking_area
-    if (buildingSharedParking != null && !isNaN(buildingSharedParking)) {
+    // When building has parking area and assets have parking: sum of assets' shared_parking_area must equal building.shared_parking_area
+    if (needsBuildingParkingValidation && buildingSharedParking != null && !isNaN(buildingSharedParking)) {
       if (buildingSharedParking === 0) {
         for (let i = 0; i < results.length; i++) {
           if (!parkingEligibleIds.has(assetsToValidate[i].asset_id)) continue;
@@ -257,8 +260,8 @@ export class AssetValidationHandler {
       }
     }
 
-    // Each asset's shared_parking_area must not exceed the building's shared_parking_area
-    if (buildingSharedParking != null && !isNaN(buildingSharedParking)) {
+    // Each asset's shared_parking_area must not exceed the building's shared_parking_area (only when we validate building parking)
+    if (needsBuildingParkingValidation && buildingSharedParking != null && !isNaN(buildingSharedParking)) {
       for (let i = 0; i < results.length; i++) {
         if (!parkingEligibleIds.has(assetsToValidate[i].asset_id)) continue;
         const v = (assetsToValidate[i] as any).shared_parking_area;

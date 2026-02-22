@@ -2735,6 +2735,11 @@ export const buildingValidators = {
         if (v != null && v !== '') sumArea += Number(v) || 0;
       }
 
+      // If sum of assets' shared parking area (and units) is zero, building does not need to validate building parking shared area
+      if (sumArea === 0 && sumUnits === 0) {
+        return { valid: true };
+      }
+
       const buildingUnits = building.number_of_parking_units != null && building.number_of_parking_units !== ''
         ? Number(building.number_of_parking_units) : null;
       const buildingArea = building.shared_parking_area != null && building.shared_parking_area !== ''

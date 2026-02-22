@@ -4377,6 +4377,7 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
         'גודל נכס משנה 6',
         'גודל שטח משותף',  // business_distribution_area
         'שטח חניה משותף',  // shared_parking_area
+        'מספר יחידות חניה',  // number_of_parking_units
         'הערה'  // comment
       ];
 
@@ -4411,6 +4412,7 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
         asset.sub_asset_size_6 || '',
         asset.business_distribution_area || '',
         (asset as any).shared_parking_area ?? '',
+        (asset as any).number_of_parking_units ?? '',
         asset.comment || ''
       ]);
 
@@ -4454,6 +4456,7 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
           { wch: 12 }, // גודל נכס משנה 6
           { wch: 12 }, // גודל שטח משותף
           { wch: 12 }, // שטח חניה משותף
+          { wch: 12 }, // מספר יחידות חניה
           { wch: 12 }  // הערה
         ]
       });
@@ -5663,6 +5666,29 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
       headerClass: 'ag-right-aligned-header',
       cellStyle: (params: any) => getCellStyle(params),
       hide: isResidentTaxRegion // Only business assets have shared parking area
+    },
+    {
+      field: 'number_of_parking_units',
+      headerName: 'מספר יחידות חניה',
+      editable: (params) => !isResidentTaxRegion && isBusinessAssetRow(params) && isFieldEditable(params, 'number_of_parking_units'),
+      type: 'numericColumn',
+      valueFormatter: (params) => {
+        if (isResidentTaxRegion || !isBusinessAssetRow(params)) return '';
+        const val = params.value;
+        if (val === null || val === undefined || val === '') return '';
+        const num = typeof val === 'number' ? val : parseInt(String(val), 10);
+        return isNaN(num) ? '' : String(num);
+      },
+      valueParser: (params) => {
+        if (!params) return null;
+        const newValue = params.newValue;
+        if (newValue === null || newValue === undefined || newValue === '') return null;
+        const numValue = parseInt(String(newValue), 10);
+        return isNaN(numValue) ? null : numValue;
+      },
+      headerClass: 'ag-right-aligned-header',
+      cellStyle: (params: any) => getCellStyle(params),
+      hide: isResidentTaxRegion // Only business assets have number of parking units
     },
     {
       field: 'business_distribution_area',

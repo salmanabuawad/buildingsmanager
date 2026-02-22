@@ -47,6 +47,7 @@ interface ImportAssetRow {
   discount_date_to?: string;
   comment?: string;
   shared_parking_area?: number;
+  number_of_parking_units?: number;
   _validationErrors?: string[];
   _isDirty?: boolean;
 }
@@ -276,7 +277,8 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
         'discount_date_from': 'תאריך הנחה מ',
         'discount_date_to': 'תאריך הנחה עד',
         'comment': 'הערה',
-        'shared_parking_area': 'שטח חניה משותף'
+        'shared_parking_area': 'שטח חניה משותף',
+        'number_of_parking_units': 'מספר יחידות חניה'
       };
 
       // Match headers by exact name only (case-insensitive, trimmed)
@@ -481,6 +483,10 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
         if (headerMap['shared_parking_area'] !== undefined) {
           const value = values[headerMap['shared_parking_area']] || '';
           asset.shared_parking_area = value ? (parseFloat(value) || undefined) : undefined;
+        }
+        if (headerMap['number_of_parking_units'] !== undefined) {
+          const value = values[headerMap['number_of_parking_units']] || '';
+          asset.number_of_parking_units = value ? (parseInt(value, 10) || undefined) : undefined;
         }
 
         assets.push(asset);
@@ -3200,6 +3206,22 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
       field: 'discount_date_to',
       headerName: 'תאריך הנחה עד',
       editable: true,
+      cellStyle: getCellStyle
+    },
+    {
+      field: 'shared_parking_area',
+      headerName: 'שטח חניה משותף',
+      editable: true,
+      type: 'numericColumn',
+      valueFormatter: (params) => (params.value != null && params.value !== '' ? String(params.value) : ''),
+      cellStyle: getCellStyle
+    },
+    {
+      field: 'number_of_parking_units',
+      headerName: 'מספר יחידות חניה',
+      editable: true,
+      type: 'numericColumn',
+      valueFormatter: (params) => (params.value != null && params.value !== '' ? String(params.value) : ''),
       cellStyle: getCellStyle
     },
     {

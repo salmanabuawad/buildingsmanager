@@ -2740,6 +2740,18 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
       hide: !isBusinessContext // Only business assets have shared parking area
     },
     {
+      field: 'number_of_parking_units',
+      headerName: 'מספר יחידות חניה',
+      width: 120,
+      sortable: true,
+      filter: true,
+      editable: (params) => isBusinessContext && isFieldEditable(params, 'number_of_parking_units'),
+      headerClass: 'ag-right-aligned-header',
+      cellStyle: { textAlign: 'right' },
+      valueFormatter: (params: any) => (params.value != null && params.value !== '' ? String(params.value) : ''),
+      hide: !isBusinessContext // Only business assets have number of parking units
+    },
+    {
       field: 'comment',
       headerName: 'הערה',
       editable: (params) => {

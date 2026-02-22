@@ -2735,11 +2735,6 @@ export const buildingValidators = {
         if (v != null && v !== '') sumArea += Number(v) || 0;
       }
 
-      // If sum of assets' shared parking area (and units) is zero, building does not need to validate building parking shared area
-      if (sumArea === 0 && sumUnits === 0) {
-        return { valid: true };
-      }
-
       const buildingUnits = building.number_of_parking_units != null && building.number_of_parking_units !== ''
         ? Number(building.number_of_parking_units) : null;
       const buildingArea = building.shared_parking_area != null && building.shared_parking_area !== ''
@@ -2750,7 +2745,8 @@ export const buildingValidators = {
       if (buildingUnits != null && !isNaN(buildingUnits) && sumUnits !== buildingUnits) {
         errors.push(`סכום מספר יחידות חניה בנכסים (${sumUnits}) אינו שווה למספר יחידות חניה במבנה (${buildingUnits})`);
       }
-      if (buildingArea != null && !isNaN(buildingArea) && Math.abs(sumArea - buildingArea) > tolerance) {
+      // Only validate building shared_parking_area when sum of assets' shared parking area is > 0
+      if (sumArea > 0 && buildingArea != null && !isNaN(buildingArea) && Math.abs(sumArea - buildingArea) > tolerance) {
         errors.push(`סכום שטח חניה משותף בנכסים (${sumArea}) אינו שווה לשטח חניה משותף במבנה (${buildingArea})`);
       }
       if (errors.length > 0) {

@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Azure vs GCP – Israel Hosting Comparison</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      max-width: 900px;
+      margin: 0 auto;
+      padding: 24px;
+      color: #1a1a1a;
+      line-height: 1.4;
+    }
+    h1 {
+      font-size: 1.5rem;
+      margin-bottom: 0.5rem;
+      border-bottom: 2px solid #0066cc;
+      padding-bottom: 8px;
+    }
+    h2 {
+      font-size: 1.15rem;
+      margin-top: 24px;
+      margin-bottom: 12px;
+      color: #333;
+    }
+    p {
+      margin: 0 0 12px;
+      font-size: 0.9rem;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 16px 0;
+      font-size: 0.8rem;
+      break-inside: avoid;
+    }
+    th, td {
+      border: 1px solid #ccc;
+      padding: 8px 10px;
+      text-align: left;
+      vertical-align: top;
+    }
+    th {
+      background: #f0f4f8;
+      font-weight: 600;
+    }
+    tr:nth-child(even) { background: #fafafa; }
+    .spec { font-weight: 600; color: #0066cc; }
+    .total-row td { font-weight: 600; background: #e8f0f8; }
+    .note { font-size: 0.85rem; color: #555; margin-top: 8px; }
+    @media print {
+      body { padding: 12px; }
+      h1 { font-size: 1.35rem; }
+      table { font-size: 0.75rem; }
+      th, td { padding: 6px 8px; }
+    }
+  </style>
+</head>
+<body>
+
+  <h1>Azure vs GCP – Israel Hosting Comparison</h1>
+  <p><strong>Stack:</strong> Ubuntu VM, Nginx, Python, managed PostgreSQL, object storage (300 GB), daily DB backup. Estimates in USD, pay-as-you-go.</p>
+
+  <h2>Azure vs GCP – Israel region (~$50 vs ~$100/month)</h2>
+  <table>
+    <thead>
+      <tr>
+        <th>Component</th>
+        <th>Azure ~$50</th>
+        <th>Azure ~$100</th>
+        <th>GCP ~$50</th>
+        <th>GCP ~$100</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><span class="spec">Region</span></td>
+        <td>Israel Central</td>
+        <td>Israel Central</td>
+        <td>me-west1 (Tel Aviv)</td>
+        <td>me-west1 (Tel Aviv)</td>
+      </tr>
+      <tr>
+        <td><span class="spec">VM</span></td>
+        <td>B1ms (1 vCPU, 2 GB)</td>
+        <td>B2s (2 vCPU, 4 GB)</td>
+        <td>e2-small (2 vCPU, 2 GB)</td>
+        <td>e2-medium (2 vCPU, 4 GB)</td>
+      </tr>
+      <tr>
+        <td><span class="spec">VM disk</span></td>
+        <td>50 GB Standard SSD</td>
+        <td>50 GB Standard SSD</td>
+        <td>50 GB Standard PD</td>
+        <td>50 GB Balanced / SSD</td>
+      </tr>
+      <tr>
+        <td><span class="spec">Managed PostgreSQL</span></td>
+        <td>Flexible Server B1ms (1 vCore, 2 GB)</td>
+        <td>B2s or small GP</td>
+        <td>Cloud SQL shared-core (1 vCPU, 0.6 GB)</td>
+        <td>Cloud SQL dedicated (1–2 vCPU, 3.75–4 GB)</td>
+      </tr>
+      <tr>
+        <td><span class="spec">Object storage</span></td>
+        <td>300 GB Blob Hot LRS</td>
+        <td>300 GB Blob Hot LRS</td>
+        <td>300 GB Cloud Storage Standard</td>
+        <td>300 GB Cloud Storage Standard</td>
+      </tr>
+      <tr>
+        <td><span class="spec">DB backup</span></td>
+        <td>7–35 days included</td>
+        <td>7–35 days included</td>
+        <td>Automated backups included</td>
+        <td>Automated backups included</td>
+      </tr>
+      <tr class="total-row">
+        <td><span class="spec">Est. monthly (USD)</span></td>
+        <td>~$45–57</td>
+        <td>~$85–105</td>
+        <td>~$35–50</td>
+        <td>~$65–90</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <p class="note"><strong>Notes:</strong> GCP in me-west1 is often a bit cheaper than Azure Israel Central for comparable tiers. For exact pricing use Azure Pricing Calculator (Israel Central) and Google Cloud Pricing Calculator (me-west1).</p>
+
+  <p style="margin-top: 24px; font-size: 0.8rem; color: #666;">Generated for Buildings Manager – Azure vs GCP Israel hosting. Open in browser and use Print → Save as PDF.</p>
+
+</body>
+</html>

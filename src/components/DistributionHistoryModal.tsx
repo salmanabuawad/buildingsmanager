@@ -133,7 +133,7 @@ export function DistributionHistoryModal({
     if (!beforeAsset && !afterAsset) return false;
     if (!beforeAsset || !afterAsset) return true; // One exists but not the other
     
-    // Compare relevant fields
+    // Compare relevant fields (including shared parking area distribution)
     const fieldsToCompare = [
       'main_asset_type', 'asset_size',
       'sub_asset_type_1', 'sub_asset_size_1',
@@ -142,7 +142,9 @@ export function DistributionHistoryModal({
       'sub_asset_type_4', 'sub_asset_size_4',
       'sub_asset_type_5', 'sub_asset_size_5',
       'sub_asset_type_6', 'sub_asset_size_6',
-      'business_distribution_area'
+      'business_distribution_area',
+      'shared_parking_area',
+      'number_of_parking_units'
     ];
     
     for (const field of fieldsToCompare) {
@@ -262,6 +264,12 @@ export function DistributionHistoryModal({
                       <span className="flex-shrink-0">{record.shared_area_size.toLocaleString('he-IL')}</span>
                     </>
                   )}
+                  {!isResident && (record.after_data?.building?.shared_parking_area != null && record.after_data?.building?.shared_parking_area !== '') && (
+                    <>
+                      <span className="text-gray-400 flex-shrink-0">•</span>
+                      <span className="flex-shrink-0">חניה: {Number(record.after_data.building.shared_parking_area).toLocaleString('he-IL')}</span>
+                    </>
+                  )}
                   {!isResident && record.overload_ratio != null && (
                     <>
                       <span className="text-gray-400 flex-shrink-0">•</span>
@@ -293,6 +301,8 @@ export function DistributionHistoryModal({
                         <th className="border border-gray-300 px-2 py-1.5 text-right font-semibold text-xs">{t('assetId')}</th>
                         <th className="border border-gray-300 px-2 py-1.5 text-right font-semibold text-xs">סטטוס</th>
                         {!isResident && <th className="border border-gray-300 px-2 py-1.5 text-right font-semibold text-xs">גודל שטח משותף</th>}
+                        {!isResident && <th className="border border-gray-300 px-2 py-1.5 text-right font-semibold text-xs">שטח חניה משותף</th>}
+                        {!isResident && <th className="border border-gray-300 px-2 py-1.5 text-right font-semibold text-xs">מספר יחידות חניה</th>}
                         <th className="border border-gray-300 px-2 py-1.5 text-right font-semibold text-xs">{t('mainAssetType')}</th>
                         <th className="border border-gray-300 px-2 py-1.5 text-right font-semibold text-xs">{t('mainAssetSize')}</th>
                         <th className="border border-gray-300 px-2 py-1.5 text-right font-semibold text-xs">{t('subAssetType1')}</th>
@@ -324,6 +334,16 @@ export function DistributionHistoryModal({
                               {!isResident && (
                                 <td className={`border border-gray-300 px-2 py-1.5 text-right ${isValueChanged(row.asset_id, 'business_distribution_area') ? 'font-bold italic' : ''}`}>
                                   {asset?.business_distribution_area != null && asset.business_distribution_area !== 0 ? formatNumberToTwoDecimals(asset.business_distribution_area, false) : ''}
+                                </td>
+                              )}
+                              {!isResident && (
+                                <td className={`border border-gray-300 px-2 py-1.5 text-right ${isValueChanged(row.asset_id, 'shared_parking_area') ? 'font-bold italic' : ''}`}>
+                                  {asset?.shared_parking_area != null && asset.shared_parking_area !== 0 ? formatNumberToTwoDecimals(asset.shared_parking_area, false) : ''}
+                                </td>
+                              )}
+                              {!isResident && (
+                                <td className={`border border-gray-300 px-2 py-1.5 text-right ${isValueChanged(row.asset_id, 'number_of_parking_units') ? 'font-bold italic' : ''}`}>
+                                  {asset?.number_of_parking_units != null && asset.number_of_parking_units !== 0 ? String(asset.number_of_parking_units) : ''}
                                 </td>
                               )}
                               <td 
@@ -421,6 +441,16 @@ export function DistributionHistoryModal({
                             {!isResident && (
                               <td className={`border border-gray-300 px-2 py-1.5 text-right ${isValueChanged(row.asset_id, 'business_distribution_area') ? 'font-bold italic' : ''}`}>
                                 {asset?.business_distribution_area != null && asset.business_distribution_area !== 0 ? formatNumberToTwoDecimals(asset.business_distribution_area, false) : ''}
+                              </td>
+                            )}
+                            {!isResident && (
+                              <td className={`border border-gray-300 px-2 py-1.5 text-right ${isValueChanged(row.asset_id, 'shared_parking_area') ? 'font-bold italic' : ''}`}>
+                                {asset?.shared_parking_area != null && asset.shared_parking_area !== 0 ? formatNumberToTwoDecimals(asset.shared_parking_area, false) : ''}
+                              </td>
+                            )}
+                            {!isResident && (
+                              <td className={`border border-gray-300 px-2 py-1.5 text-right ${isValueChanged(row.asset_id, 'number_of_parking_units') ? 'font-bold italic' : ''}`}>
+                                {asset?.number_of_parking_units != null && asset.number_of_parking_units !== 0 ? String(asset.number_of_parking_units) : ''}
                               </td>
                             )}
                             <td 

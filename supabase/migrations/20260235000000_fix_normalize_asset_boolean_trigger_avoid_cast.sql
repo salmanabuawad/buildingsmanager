@@ -17,7 +17,7 @@ BEGIN
     ELSIF v_val_text = 'לא' OR LOWER(v_val_text) IN ('no', 'false', '0', 'f', '') OR v_val_text IS NULL OR v_val_text = 'null' THEN
       NEW.elevator := false;
     ELSIF jsonb_typeof(v_j) = 'boolean' THEN
-      NEW.elevator := (v_j::text)::boolean;
+      NEW.elevator := ((v_j::text) = 't' OR (v_j::text) = 'true');
     ELSE
       NEW.elevator := false;
     END IF;
@@ -33,7 +33,7 @@ BEGIN
     ELSIF v_val_text = 'לא' OR LOWER(v_val_text) IN ('no', 'false', '0', 'f', '') OR v_val_text IS NULL OR v_val_text = 'null' THEN
       NEW.single_double_family := false;
     ELSIF jsonb_typeof(v_j) = 'boolean' THEN
-      NEW.single_double_family := (v_j::text)::boolean;
+      NEW.single_double_family := ((v_j::text) = 't' OR (v_j::text) = 'true');
     ELSE
       NEW.single_double_family := false;
     END IF;
@@ -49,7 +49,7 @@ BEGIN
     ELSIF v_val_text = 'לא' OR LOWER(v_val_text) IN ('no', 'false', '0', 'f', '') OR v_val_text IS NULL OR v_val_text = 'null' THEN
       NEW.condo := false;
     ELSIF jsonb_typeof(v_j) = 'boolean' THEN
-      NEW.condo := (v_j::text)::boolean;
+      NEW.condo := ((v_j::text) = 't' OR (v_j::text) = 'true');
     ELSE
       NEW.condo := false;
     END IF;
@@ -65,7 +65,7 @@ BEGIN
     ELSIF v_val_text = 'לא' OR LOWER(v_val_text) IN ('no', 'false', '0', 'f', '') OR v_val_text IS NULL OR v_val_text = 'null' THEN
       NEW.townhouses := false;
     ELSIF jsonb_typeof(v_j) = 'boolean' THEN
-      NEW.townhouses := (v_j::text)::boolean;
+      NEW.townhouses := ((v_j::text) = 't' OR (v_j::text) = 'true');
     ELSE
       NEW.townhouses := false;
     END IF;
@@ -81,7 +81,7 @@ BEGIN
     ELSIF v_val_text = 'לא' OR LOWER(v_val_text) IN ('no', 'false', '0', 'f', '') OR v_val_text IS NULL OR v_val_text = 'null' THEN
       NEW.penthouse := false;
     ELSIF jsonb_typeof(v_j) = 'boolean' THEN
-      NEW.penthouse := (v_j::text)::boolean;
+      NEW.penthouse := ((v_j::text) = 't' OR (v_j::text) = 'true');
     ELSE
       NEW.penthouse := false;
     END IF;
@@ -97,7 +97,7 @@ BEGIN
     ELSIF v_val_text = 'לא' OR LOWER(v_val_text) IN ('no', 'false', '0', 'f', '') OR v_val_text IS NULL OR v_val_text = 'null' THEN
       NEW.exported_to_automation := false;
     ELSIF jsonb_typeof(v_j) = 'boolean' THEN
-      NEW.exported_to_automation := (v_j::text)::boolean;
+      NEW.exported_to_automation := ((v_j::text) = 't' OR (v_j::text) = 'true');
     ELSE
       NEW.exported_to_automation := false;
     END IF;

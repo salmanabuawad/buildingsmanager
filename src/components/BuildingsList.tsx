@@ -3195,11 +3195,10 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
         if (isReadOnly) return false;
         if (!params || !params.data) return false;
         const building = params.data as Building;
-        if (!hasBuildingBusiness(building)) return false;
         const buildingKey = getBuildingKey(building);
         return !buildingsToDelete.has(buildingKey);
       },
-      valueGetter: (params) => (params?.data && hasBuildingBusiness(params.data)) ? params.data.shared_parking_area : undefined,
+      valueGetter: (params) => params?.data?.shared_parking_area,
       valueParser: (params: any) => {
         if (!params) return null;
         const newValue = params.newValue;
@@ -3209,7 +3208,7 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
       },
       cellRenderer: (params: any) => {
         const building = params.data as Building;
-        if (!building || !hasBuildingBusiness(building)) return '';
+        if (!building) return '';
         const isNew = isNewBuilding(building);
         if (isNew && (params.value === null || params.value === undefined)) {
           return '';
@@ -3226,11 +3225,10 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
         if (isReadOnly) return false;
         if (!params || !params.data) return false;
         const building = params.data as Building;
-        if (!hasBuildingBusiness(building)) return false;
         const buildingKey = getBuildingKey(building);
         return !buildingsToDelete.has(buildingKey);
       },
-      valueGetter: (params) => (params?.data && hasBuildingBusiness(params.data)) ? params.data.number_of_parking_units : undefined,
+      valueGetter: (params) => params?.data?.number_of_parking_units,
       valueParser: (params: any) => {
         if (!params) return null;
         const newValue = params.newValue;
@@ -3240,7 +3238,7 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
       },
       cellRenderer: (params: any) => {
         const building = params.data as Building;
-        if (!building || !hasBuildingBusiness(building)) return '';
+        if (!building) return '';
         const isNew = isNewBuilding(building);
         if (isNew && (params.value === null || params.value === undefined)) {
           return '';

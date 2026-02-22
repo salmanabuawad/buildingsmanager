@@ -560,7 +560,6 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
       'business_shared_area': 'שטח משותף עסקים',
       'total_building_area': 'סה"כ שטח',
       'area_for_control': 'שטח לבקרה',
-      'parking_area': 'שטח חניה',
       'shared_parking_area': 'שטח חניה משותף',
       'number_of_parking_units': 'מספר יחידות חניה',
       'overload_ratio': 'אחוז העמסה',
@@ -586,7 +585,6 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
     const fieldTranslations: Record<string, string> = {
       // Match exact English field names to Hebrew (as shown in grid headers)
       'area_for_control': 'שטח לבקרה',
-      'parking_area': 'שטח חניה',
       'shared_parking_area': 'שטח חניה משותף',
       'number_of_parking_units': 'מספר יחידות חניה',
       'building_number': 'מזהה מבנה',
@@ -902,7 +900,7 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
     const userInteracted = cellEditUserInteracted.current.get(cellKey);
     
     // Check if this is a numeric field
-    const isNumericField = ['residence_shared_area', 'business_shared_area', 'area_for_control', 'parking_area', 'shared_parking_area', 'number_of_parking_units', 'overload_ratio', 'total_building_area', 'gosh', 'helka', 'building_number_in_street'].includes(field);
+    const isNumericField = ['residence_shared_area', 'business_shared_area', 'area_for_control', 'shared_parking_area', 'number_of_parking_units', 'overload_ratio', 'total_building_area', 'gosh', 'helka', 'building_number_in_street'].includes(field);
     
     // Quick normalization for comparison
     const normalizeQuick = (val: any): any => {
@@ -1534,7 +1532,7 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
     const cellKey = `${buildingKey}_${field}`;
     
     // Check if this is a numeric field
-    const isNumericField = ['residence_shared_area', 'business_shared_area', 'area_for_control', 'parking_area', 'shared_parking_area', 'number_of_parking_units', 'overload_ratio', 'total_building_area', 'gosh', 'helka', 'building_number_in_street'].includes(field);
+    const isNumericField = ['residence_shared_area', 'business_shared_area', 'area_for_control', 'shared_parking_area', 'number_of_parking_units', 'overload_ratio', 'total_building_area', 'gosh', 'helka', 'building_number_in_street'].includes(field);
     
     // Get initial value from the building data
     let initialValue = (building as any)[field];
@@ -1572,7 +1570,6 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
       residence_shared_area: null,
       business_shared_area: null,
       area_for_control: null,
-      parking_area: null,
       shared_parking_area: null,
       number_of_parking_units: null,
       total_building_area: null,
@@ -1850,7 +1847,6 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
         'שטח משותף עסקים',
         'ס"כ גודל',
         'שטח לבקרה',
-        'שטח חניה',
         'שטח חניה משותף',
         'מספר יחידות חניה',
         'מעלית',
@@ -1890,7 +1886,6 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
         building.business_shared_area != null && building.business_shared_area !== 0 ? building.business_shared_area : '',
         building.total_building_area != null && building.total_building_area !== 0 ? building.total_building_area : '',
         building.area_for_control != null && building.area_for_control !== 0 ? building.area_for_control : '',
-        building.parking_area != null && building.parking_area !== 0 ? building.parking_area : '',
         building.shared_parking_area != null && building.shared_parking_area !== 0 ? building.shared_parking_area : '',
         building.number_of_parking_units != null && building.number_of_parking_units !== 0 ? building.number_of_parking_units : '',
         building.elevator === 'כן' || building.elevator === true ? 'כן' : '',
@@ -1925,7 +1920,6 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
           { wch: 18 }, // שטח משותף עסקים
           { wch: 12 }, // ס"כ גודל
           { wch: 12 }, // שטח לבקרה
-          { wch: 12 }, // שטח חניה
           { wch: 12 }, // שטח חניה משותף
           { wch: 12 }, // מספר יחידות חניה
           { wch: 8 },  // מעלית
@@ -2861,7 +2855,6 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
     }
   };
 
-  // Parking fields (shared_parking_area, etc.) only for business or dual (business+residence) buildings
   const hasBuildingBusiness = useCallback((b: Building | null | undefined): boolean => {
     if (!b) return false;
     return b.need_business_distribution === true || (b.business_shared_area != null && Number(b.business_shared_area) !== 0);
@@ -3194,38 +3187,6 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
         return value;
       },
       cellStyle: (params) => getCellStyle(params, 'area_for_control')
-    },
-    {
-      field: 'parking_area',
-      headerName: 'שטח חניה',
-      editable: (params: any) => {
-        if (isReadOnly) return false;
-        if (!params || !params.data) return false;
-        const building = params.data as Building;
-        if (!hasBuildingBusiness(building)) return false;
-        const isNew = isNewBuilding(building);
-        const buildingKey = getBuildingKey(building);
-        return isNew || !buildingsToDelete.has(buildingKey);
-      },
-      valueGetter: (params) => (params?.data && hasBuildingBusiness(params.data)) ? params.data.parking_area : undefined,
-      valueParser: (params: any) => {
-        if (!params) return null;
-        const newValue = params.newValue;
-        if (newValue === null || newValue === undefined || newValue === '') return null;
-        const numValue = Number(newValue);
-        return isNaN(numValue) ? null : numValue;
-      },
-      cellRenderer: (params: any) => {
-        const building = params.data as Building;
-        if (!building || !hasBuildingBusiness(building)) return '';
-        const isNew = isNewBuilding(building);
-        if (isNew && (params.value === null || params.value === undefined)) {
-          return '';
-        }
-        const value = params.value != null && params.value !== 0 ? String(params.value).replace(/\B(?=(\d{3})+(?!\d))/g, ',') : '';
-        return value;
-      },
-      cellStyle: (params) => getCellStyle(params, 'parking_area')
     },
     {
       field: 'shared_parking_area',

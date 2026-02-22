@@ -363,7 +363,6 @@ export interface Building {
   gosh?: number; // גוש (Block number)
   helka?: number; // חלקה (Parcel number)
   building_number_in_street?: number; // מספר בניין (Building number in street)
-  parking_area?: number; // שטח חניה (Parking area)
   shared_parking_area?: number; // שטח חניה משותף (Shared parking area)
   number_of_parking_units?: number; // מספר יחידות חניה (Number of parking units)
   _tempId?: string; // Hidden field to identify new buildings before saving
@@ -425,7 +424,9 @@ export interface Asset {
   data_from_automation?: boolean; // Flag indicating if this asset row originated from automation import
   comment?: string; // User comment/notes about the asset (הערה על הנכס)
   operator_id?: number | null; // Operator responsible for this asset (for grouping export and emailing)
-  shared_parking_area?: number | null; // Per-asset shared parking area (from building distribution)
+  shared_parking_area?: number | null; // Legacy; prefer parking_shared_area
+  parking_shared_area?: number | null; // Per-asset shared parking area (sqm)
+  number_of_parking_units?: number | null; // Number of parking units for this asset
 }
 
 export interface AssetFile {
@@ -696,7 +697,18 @@ export function sanitizeAssetInput(input: any): any {
     shared_parking_area: ('shared_parking_area' in preConverted)
       ? (preConverted.shared_parking_area != null && preConverted.shared_parking_area !== '' ? sanitizeNumber(preConverted.shared_parking_area) : null)
       : undefined,
+    parking_shared_area: ('parking_shared_area' in preConverted)
+      ? (preConverted.parking_shared_area != null && preConverted.parking_shared_area !== '' ? sanitizeNumber(preConverted.parking_shared_area) : null)
+      : undefined,
+    number_of_parking_units: ('number_of_parking_units' in preConverted)
+      ? (preConverted.number_of_parking_units != null && preConverted.number_of_parking_units !== '' ? sanitizeInteger(preConverted.number_of_parking_units) : null)
+      : undefined,
   };
+
+  // Backend expects parking_shared_area; allow legacy shared_parking_area to fill it
+  if (sanitized.parking_shared_area === undefined && sanitized.shared_parking_area !== undefined) {
+    sanitized.parking_shared_area = sanitized.shared_parking_area;
+  }
 
   // Remove undefined values to avoid sending them to the database
   // But always keep measurement_date and boolean fields even if they're false
@@ -853,11 +865,8 @@ function sanitizeBuildingInput(input: any): any {
   if ('need_residence_distribution' in input) {
     sanitized.need_residence_distribution = input.need_residence_distribution === true || input.need_residence_distribution === 'true';
   }
-  // Parking fields (allow explicit null/empty to clear in DB)
-  if (input.parking_area != null && input.parking_area !== '') {
-    sanitized.parking_area = sanitizeNumber(input.parking_area);
-  } else if ('parking_area' in input && (input.parking_area === null || input.parking_area === '')) {
-    sanitized.parking_area = null;
+  if ('need_business_distribution' in input) {
+    sanitized.need_business_distribution = input.need_business_distribution === true || input.need_business_distribution === 'true';
   }
   if (input.shared_parking_area != null && input.shared_parking_area !== '') {
     sanitized.shared_parking_area = sanitizeNumber(input.shared_parking_area);
@@ -868,9 +877,6 @@ function sanitizeBuildingInput(input: any): any {
     sanitized.number_of_parking_units = sanitizeInteger(input.number_of_parking_units);
   } else if ('number_of_parking_units' in input && (input.number_of_parking_units === null || input.number_of_parking_units === '')) {
     sanitized.number_of_parking_units = null;
-  }
-  if ('need_business_distribution' in input) {
-    sanitized.need_business_distribution = input.need_business_distribution === true || input.need_business_distribution === 'true';
   }
   // Handle note: free text field
   if ('note' in input) {

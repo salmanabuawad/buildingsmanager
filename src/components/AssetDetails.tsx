@@ -2728,12 +2728,12 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
       valueFormatter: (params) => formatDateToDDMMYYYY(params.value)
     },
     {
-      field: 'shared_parking_area',
+      field: 'parking_shared_area',
       headerName: 'שטח חניה משותף',
       width: 120,
       sortable: true,
       filter: true,
-      editable: (params) => isBusinessContext && isFieldEditable(params, 'shared_parking_area'),
+      editable: (params) => isBusinessContext && isFieldEditable(params, 'parking_shared_area'),
       headerClass: 'ag-right-aligned-header',
       cellStyle: { textAlign: 'right' },
       valueFormatter: (params: any) => formatNumberToTwoDecimals(params.value),

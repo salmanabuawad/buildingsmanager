@@ -56,7 +56,6 @@ export function BuildingListImport() {
         'tax_region': ['אזור מס', 'אזור_מס', 'tax_region'],
         'residence_shared_area': ['שטח משותף מגורים', 'שטח_משותף_מגורים', 'residence_shared_area', 'shared_area'],
         'business_shared_area': ['שטח משותף עסקים', 'שטח_משותף_עסקים', 'business_shared_area'],
-        'parking_area': ['שטח חניה', 'שטח_חניה', 'parking_area'],
         'shared_parking_area': ['שטח חניה משותף', 'שטח_חניה_משותף', 'shared_parking_area'],
         'number_of_parking_units': ['מספר יחידות חניה', 'מספר_יחידות_חניה', 'number_of_parking_units'],
         'building_address': ['סמל רחוב', 'סמל_רחוב', 'building_address', 'כתובת'],
@@ -124,9 +123,6 @@ export function BuildingListImport() {
         const sharedBusinessAreaStr = headerMap['business_shared_area'] !== undefined 
           ? (parts[headerMap['business_shared_area']] || '').trim() 
           : '';
-        const parkingAreaStr = headerMap['parking_area'] !== undefined 
-          ? (parts[headerMap['parking_area']] || '').trim() 
-          : '';
         const sharedParkingAreaStr = headerMap['shared_parking_area'] !== undefined 
           ? (parts[headerMap['shared_parking_area']] || '').trim() 
           : '';
@@ -143,7 +139,6 @@ export function BuildingListImport() {
         const buildingNumber = buildingNumberStr ? parseInt(buildingNumberStr) : NaN;
         const sharedArea = sharedAreaStr ? parseFloat(sharedAreaStr) : undefined;
         const sharedBusinessArea = sharedBusinessAreaStr ? parseFloat(sharedBusinessAreaStr) : undefined;
-        const parkingArea = parkingAreaStr ? parseFloat(parkingAreaStr) : undefined;
         const sharedParkingArea = sharedParkingAreaStr ? parseFloat(sharedParkingAreaStr) : undefined;
         const numberOfParkingUnits = numberOfParkingUnitsStr ? parseInt(numberOfParkingUnitsStr, 10) : undefined;
         const buildingAddress = buildingAddressStr ? parseInt(buildingAddressStr) : undefined;
@@ -178,12 +173,6 @@ export function BuildingListImport() {
           continue;
         }
 
-        if (parkingAreaStr && (isNaN(parkingArea!) || parkingArea! < 0)) {
-          errors.push(`שורה ${rowNumber}: שטח חניה לא תקין`);
-          errorCount++;
-          continue;
-        }
-
         if (sharedParkingAreaStr && (isNaN(sharedParkingArea!) || sharedParkingArea! < 0)) {
           errors.push(`שורה ${rowNumber}: שטח חניה משותף לא תקין`);
           errorCount++;
@@ -214,7 +203,6 @@ export function BuildingListImport() {
             tax_region: taxRegion || undefined,
             residence_shared_area: sharedArea,
             business_shared_area: sharedBusinessArea,
-            parking_area: parkingArea,
             shared_parking_area: sharedParkingArea,
             number_of_parking_units: numberOfParkingUnits,
             building_address: buildingAddress,
@@ -244,12 +232,12 @@ export function BuildingListImport() {
   }
 
   function downloadTemplate() {
-    const template = `מזהה מבנה,אזור מס,שטח משותף מגורים,שטח משותף עסקים,שטח חניה,שטח חניה משותף,מספר יחידות חניה,סמל רחוב,כתובת (dropdown)
+    const template = `מזהה מבנה,אזור מס,שטח משותף מגורים,שטח משותף עסקים,שטח חניה משותף,מספר יחידות חניה,סמל רחוב,כתובת (dropdown)
 1001,10,150.5,50.2,,,603,604
-1002,20,200,75,,,,,,
+1002,20,200,75,,,,
 1003,"40,10",300,100,,,604,605
-1004,,,,,,,,,
-1005,30,,,,,,,606`;
+1004,,,,,,,,
+1005,30,,,,,,606`;
     const blob = new Blob([template], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement('a');
     const url = URL.createObjectURL(blob);

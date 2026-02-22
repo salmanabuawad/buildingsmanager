@@ -4176,20 +4176,6 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
 
                   <div>
                     <label className="block text-sm font-medium text-slate-700 mb-1">
-                      שטח חניה
-                    </label>
-                    <input
-                      type="number"
-                      step="0.01"
-                      value={buildingCreateData.parking_area ?? ''}
-                      onChange={(e) => setBuildingCreateData(prev => ({ ...prev, parking_area: e.target.value ? parseFloat(e.target.value) : undefined }))}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                      disabled={isCreatingBuilding}
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1">
                       שטח חניה משותף
                     </label>
                     <input

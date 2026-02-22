@@ -1065,26 +1065,10 @@ export async function validateAndSaveBulkAssets(
       return `${assetIdentifier}: ${errors}`;
     });
 
-  // STEP 2: Build DB payload exactly like save-from-import (sanitizeAssetInput only, then plain payload)
-  // Import path: sanitizedAssets = assetsToInsert.map(asset => sanitizeAssetInput(asset)); then .insert(sanitizedAssets)
-  // Grid path: same sanitize output, then explicit boolean coercion so RPC receives only literal true/false (no "כן")
-  const ASSET_BOOLEAN_FIELDS = ['elevator', 'single_double_family', 'condo', 'townhouses', 'penthouse', 'is_new_measurement', 'exported_to_automation', 'data_from_automation'] as const;
-  const toBoolean = (v: unknown): boolean => {
-    if (v === true || v === 1) return true;
-    if (v === false || v === null || v === undefined || v === 0 || v === '') return false;
-    const s = (typeof v === 'string' ? v : String(v)).trim();
-    return s === 'כן' || s.toLowerCase() === 'yes' || s === '1' || s.toLowerCase() === 'true';
-  };
+  // STEP 2: Build DB payload like import (sanitizeAssetInput only)
   const assetsForDatabase = preparedAssetsData.map(asset => {
     const { id, ...rest } = asset as any;
-    const sanitized = sanitizeAssetInput(rest);
-    // Build a fresh object with only keys from sanitizeAssetInput; force boolean fields to literal true/false (matches import shape, safe for RPC)
-    const out: Record<string, unknown> = {};
-    for (const key of Object.keys(sanitized)) {
-      const v = sanitized[key];
-      out[key] = ASSET_BOOLEAN_FIELDS.includes(key as any) ? toBoolean(v) : v;
-    }
-    return out;
+    return sanitizeAssetInput(rest);
   });
 
   // STEP 3: Call transactional bulk save function (rejects if any validation failed)

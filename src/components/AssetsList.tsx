@@ -4090,8 +4090,20 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
       const numParkingUnitsNum = Number(building.number_of_parking_units);
       const hasParkingData = !isNaN(sharedParkingNum) && !isNaN(numParkingUnitsNum) && numParkingUnitsNum > 0;
       const unitParkingArea = hasParkingData ? sharedParkingNum / numParkingUnitsNum : 0;
-      const parkingTypeAssets = parkingTypeName
-        ? assets.filter(a => !deletedAssets.has(String(a.asset_id)) && String(a.main_asset_type || '').trim() === parkingTypeName)
+      // Include assets whose type has use_for_parking_shared_area (same lookup as business so we don't miss by name mismatch)
+      const parkingTypeAssets = parkingAssetType
+        ? assets.filter(a => {
+            if (deletedAssets.has(String(a.asset_id))) return false;
+            const mainStr = String(a.main_asset_type || '').trim();
+            let at = assetTypeMap.get(mainStr);
+            if (!at) {
+              at = assetTypes.find(at2 => {
+                const n = String(at2.name).trim();
+                return n === mainStr || n === String(a.main_asset_type) || String(n) === String(mainStr);
+              }) ?? undefined;
+            }
+            return at?.use_for_parking_shared_area === true;
+          })
         : [];
 
       if (businessAssets.length === 0) {
@@ -4173,6 +4185,48 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
       // When clearing business distribution only (no parking data), clear shared_parking_area on assets
       const shouldClearParkingOnly = isClearingDistribution && (!hasParkingData || sharedParkingNum === 0 || building.shared_parking_area == null || building.shared_parking_area === '');
 
+      // Allocate building units: first to parking-type assets that have number_of_parking_units set ("valid other");
+      // the rest of units and area go to parking-type asset(s) that get the remainder (main type = shared parking).
+      const parkingUnitAllocation = new Map<string, number>();
+      if (hasParkingData && numParkingUnitsNum > 0 && !shouldClearParkingOnly) {
+        const businessAssetIdsSet = new Set(businessAssets.map(a => String(a.asset_id)));
+        const withUnits: { id: string; n: number }[] = [];
+        const remainderReceivers: string[] = [];
+        const getN = (id: string, a: { asset_id?: unknown; main_asset_type?: unknown }) => {
+          const ex = dirtyAssets.get(id);
+          const cur = assets.find(x => String(x.asset_id) === id);
+          const raw = ex && 'number_of_parking_units' in ex ? Number(ex.number_of_parking_units) : (Number((cur ?? a as any)?.number_of_parking_units) ?? 0);
+          return Math.max(0, Number.isNaN(raw) ? 0 : raw);
+        };
+        for (const a of businessAssets) {
+          const id = String(a.asset_id);
+          const mainStr = String(a.main_asset_type ?? '').trim();
+          let at = mainStr ? assetTypeMap.get(mainStr) : undefined;
+          if (!at && mainStr) at = assetTypes.find(at2 => String(at2.name).trim() === mainStr || String(at2.name) === String(a.main_asset_type));
+          if (at?.use_for_parking_shared_area !== true) continue;
+          const n = getN(id, a);
+          if (n > 0) withUnits.push({ id, n }); else remainderReceivers.push(id);
+        }
+        for (const a of parkingTypeAssets) {
+          const id = String(a.asset_id);
+          if (businessAssetIdsSet.has(id)) continue;
+          const n = getN(id, a);
+          if (n > 0) withUnits.push({ id, n }); else remainderReceivers.push(id);
+        }
+        const orderedParkingIds = [...withUnits.map(x => x.id), ...remainderReceivers];
+        const requestedUnits = [...withUnits.map(x => x.n), ...remainderReceivers.map(() => 0)];
+        let remaining = numParkingUnitsNum;
+        for (let i = 0; i < orderedParkingIds.length; i++) {
+          if (i === orderedParkingIds.length - 1) {
+            parkingUnitAllocation.set(orderedParkingIds[i], Math.max(0, remaining));
+          } else {
+            const take = Math.min(requestedUnits[i] ?? 0, remaining);
+            parkingUnitAllocation.set(orderedParkingIds[i], take);
+            remaining -= take;
+          }
+        }
+      }
+
       // Track changes
       const updatedDirtyAssets = new Map(dirtyAssets);
       const updatedAssets = [...assets];
@@ -4228,22 +4282,27 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
         // For clearing distribution (overloadRatio = 0), set to 0; otherwise set to new value
         changes.business_distribution_area = newDistributionArea;
 
-        // Parking distribution: only assets whose main_asset_type is the parking type (use_for_parking_shared_area) get area.
-        // Each such asset gets unit_shared_area * number_of_parking_units; the remainder stays on the parking-type asset(s).
-        // When clearing business distribution only, still distribute parking if building has shared_parking_area.
+        // Parking distribution: assets whose type has use_for_parking_shared_area get area (match by type flag, not just name)
         const mainTypeStr = String(currentAsset?.main_asset_type ?? asset.main_asset_type ?? '').trim();
-        const isParkingTypeAsset = parkingTypeName && mainTypeStr === parkingTypeName;
+        let assetTypeForParking = mainTypeStr ? assetTypeMap.get(mainTypeStr) : undefined;
+        if (!assetTypeForParking && mainTypeStr) {
+          assetTypeForParking = assetTypes.find(at => {
+            const n = String(at.name).trim();
+            return n === mainTypeStr || n === String(asset.main_asset_type) || String(n) === String(mainTypeStr);
+          });
+        }
+        const isParkingTypeAsset = assetTypeForParking?.use_for_parking_shared_area === true;
         if (shouldClearParkingOnly) {
           changes.shared_parking_area = null;
+          if (isParkingTypeAsset) (changes as any).number_of_parking_units = null;
         } else if (!hasParkingData || sharedParkingNum === 0 || building.shared_parking_area == null || building.shared_parking_area === '') {
           changes.shared_parking_area = 0;
+          if (isParkingTypeAsset) (changes as any).number_of_parking_units = 0;
         } else if (isParkingTypeAsset) {
-          let nUnits = existingChanges.number_of_parking_units !== undefined
-            ? Number(existingChanges.number_of_parking_units)
-            : (Number((currentAsset as any)?.number_of_parking_units) || 0);
-          if (nUnits <= 0) nUnits = 1; // Default to 1 unit so parking-type assets receive at least one unit's share
-          const assigned = unitParkingArea * nUnits;
+          const assignedUnits = parkingUnitAllocation.get(assetId) ?? 0;
+          const assigned = unitParkingArea * assignedUnits;
           changes.shared_parking_area = assigned;
+          (changes as any).number_of_parking_units = assignedUnits;
           parkingTypeAssignments.push({ assetId, assignedArea: assigned });
         } else {
           changes.shared_parking_area = 0;
@@ -4335,13 +4394,12 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
         const changes: Partial<Asset> = { ...existingChanges };
         if (shouldClearParkingOnly) {
           changes.shared_parking_area = null;
+          (changes as any).number_of_parking_units = null;
         } else if (hasParkingData && sharedParkingNum > 0) {
-          let nUnits = existingChanges.number_of_parking_units !== undefined
-            ? Number(existingChanges.number_of_parking_units)
-            : (Number((currentAsset as any)?.number_of_parking_units) || 0);
-          if (nUnits <= 0) nUnits = 1;
-          const assigned = unitParkingArea * nUnits;
+          const assignedUnits = parkingUnitAllocation.get(assetId) ?? 0;
+          const assigned = unitParkingArea * assignedUnits;
           changes.shared_parking_area = assigned;
+          (changes as any).number_of_parking_units = assignedUnits;
           parkingTypeAssignments.push({ assetId, assignedArea: assigned });
         } else {
           changes.shared_parking_area = 0;
@@ -4373,6 +4431,33 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
             updatedAssets[idx] = { ...updatedAssets[idx], ...changes } as Asset;
           }
         }
+
+        // Cap total at building shared parking: sum(assets) must be <= building.shared_parking_area (validation rule)
+        let currentTotal = 0;
+        for (const { assetId } of parkingTypeAssignments) {
+          const ex = updatedDirtyAssets.get(assetId) || {};
+          const cur = updatedAssets.find(a => String(a.asset_id) === assetId);
+          currentTotal += (ex as any).shared_parking_area !== undefined
+            ? Number((ex as any).shared_parking_area)
+            : (Number((cur as any)?.shared_parking_area) || 0);
+        }
+        if (currentTotal > sharedParkingNum && currentTotal > 0) {
+          const scaleFactor = sharedParkingNum / currentTotal;
+          for (const { assetId } of parkingTypeAssignments) {
+            const existingChanges = updatedDirtyAssets.get(assetId) || {};
+            const currentAsset = updatedAssets.find(a => String(a.asset_id) === assetId);
+            const currentArea = (existingChanges as any).shared_parking_area !== undefined
+              ? Number((existingChanges as any).shared_parking_area)
+              : (Number((currentAsset as any)?.shared_parking_area) || 0);
+            const newArea = currentArea * scaleFactor;
+            const changes: Partial<Asset> = { ...existingChanges, shared_parking_area: newArea };
+            updatedDirtyAssets.set(assetId, changes);
+            const idx = updatedAssets.findIndex(a => String(a.asset_id) === assetId);
+            if (idx !== -1) {
+              updatedAssets[idx] = { ...updatedAssets[idx], ...changes } as Asset;
+            }
+          }
+        }
       }
 
       // Update state without saving to database
@@ -4393,9 +4478,12 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
       });
       setTimeout(() => setToast(null), 5000);
 
-      // Refresh grid
+      // Refresh grid so shared_parking_area and number_of_parking_units columns update in UI
       if (gridRef.current?.api) {
-        gridRef.current.api.refreshCells({ force: false });
+        gridRef.current.api.refreshCells({
+          columns: ['shared_parking_area', 'number_of_parking_units', 'business_distribution_area'],
+          force: true
+        });
       }
     } catch (err) {
       setToast({ message: err instanceof Error ? err.message : 'שגיאה בפיזור שטח משותף עסקים', type: 'error' });
@@ -5722,6 +5810,12 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
     {
       field: 'shared_parking_area',
       headerName: 'שטח חניה משותף',
+      valueGetter: (params: any) => {
+        const id = params.data?.asset_id != null ? String(params.data.asset_id) : null;
+        const dirty = id ? dirtyAssets.get(id) : undefined;
+        if (dirty && 'shared_parking_area' in dirty) return (dirty as any).shared_parking_area;
+        return params.data?.shared_parking_area;
+      },
       editable: (params) => !isResidentTaxRegion && isBusinessAssetRow(params) && isFieldEditable(params, 'shared_parking_area'),
       type: 'numericColumn',
       valueFormatter: (params) => {
@@ -5745,6 +5839,12 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
     {
       field: 'number_of_parking_units',
       headerName: 'מספר יחידות חניה',
+      valueGetter: (params: any) => {
+        const id = params.data?.asset_id != null ? String(params.data.asset_id) : null;
+        const dirty = id ? dirtyAssets.get(id) : undefined;
+        if (dirty && 'number_of_parking_units' in dirty) return (dirty as any).number_of_parking_units;
+        return params.data?.number_of_parking_units;
+      },
       editable: (params) => !isResidentTaxRegion && isBusinessAssetRow(params) && isFieldEditable(params, 'number_of_parking_units'),
       type: 'numericColumn',
       valueFormatter: (params) => {

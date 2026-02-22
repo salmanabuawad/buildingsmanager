@@ -375,6 +375,8 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
           discount_date_from: undefined,
           discount_date_to: undefined,
           comment: undefined,
+          shared_parking_area: undefined,
+          number_of_parking_units: undefined,
         };
 
         // Use header-based mapping only (no fallback to fixed position)
@@ -3325,7 +3327,10 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
       'סוג הנחה',
       'תאריך הנחה מ',
       'תאריך הנחה עד',
-      'גודל שטח משותף'  // business_distribution_area
+      'גודל שטח משותף',  // business_distribution_area
+      'שטח חניה משותף',  // shared_parking_area
+      'מספר יחידות חניה', // number_of_parking_units
+      'הערה'              // comment
     ];
 
     const data = [headers];
@@ -3903,6 +3908,8 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
                         <option value="discount_type">סוג הנחה</option>
                         <option value="discount_date_from">תאריך הנחה מ</option>
                         <option value="discount_date_to">תאריך הנחה עד</option>
+                        <option value="shared_parking_area">שטח חניה משותף</option>
+                        <option value="number_of_parking_units">מספר יחידות חניה</option>
                         <option value="comment">הערה</option>
                       </select>
                     </div>

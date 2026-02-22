@@ -2619,7 +2619,13 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
               errors.push(`מבנה ${buildingKey}: לא ניתן לעדכן מבנה עם מזהה מבנה לא תקין`);
               continue;
             }
-            buildingsToUpdate.push({ building_number: actualBuildingNumber, updates: changes });
+            // Merge current building state for shared/parking fields so displayed values are always sent (handles valueGetter + batching)
+            const updates: Record<string, unknown> = { ...changes };
+            const sharedAndParkingKeys = ['residence_shared_area', 'business_shared_area', 'shared_parking_area', 'number_of_parking_units'] as const;
+            for (const k of sharedAndParkingKeys) {
+              if (k in building) (updates as any)[k] = (building as any)[k];
+            }
+            buildingsToUpdate.push({ building_number: actualBuildingNumber, updates });
             successfullySaved.add(buildingKey);
             successfullySaved.add(actualBuildingNumber);
           }

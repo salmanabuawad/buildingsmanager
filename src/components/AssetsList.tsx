@@ -4222,9 +4222,11 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
 
         // Parking distribution: only assets whose main_asset_type is the parking type (use_for_parking_shared_area) get area.
         // Each such asset gets unit_shared_area * number_of_parking_units; the remainder stays on the parking-type asset(s).
+        // When clearing business distribution only, still distribute parking if building has shared_parking_area.
         const mainTypeStr = String(currentAsset?.main_asset_type ?? asset.main_asset_type ?? '').trim();
         const isParkingTypeAsset = parkingTypeName && mainTypeStr === parkingTypeName;
-        if (isClearingDistribution) {
+        const shouldClearParkingOnly = isClearingDistribution && (!hasParkingData || sharedParkingNum === 0 || building.shared_parking_area == null || building.shared_parking_area === '');
+        if (shouldClearParkingOnly) {
           changes.shared_parking_area = null;
         } else if (!hasParkingData || sharedParkingNum === 0 || building.shared_parking_area == null || building.shared_parking_area === '') {
           changes.shared_parking_area = 0;
@@ -4316,7 +4318,7 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
       }
 
       // Assign remainder of shared parking area to the first parking-type asset (rest stays where main type is parking)
-      if (!isClearingDistribution && hasParkingData && parkingTypeAssignments.length > 0) {
+      if (hasParkingData && parkingTypeAssignments.length > 0) {
         const totalAssigned = parkingTypeAssignments.reduce((s, p) => s + p.assignedArea, 0);
         const remainderArea = Math.max(0, sharedParkingNum - totalAssigned);
         if (remainderArea > 0) {

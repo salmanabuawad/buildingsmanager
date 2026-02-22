@@ -1065,6 +1065,7 @@ export async function validateAndSaveBulkAssets(
     });
 
   // STEP 2: Sanitize all assets and remove 'id' field before sending to database
+  // sanitizeAssetInput includes shared_parking_area and number_of_parking_units; bulk save persists them via save_assets_bulk_transactional
   const assetsForDatabase = preparedAssetsData.map(asset => {
     const { id, ...assetWithoutId } = asset as any;
     

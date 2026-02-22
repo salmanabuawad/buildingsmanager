@@ -37,15 +37,24 @@ This runs **`sync-with-db.mjs`**: it probes the live Supabase DB for `users`, `a
 
 3. **Then** run your migration (via MCP `apply_migration`, or Supabase SQL Editor, or `supabase db push`).
 
-## Apply all migrations (when not using MCP)
+## Make DB match current code (recommended)
 
-1. **Option A – Supabase CLI** (after one-time setup):
+**Option A – npm script (no CLI link needed)**  
+Requires `SUPABASE_ACCESS_TOKEN` in `.env` (create at [account tokens](https://supabase.com/dashboard/account/tokens)). Project ref is taken from `VITE_SUPABASE_URL` or `SUPABASE_PROJECT_REF`.
+
+```bash
+npm run db:push
+```
+
+This applies any timestamped migrations from `supabase/migrations/` that are not yet applied on the remote DB.
+
+**Option B – Supabase CLI** (after one-time setup):
    ```bash
    npx supabase login
    npx supabase link --project-ref mmqnrwjjxewrgwczezzf
    npx supabase db push
    ```
-2. **Option B – Dashboard**: Open [Supabase](https://supabase.com/dashboard/project/mmqnrwjjxewrgwczezzf) → **SQL Editor**, then run each unapplied migration file from `supabase/migrations/` (in timestamp order). Use `npm run db:sync` first to see what already exists.
+**Option C – Dashboard**: Open [Supabase](https://supabase.com/dashboard/project/mmqnrwjjxewrgwczezzf) → **SQL Editor**, then run each unapplied migration file from `supabase/migrations/` (in timestamp order). Use `npm run db:sync` first to see what already exists.
 
 ## Quick reference
 

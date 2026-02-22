@@ -94,6 +94,7 @@ export function AssetTypes() {
     non_accountable_for_distribution: false,
     not_accountable_for_statistics: false,
     use_shared_area: false,
+    use_for_parking_shared_area: false,
     min_size: '',
     max_size: '',
   });
@@ -139,6 +140,7 @@ export function AssetTypes() {
       non_accountable_for_distribution: false, 
       not_accountable_for_statistics: false,
       use_shared_area: false,
+      use_for_parking_shared_area: false,
       min_size: '', 
       max_size: '' 
     });
@@ -178,6 +180,7 @@ export function AssetTypes() {
         non_accountable_for_distribution: formData.non_accountable_for_distribution || undefined,
         not_accountable_for_statistics: formData.not_accountable_for_statistics || undefined,
         use_shared_area: formData.use_shared_area || undefined,
+        use_for_parking_shared_area: formData.use_for_parking_shared_area || undefined,
         min_size: formData.min_size ? parseFloat(formData.min_size) : undefined,
         max_size: formData.max_size ? parseFloat(formData.max_size) : undefined,
       };
@@ -635,6 +638,7 @@ export function AssetTypes() {
         if (getCurrentValue(assetType, 'non_accountable_for_distribution')) flags.push('לא נכלל בפיזור');
         if (getCurrentValue(assetType, 'not_accountable_for_statistics')) flags.push('לא נכלל בסטטיסטיקה');
         if (getCurrentValue(assetType, 'use_shared_area')) flags.push('משמש לפיזור שטח משותף');
+        if (getCurrentValue(assetType, 'use_for_parking_shared_area')) flags.push('שימוש בשטח חניה משותף');
         return flags.length > 0 ? flags.join(' • ') : '';
       },
       cellRenderer: (params: any) => {
@@ -676,6 +680,7 @@ export function AssetTypes() {
         if (getCurrentValue(assetType, 'non_accountable_for_distribution')) flags.push('לא נכלל בפיזור');
         if (getCurrentValue(assetType, 'not_accountable_for_statistics')) flags.push('לא נכלל בסטטיסטיקה');
         if (getCurrentValue(assetType, 'use_shared_area')) flags.push('משמש לפיזור שטח משותף');
+        if (getCurrentValue(assetType, 'use_for_parking_shared_area')) flags.push('שימוש בשטח חניה משותף');
         return flags.length > 0 ? flags.join(' • ') : '';
       },
       cellRenderer: (params: any) => {
@@ -717,6 +722,7 @@ export function AssetTypes() {
         if (getCurrentValue(assetType, 'non_accountable_for_distribution')) flags.push('לא נכלל בפיזור');
         if (getCurrentValue(assetType, 'not_accountable_for_statistics')) flags.push('לא נכלל בסטטיסטיקה');
         if (getCurrentValue(assetType, 'use_shared_area')) flags.push('משמש לפיזור שטח משותף');
+        if (getCurrentValue(assetType, 'use_for_parking_shared_area')) flags.push('שימוש בשטח חניה משותף');
         return flags.length > 0 ? flags.join(' • ') : '';
       },
       cellRenderer: (params: any) => {
@@ -753,6 +759,7 @@ export function AssetTypes() {
         if (getCurrentValue(assetType, 'non_accountable_for_distribution')) flags.push('לא נכלל בפיזור');
         if (getCurrentValue(assetType, 'not_accountable_for_statistics')) flags.push('לא נכלל בסטטיסטיקה');
         if (getCurrentValue(assetType, 'use_shared_area')) flags.push('משמש לפיזור שטח משותף');
+        if (getCurrentValue(assetType, 'use_for_parking_shared_area')) flags.push('שימוש בשטח חניה משותף');
         return flags.length > 0 ? flags.join(' • ') : '';
       },
       cellRenderer: (params: any) => {
@@ -769,6 +776,48 @@ export function AssetTypes() {
                 const newValue = e.target.checked;
                 params.setValue(newValue);
                 handleCellChange(assetType.id, 'use_shared_area', newValue);
+                setTimeout(() => {
+                  if (gridRef.current?.api) {
+                    gridRef.current.api.refreshCells({ rowNodes: [params.node], force: true });
+                  }
+                }, 0);
+              }}
+              className={`w-4 h-4 text-blue-600 rounded ${isDirty ? 'ring-2 ring-yellow-400' : ''}`}
+            />
+          </div>
+        );
+      },
+      cellStyle: { textAlign: 'center', display: 'flex', alignItems: 'center', justifyContent: 'center' }
+    },
+    {
+      field: 'use_for_parking_shared_area',
+      headerName: 'שימוש בשטח חניה משותף',
+      editable: false,
+      tooltipValueGetter: (params: any) => {
+        const assetType = params.data as AssetType;
+        if (!assetType) return '';
+        const flags = [];
+        if (getCurrentValue(assetType, 'non_accountable_for_total_area')) flags.push('לא נספר בשטח מבנה');
+        if (getCurrentValue(assetType, 'non_accountable_for_distribution')) flags.push('לא נכלל בפיזור');
+        if (getCurrentValue(assetType, 'not_accountable_for_statistics')) flags.push('לא נכלל בסטטיסטיקה');
+        if (getCurrentValue(assetType, 'use_shared_area')) flags.push('משמש לפיזור שטח משותף');
+        if (getCurrentValue(assetType, 'use_for_parking_shared_area')) flags.push('שימוש בשטח חניה משותף');
+        return flags.length > 0 ? flags.join(' • ') : '';
+      },
+      cellRenderer: (params: any) => {
+        const assetType = params.data as AssetType;
+        if (!assetType) return null;
+        const currentValue = getCurrentValue(assetType, 'use_for_parking_shared_area');
+        const isDirty = isFieldDirty(assetType.id, 'use_for_parking_shared_area');
+        return (
+          <div className="flex items-center justify-center h-full">
+            <input
+              type="checkbox"
+              checked={currentValue === true}
+              onChange={(e) => {
+                const newValue = e.target.checked;
+                params.setValue(newValue);
+                handleCellChange(assetType.id, 'use_for_parking_shared_area', newValue);
                 setTimeout(() => {
                   if (gridRef.current?.api) {
                     gridRef.current.api.refreshCells({ rowNodes: [params.node], force: true });
@@ -937,6 +986,7 @@ export function AssetTypes() {
           // Special accounting flags - compact inline format (excluding "לא נספר" fields)
           const accountingFlags: string[] = [];
           if (at.use_shared_area === true) accountingFlags.push('משמש לפיזור שטח משותף');
+          if (at.use_for_parking_shared_area === true) accountingFlags.push('שימוש בשטח חניה משותף');
 
           if (accountingFlags.length > 0) {
             sections.push(`כללי חישוב: ${accountingFlags.join(' • ')}`);
@@ -1684,6 +1734,17 @@ export function AssetTypes() {
                     className="w-4 h-4 text-blue-600 rounded focus:ring-2 focus:ring-blue-500 cursor-pointer"
                   />
                   שימוש בשטח משותף
+                </label>
+              </div>
+              <div>
+                <label className="flex items-center gap-2 text-sm font-medium text-slate-700 mb-1" title="סוג נכס זה משמש לשטח חניה משותף">
+                  <input
+                    type="checkbox"
+                    checked={formData.use_for_parking_shared_area}
+                    onChange={(e) => setFormData({ ...formData, use_for_parking_shared_area: e.target.checked })}
+                    className="w-4 h-4 text-blue-600 rounded focus:ring-2 focus:ring-blue-500 cursor-pointer"
+                  />
+                  שימוש בשטח חניה משותף
                 </label>
               </div>
               <div>

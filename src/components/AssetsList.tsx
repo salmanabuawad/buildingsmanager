@@ -4192,10 +4192,14 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
         const businessAssetIdsSet = new Set(businessAssets.map(a => String(a.asset_id)));
         const withUnits: { id: string; n: number }[] = [];
         const remainderReceivers: string[] = [];
-        const getN = (id: string, a: { asset_id?: unknown; main_asset_type?: unknown }) => {
+        const getN = (id: string, a: any) => {
           const ex = dirtyAssets.get(id);
           const cur = assets.find(x => String(x.asset_id) === id);
-          const raw = ex && 'number_of_parking_units' in ex ? Number(ex.number_of_parking_units) : (Number((cur ?? a as any)?.number_of_parking_units) ?? 0);
+          const fromDirty = ex && 'number_of_parking_units' in ex ? ex.number_of_parking_units : undefined;
+          const fromAsset = (cur ?? a)?.number_of_parking_units;
+          const raw = fromDirty !== undefined && fromDirty !== null && fromDirty !== ''
+            ? Number(fromDirty)
+            : (fromAsset !== undefined && fromAsset !== null && fromAsset !== '' ? Number(fromAsset) : 0);
           return Math.max(0, Number.isNaN(raw) ? 0 : raw);
         };
         for (const a of businessAssets) {
@@ -4216,13 +4220,19 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
         const orderedParkingIds = [...withUnits.map(x => x.id), ...remainderReceivers];
         const requestedUnits = [...withUnits.map(x => x.n), ...remainderReceivers.map(() => 0)];
         let remaining = numParkingUnitsNum;
+        const withUnitsCount = withUnits.length;
         for (let i = 0; i < orderedParkingIds.length; i++) {
-          if (i === orderedParkingIds.length - 1) {
-            parkingUnitAllocation.set(orderedParkingIds[i], Math.max(0, remaining));
-          } else {
+          if (i < withUnitsCount) {
             const take = Math.min(requestedUnits[i] ?? 0, remaining);
             parkingUnitAllocation.set(orderedParkingIds[i], take);
             remaining -= take;
+          } else {
+            // First remainder receiver gets all remaining units (and thus remaining shared parking area)
+            if (i === withUnitsCount) {
+              parkingUnitAllocation.set(orderedParkingIds[i], Math.max(0, remaining));
+            } else {
+              parkingUnitAllocation.set(orderedParkingIds[i], 0);
+            }
           }
         }
       }

@@ -1521,8 +1521,22 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
         }
         return next;
       });
-      setBuildings(prev => prev.map(b => getBuildingKey(b) === buildingKey ? { ...b, [field]: newValue } : b));
-      setFilteredBuildings(prev => prev.map(b => getBuildingKey(b) === buildingKey ? { ...b, [field]: newValue } : b));
+      const applyBuildingUpdate = (b: Building) => {
+        if (getBuildingKey(b) !== buildingKey) return b;
+        const updated = { ...b, [field]: newValue };
+        // Recalculate total_building_area when any shared area field changes (formula: net + residence + business + parking)
+        if (['residence_shared_area', 'business_shared_area', 'shared_parking_area'].includes(field)) {
+          const total =
+            (Number(updated.net_area) || 0) +
+            (Number(updated.residence_shared_area) || 0) +
+            (Number(updated.business_shared_area) || 0) +
+            (Number(updated.shared_parking_area) || 0);
+          return { ...updated, total_building_area: total };
+        }
+        return updated;
+      };
+      setBuildings(prev => prev.map(applyBuildingUpdate));
+      setFilteredBuildings(prev => prev.map(applyBuildingUpdate));
     }
   }, [getBuildingKey, isNewBuilding, originalBuildings]);
 
@@ -2627,31 +2641,26 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
           }
           savedCount += updateResult.count;
           
-          // Update building state with returned buildings (includes updated distribution flags)
+          // Update building state with returned buildings (includes updated distribution flags).
+          // Recalculate total_building_area from shared areas so UI shows correct total after e.g. shared_parking_area update.
           if (updateResult.buildings && updateResult.buildings.length > 0) {
+            const withRecalcTotal = (b: Building) => {
+              const total = (Number(b.net_area) || 0) + (Number(b.residence_shared_area) || 0) + (Number(b.business_shared_area) || 0) + (Number(b.shared_parking_area) || 0);
+              return { ...b, total_building_area: total };
+            };
             setBuildings(prevBuildings => {
               const updated = [...prevBuildings];
-              for (const updatedBuilding of updateResult.buildings!) {
-                const index = updated.findIndex(b => 
-                  getBuildingKey(b) === getBuildingKey(updatedBuilding)
-                );
-                if (index >= 0) {
-                  updated[index] = updatedBuilding;
-                }
+              for (const b of updateResult.buildings!) {
+                const index = updated.findIndex(p => getBuildingKey(p) === getBuildingKey(b));
+                if (index >= 0) updated[index] = withRecalcTotal(b as Building);
               }
               return updated;
             });
-            
-            // Also update originalBuildings to reflect the new state
             setOriginalBuildings(prevOriginal => {
               const updated = [...prevOriginal];
-              for (const updatedBuilding of updateResult.buildings!) {
-                const index = updated.findIndex(b => 
-                  getBuildingKey(b) === getBuildingKey(updatedBuilding)
-                );
-                if (index >= 0) {
-                  updated[index] = updatedBuilding;
-                }
+              for (const b of updateResult.buildings!) {
+                const index = updated.findIndex(p => getBuildingKey(p) === getBuildingKey(b));
+                if (index >= 0) updated[index] = withRecalcTotal(b as Building);
               }
               return updated;
             });

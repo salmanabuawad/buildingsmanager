@@ -30,7 +30,7 @@ interface ExcludedTypeRow {
 export function AssetStatisticsModal({ isOpen, onClose, assets, assetTypes, buildingNumber }: AssetStatisticsModalProps) {
   // Calculate statistics from assets - only show types that exist in the assets list
   // Combine main and sub asset types into a single entry per type code
-  const { statistics, excludedTypes } = useMemo(() => {
+  const { statistics, excludedTypes, noMainTypeCount } = useMemo(() => {
     const statsMap = new Map<string, StatisticsRow>();
     const excludedTypeCounts = new Map<string, number>();
     const NO_MAIN_TYPE_KEY = '__no_main_type__';
@@ -156,7 +156,8 @@ export function AssetStatisticsModal({ isOpen, onClose, assets, assetTypes, buil
         return a.name.localeCompare(b.name);
       });
 
-    return { statistics: statsArray, excludedTypes: excludedTypesList };
+    const noMainTypeCount = noMainRow?.count ?? 0;
+    return { statistics: statsArray, excludedTypes: excludedTypesList, noMainTypeCount };
   }, [assets, assetTypes]);
 
   // Calculate total area (used for percentage)
@@ -369,8 +370,8 @@ export function AssetStatisticsModal({ isOpen, onClose, assets, assetTypes, buil
             </div>
           </div>
 
-          {/* Excluded types list */}
-          {excludedTypes.length > 0 && (
+          {/* Excluded types list + assets without main type */}
+          {(excludedTypes.length > 0 || noMainTypeCount > 0) && (
             <div className="mt-4 flex-shrink-0">
               <h3 className="text-sm font-semibold text-gray-800 mb-2">לא נכלל בסטיסטיקה</h3>
               <div className="rounded-lg border border-gray-200 bg-gray-50 p-3 max-h-40 overflow-auto">
@@ -382,6 +383,13 @@ export function AssetStatisticsModal({ isOpen, onClose, assets, assetTypes, buil
                       <span className="text-gray-500 font-medium">כמות: {t.count}</span>
                     </li>
                   ))}
+                  {noMainTypeCount > 0 && (
+                    <li className="flex gap-2 items-center">
+                      <span className="font-semibold">נכסים ללא סוג ראשי</span>
+                      <span className="text-gray-600">—</span>
+                      <span className="text-gray-500 font-medium">כמות: {noMainTypeCount}</span>
+                    </li>
+                  )}
                 </ul>
               </div>
             </div>

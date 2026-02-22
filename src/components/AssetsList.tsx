@@ -4170,6 +4170,9 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
         sharedAreaAssetType = assetTypes.find(at => at.use_shared_area === true);
       }
 
+      // When clearing business distribution only (no parking data), clear shared_parking_area on assets
+      const shouldClearParkingOnly = isClearingDistribution && (!hasParkingData || sharedParkingNum === 0 || building.shared_parking_area == null || building.shared_parking_area === '');
+
       // Track changes
       const updatedDirtyAssets = new Map(dirtyAssets);
       const updatedAssets = [...assets];
@@ -4230,7 +4233,6 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
         // When clearing business distribution only, still distribute parking if building has shared_parking_area.
         const mainTypeStr = String(currentAsset?.main_asset_type ?? asset.main_asset_type ?? '').trim();
         const isParkingTypeAsset = parkingTypeName && mainTypeStr === parkingTypeName;
-        const shouldClearParkingOnly = isClearingDistribution && (!hasParkingData || sharedParkingNum === 0 || building.shared_parking_area == null || building.shared_parking_area === '');
         if (shouldClearParkingOnly) {
           changes.shared_parking_area = null;
         } else if (!hasParkingData || sharedParkingNum === 0 || building.shared_parking_area == null || building.shared_parking_area === '') {

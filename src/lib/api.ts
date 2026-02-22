@@ -1067,34 +1067,35 @@ export async function validateAndSaveBulkAssets(
 
   // STEP 2: Sanitize all assets and remove 'id' field before sending to database
   // sanitizeAssetInput includes shared_parking_area and number_of_parking_units; bulk save persists them via save_assets_bulk_transactional
+  const ASSET_BOOLEAN_FIELDS = ['elevator', 'single_double_family', 'condo', 'townhouses', 'penthouse', 'is_new_measurement', 'exported_to_automation', 'data_from_automation'] as const;
+  const toBoolean = (v: unknown): boolean => {
+    if (v === true || v === 1) return true;
+    if (v === false || v === null || v === undefined || v === 0 || v === '') return false;
+    const s = (typeof v === 'string' ? v : String(v)).trim();
+    return s === 'כן' || s.toLowerCase() === 'yes' || s === '1' || s.toLowerCase() === 'true';
+  };
   const assetsForDatabase = preparedAssetsData.map(asset => {
     const { id, ...assetWithoutId } = asset as any;
-    
-    // Normalize all asset boolean columns so DB never receives "כן" (existing merge can reintroduce it if raw fetch returns string)
-    const booleanFields = ['elevator', 'single_double_family', 'condo', 'townhouses', 'penthouse', 'is_new_measurement', 'exported_to_automation', 'data_from_automation'];
-    booleanFields.forEach(field => {
-      const value = assetWithoutId[field];
-      if (value === 'כן' || value === 'yes' || value === 'YES' || value === '1' || value === 'true' || value === 'TRUE') {
-        assetWithoutId[field] = true;
-      } else if (value === 'לא' || value === 'no' || value === 'NO' || value === '0' || value === 'false' || value === 'FALSE' || value === null || value === undefined || value === '') {
-        assetWithoutId[field] = false;
-      }
-      // If value is already boolean, keep it as is
+    ASSET_BOOLEAN_FIELDS.forEach(field => {
+      if (assetWithoutId[field] !== undefined) assetWithoutId[field] = toBoolean(assetWithoutId[field]);
     });
-    
-    // Sanitize boolean fields to ensure "כן" is converted to true
     const sanitized = sanitizeAssetInput(assetWithoutId);
-    
-    // Double-check: ensure all boolean fields are actually boolean, not strings
-    booleanFields.forEach(field => {
+    ASSET_BOOLEAN_FIELDS.forEach(field => {
       if (sanitized[field] !== undefined && typeof sanitized[field] !== 'boolean') {
-        sanitized[field] = (sanitized[field] === 'כן' || sanitized[field] === true || sanitized[field] === 'true' || sanitized[field] === '1') ? true : false;
+        sanitized[field] = toBoolean(sanitized[field]);
       }
     });
-    
     return sanitized;
   });
-  
+  // Final pass: ensure RPC never receives string for boolean (import uses direct insert, so only grid path hits RPC)
+  assetsForDatabase.forEach(asset => {
+    ASSET_BOOLEAN_FIELDS.forEach(field => {
+      if (Object.prototype.hasOwnProperty.call(asset, field) && typeof (asset as any)[field] !== 'boolean') {
+        (asset as any)[field] = toBoolean((asset as any)[field]);
+      }
+    });
+  });
+
   // STEP 3: Call transactional bulk save function (rejects if any validation failed)
   try {
     const { data, error } = await supabase.rpc('save_assets_bulk_transactional', {

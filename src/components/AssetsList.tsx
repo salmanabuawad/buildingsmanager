@@ -2935,11 +2935,15 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
             description = `Distributed business shared area (עסקים) (${sharedAreaText}) to ${assetsToSave.length} assets. Overload ratio: ${overloadRatioStr}%`;
           }
 
-          // For distribution operations, prepare after_data with overload_ratio (use computed value)
+          // For distribution operations, prepare after_data with overload_ratio and building (for history)
           afterData = {
             overload_ratio: distributionType === 'business'
               ? (computedOverloadRatioForSave ?? (building.business_shared_area! <= 0 ? 0 : (building.overload_ratio ?? null)))
-              : undefined
+              : undefined,
+            building: {
+              shared_parking_area: building.shared_parking_area ?? null,
+              number_of_parking_units: building.number_of_parking_units ?? null
+            }
           };
           if (distributionType === 'residence') delete afterData.overload_ratio;
         }

@@ -38,13 +38,6 @@ export function DistributionHistoryModal({
     }
   }, [isOpen, buildingNumber, isResident]);
 
-  // Auto-open single record after history loads
-  useEffect(() => {
-    if (!loading && history.length === 1 && !selectedRecord) {
-      setSelectedRecord(history[0]);
-    }
-  }, [history, loading, selectedRecord]);
-
   const loadHistory = async () => {
     setLoading(true);
     setError(null);
@@ -108,6 +101,64 @@ export function DistributionHistoryModal({
     return assetType?.description || typeName;
   };
 
+  // Check if asset has any changes (used by isBeforeAfterAssetsSame)
+  const hasAssetChanged = (beforeAsset: Asset | undefined, afterAsset: Asset | undefined): boolean => {
+    if (!beforeAsset && !afterAsset) return false;
+    if (!beforeAsset || !afterAsset) return true; // One exists but not the other
+
+    const fieldsToCompare = [
+      'main_asset_type', 'asset_size',
+      'sub_asset_type_1', 'sub_asset_size_1',
+      'sub_asset_type_2', 'sub_asset_size_2',
+      'sub_asset_type_3', 'sub_asset_size_3',
+      'sub_asset_type_4', 'sub_asset_size_4',
+      'sub_asset_type_5', 'sub_asset_size_5',
+      'sub_asset_type_6', 'sub_asset_size_6',
+      'business_distribution_area',
+      'shared_parking_area',
+      'number_of_parking_units'
+    ];
+
+    for (const field of fieldsToCompare) {
+      const beforeValue = (beforeAsset as any)[field];
+      const afterValue = (afterAsset as any)[field];
+      if (beforeValue == null && afterValue == null) continue;
+      if (beforeValue == null || afterValue == null) return true;
+      if (beforeValue !== afterValue) return true;
+    }
+    return false;
+  };
+
+  // True when before_data.assets and after_data.assets are effectively the same (no changes to show)
+  const isBeforeAfterAssetsSame = (record: DistributionAudit): boolean => {
+    const beforeAssets = record.before_data?.assets ?? [];
+    const afterAssets = record.after_data?.assets ?? [];
+    if (beforeAssets.length !== afterAssets.length) return false;
+    if (beforeAssets.length === 0) return true; // no assets to compare -> hide
+    const beforeMap = new Map<number, Asset>();
+    beforeAssets.forEach((a: Asset) => beforeMap.set(a.asset_id, a));
+    const afterMap = new Map<number, Asset>();
+    afterAssets.forEach((a: Asset) => afterMap.set(a.asset_id, a));
+    const allIds = Array.from(new Set([...beforeMap.keys(), ...afterMap.keys()]));
+    for (const id of allIds) {
+      if (hasAssetChanged(beforeMap.get(id), afterMap.get(id))) return false;
+    }
+    return true;
+  };
+
+  // Filter out records where before and after assets are identical (nothing to show)
+  const displayHistory = useMemo(
+    () => history.filter((record) => !isBeforeAfterAssetsSame(record)),
+    [history]
+  );
+
+  // Auto-open single record after history loads when only one record has changes
+  useEffect(() => {
+    if (!loading && displayHistory.length === 1 && !selectedRecord) {
+      setSelectedRecord(displayHistory[0]);
+    }
+  }, [displayHistory, loading, selectedRecord]);
+
   // Check if a value changed between before and after
   const isValueChanged = (assetId: number, field: string): boolean => {
     if (!selectedRecord) return false;
@@ -126,40 +177,6 @@ export function DistributionHistoryModal({
     
     // Compare values (handle numbers and strings)
     return beforeValue !== afterValue;
-  };
-
-  // Check if asset has any changes
-  const hasAssetChanged = (beforeAsset: Asset | undefined, afterAsset: Asset | undefined): boolean => {
-    if (!beforeAsset && !afterAsset) return false;
-    if (!beforeAsset || !afterAsset) return true; // One exists but not the other
-    
-    // Compare relevant fields (including shared parking area distribution)
-    const fieldsToCompare = [
-      'main_asset_type', 'asset_size',
-      'sub_asset_type_1', 'sub_asset_size_1',
-      'sub_asset_type_2', 'sub_asset_size_2',
-      'sub_asset_type_3', 'sub_asset_size_3',
-      'sub_asset_type_4', 'sub_asset_size_4',
-      'sub_asset_type_5', 'sub_asset_size_5',
-      'sub_asset_type_6', 'sub_asset_size_6',
-      'business_distribution_area',
-      'shared_parking_area',
-      'number_of_parking_units'
-    ];
-    
-    for (const field of fieldsToCompare) {
-      const beforeValue = (beforeAsset as any)[field];
-      const afterValue = (afterAsset as any)[field];
-      
-      // Handle null/undefined
-      if (beforeValue == null && afterValue == null) continue;
-      if (beforeValue == null || afterValue == null) return true;
-      
-      // Compare values
-      if (beforeValue !== afterValue) return true;
-    }
-    
-    return false;
   };
 
   // Create row data with before and after rows for each asset
@@ -227,7 +244,7 @@ export function DistributionHistoryModal({
             {selectedRecord ? (() => {
               const formattedDateTime = selectedRecord.created_at ? formatDateTimeToDDMMYYYYHHMM(selectedRecord.created_at) : '';
               return formattedDateTime ? `פרטי פיזור שטח משותף - ${formattedDateTime}` : `פרטי פיזור שטח משותף - ${selectedRecord.created_at ? formatDateToDDMMYYYY(selectedRecord.created_at) : ''}`;
-            })() : `היסטוריית פיזור שטח משותף - מבנה ${buildingNumber} (${history.length})`}
+            })() : `היסטוריית פיזור שטח משותף - מבנה ${buildingNumber} (${displayHistory.length})`}
           </h2>
           <button
             onClick={handleClose}
@@ -243,9 +260,9 @@ export function DistributionHistoryModal({
         {/* Content */}
         <div className="flex-1 overflow-y-auto px-4">
           {/* Date Tabs - Always Visible when history exists */}
-          {history.length > 0 && (
+          {displayHistory.length > 0 && (
             <div className="flex items-center gap-1 border-b-2 border-gray-300 bg-gradient-to-b from-gray-50 to-gray-100 rounded-t-lg shadow-sm overflow-x-auto mb-4">
-              {history.map((record) => (
+              {displayHistory.map((record) => (
                 <button
                   key={record.id}
                   type="button"
@@ -288,7 +305,7 @@ export function DistributionHistoryModal({
             </div>
           ) : error ? (
             <div className="text-center py-12 text-red-600">{error}</div>
-          ) : history.length === 0 ? (
+          ) : displayHistory.length === 0 ? (
             <div className="text-center py-12 text-gray-500">אין היסטוריית פיזור עבור מבנה זה</div>
           ) : selectedRecord ? (
             // Record Details View
@@ -524,7 +541,7 @@ export function DistributionHistoryModal({
                 </div>
               </div>
             </div>
-          ) : history.length === 0 ? (
+          ) : displayHistory.length === 0 ? (
             <div className="text-center py-12 text-gray-500">אין היסטוריית פיזור עבור מבנה זה</div>
           ) : null}
         </div>

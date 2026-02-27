@@ -4994,6 +4994,58 @@ export const api = {
       if (historyError) console.warn('[inspectionTasks.create] history insert failed:', historyError);
       return task as InspectionTask;
     },
+    /** Inspector marks task as in progress (new -> in_progress). */
+    takeTask: async (taskId: number): Promise<InspectionTask> => {
+      const session = getSession();
+      if (!session?.user_id) throw new Error('לא מחובר');
+      const now = new Date().toISOString();
+      const { data: task, error: updateError } = await supabase
+        .from('inspection_tasks')
+        .update({
+          status: 'in_progress',
+          taken_at: now,
+          updated_at: now,
+        })
+        .eq('id', taskId)
+        .eq('assigned_to', session.user_id)
+        .in('status', ['new'])
+        .select()
+        .single();
+      if (updateError || !task) throw new Error(updateError?.message || 'לא ניתן להתחיל את המשימה');
+      await supabase.from('inspection_task_history').insert({
+        task_id: taskId,
+        created_by: session.user_id,
+        action: 'taken',
+        comment_text: null,
+      });
+      return task as InspectionTask;
+    },
+    /** Inspector submits task for approval (new|in_progress -> pending_approval). */
+    submitForApproval: async (taskId: number, comment?: string | null): Promise<InspectionTask> => {
+      const session = getSession();
+      if (!session?.user_id) throw new Error('לא מחובר');
+      const now = new Date().toISOString();
+      const { data: task, error: updateError } = await supabase
+        .from('inspection_tasks')
+        .update({
+          status: 'pending_approval',
+          submitted_at: now,
+          updated_at: now,
+        })
+        .eq('id', taskId)
+        .eq('assigned_to', session.user_id)
+        .in('status', ['new', 'in_progress'])
+        .select()
+        .single();
+      if (updateError || !task) throw new Error(updateError?.message || 'לא ניתן לשלוח לאישור');
+      await supabase.from('inspection_task_history').insert({
+        task_id: taskId,
+        created_by: session.user_id,
+        action: 'submitted',
+        comment_text: comment?.trim() || null,
+      });
+      return task as InspectionTask;
+    },
   },
   inspectionReports: {
     getByTaskId: async (taskId: number): Promise<InspectionReport | null> => {

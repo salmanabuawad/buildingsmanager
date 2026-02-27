@@ -1,7 +1,8 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { api, InspectionTask, InspectionTaskStatus, InspectionReport, InspectionReportFile, Building, Asset } from '../lib/api';
 import { useUserRole } from '../contexts/UserRoleContext';
-import { Loader2, RefreshCw, ClipboardList, AlertCircle, Plus, X, FileText, Paperclip } from 'lucide-react';
+import { getSession } from '../lib/usersTableAuth';
+import { Loader2, RefreshCw, ClipboardList, AlertCircle, Plus, X, FileText, Paperclip, Camera, Send, Trash2 } from 'lucide-react';
 
 const STATUS_LABELS: Record<InspectionTaskStatus, string> = {
   new: 'חדש',
@@ -37,8 +38,9 @@ interface UserOption {
   user_role: string;
 }
 
-function FileRow({ file }: { file: InspectionReportFile }) {
+function FileRow({ file, onDelete }: { file: InspectionReportFile; onDelete?: () => void }) {
   const [loading, setLoading] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const handleView = async () => {
     setLoading(true);
     try {
@@ -48,19 +50,42 @@ function FileRow({ file }: { file: InspectionReportFile }) {
       setLoading(false);
     }
   };
+  const handleDelete = async () => {
+    if (!onDelete) return;
+    setDeleting(true);
+    try {
+      await api.inspectionReports.files.delete(file.id);
+      onDelete();
+    } finally {
+      setDeleting(false);
+    }
+  };
   return (
     <li className="flex items-center justify-between gap-2 py-2 px-3 bg-slate-50 border border-slate-200 rounded-lg">
       <span className="text-sm text-slate-800 truncate flex-1 min-w-0" title={file.file_name || file.file_path}>
         {file.file_name || file.file_path}
       </span>
-      <button
-        type="button"
-        onClick={handleView}
-        disabled={loading}
-        className="shrink-0 min-h-[44px] min-w-[44px] flex items-center justify-center px-3 py-2 text-indigo-600 hover:bg-indigo-50 rounded-lg text-sm font-medium disabled:opacity-50 touch-manipulation"
-      >
-        {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : 'צפה'}
-      </button>
+      <div className="flex items-center gap-1 shrink-0">
+        <button
+          type="button"
+          onClick={handleView}
+          disabled={loading}
+          className="min-h-[44px] min-w-[44px] flex items-center justify-center px-3 py-2 text-indigo-600 hover:bg-indigo-50 rounded-lg text-sm font-medium disabled:opacity-50 touch-manipulation"
+        >
+          {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : 'צפה'}
+        </button>
+        {onDelete && (
+          <button
+            type="button"
+            onClick={handleDelete}
+            disabled={deleting}
+            className="min-h-[44px] min-w-[44px] flex items-center justify-center px-3 py-2 text-red-600 hover:bg-red-50 rounded-lg disabled:opacity-50 touch-manipulation"
+            aria-label="מחק"
+          >
+            {deleting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
+          </button>
+        )}
+      </div>
     </li>
   );
 }
@@ -85,6 +110,16 @@ export function InspectionTasks() {
   const [detailFiles, setDetailFiles] = useState<InspectionReportFile[]>([]);
   const [detailLoading, setDetailLoading] = useState(false);
   const [detailError, setDetailError] = useState<string | null>(null);
+  const [detailRefreshTrigger, setDetailRefreshTrigger] = useState(0);
+  const [reportEditText, setReportEditText] = useState('');
+  const [submitComment, setSubmitComment] = useState('');
+  const [saveReportSaving, setSaveReportSaving] = useState(false);
+  const [takeSaving, setTakeSaving] = useState(false);
+  const [submitSaving, setSubmitSaving] = useState(false);
+  const [fileUploading, setFileUploading] = useState(false);
+  const [taskAssets, setTaskAssets] = useState<Asset[]>([]);
+  const [uploadAssetId, setUploadAssetId] = useState<number | ''>('');
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const fetchTasks = async () => {
     try {
@@ -104,13 +139,15 @@ export function InspectionTasks() {
     fetchTasks();
   }, []);
 
-  // Load task detail when a task is clicked
+  // Load task detail when a task is clicked or after a mutation
   useEffect(() => {
     if (selectedTaskId == null) {
       setDetailTask(null);
       setDetailReport(null);
       setDetailFiles([]);
       setDetailError(null);
+      setReportEditText('');
+      setSubmitComment('');
       return;
     }
     let cancelled = false;
@@ -125,6 +162,7 @@ export function InspectionTasks() {
         if (cancelled) return;
         setDetailTask(task ?? null);
         setDetailReport(report ?? null);
+        setReportEditText(report?.report_text ?? '');
         if (report) {
           const files = await api.inspectionReports.files.list(report.id);
           if (!cancelled) setDetailFiles(files);
@@ -142,7 +180,17 @@ export function InspectionTasks() {
     return () => {
       cancelled = true;
     };
-  }, [selectedTaskId]);
+  }, [selectedTaskId, detailRefreshTrigger]);
+
+  // Load task assets for file-upload asset selector (inspector, assigned to me)
+  useEffect(() => {
+    const session = getSession();
+    if (!selectedTaskId || !detailTask || !isInspector || session?.user_id !== detailTask.assigned_to) {
+      setTaskAssets([]);
+      return;
+    }
+    api.inspectionTasks.getAssetsForFileSelection(selectedTaskId).then(setTaskAssets).catch(() => setTaskAssets([]));
+  }, [selectedTaskId, detailTask?.id, detailTask?.assigned_to, isInspector]);
 
   useEffect(() => {
     if (!createModalOpen || !canCreateTasks) return;
@@ -163,6 +211,82 @@ export function InspectionTasks() {
     setCreateForm({ title: '', building_number: '', assigned_to: '', note: '', asset_ids: [] });
     setBuildingAssets([]);
     setCreateModalOpen(true);
+  };
+
+  const session = getSession();
+  const canInspectorEdit =
+    isInspector &&
+    detailTask &&
+    session?.user_id === detailTask.assigned_to &&
+    (detailTask.status === 'new' || detailTask.status === 'in_progress');
+
+  const refreshDetail = () => {
+    setDetailRefreshTrigger((t) => t + 1);
+  };
+
+  const handleSaveReport = async () => {
+    if (selectedTaskId == null) return;
+    setSaveReportSaving(true);
+    setDetailError(null);
+    try {
+      await api.inspectionReports.upsert(selectedTaskId, reportEditText);
+      refreshDetail();
+    } catch (err) {
+      setDetailError(err instanceof Error ? err.message : 'שגיאה בשמירת הדוח');
+    } finally {
+      setSaveReportSaving(false);
+    }
+  };
+
+  const handleTakeTask = async () => {
+    if (selectedTaskId == null) return;
+    setTakeSaving(true);
+    setDetailError(null);
+    try {
+      await api.inspectionTasks.takeTask(selectedTaskId);
+      refreshDetail();
+      fetchTasks();
+    } catch (err) {
+      setDetailError(err instanceof Error ? err.message : 'שגיאה בהתחלת המשימה');
+    } finally {
+      setTakeSaving(false);
+    }
+  };
+
+  const handleSubmitForApproval = async () => {
+    if (selectedTaskId == null) return;
+    setSubmitSaving(true);
+    setDetailError(null);
+    try {
+      await api.inspectionTasks.submitForApproval(selectedTaskId, submitComment);
+      refreshDetail();
+      fetchTasks();
+    } catch (err) {
+      setDetailError(err instanceof Error ? err.message : 'שגיאה בשליחה לאישור');
+    } finally {
+      setSubmitSaving(false);
+    }
+  };
+
+  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file || selectedTaskId == null) return;
+    setFileUploading(true);
+    setDetailError(null);
+    try {
+      let report = await api.inspectionReports.getByTaskId(selectedTaskId);
+      if (!report) {
+        report = await api.inspectionReports.upsert(selectedTaskId, reportEditText || null);
+      }
+      const assetId = uploadAssetId === '' ? undefined : Number(uploadAssetId);
+      await api.inspectionReports.files.upload(report.id, file, assetId);
+      refreshDetail();
+    } catch (err) {
+      setDetailError(err instanceof Error ? err.message : 'שגיאה בהעלאת הקובץ');
+    } finally {
+      setFileUploading(false);
+    }
   };
 
   // When building is selected, load its assets for optional selection
@@ -455,7 +579,25 @@ export function InspectionTasks() {
                     <h4 className="flex items-center gap-2 text-sm font-semibold text-slate-700 mb-2">
                       <FileText className="w-4 h-4" /> דוח
                     </h4>
-                    {detailReport ? (
+                    {canInspectorEdit ? (
+                      <div className="space-y-2">
+                        <textarea
+                          value={reportEditText}
+                          onChange={(e) => setReportEditText(e.target.value)}
+                          className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm min-h-[120px]"
+                          placeholder="כתוב את תוכן הדוח..."
+                          dir="rtl"
+                        />
+                        <button
+                          type="button"
+                          onClick={handleSaveReport}
+                          disabled={saveReportSaving}
+                          className="min-h-[44px] px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm font-medium hover:bg-indigo-700 disabled:opacity-50 touch-manipulation"
+                        >
+                          {saveReportSaving ? <Loader2 className="w-4 h-4 animate-spin inline ml-1" /> : null} שמור דוח
+                        </button>
+                      </div>
+                    ) : detailReport ? (
                       <div className="bg-slate-50 border border-slate-200 rounded-lg p-3 text-slate-800 text-sm whitespace-pre-wrap min-h-[80px]">
                         {detailReport.report_text?.trim() || 'אין תוכן דוח.'}
                       </div>
@@ -467,16 +609,94 @@ export function InspectionTasks() {
                     <h4 className="flex items-center gap-2 text-sm font-semibold text-slate-700 mb-2">
                       <Paperclip className="w-4 h-4" /> קבצים ({detailFiles.length})
                     </h4>
+                    {canInspectorEdit && (
+                      <div className="mb-3 space-y-2">
+                        <input
+                          ref={fileInputRef}
+                          type="file"
+                          accept="image/*,video/*"
+                          capture="environment"
+                          onChange={handleFileSelect}
+                          className="hidden"
+                          aria-hidden
+                        />
+                        <div className="flex flex-wrap items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={() => fileInputRef.current?.click()}
+                            disabled={fileUploading}
+                            className="flex items-center justify-center gap-2 min-h-[44px] px-4 py-2 border border-slate-300 rounded-lg text-slate-700 hover:bg-slate-50 disabled:opacity-50 touch-manipulation text-sm font-medium"
+                          >
+                            {fileUploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Camera className="w-4 h-4" />}
+                            {fileUploading ? 'מעלה...' : 'הוסף תמונה/וידאו'}
+                          </button>
+                          {taskAssets.length > 0 && (
+                            <select
+                              value={uploadAssetId === '' ? '' : String(uploadAssetId)}
+                              onChange={(e) => setUploadAssetId(e.target.value === '' ? '' : Number(e.target.value))}
+                              className="min-h-[44px] px-3 py-2 border border-slate-300 rounded-lg text-sm"
+                              title="קישור לנכס (אופציונלי)"
+                            >
+                              <option value="">ללא נכס</option>
+                              {taskAssets.map((a) => (
+                                <option key={a.asset_id} value={a.asset_id}>
+                                  נכס {a.asset_id}
+                                  {a.payer_id ? ` (${a.payer_id})` : ''}
+                                </option>
+                              ))}
+                            </select>
+                          )}
+                        </div>
+                      </div>
+                    )}
                     {detailFiles.length === 0 ? (
                       <p className="text-slate-500 text-sm">אין קבצים מועלים.</p>
                     ) : (
                       <ul className="space-y-2">
                         {detailFiles.map((f) => (
-                          <FileRow key={f.id} file={f} />
+                          <FileRow
+                            key={f.id}
+                            file={f}
+                            onDelete={canInspectorEdit ? refreshDetail : undefined}
+                          />
                         ))}
                       </ul>
                     )}
                   </div>
+                  {canInspectorEdit && (
+                    <div className="space-y-3 pt-2 border-t border-slate-200">
+                      <div>
+                        <label className="block text-sm font-medium text-slate-700 mb-1">הערה עם שליחה לאישור (אופציונלי)</label>
+                        <textarea
+                          value={submitComment}
+                          onChange={(e) => setSubmitComment(e.target.value)}
+                          className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm min-h-[70px]"
+                          placeholder="הוסף הערה..."
+                          dir="rtl"
+                        />
+                      </div>
+                      <div className="flex flex-wrap gap-2">
+                        {detailTask.status === 'new' && (
+                          <button
+                            type="button"
+                            onClick={handleTakeTask}
+                            disabled={takeSaving}
+                            className="flex items-center justify-center gap-2 min-h-[44px] px-4 py-2 bg-slate-700 text-white rounded-lg text-sm font-medium hover:bg-slate-800 disabled:opacity-50 touch-manipulation"
+                          >
+                            {takeSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : null} התחל משימה
+                          </button>
+                        )}
+                        <button
+                          type="button"
+                          onClick={handleSubmitForApproval}
+                          disabled={submitSaving}
+                          className="flex items-center justify-center gap-2 min-h-[44px] px-4 py-2 bg-green-600 text-white rounded-lg text-sm font-medium hover:bg-green-700 disabled:opacity-50 touch-manipulation"
+                        >
+                          {submitSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />} שלח לאישור
+                        </button>
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
             </div>

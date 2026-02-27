@@ -18,7 +18,8 @@ import { OperatorsManager } from './components/OperatorsManager';
 import { ManagersManager } from './components/ManagersManager';
 import { MeasuredNotExportedAssets } from './components/MeasuredNotExportedAssets';
 import { MeasurementProgressDashboard } from './components/MeasurementProgressDashboard';
-import { X, Settings, Building, Home, Tag, Search, Plus, Building2, Upload, ChevronDown, ChevronLeft, Trash2, Database, CheckCircle2, AlertCircle, Loader2, Menu, MapPin, Edit, Square, Save, FileText, RefreshCw, Download, LogOut, Users, UserCog, BarChart3, Mail } from 'lucide-react';
+import { InspectionTasks } from './components/InspectionTasks';
+import { X, Settings, Building, Home, Tag, Search, Plus, Building2, Upload, ChevronDown, ChevronLeft, Trash2, Database, CheckCircle2, AlertCircle, Loader2, Menu, MapPin, Edit, Square, Save, FileText, RefreshCw, Download, LogOut, Users, UserCog, BarChart3, Mail, ClipboardList } from 'lucide-react';
 import { api, AssetType } from './lib/api';
 import { getSession, logoutUsersTable } from './lib/usersTableAuth';
 import { assetValidators, validateEntity, getAssetTypes, getLatestExportDate as getCachedLatestExportDate } from './lib/validation';
@@ -28,7 +29,7 @@ import { Login } from './components/Login';
 
 interface Tab {
   id: string;
-  type: 'buildings' | 'assets' | 'admin' | 'asset-types' | 'asset-search' | 'validation-rules' | 'building-list-import' | 'assets-file-import' | 'assets-skeleton-import' | 'asset-details' | 'transfer-areas' | 'address-list' | 'field-config' | 'asset-data-entry' | 'audit-log' | 'user-management' | 'system-configuration' | 'operators' | 'managers' | 'measured-not-exported-assets' | 'measurement-progress-dashboard';
+  type: 'buildings' | 'assets' | 'admin' | 'asset-types' | 'asset-search' | 'validation-rules' | 'building-list-import' | 'assets-file-import' | 'assets-skeleton-import' | 'asset-details' | 'transfer-areas' | 'address-list' | 'field-config' | 'asset-data-entry' | 'audit-log' | 'user-management' | 'system-configuration' | 'operators' | 'managers' | 'measured-not-exported-assets' | 'measurement-progress-dashboard' | 'inspection-tasks';
   buildingNumber?: number;
   label: string;
   refreshKey?: number;
@@ -43,12 +44,13 @@ interface Tab {
 
 function App() {
   const { preferences, setEditMode } = usePreferences();
-  const { isLoading: roleLoading, isReadOnly, isAdmin, refreshRole } = useUserRole();
+  const { isLoading: roleLoading, isReadOnly, isAdmin, isInspector, refreshRole } = useUserRole();
   const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
   const [checkingAuth, setCheckingAuth] = useState(true);
   
   const [tabs, setTabs] = useState<Tab[]>([
     { id: 'measurement-progress-dashboard', type: 'measurement-progress-dashboard', label: 'התקדמות פעילות מדידות', refreshKey: Date.now() },
+    { id: 'inspection-tasks', type: 'inspection-tasks', label: 'משימות ביקורת', refreshKey: Date.now() },
     { id: 'buildings', type: 'buildings', label: 'מבנים', refreshKey: Date.now() }
   ]);
   const [activeTabId, setActiveTabId] = useState('measurement-progress-dashboard');
@@ -96,6 +98,21 @@ function App() {
     setIsAuthenticated(!!getSession());
     setCheckingAuth(false);
   }, []);
+
+  // Inspector main window = task list: when role is inspector, make inspection-tasks the default tab
+  useEffect(() => {
+    if (!roleLoading && isAuthenticated && isInspector) {
+      setTabs((prev) => {
+        const hasInspectionTab = prev.some((t) => t.type === 'inspection-tasks');
+        if (hasInspectionTab) return prev;
+        return [
+          { id: 'inspection-tasks', type: 'inspection-tasks', label: 'משימות ביקורת', refreshKey: Date.now() },
+          ...prev,
+        ];
+      });
+      setActiveTabId((current) => (current === 'measurement-progress-dashboard' ? 'inspection-tasks' : current));
+    }
+  }, [roleLoading, isAuthenticated, isInspector]);
 
   // Load UI configuration
   useEffect(() => {
@@ -834,6 +851,16 @@ function App() {
     openTab(newTab);
   }
 
+  function openInspectionTasks() {
+    const inspectionTasksTabId = 'inspection-tasks-panel';
+    const newTab: Tab = {
+      id: inspectionTasksTabId,
+      type: 'inspection-tasks',
+      label: 'משימות ביקורת'
+    };
+    openTab(newTab);
+  }
+
   function openValidationRules() {
     const validationRulesTabId = 'validation-rules-panel';
 
@@ -1356,10 +1383,12 @@ function App() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-50 via-white to-indigo-50 flex flex-col md:flex-row" dir="rtl">
-      {/* Mobile menu button */}
+      {/* Mobile menu button — touch-friendly, safe-area aware */}
       <button
         onClick={() => setSidebarOpen(!sidebarOpen)}
-        className="md:hidden fixed top-4 left-4 z-50 p-2 bg-white rounded-lg shadow-lg border border-purple-200"
+        className="md:hidden fixed z-50 min-h-[44px] min-w-[44px] p-3 left-2 bg-white rounded-xl shadow-lg border border-purple-200 touch-manipulation"
+        style={{ top: 'max(0.5rem, env(safe-area-inset-top, 0px))' }}
+        aria-label="תפריט"
       >
         <Menu className="h-6 w-6 text-purple-700" />
       </button>
@@ -1370,7 +1399,9 @@ function App() {
         {sidebarOpen && (
           <button
             onClick={() => setSidebarOpen(false)}
-            className="md:hidden absolute top-4 right-4 p-2 bg-white rounded-lg shadow-lg border border-purple-200"
+            className="md:hidden absolute min-h-[44px] min-w-[44px] p-3 right-2 bg-white rounded-xl shadow-lg border border-purple-200 touch-manipulation"
+            style={{ top: 'max(0.5rem, env(safe-area-inset-top, 0px))' }}
+            aria-label="סגור תפריט"
           >
             <X className="h-6 w-6 text-purple-700" />
           </button>
@@ -1379,6 +1410,19 @@ function App() {
           <h2 className="text-xs font-semibold bg-gradient-to-r from-purple-700 to-indigo-700 bg-clip-text text-transparent">תפריט ראשי</h2>
         </div>
         <nav className="flex-1 p-3 space-y-2">
+          {isInspector && (
+            <div>
+              <button
+                onClick={openInspectionTasks}
+                className="w-full flex items-center justify-between px-4 py-2.5 text-right bg-indigo-100 hover:bg-indigo-200 active:bg-indigo-300 rounded-md transition-all duration-200 shadow-sm border border-indigo-200 hover:shadow-md hover:border-indigo-300 group"
+              >
+                <div className="flex items-center gap-2">
+                  <span className="font-medium text-sm text-slate-800 group-hover:text-indigo-900">משימות ביקורת</span>
+                  <ClipboardList className="h-4 w-4 text-indigo-700 group-hover:text-indigo-800" />
+                </div>
+              </button>
+            </div>
+          )}
           <div>
             <button
               onClick={() => setBuildingsMenuOpen(!buildingsMenuOpen)}
@@ -1526,6 +1570,15 @@ function App() {
             </button>
             {adminMenuOpen && (
               <div className="mr-2 mt-2 space-y-1.5">
+                {isAdmin && (
+                  <button
+                    onClick={openInspectionTasks}
+                    className="w-full flex items-center gap-2 px-3 py-2 text-right bg-pink-50/50 hover:bg-pink-100 rounded-lg transition-all text-xs shadow-sm hover:shadow"
+                  >
+                    <span className="font-medium text-slate-700">משימות ביקורת</span>
+                    <ClipboardList className="h-3.5 w-3.5 text-pink-600" />
+                  </button>
+                )}
                 <button
                   onClick={openAssetTypes}
                   className="w-full flex items-center gap-2 px-3 py-2 text-right bg-pink-50/50 hover:bg-pink-100 rounded-lg transition-all text-xs shadow-sm hover:shadow"
@@ -1639,14 +1692,14 @@ function App() {
         
       </div>
 
-      <div className="flex-1 flex flex-col min-w-0">
+      <div className="flex-1 flex flex-col min-w-0 pt-[52px] md:pt-0">
         <div className="bg-white/95 backdrop-blur-sm border-b border-purple-200 shadow-lg">
-          <div className="px-2 sm:px-4 py-1">
-            <div className="flex items-center gap-2 overflow-x-auto scrollbar-hide">
+          <div className="px-2 sm:px-4 py-2 md:py-1">
+            <div className="flex items-center gap-2 overflow-x-auto scrollbar-hide min-h-[44px] md:min-h-0">
               {tabs.map((tab) => (
                 <div
                   key={tab.id}
-                  className={`flex items-center gap-2 px-3 py-1 border-b-2 transition-all duration-200 cursor-pointer group rounded-t-lg ${
+                  className={`flex items-center gap-2 px-3 py-2 md:py-1 border-b-2 transition-all duration-200 cursor-pointer group rounded-t-lg touch-manipulation flex-shrink-0 ${
                     activeTabId === tab.id
                       ? 'border-purple-600 bg-gradient-to-r from-purple-50 to-indigo-50 shadow-sm font-medium'
                       : 'border-transparent hover:bg-purple-50/50 hover:border-purple-200 hover:shadow-sm'
@@ -1676,6 +1729,8 @@ function App() {
                       <AlertCircle className="h-4 w-4 text-purple-700" />
                     ) : tab.type === 'measurement-progress-dashboard' ? (
                       <BarChart3 className="h-4 w-4 text-purple-700" />
+                    ) : tab.type === 'inspection-tasks' ? (
+                      <ClipboardList className="h-4 w-4 text-purple-700" />
                     ) : tab.type === 'validation-rules' ? (
                       <Settings className="h-4 w-4 text-purple-700" />
                     ) : tab.type === 'field-config' ? (
@@ -1705,7 +1760,7 @@ function App() {
                       {tab.label}
                     </span>
                   </div>
-                  {tab.type !== 'buildings' && tab.type !== 'measurement-progress-dashboard' && (
+                  {tab.type !== 'buildings' && tab.type !== 'measurement-progress-dashboard' && !(isInspector && tab.type === 'inspection-tasks') && (
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
@@ -1837,10 +1892,13 @@ function App() {
               />
             )}
             {activeTab?.type === 'measurement-progress-dashboard' && (
-              <MeasurementProgressDashboard 
+              <MeasurementProgressDashboard
                 onOpenBuildingsList={openBuildingsList}
                 onOpenMeasuredNotExportedAssets={openMeasuredNotExportedAssets}
               />
+            )}
+            {activeTab?.type === 'inspection-tasks' && (
+              <InspectionTasks key={activeTab.refreshKey} />
             )}
           </div>
         </div>

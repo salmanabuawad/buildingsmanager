@@ -452,6 +452,20 @@ input:focus, textarea:focus, select:focus {
   display: none;
 }
 
+/* Safe area for notched devices (inspector mobile) */
+.pb-safe {
+  padding-bottom: env(safe-area-inset-bottom, 0);
+}
+.safe-area-pb {
+  padding-bottom: max(1rem, env(safe-area-inset-bottom, 0));
+}
+.pt-safe {
+  padding-top: env(safe-area-inset-top, 0);
+}
+.touch-manipulation {
+  touch-action: manipulation;
+}
+
 @media (max-width: 640px) {
   .ag-theme-alpine {
     --ag-font-size: 10px;

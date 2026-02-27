@@ -5,7 +5,7 @@ const STORAGE_KEY = 'buildingsmanager_users_table_session';
 export interface UsersTableSession {
   user_id: number;
   user_name: string;
-  user_role: 'admin' | 'user';
+  user_role: 'admin' | 'user' | 'inspector';
 }
 
 export function getSession(): UsersTableSession | null {
@@ -67,7 +67,7 @@ export async function loginUsersTable(
       return { success: false, error: 'שגיאה בהתחברות.' };
     }
 
-    const role = (d.user_role === 'admin' ? 'admin' : 'user') as 'admin' | 'user';
+    const role = (d.user_role === 'admin' ? 'admin' : d.user_role === 'inspector' ? 'inspector' : 'user') as 'admin' | 'user' | 'inspector';
     const session: UsersTableSession = {
       user_id: d.user_id,
       user_name: d.user_name,

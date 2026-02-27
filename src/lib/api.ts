@@ -593,6 +593,24 @@ export interface DistributionAudit {
 // Type alias for backward compatibility
 export type AuditLog = DistributionAudit;
 
+export type InspectionTaskStatus = 'new' | 'in_progress' | 'pending_approval' | 'approved' | 'cancelled';
+
+export interface InspectionTask {
+  id: number;
+  title: string;
+  building_number: number;
+  asset_ids: number[] | null;
+  assigned_to: number | null;
+  status: InspectionTaskStatus;
+  created_at: string;
+  created_by: number | null;
+  updated_at: string;
+  taken_at: string | null;
+  submitted_at: string | null;
+  approved_at: string | null;
+  approved_by: number | null;
+  note: string | null;
+}
 
 /**
  * Helper function to convert Hebrew boolean strings to actual booleans
@@ -4885,6 +4903,25 @@ export const api = {
     delete: async (id: number): Promise<void> => {
       const { error } = await supabase.from('managers').delete().eq('manager_id', id);
       if (error) throw error;
+    },
+  },
+  inspectionTasks: {
+    getAll: async (filters?: { status?: InspectionTaskStatus; assigned_to?: number; building_number?: number }): Promise<InspectionTask[]> => {
+      const session = getSession();
+      let query = supabase
+        .from('inspection_tasks')
+        .select('*')
+        .order('created_at', { ascending: false });
+      if (session?.user_role === 'inspector') {
+        query = query.eq('assigned_to', session.user_id);
+      } else if (filters?.assigned_to !== undefined) {
+        query = query.eq('assigned_to', filters.assigned_to);
+      }
+      if (filters?.status) query = query.eq('status', filters.status);
+      if (filters?.building_number !== undefined) query = query.eq('building_number', filters.building_number);
+      const { data, error } = await query;
+      if (error) throw error;
+      return (data || []) as InspectionTask[];
     },
   },
 };

@@ -48,12 +48,21 @@ function App() {
   const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
   const [checkingAuth, setCheckingAuth] = useState(true);
   
-  const [tabs, setTabs] = useState<Tab[]>([
-    { id: 'measurement-progress-dashboard', type: 'measurement-progress-dashboard', label: 'התקדמות פעילות מדידות', refreshKey: Date.now() },
-    { id: 'inspection-tasks', type: 'inspection-tasks', label: 'משימות ביקורת', refreshKey: Date.now() },
-    { id: 'buildings', type: 'buildings', label: 'מבנים', refreshKey: Date.now() }
-  ]);
-  const [activeTabId, setActiveTabId] = useState('measurement-progress-dashboard');
+  const [tabs, setTabs] = useState<Tab[]>(() => {
+    const s = getSession();
+    if (s?.user_role === 'inspector') {
+      return [{ id: 'inspection-tasks', type: 'inspection-tasks', label: 'משימות ביקורת', refreshKey: Date.now() }];
+    }
+    return [
+      { id: 'measurement-progress-dashboard', type: 'measurement-progress-dashboard', label: 'התקדמות פעילות מדידות', refreshKey: Date.now() },
+      { id: 'inspection-tasks', type: 'inspection-tasks', label: 'משימות ביקורת', refreshKey: Date.now() },
+      { id: 'buildings', type: 'buildings', label: 'מבנים', refreshKey: Date.now() }
+    ];
+  });
+  const [activeTabId, setActiveTabId] = useState(() => {
+    const s = getSession();
+    return s?.user_role === 'inspector' ? 'inspection-tasks' : 'measurement-progress-dashboard';
+  });
   const [showCreateBuildingModal, setShowCreateBuildingModal] = useState(false);
   const [buildingsMenuOpen, setBuildingsMenuOpen] = useState(false);
   const [assetsMenuOpen, setAssetsMenuOpen] = useState(false);

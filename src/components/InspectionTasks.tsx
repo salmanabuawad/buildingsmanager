@@ -250,6 +250,7 @@ export function InspectionTasks() {
   const [createError, setCreateError] = useState<string | null>(null);
   const [buildings, setBuildings] = useState<Building[]>([]);
   const [inspectors, setInspectors] = useState<UserOption[]>([]);
+  const [allUsers, setAllUsers] = useState<UserOption[]>([]);
   const [buildingAssets, setBuildingAssets] = useState<Asset[]>([]);
   const [assetsLoading, setAssetsLoading] = useState(false);
   const [createForm, setCreateForm] = useState({ title: '', building_number: '' as number | '', assigned_to: '' as number | '', note: '', asset_ids: [] as number[] });
@@ -294,6 +295,12 @@ export function InspectionTasks() {
 
   const taskListColumnDefs = useMemo<ColDef<InspectionTask>[]>(() => {
     const dateFmt = (v: string | null | undefined) => (v ? new Date(v).toLocaleDateString('he-IL') : '—');
+    const userName = (id: number | null | undefined, users: UserOption[]) => {
+      if (id == null) return '—';
+      const u = users.find((i) => i.user_id === id);
+      const name = u?.user_name?.trim();
+      return name ? name : String(id);
+    };
     return [
       { field: 'id', headerName: 'מזהה', width: 90, type: 'numericColumn', filter: 'agNumberColumnFilter' },
       { field: 'title', headerName: 'כותרת', flex: 1, minWidth: 140 },
@@ -309,13 +316,7 @@ export function InspectionTasks() {
         field: 'assigned_to',
         headerName: 'מוקצה אל',
         width: 120,
-        valueGetter: (params) => {
-          const id = params.data?.assigned_to;
-          if (id == null) return '';
-          const u = inspectors.find((i) => i.user_id === id);
-          const name = u?.user_name?.trim();
-          return name ? name : String(id);
-        },
+        valueGetter: (params) => userName(params.data?.assigned_to, allUsers),
         filter: true,
       },
       { field: 'status', headerName: 'סטטוס', width: 130, cellRenderer: StatusCellRenderer, filter: true },
@@ -331,14 +332,14 @@ export function InspectionTasks() {
         filter: true,
       },
       { field: 'created_at', headerName: 'נוצר', width: 110, valueFormatter: (params) => dateFmt(params.value), filter: 'agDateColumnFilter' },
-      { field: 'created_by', headerName: 'נוצר על ידי', width: 100, type: 'numericColumn', valueFormatter: (p) => (p.value != null ? String(p.value) : '—'), filter: 'agNumberColumnFilter' },
+      { field: 'created_by', headerName: 'נוצר על ידי', width: 120, valueGetter: (params) => userName(params.data?.created_by, allUsers), filter: true },
       { field: 'updated_at', headerName: 'עודכן', width: 110, valueFormatter: (params) => dateFmt(params.value), filter: 'agDateColumnFilter' },
       { field: 'taken_at', headerName: 'התחיל', width: 110, valueFormatter: (params) => dateFmt(params.value), filter: 'agDateColumnFilter' },
       { field: 'submitted_at', headerName: 'נשלח לאישור', width: 110, valueFormatter: (params) => dateFmt(params.value), filter: 'agDateColumnFilter' },
       { field: 'approved_at', headerName: 'אושר', width: 110, valueFormatter: (params) => dateFmt(params.value), filter: 'agDateColumnFilter' },
-      { field: 'approved_by', headerName: 'אושר על ידי', width: 100, type: 'numericColumn', valueFormatter: (p) => (p.value != null ? String(p.value) : '—'), filter: 'agNumberColumnFilter' },
+      { field: 'approved_by', headerName: 'אושר על ידי', width: 120, valueGetter: (params) => userName(params.data?.approved_by, allUsers), filter: true },
     ];
-  }, [inspectors]);
+  }, [allUsers]);
 
   const configuredTaskListColumnDefs = useFieldConfig(taskListColumnDefs, 'inspection-tasks');
 
@@ -360,11 +361,14 @@ export function InspectionTasks() {
     fetchTasks();
   }, []);
 
-  // Load inspectors for grid "assigned_to" column (admin/editor)
+  // Load all users for grid name resolution (assigned_to, created_by, approved_by); inspectors for dropdowns
   useEffect(() => {
-    if (isInspector) return;
     api.users.getAll().then((uList) => {
-      setInspectors((uList as UserOption[]).filter((u) => u.user_role === 'inspector' && u.user_name));
+      const list = uList as UserOption[];
+      setAllUsers(list);
+      if (!isInspector) {
+        setInspectors(list.filter((u) => u.user_role === 'inspector'));
+      }
     }).catch(() => {});
   }, [isInspector]);
 

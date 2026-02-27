@@ -282,22 +282,62 @@ export function InspectionTasks() {
   const [approveSaving, setApproveSaving] = useState(false);
   const [returnSaving, setReturnSaving] = useState(false);
   const [cancelSaving, setCancelSaving] = useState(false);
+  const [editTaskSaving, setEditTaskSaving] = useState(false);
+  const [editTaskTitle, setEditTaskTitle] = useState('');
+  const [editTaskBuildingNumber, setEditTaskBuildingNumber] = useState<number | ''>('');
+  const [editTaskAssignedTo, setEditTaskAssignedTo] = useState<number | ''>('');
+  const [editTaskNote, setEditTaskNote] = useState('');
+  const [editTaskAssetIds, setEditTaskAssetIds] = useState<number[]>([]);
+  const [adminEditBuildingAssets, setAdminEditBuildingAssets] = useState<Asset[]>([]);
 
   const gridRef = useRef<AgGridReact<InspectionTask>>(null);
 
-  const taskListColumnDefs = useMemo<ColDef<InspectionTask>[]>(() => [
-    { field: 'id', headerName: 'מזהה', width: 90, type: 'numericColumn', filter: 'agNumberColumnFilter' },
-    { field: 'title', headerName: 'כותרת', flex: 1, minWidth: 140 },
-    { field: 'building_number', headerName: 'מבנה', width: 100, type: 'numericColumn', filter: 'agNumberColumnFilter' },
-    { field: 'status', headerName: 'סטטוס', width: 130, cellRenderer: StatusCellRenderer, filter: true },
-    {
-      field: 'created_at',
-      headerName: 'נוצר',
-      width: 120,
-      valueFormatter: (params) => (params.value ? new Date(params.value).toLocaleDateString('he-IL') : ''),
-      filter: 'agDateColumnFilter',
-    },
-  ], []);
+  const taskListColumnDefs = useMemo<ColDef<InspectionTask>[]>(() => {
+    const dateFmt = (v: string | null | undefined) => (v ? new Date(v).toLocaleDateString('he-IL') : '—');
+    return [
+      { field: 'id', headerName: 'מזהה', width: 90, type: 'numericColumn', filter: 'agNumberColumnFilter' },
+      { field: 'title', headerName: 'כותרת', flex: 1, minWidth: 140 },
+      { field: 'building_number', headerName: 'מבנה', width: 100, type: 'numericColumn', filter: 'agNumberColumnFilter' },
+      {
+        field: 'asset_ids',
+        headerName: 'נכסים',
+        width: 90,
+        valueFormatter: (params) => (params.value?.length ? `${params.value.length} נכסים` : '—'),
+        filter: true,
+      },
+      {
+        field: 'assigned_to',
+        headerName: 'מוקצה אל',
+        width: 120,
+        valueGetter: (params) => {
+          const id = params.data?.assigned_to;
+          if (id == null) return '';
+          const u = inspectors.find((i) => i.user_id === id);
+          return u?.user_name ?? String(id);
+        },
+        filter: true,
+      },
+      { field: 'status', headerName: 'סטטוס', width: 130, cellRenderer: StatusCellRenderer, filter: true },
+      {
+        field: 'note',
+        headerName: 'הערה',
+        width: 140,
+        valueFormatter: (params) => {
+          const s = params.value?.trim();
+          return s ? (s.length > 25 ? s.slice(0, 25) + '…' : s) : '—';
+        },
+        tooltipValueGetter: (params) => params.value?.trim() || undefined,
+        filter: true,
+      },
+      { field: 'created_at', headerName: 'נוצר', width: 110, valueFormatter: (params) => dateFmt(params.value), filter: 'agDateColumnFilter' },
+      { field: 'created_by', headerName: 'נוצר על ידי', width: 100, type: 'numericColumn', valueFormatter: (p) => (p.value != null ? String(p.value) : '—'), filter: 'agNumberColumnFilter' },
+      { field: 'updated_at', headerName: 'עודכן', width: 110, valueFormatter: (params) => dateFmt(params.value), filter: 'agDateColumnFilter' },
+      { field: 'taken_at', headerName: 'התחיל', width: 110, valueFormatter: (params) => dateFmt(params.value), filter: 'agDateColumnFilter' },
+      { field: 'submitted_at', headerName: 'נשלח לאישור', width: 110, valueFormatter: (params) => dateFmt(params.value), filter: 'agDateColumnFilter' },
+      { field: 'approved_at', headerName: 'אושר', width: 110, valueFormatter: (params) => dateFmt(params.value), filter: 'agDateColumnFilter' },
+      { field: 'approved_by', headerName: 'אושר על ידי', width: 100, type: 'numericColumn', valueFormatter: (p) => (p.value != null ? String(p.value) : '—'), filter: 'agNumberColumnFilter' },
+    ];
+  }, [inspectors]);
 
   const configuredTaskListColumnDefs = useFieldConfig(taskListColumnDefs, 'inspection-tasks');
 
@@ -318,6 +358,14 @@ export function InspectionTasks() {
   useEffect(() => {
     fetchTasks();
   }, []);
+
+  // Load inspectors for grid "assigned_to" column (admin/editor)
+  useEffect(() => {
+    if (isInspector) return;
+    api.users.getAll().then((uList) => {
+      setInspectors((uList as UserOption[]).filter((u) => u.user_role === 'inspector' && u.user_name));
+    }).catch(() => {});
+  }, [isInspector]);
 
   // Load task detail when a task is clicked or after a mutation
   useEffect(() => {
@@ -375,15 +423,16 @@ export function InspectionTasks() {
     };
   }, [selectedTaskId, detailRefreshTrigger]);
 
-  // Load task assets for file-upload asset selector (inspector, assigned to me)
+  // Load task assets for file-upload and (for admin) edit-form asset selector
   useEffect(() => {
     const session = getSession();
-    if (!selectedTaskId || !detailTask || !isInspector || session?.user_id !== detailTask.assigned_to) {
+    const inspectorAssigned = isInspector && detailTask && session?.user_id === detailTask.assigned_to;
+    if (!selectedTaskId || !detailTask || (!inspectorAssigned && !isAdmin)) {
       setTaskAssets([]);
       return;
     }
     api.inspectionTasks.getAssetsForFileSelection(selectedTaskId).then(setTaskAssets).catch(() => setTaskAssets([]));
-  }, [selectedTaskId, detailTask?.id, detailTask?.assigned_to, isInspector]);
+  }, [selectedTaskId, detailTask?.id, detailTask?.assigned_to, isInspector, isAdmin]);
 
   useEffect(() => {
     if (!createModalOpen || !canCreateTasks) return;
@@ -398,6 +447,43 @@ export function InspectionTasks() {
     };
     load();
   }, [createModalOpen, canCreateTasks]);
+
+  // Load buildings + inspectors when admin opens a task (for edit form)
+  useEffect(() => {
+    if (!isAdmin || !selectedTaskId) return;
+    const load = async () => {
+      try {
+        const [bList, uList] = await Promise.all([api.buildings.getAll(), api.users.getAll()]);
+        setBuildings((prev) => (prev.length > 0 ? prev : bList));
+        setInspectors((prev) => (prev.length > 0 ? prev : (uList as UserOption[]).filter((u) => u.user_role === 'inspector' && u.user_name)));
+      } catch (e) {
+        console.error('Load buildings/users for admin edit task:', e);
+      }
+    };
+    load();
+  }, [isAdmin, selectedTaskId]);
+
+  // Init admin edit form from detailTask
+  useEffect(() => {
+    if (!detailTask || !isAdmin) return;
+    setEditTaskTitle(detailTask.title);
+    setEditTaskBuildingNumber(detailTask.building_number);
+    setEditTaskAssignedTo(detailTask.assigned_to ?? '');
+    setEditTaskNote(detailTask.note ?? '');
+    setEditTaskAssetIds(detailTask.asset_ids ?? []);
+  }, [detailTask?.id, detailTask?.title, detailTask?.building_number, detailTask?.assigned_to, detailTask?.note, detailTask?.asset_ids, isAdmin]);
+
+  // Load building assets for admin edit form (asset_ids selector)
+  useEffect(() => {
+    const buildingNumber = editTaskBuildingNumber === '' ? detailTask?.building_number : editTaskBuildingNumber;
+    if (!isAdmin || buildingNumber === undefined || buildingNumber === '') {
+      setAdminEditBuildingAssets([]);
+      return;
+    }
+    const num = typeof buildingNumber === 'number' ? buildingNumber : Number(buildingNumber);
+    if (Number.isNaN(num)) return;
+    api.assets.getAll(num).then(setAdminEditBuildingAssets).catch(() => setAdminEditBuildingAssets([]));
+  }, [isAdmin, editTaskBuildingNumber, detailTask?.building_number]);
 
   const openCreateModal = () => {
     setCreateError(null);
@@ -435,6 +521,9 @@ export function InspectionTasks() {
 
   const canAdminActOnTask = isAdmin && detailTask?.status === 'pending_approval';
 
+  /** Admin can edit task and report at any time. */
+  const canEditTaskOrReport = canInspectorEdit || isAdmin;
+
   const refreshDetail = () => {
     setDetailRefreshTrigger((t) => t + 1);
   };
@@ -461,6 +550,30 @@ export function InspectionTasks() {
       setDetailError(err instanceof Error ? err.message : 'שגיאה בשמירת הדוח');
     } finally {
       setSaveReportSaving(false);
+    }
+  };
+
+  const handleSaveTask = async () => {
+    if (selectedTaskId == null || !isAdmin) return;
+    const buildingNumber = editTaskBuildingNumber === '' ? undefined : Number(editTaskBuildingNumber);
+    if (buildingNumber !== undefined && Number.isNaN(buildingNumber)) return;
+    setEditTaskSaving(true);
+    setDetailError(null);
+    try {
+      const updated = await api.inspectionTasks.update(selectedTaskId, {
+        title: editTaskTitle.trim(),
+        building_number: buildingNumber,
+        assigned_to: editTaskAssignedTo === '' ? null : editTaskAssignedTo,
+        note: editTaskNote.trim() || null,
+        asset_ids: editTaskAssetIds.length > 0 ? editTaskAssetIds : null,
+      });
+      setDetailTask(updated);
+      refreshDetail();
+      fetchTasks();
+    } catch (err) {
+      setDetailError(err instanceof Error ? err.message : 'שגיאה בשמירת המשימה');
+    } finally {
+      setEditTaskSaving(false);
     }
   };
 
@@ -885,11 +998,112 @@ export function InspectionTasks() {
                       </p>
                     )}
                   </div>
+                  {isAdmin && (
+                    <div className="space-y-3 pt-2 border-t border-slate-200">
+                      <h4 className="text-sm font-semibold text-slate-700">עריכת משימה (מנהל)</h4>
+                      <div className="grid grid-cols-1 gap-3 text-sm">
+                        <div>
+                          <label className="block font-medium text-slate-700 mb-1">כותרת</label>
+                          <input
+                            type="text"
+                            value={editTaskTitle}
+                            onChange={(e) => setEditTaskTitle(e.target.value)}
+                            className="w-full px-3 py-2 border border-slate-300 rounded-lg"
+                            dir="rtl"
+                          />
+                        </div>
+                        <div>
+                          <label className="block font-medium text-slate-700 mb-1">מבנה</label>
+                          <select
+                            value={editTaskBuildingNumber === '' ? '' : String(editTaskBuildingNumber)}
+                            onChange={(e) => {
+                              setEditTaskBuildingNumber(e.target.value === '' ? '' : Number(e.target.value));
+                              setEditTaskAssetIds([]);
+                            }}
+                            className="w-full px-3 py-2 border border-slate-300 rounded-lg"
+                          >
+                            <option value="">בחר מבנה</option>
+                            {buildings.map((b) => (
+                              <option key={b.building_number} value={b.building_number}>
+                                מבנה {b.building_number}
+                                {b.address != null ? ` — ${b.address}` : ''}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                        <div>
+                          <label className="block font-medium text-slate-700 mb-1">מפקח (מוקצה אל)</label>
+                          <select
+                            value={editTaskAssignedTo === '' ? '' : String(editTaskAssignedTo)}
+                            onChange={(e) => setEditTaskAssignedTo(e.target.value === '' ? '' : Number(e.target.value))}
+                            className="w-full px-3 py-2 border border-slate-300 rounded-lg"
+                          >
+                            <option value="">ללא הקצאה</option>
+                            {inspectors.map((u) => (
+                              <option key={u.user_id} value={u.user_id}>
+                                {u.user_name}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                        <div>
+                          <label className="block font-medium text-slate-700 mb-1">הערה</label>
+                          <textarea
+                            value={editTaskNote}
+                            onChange={(e) => setEditTaskNote(e.target.value)}
+                            className="w-full px-3 py-2 border border-slate-300 rounded-lg min-h-[70px]"
+                            dir="rtl"
+                          />
+                        </div>
+                        <div>
+                          <label className="block font-medium text-slate-700 mb-1">נכסים (אופציונלי)</label>
+                          {adminEditBuildingAssets.length === 0 ? (
+                            <p className="text-slate-500 text-xs">בחר מבנה כדי לבחור נכסים</p>
+                          ) : (
+                            <div className="border border-slate-200 rounded-lg max-h-[160px] overflow-y-auto p-2 space-y-1.5">
+                              {adminEditBuildingAssets.map((asset) => {
+                                const checked = editTaskAssetIds.includes(asset.asset_id);
+                                return (
+                                  <label
+                                    key={asset.asset_id}
+                                    className="flex items-center gap-2 py-1.5 px-2 rounded hover:bg-slate-50 cursor-pointer min-h-[40px]"
+                                  >
+                                    <input
+                                      type="checkbox"
+                                      checked={checked}
+                                      onChange={() => {
+                                        setEditTaskAssetIds((prev) =>
+                                          checked ? prev.filter((id) => id !== asset.asset_id) : [...prev, asset.asset_id]
+                                        );
+                                      }}
+                                      className="w-4 h-4 rounded border-slate-300 text-indigo-600"
+                                    />
+                                    <span className="text-slate-800">
+                                      נכס {asset.asset_id}
+                                      {asset.payer_id ? ` (${asset.payer_id})` : ''}
+                                    </span>
+                                  </label>
+                                );
+                              })}
+                            </div>
+                          )}
+                        </div>
+                        <button
+                          type="button"
+                          onClick={handleSaveTask}
+                          disabled={editTaskSaving}
+                          className="min-h-[44px] px-4 py-2 bg-indigo-600 text-white rounded-lg font-medium hover:bg-indigo-700 disabled:opacity-50 touch-manipulation"
+                        >
+                          {editTaskSaving ? <Loader2 className="w-4 h-4 animate-spin inline ml-1" /> : null} שמור שינויים במשימה
+                        </button>
+                      </div>
+                    </div>
+                  )}
                   <div>
                     <h4 className="flex items-center gap-2 text-sm font-semibold text-slate-700 mb-2">
                       <FileText className="w-4 h-4" /> דוח
                     </h4>
-                    {canInspectorEdit ? (
+                    {canEditTaskOrReport ? (
                       <div className="space-y-2">
                         <textarea
                           value={reportEditText}
@@ -930,7 +1144,7 @@ export function InspectionTasks() {
                         </button>
                       )}
                     </div>
-                    {canInspectorEdit && (
+                    {canEditTaskOrReport && (
                       <div className="mb-3 space-y-2">
                         <input
                           ref={fileInputRef}

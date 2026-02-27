@@ -5174,6 +5174,29 @@ export const api = {
       });
       return task as InspectionTask;
     },
+    /** Admin can update task metadata (title, building, assignee, note, asset_ids) at any time. */
+    update: async (
+      taskId: number,
+      input: { title?: string; building_number?: number; assigned_to?: number | null; note?: string | null; asset_ids?: number[] | null }
+    ): Promise<InspectionTask> => {
+      const session = getSession();
+      if (!session?.user_id) throw new Error('לא מחובר');
+      if (session.user_role !== 'admin') throw new Error('רק מנהל יכול לערוך משימה');
+      const updates: Record<string, unknown> = { updated_at: new Date().toISOString() };
+      if (input.title !== undefined) updates.title = input.title.trim();
+      if (input.building_number !== undefined) updates.building_number = input.building_number;
+      if (input.assigned_to !== undefined) updates.assigned_to = input.assigned_to;
+      if (input.note !== undefined) updates.note = input.note?.trim() || null;
+      if (input.asset_ids !== undefined) updates.asset_ids = input.asset_ids?.length ? input.asset_ids : null;
+      const { data: task, error } = await supabase
+        .from('inspection_tasks')
+        .update(updates)
+        .eq('id', taskId)
+        .select()
+        .single();
+      if (error) throw error;
+      return task as InspectionTask;
+    },
   },
   inspectionReports: {
     getByTaskId: async (taskId: number): Promise<InspectionReport | null> => {

@@ -47,7 +47,15 @@ function isVideoType(type: string | null): boolean {
   return type.startsWith('video/');
 }
 
-function FileRow({ file, onDelete }: { file: InspectionReportFile; onDelete?: () => void }) {
+function FileRow({
+  file,
+  onDelete,
+  onViewInModal,
+}: {
+  file: InspectionReportFile;
+  onDelete?: () => void;
+  onViewInModal?: (url: string, fileType: string | null) => void;
+}) {
   const [loading, setLoading] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
@@ -73,6 +81,11 @@ function FileRow({ file, onDelete }: { file: InspectionReportFile; onDelete?: ()
   }, [file.file_path, file.file_type]);
 
   const handleView = async () => {
+    if (onViewInModal) {
+      const url = previewUrl || (await api.inspectionReports.files.getSignedUrl(file.file_path));
+      onViewInModal(url, file.file_type);
+      return;
+    }
     if (previewUrl) {
       window.open(previewUrl, '_blank');
       return;
@@ -185,6 +198,8 @@ export function InspectionTasks() {
   const [sessionUploadedFiles, setSessionUploadedFiles] = useState<InspectionReportFile[]>([]);
   const [uploadSuccessMsg, setUploadSuccessMsg] = useState<string | null>(null);
   const [lastUploadedFile, setLastUploadedFile] = useState<InspectionReportFile | null>(null);
+  const [viewFileUrl, setViewFileUrl] = useState<string | null>(null);
+  const [viewFileType, setViewFileType] = useState<string | null>(null);
   const [returnNote, setReturnNote] = useState('');
   const [approveSaving, setApproveSaving] = useState(false);
   const [returnSaving, setReturnSaving] = useState(false);
@@ -873,6 +888,10 @@ export function InspectionTasks() {
                             key={f.id}
                             file={f}
                             onDelete={canInspectorEdit ? refreshDetail : undefined}
+                            onViewInModal={(url, type) => {
+                              setViewFileUrl(url);
+                              setViewFileType(type);
+                            }}
                           />
                         ))}
                       </ul>
@@ -956,6 +975,61 @@ export function InspectionTasks() {
                 </div>
               )}
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* View file modal — image/video or open in new tab */}
+      {viewFileUrl && (
+        <div
+          className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/80"
+          dir="rtl"
+          onClick={() => { setViewFileUrl(null); setViewFileType(null); }}
+        >
+          <div
+            className="relative max-w-full max-h-full w-full h-full flex items-center justify-center"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button
+              type="button"
+              onClick={() => { setViewFileUrl(null); setViewFileType(null); }}
+              className="absolute top-4 left-4 z-10 min-w-[44px] min-h-[44px] flex items-center justify-center rounded-full bg-white/90 text-slate-800 hover:bg-white shadow-lg"
+              aria-label="סגור"
+            >
+              <X className="w-6 h-6" />
+            </button>
+            {viewFileType && isImageType(viewFileType) && (
+              <img src={viewFileUrl} alt="" className="max-w-full max-h-full object-contain" />
+            )}
+            {viewFileType && isVideoType(viewFileType) && (
+              <video
+                src={viewFileUrl}
+                controls
+                autoPlay
+                playsInline
+                className="max-w-full max-h-full"
+              />
+            )}
+            {(!viewFileType || (!isImageType(viewFileType) && !isVideoType(viewFileType))) && (
+              <div className="bg-white rounded-xl p-6 text-center max-w-md">
+                <p className="text-slate-600 mb-4">לא ניתן להציג את הקובץ בתצוגה מקדימה.</p>
+                <a
+                  href={viewFileUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-indigo-600 underline"
+                >
+                  פתח בטאב חדש
+                </a>
+                <button
+                  type="button"
+                  onClick={() => { setViewFileUrl(null); setViewFileType(null); }}
+                  className="block mt-4 mx-auto min-h-[44px] px-4 py-2 border border-slate-300 rounded-lg"
+                >
+                  סגור
+                </button>
+              </div>
+            )}
           </div>
         </div>
       )}

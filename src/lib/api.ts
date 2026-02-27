@@ -5046,7 +5046,7 @@ export const api = {
       });
       return task as InspectionTask;
     },
-    /** Admin approves task (pending_approval -> approved). */
+    /** Admin approves task (pending_approval -> approved). After approval, copies uploaded files that have asset_id into asset_files. */
     approveTask: async (taskId: number): Promise<InspectionTask> => {
       const session = getSession();
       if (!session?.user_id) throw new Error('לא מחובר');
@@ -5071,6 +5071,37 @@ export const api = {
         action: 'approved',
         comment_text: null,
       });
+      const report = await supabase.from('inspection_reports').select('id').eq('task_id', taskId).maybeSingle();
+      if (report?.data?.id) {
+        const { data: files } = await supabase
+          .from('inspection_report_files')
+          .select('id, report_id, asset_id, file_path, file_name, file_type')
+          .eq('report_id', report.data.id)
+          .not('asset_id', 'is', null);
+        const userInfo = await getCurrentUserInfo();
+        for (const f of (files || []) as Array<{ id: number; report_id: number; asset_id: number; file_path: string; file_name: string | null; file_type: string | null }>) {
+          try {
+            const { data: blob, error: downloadErr } = await supabase.storage.from('inspection-reports').download(f.file_path);
+            if (downloadErr || !blob) continue;
+            const safeName = (f.file_name || f.file_path.split('/').pop() || `inspection_${f.id}`).replace(/[^a-zA-Z0-9._-]/g, '_');
+            const targetPath = `${f.asset_id}/${Date.now()}_${safeName}`;
+            const { error: uploadErr } = await supabase.storage.from('structure-drawings').upload(targetPath, blob, { contentType: f.file_type || undefined });
+            if (uploadErr) continue;
+            const { data: { publicUrl } } = supabase.storage.from('structure-drawings').getPublicUrl(targetPath);
+            await supabase.from('asset_files').insert({
+              asset_id: f.asset_id,
+              file_url: publicUrl,
+              file_name: f.file_name || safeName,
+              file_size: blob.size,
+              file_type: f.file_type || null,
+              uploaded_by: userInfo.user_name,
+              measurement_date: null,
+            });
+          } catch (_) {
+            // skip failed copy
+          }
+        }
+      }
       return task as InspectionTask;
     },
     /** Admin returns task to inspector (pending_approval -> in_progress); note is stored in history. */
@@ -5213,6 +5244,20 @@ export const api = {
         }
         if (!row) throw new Error('ההעלאה הצליחה אך לא התקבלה תשובה מהשרת');
         return row as InspectionReportFile;
+      },
+      /** Update file metadata (e.g. file_name). */
+      update: async (fileId: number, patch: { file_name?: string | null }): Promise<InspectionReportFile> => {
+        const { data, error } = await supabase
+          .from('inspection_report_files')
+          .update({
+            ...(patch.file_name !== undefined && { file_name: patch.file_name || null }),
+          })
+          .eq('id', fileId)
+          .select()
+          .single();
+        if (error) throw error;
+        if (!data) throw new Error('קובץ לא נמצא');
+        return data as InspectionReportFile;
       },
       delete: async (fileId: number): Promise<{ success: boolean; error?: string }> => {
         const { data: file, error: fetchError } = await supabase

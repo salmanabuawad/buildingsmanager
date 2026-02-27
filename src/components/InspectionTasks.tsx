@@ -2,7 +2,7 @@ import { useEffect, useState, useRef } from 'react';
 import { api, InspectionTask, InspectionTaskStatus, InspectionReport, InspectionReportFile, Building, Asset } from '../lib/api';
 import { useUserRole } from '../contexts/UserRoleContext';
 import { getSession } from '../lib/usersTableAuth';
-import { Loader2, RefreshCw, ClipboardList, AlertCircle, Plus, X, FileText, Paperclip, Camera, Send, Trash2, CheckCircle, RotateCcw, XCircle } from 'lucide-react';
+import { Loader2, RefreshCw, ClipboardList, AlertCircle, Plus, X, FileText, Paperclip, Camera, Send, Trash2, CheckCircle, RotateCcw, XCircle, Pencil } from 'lucide-react';
 
 const STATUS_LABELS: Record<InspectionTaskStatus, string> = {
   new: 'חדש',
@@ -51,13 +51,20 @@ function FileRow({
   file,
   onDelete,
   onViewInModal,
+  onRename,
+  canRename,
 }: {
   file: InspectionReportFile;
   onDelete?: () => void;
   onViewInModal?: (url: string, fileType: string | null) => void;
+  onRename?: () => void;
+  canRename?: boolean;
 }) {
   const [loading, setLoading] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [renaming, setRenaming] = useState(false);
+  const [isEditingName, setIsEditingName] = useState(false);
+  const [editName, setEditName] = useState(file.file_name || file.file_path || '');
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [previewError, setPreviewError] = useState(false);
 
@@ -79,6 +86,27 @@ function FileRow({
       cancelled = true;
     };
   }, [file.file_path, file.file_type]);
+
+  useEffect(() => {
+    if (!isEditingName) setEditName(file.file_name || file.file_path || '');
+  }, [file.file_name, file.file_path, isEditingName]);
+
+  const handleSaveName = async () => {
+    if (!canRename || !onRename) return;
+    const name = editName.trim() || file.file_path;
+    if (name === (file.file_name || file.file_path)) {
+      setIsEditingName(false);
+      return;
+    }
+    setRenaming(true);
+    try {
+      await api.inspectionReports.files.update(file.id, { file_name: name });
+      setIsEditingName(false);
+      onRename();
+    } finally {
+      setRenaming(false);
+    }
+  };
 
   const handleView = async () => {
     if (onViewInModal) {
@@ -134,9 +162,41 @@ function FileRow({
           <Paperclip className="w-6 h-6 text-slate-500" />
         )}
       </button>
-      <span className="text-sm text-slate-800 truncate flex-1 min-w-0" title={file.file_name || file.file_path}>
-        {file.file_name || file.file_path}
-      </span>
+      <div className="flex-1 min-w-0 flex items-center gap-2">
+        {isEditingName ? (
+          <>
+            <input
+              type="text"
+              value={editName}
+              onChange={(e) => setEditName(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && handleSaveName()}
+              onBlur={handleSaveName}
+              className="flex-1 min-w-0 px-2 py-1 text-sm border border-slate-300 rounded"
+              autoFocus
+              disabled={renaming}
+            />
+            {renaming && <Loader2 className="w-4 h-4 animate-spin text-slate-500 shrink-0" />}
+          </>
+        ) : (
+          <span
+            className={`text-sm text-slate-800 truncate ${canRename ? 'cursor-pointer hover:text-indigo-600' : ''}`}
+            title={file.file_name || file.file_path}
+            onClick={canRename ? () => setIsEditingName(true) : undefined}
+          >
+            {file.file_name || file.file_path}
+          </span>
+        )}
+        {canRename && !isEditingName && (
+          <button
+            type="button"
+            onClick={() => setIsEditingName(true)}
+            className="shrink-0 min-w-[32px] min-h-[32px] flex items-center justify-center text-slate-500 hover:text-indigo-600 rounded"
+            aria-label="שנה שם"
+          >
+            <Pencil className="w-4 h-4" />
+          </button>
+        )}
+      </div>
       <div className="flex items-center gap-1 shrink-0">
         <button
           type="button"
@@ -892,6 +952,8 @@ export function InspectionTasks() {
                               setViewFileUrl(url);
                               setViewFileType(type);
                             }}
+                            canRename={canInspectorEdit || isAdmin}
+                            onRename={refreshDetail}
                           />
                         ))}
                       </ul>

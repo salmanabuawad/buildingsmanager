@@ -15,7 +15,7 @@ interface FileViewerProps {
 }
 
 export function FileViewer({ fileUrl, fileName }: FileViewerProps) {
-  const [fileType, setFileType] = useState<'pdf' | 'image' | 'document' | 'other' | 'loading'>('loading');
+  const [fileType, setFileType] = useState<'pdf' | 'image' | 'video' | 'document' | 'other' | 'loading'>('loading');
   const [numPages, setNumPages] = useState<number>(0);
   const [pageNumber, setPageNumber] = useState<number>(1);
   const [scale, setScale] = useState<number>(1.0);
@@ -488,6 +488,44 @@ export function FileViewer({ fileUrl, fileName }: FileViewerProps) {
           ) : (
             <div className="bg-red-50 border border-red-200 rounded-lg p-6">
               <p className="text-red-800">Failed to prepare image URL.</p>
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  // Video Viewer
+  if (fileType === 'video') {
+    return (
+      <div className="w-full">
+        <div className="border border-slate-300 rounded-t-lg bg-white p-4">
+          <div className="flex items-center justify-end">
+            <button
+              onClick={handleDownload}
+              className="flex items-center gap-2 px-3 py-1 bg-slate-800 text-white rounded hover:bg-slate-700 text-sm"
+              title="הורדת וידאו"
+            >
+              <Download className="h-4 w-4" />
+              הורדת וידאו
+            </button>
+          </div>
+        </div>
+        <div className="border border-t-0 border-slate-300 rounded-b-lg bg-slate-50 p-4 flex justify-center">
+          {isPreparingUrl ? (
+            <div className="flex items-center justify-center p-12">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-slate-800" />
+            </div>
+          ) : actualFileUrl ? (
+            <video
+              src={actualFileUrl}
+              controls
+              playsInline
+              className="max-w-full max-h-[600px]"
+            />
+          ) : (
+            <div className="bg-red-50 border border-red-200 rounded-lg p-6">
+              <p className="text-red-800">Failed to prepare video URL.</p>
             </div>
           )}
         </div>

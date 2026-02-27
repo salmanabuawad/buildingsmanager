@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { X, Trash2, Eye, FileText, Image as ImageIcon, File, AlertTriangle } from 'lucide-react';
+import { X, Trash2, Eye, FileText, Image as ImageIcon, File, AlertTriangle, Video } from 'lucide-react';
 import { api, AssetFile } from '../lib/api';
 import { FileViewer } from './FileViewer';
 
@@ -140,6 +140,7 @@ export function AssetFilesModal({ isOpen, onClose, assetId, measurementDate, onF
   const getFileIcon = (fileType?: string) => {
     if (!fileType) return <FileText className="h-8 w-8" />;
     if (fileType.startsWith('image/')) return <ImageIcon className="h-8 w-8" />;
+    if (fileType.startsWith('video/')) return <Video className="h-8 w-8" />;
     if (fileType === 'application/pdf') return <FileText className="h-8 w-8" />;
     return <File className="h-8 w-8" />;
   };

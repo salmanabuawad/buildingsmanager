@@ -1,5 +1,5 @@
 import { useEffect, useState, useRef } from 'react';
-import { api, InspectionTask, InspectionTaskStatus, InspectionReport, InspectionReportFile, Building, Asset } from '../lib/api';
+import { api, InspectionTask, InspectionTaskStatus, InspectionReport, InspectionReportFile, InspectionTaskHistoryEntry, Building, Asset } from '../lib/api';
 import { useUserRole } from '../contexts/UserRoleContext';
 import { getSession } from '../lib/usersTableAuth';
 import { Loader2, RefreshCw, ClipboardList, AlertCircle, Plus, X, FileText, Paperclip, Camera, Send, Trash2, CheckCircle, RotateCcw, XCircle, Pencil } from 'lucide-react';
@@ -8,6 +8,15 @@ const STATUS_LABELS: Record<InspectionTaskStatus, string> = {
   new: 'חדש',
   in_progress: 'בביצוע',
   pending_approval: 'ממתין לאישור',
+  approved: 'אושר',
+  cancelled: 'בוטל',
+};
+
+const HISTORY_ACTION_LABELS: Record<InspectionTaskHistoryEntry['action'], string> = {
+  created: 'נוצר',
+  taken: 'התחיל משימה',
+  submitted: 'נשלח לאישור',
+  returned: 'הוחזר למפקח',
   approved: 'אושר',
   cancelled: 'בוטל',
 };
@@ -240,6 +249,7 @@ export function InspectionTasks() {
   const [detailTask, setDetailTask] = useState<InspectionTask | null>(null);
   const [detailReport, setDetailReport] = useState<InspectionReport | null>(null);
   const [detailFiles, setDetailFiles] = useState<InspectionReportFile[]>([]);
+  const [detailHistory, setDetailHistory] = useState<InspectionTaskHistoryEntry[]>([]);
   const [detailLoading, setDetailLoading] = useState(false);
   const [detailError, setDetailError] = useState<string | null>(null);
   const [detailRefreshTrigger, setDetailRefreshTrigger] = useState(0);
@@ -289,6 +299,7 @@ export function InspectionTasks() {
       setDetailTask(null);
       setDetailReport(null);
       setDetailFiles([]);
+      setDetailHistory([]);
       setDetailError(null);
       setReportEditText('');
       setSubmitComment('');
@@ -304,13 +315,15 @@ export function InspectionTasks() {
     setDetailError(null);
     (async () => {
       try {
-        const [task, report] = await Promise.all([
+        const [task, report, history] = await Promise.all([
           api.inspectionTasks.getOne(selectedTaskId),
           api.inspectionReports.getByTaskId(selectedTaskId),
+          api.inspectionTasks.getHistory(selectedTaskId),
         ]);
         if (cancelled) return;
         setDetailTask(task ?? null);
         setDetailReport(report ?? null);
+        setDetailHistory(history ?? []);
         setReportEditText(report?.report_text ?? '');
         if (report) {
           const files = await api.inspectionReports.files.list(report.id);
@@ -947,7 +960,7 @@ export function InspectionTasks() {
                           <FileRow
                             key={f.id}
                             file={f}
-                            onDelete={canInspectorEdit ? refreshDetail : undefined}
+                            onDelete={(canInspectorEdit || isAdmin) ? refreshDetail : undefined}
                             onViewInModal={(url, type) => {
                               setViewFileUrl(url);
                               setViewFileType(type);
@@ -959,6 +972,23 @@ export function InspectionTasks() {
                       </ul>
                     )}
                   </div>
+                  {detailHistory.length > 0 && (
+                    <div className="space-y-2 pt-2 border-t border-slate-200">
+                      <h4 className="text-sm font-semibold text-slate-700">היסטוריה והערות</h4>
+                      <ul className="space-y-3">
+                        {detailHistory.map((h) => (
+                          <li key={h.id} className="text-sm border-r-2 border-slate-200 pr-2" dir="rtl">
+                            <span className="font-medium text-slate-700">{HISTORY_ACTION_LABELS[h.action]}</span>
+                            <span className="text-slate-500 mx-1">—</span>
+                            <span className="text-slate-600">{new Date(h.created_at).toLocaleString('he-IL')}</span>
+                            {h.comment_text && (
+                              <p className="mt-1 text-slate-700 bg-slate-50 rounded p-2">{h.comment_text}</p>
+                            )}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
                   {canInspectorEdit && (
                     <div className="space-y-3 pt-2 border-t border-slate-200">
                       <div>

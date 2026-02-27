@@ -612,6 +612,15 @@ export interface InspectionTask {
   note: string | null;
 }
 
+export interface InspectionTaskHistoryEntry {
+  id: number;
+  task_id: number;
+  created_at: string;
+  created_by: number | null;
+  action: 'created' | 'taken' | 'submitted' | 'returned' | 'approved' | 'cancelled';
+  comment_text: string | null;
+}
+
 export interface InspectionReport {
   id: number;
   task_id: number;
@@ -4952,6 +4961,16 @@ export const api = {
         .maybeSingle();
       if (error) throw error;
       return data as InspectionTask | null;
+    },
+    /** Get all history entries for a task (actions + comments when sent back/forward). */
+    getHistory: async (taskId: number): Promise<InspectionTaskHistoryEntry[]> => {
+      const { data, error } = await supabase
+        .from('inspection_task_history')
+        .select('id, task_id, created_at, created_by, action, comment_text')
+        .eq('task_id', taskId)
+        .order('created_at', { ascending: true });
+      if (error) throw error;
+      return (data || []) as InspectionTaskHistoryEntry[];
     },
     /**
      * Returns the asset list the inspector should use when linking an upload to an asset:

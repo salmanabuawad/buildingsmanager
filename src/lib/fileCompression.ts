@@ -234,7 +234,7 @@ export async function compressFile(file: File): Promise<File> {
 /**
  * Gets file type category for determining which viewer to use
  */
-export function getFileTypeCategory(fileName: string, mimeType?: string): 'pdf' | 'image' | 'document' | 'other' {
+export function getFileTypeCategory(fileName: string, mimeType?: string): 'pdf' | 'image' | 'video' | 'document' | 'other' {
   const lowerName = fileName.toLowerCase();
   const lowerMime = (mimeType || '').toLowerCase();
 
@@ -242,9 +242,14 @@ export function getFileTypeCategory(fileName: string, mimeType?: string): 'pdf' 
     return 'pdf';
   }
 
-  if (lowerName.match(/\.(jpg|jpeg|png|gif|webp|bmp|svg)$/i) || 
+  if (lowerName.match(/\.(jpg|jpeg|png|gif|webp|bmp|svg)$/i) ||
       lowerMime.startsWith('image/')) {
     return 'image';
+  }
+
+  if (lowerName.match(/\.(mp4|webm|mov|ogg|m4v)$/i) ||
+      lowerMime.startsWith('video/')) {
+    return 'video';
   }
 
   if (lowerName.match(/\.(doc|docx|xls|xlsx|txt|rtf)$/i) ||

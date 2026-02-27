@@ -2,7 +2,7 @@ import { useEffect, useState, useRef } from 'react';
 import { api, InspectionTask, InspectionTaskStatus, InspectionReport, InspectionReportFile, Building, Asset } from '../lib/api';
 import { useUserRole } from '../contexts/UserRoleContext';
 import { getSession } from '../lib/usersTableAuth';
-import { Loader2, RefreshCw, ClipboardList, AlertCircle, Plus, X, FileText, Paperclip, Camera, Send, Trash2 } from 'lucide-react';
+import { Loader2, RefreshCw, ClipboardList, AlertCircle, Plus, X, FileText, Paperclip, Camera, Send, Trash2, CheckCircle, RotateCcw, XCircle } from 'lucide-react';
 
 const STATUS_LABELS: Record<InspectionTaskStatus, string> = {
   new: 'חדש',
@@ -184,6 +184,11 @@ export function InspectionTasks() {
   /** State-based list of files just uploaded (forces re-render so file appears immediately) */
   const [sessionUploadedFiles, setSessionUploadedFiles] = useState<InspectionReportFile[]>([]);
   const [uploadSuccessMsg, setUploadSuccessMsg] = useState<string | null>(null);
+  const [lastUploadedFile, setLastUploadedFile] = useState<InspectionReportFile | null>(null);
+  const [returnNote, setReturnNote] = useState('');
+  const [approveSaving, setApproveSaving] = useState(false);
+  const [returnSaving, setReturnSaving] = useState(false);
+  const [cancelSaving, setCancelSaving] = useState(false);
 
   const fetchTasks = async () => {
     try {
@@ -212,9 +217,11 @@ export function InspectionTasks() {
       setDetailError(null);
       setReportEditText('');
       setSubmitComment('');
+      setReturnNote('');
       optimisticFilesRef.current.clear();
       setSessionUploadedFiles([]);
       setUploadSuccessMsg(null);
+      setLastUploadedFile(null);
       return;
     }
     let cancelled = false;
@@ -236,6 +243,7 @@ export function InspectionTasks() {
             setDetailFiles((prev) =>
               files.length > 0 ? files : prev.length > 0 ? prev : []
             );
+            if (files.length > 0) setLastUploadedFile(null);
           }
         } else {
           setDetailFiles([]);
@@ -298,7 +306,11 @@ export function InspectionTasks() {
     const seen = new Set(serverIds);
     for (const f of sessionExtra) seen.add(f.id);
     const refOnly = refExtra.filter((f) => !seen.has(f.id));
-    return [...sessionExtra, ...refOnly, ...fromServer];
+    let list: InspectionReportFile[] = [...sessionExtra, ...refOnly, ...fromServer];
+    if (lastUploadedFile && reportId != null && lastUploadedFile.report_id === reportId && !seen.has(lastUploadedFile.id)) {
+      list = [lastUploadedFile, ...list];
+    }
+    return list;
   })();
 
   const canInspectorEdit =
@@ -307,8 +319,21 @@ export function InspectionTasks() {
     session?.user_id === detailTask.assigned_to &&
     (detailTask.status === 'new' || detailTask.status === 'in_progress');
 
+  const canAdminActOnTask = isAdmin && detailTask?.status === 'pending_approval';
+
   const refreshDetail = () => {
     setDetailRefreshTrigger((t) => t + 1);
+  };
+
+  const refreshFilesOnly = async () => {
+    if (selectedTaskId == null || !detailReport) return;
+    try {
+      const files = await api.inspectionReports.files.list(detailReport.id);
+      setDetailFiles(files);
+      if (files.length > 0) setLastUploadedFile(null);
+    } catch (err) {
+      setDetailError(err instanceof Error ? err.message : 'שגיאה ברענון רשימת הקבצים');
+    }
   };
 
   const handleSaveReport = async () => {
@@ -355,6 +380,53 @@ export function InspectionTasks() {
     }
   };
 
+  const handleApprove = async () => {
+    if (selectedTaskId == null) return;
+    setApproveSaving(true);
+    setDetailError(null);
+    try {
+      await api.inspectionTasks.approveTask(selectedTaskId);
+      refreshDetail();
+      fetchTasks();
+    } catch (err) {
+      setDetailError(err instanceof Error ? err.message : 'שגיאה באישור המשימה');
+    } finally {
+      setApproveSaving(false);
+    }
+  };
+
+  const handleReturnToInspector = async () => {
+    if (selectedTaskId == null) return;
+    setReturnSaving(true);
+    setDetailError(null);
+    try {
+      await api.inspectionTasks.returnToInspector(selectedTaskId, returnNote);
+      setReturnNote('');
+      refreshDetail();
+      fetchTasks();
+    } catch (err) {
+      setDetailError(err instanceof Error ? err.message : 'שגיאה בהחזרה למפקח');
+    } finally {
+      setReturnSaving(false);
+    }
+  };
+
+  const handleCancelTask = async () => {
+    if (selectedTaskId == null) return;
+    if (!window.confirm('לבטל את המשימה? לא ניתן לשחזר.')) return;
+    setCancelSaving(true);
+    setDetailError(null);
+    try {
+      await api.inspectionTasks.cancelTask(selectedTaskId);
+      refreshDetail();
+      fetchTasks();
+    } catch (err) {
+      setDetailError(err instanceof Error ? err.message : 'שגיאה בדחיית המשימה');
+    } finally {
+      setCancelSaving(false);
+    }
+  };
+
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     e.target.value = '';
@@ -392,7 +464,8 @@ export function InspectionTasks() {
       setDetailFiles((prev) => [uploaded, ...prev]);
       setUploadSuccessMsg(`הקובץ "${file.name}" הועלה בהצלחה`);
       setTimeout(() => setUploadSuccessMsg(null), 4000);
-      setTimeout(() => refreshDetail(), 600);
+      setLastUploadedFile(uploaded);
+      // Do NOT call refreshDetail() here - it can refetch before DB replicates and overwrite with []
     } catch (err: unknown) {
       const msg =
         err instanceof Error
@@ -729,9 +802,20 @@ export function InspectionTasks() {
                     )}
                   </div>
                   <div>
-                    <h4 className="flex items-center gap-2 text-sm font-semibold text-slate-700 mb-2">
-                      <Paperclip className="w-4 h-4" /> קבצים ({displayFiles.length})
-                    </h4>
+                    <div className="flex items-center justify-between gap-2 mb-2">
+                      <h4 className="flex items-center gap-2 text-sm font-semibold text-slate-700">
+                        <Paperclip className="w-4 h-4" /> קבצים ({displayFiles.length})
+                      </h4>
+                      {detailReport && (
+                        <button
+                          type="button"
+                          onClick={refreshFilesOnly}
+                          className="text-xs text-indigo-600 hover:underline min-h-[32px] px-2"
+                        >
+                          רענן רשימה
+                        </button>
+                      )}
+                    </div>
                     {canInspectorEdit && (
                       <div className="mb-3 space-y-2">
                         <input
@@ -824,6 +908,47 @@ export function InspectionTasks() {
                           className="flex items-center justify-center gap-2 min-h-[44px] px-4 py-2 bg-green-600 text-white rounded-lg text-sm font-medium hover:bg-green-700 disabled:opacity-50 touch-manipulation"
                         >
                           {submitSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />} שלח לאישור
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                  {canAdminActOnTask && (
+                    <div className="space-y-3 pt-2 border-t border-slate-200">
+                      <h4 className="text-sm font-semibold text-slate-700">פעולות מנהל (ממתין לאישור)</h4>
+                      <div>
+                        <label className="block text-sm font-medium text-slate-700 mb-1">הערה להחזרה למפקח (אופציונלי)</label>
+                        <textarea
+                          value={returnNote}
+                          onChange={(e) => setReturnNote(e.target.value)}
+                          className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm min-h-[70px]"
+                          placeholder="הוסף הערה למפקח כשמחזירים את המשימה..."
+                          dir="rtl"
+                        />
+                      </div>
+                      <div className="flex flex-wrap gap-2">
+                        <button
+                          type="button"
+                          onClick={handleApprove}
+                          disabled={approveSaving || returnSaving || cancelSaving}
+                          className="flex items-center justify-center gap-2 min-h-[44px] px-4 py-2 bg-green-600 text-white rounded-lg text-sm font-medium hover:bg-green-700 disabled:opacity-50 touch-manipulation"
+                        >
+                          {approveSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle className="w-4 h-4" />} אשר משימה
+                        </button>
+                        <button
+                          type="button"
+                          onClick={handleReturnToInspector}
+                          disabled={returnSaving || approveSaving || cancelSaving}
+                          className="flex items-center justify-center gap-2 min-h-[44px] px-4 py-2 bg-amber-600 text-white rounded-lg text-sm font-medium hover:bg-amber-700 disabled:opacity-50 touch-manipulation"
+                        >
+                          {returnSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <RotateCcw className="w-4 h-4" />} החזר למפקח
+                        </button>
+                        <button
+                          type="button"
+                          onClick={handleCancelTask}
+                          disabled={cancelSaving || approveSaving || returnSaving}
+                          className="flex items-center justify-center gap-2 min-h-[44px] px-4 py-2 bg-red-600 text-white rounded-lg text-sm font-medium hover:bg-red-700 disabled:opacity-50 touch-manipulation"
+                        >
+                          {cancelSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <XCircle className="w-4 h-4" />} דחה משימה
                         </button>
                       </div>
                     </div>

@@ -5046,6 +5046,84 @@ export const api = {
       });
       return task as InspectionTask;
     },
+    /** Admin approves task (pending_approval -> approved). */
+    approveTask: async (taskId: number): Promise<InspectionTask> => {
+      const session = getSession();
+      if (!session?.user_id) throw new Error('לא מחובר');
+      if (session.user_role !== 'admin') throw new Error('רק מנהל יכול לאשר משימה');
+      const now = new Date().toISOString();
+      const { data: task, error: updateError } = await supabase
+        .from('inspection_tasks')
+        .update({
+          status: 'approved',
+          approved_at: now,
+          approved_by: session.user_id,
+          updated_at: now,
+        })
+        .eq('id', taskId)
+        .eq('status', 'pending_approval')
+        .select()
+        .single();
+      if (updateError || !task) throw new Error(updateError?.message || 'לא ניתן לאשר את המשימה');
+      await supabase.from('inspection_task_history').insert({
+        task_id: taskId,
+        created_by: session.user_id,
+        action: 'approved',
+        comment_text: null,
+      });
+      return task as InspectionTask;
+    },
+    /** Admin returns task to inspector (pending_approval -> in_progress); note is stored in history. */
+    returnToInspector: async (taskId: number, note?: string | null): Promise<InspectionTask> => {
+      const session = getSession();
+      if (!session?.user_id) throw new Error('לא מחובר');
+      if (session.user_role !== 'admin') throw new Error('רק מנהל יכול להחזיר למפקח');
+      const now = new Date().toISOString();
+      const { data: task, error: updateError } = await supabase
+        .from('inspection_tasks')
+        .update({
+          status: 'in_progress',
+          submitted_at: null,
+          updated_at: now,
+        })
+        .eq('id', taskId)
+        .eq('status', 'pending_approval')
+        .select()
+        .single();
+      if (updateError || !task) throw new Error(updateError?.message || 'לא ניתן להחזיר למפקח');
+      await supabase.from('inspection_task_history').insert({
+        task_id: taskId,
+        created_by: session.user_id,
+        action: 'returned',
+        comment_text: note?.trim() || null,
+      });
+      return task as InspectionTask;
+    },
+    /** Admin rejects/cancels task (pending_approval -> cancelled). */
+    cancelTask: async (taskId: number): Promise<InspectionTask> => {
+      const session = getSession();
+      if (!session?.user_id) throw new Error('לא מחובר');
+      if (session.user_role !== 'admin') throw new Error('רק מנהל יכול לדחות משימה');
+      const now = new Date().toISOString();
+      const { data: task, error: updateError } = await supabase
+        .from('inspection_tasks')
+        .update({
+          status: 'cancelled',
+          updated_at: now,
+        })
+        .eq('id', taskId)
+        .eq('status', 'pending_approval')
+        .select()
+        .single();
+      if (updateError || !task) throw new Error(updateError?.message || 'לא ניתן לדחות את המשימה');
+      await supabase.from('inspection_task_history').insert({
+        task_id: taskId,
+        created_by: session.user_id,
+        action: 'cancelled',
+        comment_text: null,
+      });
+      return task as InspectionTask;
+    },
   },
   inspectionReports: {
     getByTaskId: async (taskId: number): Promise<InspectionReport | null> => {

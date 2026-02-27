@@ -1898,7 +1898,7 @@ function App() {
               />
             )}
             {activeTab?.type === 'inspection-tasks' && (
-              <InspectionTasks key={activeTab.refreshKey} />
+              <InspectionTasks key={activeTab.id} />
             )}
           </div>
         </div>

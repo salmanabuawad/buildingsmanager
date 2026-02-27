@@ -224,7 +224,11 @@ export function InspectionTasks() {
         setReportEditText(report?.report_text ?? '');
         if (report) {
           const files = await api.inspectionReports.files.list(report.id);
-          if (!cancelled) setDetailFiles(files);
+          if (!cancelled) {
+            setDetailFiles((prev) =>
+              files.length > 0 ? files : prev.length > 0 ? prev : []
+            );
+          }
         } else {
           setDetailFiles([]);
         }
@@ -346,6 +350,7 @@ export function InspectionTasks() {
       const assetId = Number(uploadAssetId);
       const uploaded = await api.inspectionReports.files.upload(report.id, file, assetId);
       setDetailFiles((prev) => [uploaded, ...prev]);
+      setTimeout(() => refreshDetail(), 600);
     } catch (err: unknown) {
       const msg =
         err instanceof Error

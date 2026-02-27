@@ -179,6 +179,8 @@ export function InspectionTasks() {
   const [taskAssets, setTaskAssets] = useState<Asset[]>([]);
   const [uploadAssetId, setUploadAssetId] = useState<number | ''>('');
   const fileInputRef = useRef<HTMLInputElement>(null);
+  /** Files uploaded this session (by task id) so they stay visible even if state/effect overwrites */
+  const optimisticFilesRef = useRef<Map<number, InspectionReportFile[]>>(new Map());
 
   const fetchTasks = async () => {
     try {
@@ -207,6 +209,7 @@ export function InspectionTasks() {
       setDetailError(null);
       setReportEditText('');
       setSubmitComment('');
+      optimisticFilesRef.current.clear();
       return;
     }
     let cancelled = false;
@@ -277,6 +280,14 @@ export function InspectionTasks() {
   };
 
   const session = getSession();
+  const displayFiles = (() => {
+    const fromServer = detailFiles;
+    const optimistic = selectedTaskId != null ? optimisticFilesRef.current.get(selectedTaskId) || [] : [];
+    const serverIds = new Set(fromServer.map((f) => f.id));
+    const extra = optimistic.filter((f) => !serverIds.has(f.id));
+    return [...extra, ...fromServer];
+  })();
+
   const canInspectorEdit =
     isInspector &&
     detailTask &&
@@ -349,6 +360,11 @@ export function InspectionTasks() {
       }
       const assetId = Number(uploadAssetId);
       const uploaded = await api.inspectionReports.files.upload(report.id, file, assetId);
+      const tid = selectedTaskId;
+      optimisticFilesRef.current.set(tid, [
+        uploaded,
+        ...(optimisticFilesRef.current.get(tid) || []),
+      ]);
       setDetailFiles((prev) => [uploaded, ...prev]);
       setTimeout(() => refreshDetail(), 600);
     } catch (err: unknown) {
@@ -683,7 +699,7 @@ export function InspectionTasks() {
                   </div>
                   <div>
                     <h4 className="flex items-center gap-2 text-sm font-semibold text-slate-700 mb-2">
-                      <Paperclip className="w-4 h-4" /> קבצים ({detailFiles.length})
+                      <Paperclip className="w-4 h-4" /> קבצים ({displayFiles.length})
                     </h4>
                     {canInspectorEdit && (
                       <div className="mb-3 space-y-2">
@@ -733,11 +749,11 @@ export function InspectionTasks() {
                         )}
                       </div>
                     )}
-                    {detailFiles.length === 0 ? (
+                    {displayFiles.length === 0 ? (
                       <p className="text-slate-500 text-sm">אין קבצים מועלים.</p>
                     ) : (
                       <ul className="space-y-2">
-                        {detailFiles.map((f) => (
+                        {displayFiles.map((f) => (
                           <FileRow
                             key={f.id}
                             file={f}

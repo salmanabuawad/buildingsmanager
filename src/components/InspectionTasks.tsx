@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { api, InspectionTask, InspectionTaskStatus, Building } from '../lib/api';
+import { api, InspectionTask, InspectionTaskStatus, Building, Asset } from '../lib/api';
 import { useUserRole } from '../contexts/UserRoleContext';
 import { Loader2, RefreshCw, ClipboardList, AlertCircle, Plus, X } from 'lucide-react';
 
@@ -48,7 +48,9 @@ export function InspectionTasks() {
   const [createError, setCreateError] = useState<string | null>(null);
   const [buildings, setBuildings] = useState<Building[]>([]);
   const [inspectors, setInspectors] = useState<UserOption[]>([]);
-  const [createForm, setCreateForm] = useState({ title: '', building_number: '' as number | '', assigned_to: '' as number | '', note: '' });
+  const [buildingAssets, setBuildingAssets] = useState<Asset[]>([]);
+  const [assetsLoading, setAssetsLoading] = useState(false);
+  const [createForm, setCreateForm] = useState({ title: '', building_number: '' as number | '', assigned_to: '' as number | '', note: '', asset_ids: [] as number[] });
 
   const fetchTasks = async () => {
     try {
@@ -84,9 +86,29 @@ export function InspectionTasks() {
 
   const openCreateModal = () => {
     setCreateError(null);
-    setCreateForm({ title: '', building_number: '', assigned_to: '', note: '' });
+    setCreateForm({ title: '', building_number: '', assigned_to: '', note: '', asset_ids: [] });
+    setBuildingAssets([]);
     setCreateModalOpen(true);
   };
+
+  // When building is selected, load its assets for optional selection
+  useEffect(() => {
+    const bn = createForm.building_number;
+    if (bn === '' || isNaN(Number(bn))) {
+      setBuildingAssets([]);
+      setCreateForm((f) => (f.asset_ids.length ? { ...f, asset_ids: [] } : f));
+      return;
+    }
+    setAssetsLoading(true);
+    api.assets
+      .getAll(Number(bn))
+      .then((list) => {
+        setBuildingAssets(list || []);
+        setCreateForm((f) => ({ ...f, asset_ids: [] }));
+      })
+      .catch(() => setBuildingAssets([]))
+      .finally(() => setAssetsLoading(false));
+  }, [createForm.building_number]);
 
   const handleCreateSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -101,6 +123,7 @@ export function InspectionTasks() {
       await api.inspectionTasks.create({
         title: createForm.title.trim(),
         building_number: bn,
+        asset_ids: createForm.asset_ids.length > 0 ? createForm.asset_ids : undefined,
         assigned_to: createForm.assigned_to === '' ? undefined : Number(createForm.assigned_to),
         note: createForm.note.trim() || undefined,
       });
@@ -215,6 +238,46 @@ export function InspectionTasks() {
                     </option>
                   ))}
                 </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">נכסים (אופציונלי)</label>
+                {createForm.building_number === '' || createForm.building_number === undefined ? (
+                  <p className="text-slate-500 text-sm">בחר מבנה כדי לבחור נכסים</p>
+                ) : assetsLoading ? (
+                  <div className="flex items-center gap-2 py-2 text-slate-600">
+                    <Loader2 className="w-4 h-4 animate-spin" /> טוען נכסים...
+                  </div>
+                ) : buildingAssets.length === 0 ? (
+                  <p className="text-slate-500 text-sm">אין נכסים במבנה זה</p>
+                ) : (
+                  <div className="border border-slate-200 rounded-lg max-h-[180px] overflow-y-auto p-2 space-y-1.5">
+                    {buildingAssets.map((asset) => {
+                      const checked = createForm.asset_ids.includes(asset.asset_id);
+                      return (
+                        <label
+                          key={asset.asset_id}
+                          className="flex items-center gap-2 py-1.5 px-2 rounded hover:bg-slate-50 cursor-pointer min-h-[44px]"
+                        >
+                          <input
+                            type="checkbox"
+                            checked={checked}
+                            onChange={() => {
+                              setCreateForm((f) => ({
+                                ...f,
+                                asset_ids: checked ? f.asset_ids.filter((id) => id !== asset.asset_id) : [...f.asset_ids, asset.asset_id],
+                              }));
+                            }}
+                            className="w-4 h-4 rounded border-slate-300 text-indigo-600"
+                          />
+                          <span className="text-sm text-slate-800">
+                            נכס {asset.asset_id}
+                            {asset.payer_id ? ` (${asset.payer_id})` : ''}
+                          </span>
+                        </label>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-1">מפקח (מוקצה אל)</label>

@@ -612,6 +612,27 @@ export interface InspectionTask {
   note: string | null;
 }
 
+export interface InspectionReport {
+  id: number;
+  task_id: number;
+  report_text: string | null;
+  reported_at: string | null;
+  reported_by: number | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface InspectionReportFile {
+  id: number;
+  report_id: number;
+  asset_id: number | null;
+  file_path: string;
+  file_name: string | null;
+  file_type: string | null;
+  uploaded_at: string;
+  uploaded_by: number | null;
+}
+
 /**
  * Helper function to convert Hebrew boolean strings to actual booleans
  * This is used both when loading data from DB and when preparing data for DB
@@ -4923,6 +4944,29 @@ export const api = {
       if (error) throw error;
       return (data || []) as InspectionTask[];
     },
+    getOne: async (taskId: number): Promise<InspectionTask | null> => {
+      const { data, error } = await supabase
+        .from('inspection_tasks')
+        .select('*')
+        .eq('id', taskId)
+        .maybeSingle();
+      if (error) throw error;
+      return data as InspectionTask | null;
+    },
+    /**
+     * Returns the asset list the inspector should use when linking an upload to an asset:
+     * - If the task has asset_ids assigned, returns only those task assets.
+     * - Otherwise returns all assets for the task's building.
+     */
+    getAssetsForFileSelection: async (taskId: number): Promise<Asset[]> => {
+      const task = await api.inspectionTasks.getOne(taskId);
+      if (!task) return [];
+      if (task.asset_ids && task.asset_ids.length > 0) {
+        const list = await api.assets.getAssetsByIdsBatched(task.asset_ids);
+        return list as Asset[];
+      }
+      return api.assets.getAll(task.building_number);
+    },
     create: async (input: { title: string; building_number: number; asset_ids?: number[]; assigned_to?: number; note?: string }): Promise<InspectionTask> => {
       const session = getSession();
       if (!session?.user_id) throw new Error('לא מחובר');
@@ -4949,6 +4993,110 @@ export const api = {
       });
       if (historyError) console.warn('[inspectionTasks.create] history insert failed:', historyError);
       return task as InspectionTask;
+    },
+  },
+  inspectionReports: {
+    getByTaskId: async (taskId: number): Promise<InspectionReport | null> => {
+      const { data, error } = await supabase
+        .from('inspection_reports')
+        .select('*')
+        .eq('task_id', taskId)
+        .maybeSingle();
+      if (error) throw error;
+      return data as InspectionReport | null;
+    },
+    upsert: async (taskId: number, reportText?: string | null): Promise<InspectionReport> => {
+      const session = getSession();
+      const { data: existing } = await supabase.from('inspection_reports').select('id').eq('task_id', taskId).maybeSingle();
+      const now = new Date().toISOString();
+      if (existing) {
+        const { data, error } = await supabase
+          .from('inspection_reports')
+          .update({
+            report_text: reportText !== undefined ? reportText : undefined,
+            updated_at: now,
+            ...(reportText !== undefined && { reported_at: now, reported_by: session?.user_id ?? null }),
+          })
+          .eq('task_id', taskId)
+          .select()
+          .single();
+        if (error) throw error;
+        return data as InspectionReport;
+      }
+      const { data, error } = await supabase
+        .from('inspection_reports')
+        .insert({
+          task_id: taskId,
+          report_text: reportText ?? null,
+          reported_at: reportText ? now : null,
+          reported_by: reportText ? (session?.user_id ?? null) : null,
+          updated_at: now,
+        })
+        .select()
+        .single();
+      if (error) throw error;
+      return data as InspectionReport;
+    },
+    files: {
+      list: async (reportId: number): Promise<InspectionReportFile[]> => {
+        const { data, error } = await supabase
+          .from('inspection_report_files')
+          .select('*')
+          .eq('report_id', reportId)
+          .order('uploaded_at', { ascending: false });
+        if (error) throw error;
+        return (data || []) as InspectionReportFile[];
+      },
+      /** Upload a file; pass assetId from task assets (or building assets if task has no asset_ids). Use inspectionTasks.getAssetsForFileSelection(taskId) for the list. */
+      upload: async (
+        reportId: number,
+        file: File,
+        assetId?: number | null
+      ): Promise<InspectionReportFile> => {
+        const session = getSession();
+        const ext = file.name.split('.').pop() || 'bin';
+        const safeName = `${Date.now()}_${file.name.replace(/[^a-zA-Z0-9._-]/g, '_')}`;
+        const filePath = `${reportId}/${safeName}`;
+        const { error: uploadError } = await supabase.storage
+          .from('inspection-reports')
+          .upload(filePath, file, { contentType: file.type || undefined });
+        if (uploadError) throw uploadError;
+        const { data: row, error: insertError } = await supabase
+          .from('inspection_report_files')
+          .insert({
+            report_id: reportId,
+            asset_id: assetId ?? null,
+            file_path,
+            file_name: file.name,
+            file_type: file.type || null,
+            uploaded_by: session?.user_id ?? null,
+          })
+          .select()
+          .single();
+        if (insertError) throw insertError;
+        return row as InspectionReportFile;
+      },
+      delete: async (fileId: number): Promise<{ success: boolean; error?: string }> => {
+        const { data: file, error: fetchError } = await supabase
+          .from('inspection_report_files')
+          .select('file_path')
+          .eq('id', fileId)
+          .single();
+        if (fetchError || !file) return { success: false, error: fetchError?.message || 'File not found' };
+        await supabase.storage.from('inspection-reports').remove([file.file_path]);
+        const { error: deleteError } = await supabase.from('inspection_report_files').delete().eq('id', fileId);
+        if (deleteError) return { success: false, error: deleteError.message };
+        return { success: true };
+      },
+      getDownloadUrl: (filePath: string): string => {
+        const { data } = supabase.storage.from('inspection-reports').getPublicUrl(filePath);
+        return data.publicUrl;
+      },
+      getSignedUrl: async (filePath: string, expiresIn = 3600): Promise<string> => {
+        const { data, error } = await supabase.storage.from('inspection-reports').createSignedUrl(filePath, expiresIn);
+        if (error) throw error;
+        return data.signedUrl;
+      },
     },
   },
 };

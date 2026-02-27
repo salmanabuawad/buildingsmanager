@@ -342,7 +342,7 @@ export function InspectionTasks() {
       const assetId = uploadAssetId === '' ? undefined : Number(uploadAssetId);
       const uploaded = await api.inspectionReports.files.upload(report.id, file, assetId);
       setDetailFiles((prev) => [uploaded, ...prev]);
-      refreshDetail();
+      // Don't call refreshDetail() here: it can refetch before the DB sees the new row and overwrite with []
     } catch (err) {
       setDetailError(err instanceof Error ? err.message : 'שגיאה בהעלאת הקובץ');
     } finally {

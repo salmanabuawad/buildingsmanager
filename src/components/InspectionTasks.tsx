@@ -38,10 +38,45 @@ interface UserOption {
   user_role: string;
 }
 
+function isImageType(type: string | null): boolean {
+  if (!type) return false;
+  return type.startsWith('image/');
+}
+function isVideoType(type: string | null): boolean {
+  if (!type) return false;
+  return type.startsWith('video/');
+}
+
 function FileRow({ file, onDelete }: { file: InspectionReportFile; onDelete?: () => void }) {
   const [loading, setLoading] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [previewError, setPreviewError] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    if (!isImageType(file.file_type) && !isVideoType(file.file_type)) {
+      setPreviewUrl(null);
+      return;
+    }
+    api.inspectionReports.files
+      .getSignedUrl(file.file_path)
+      .then((url) => {
+        if (!cancelled) setPreviewUrl(url);
+      })
+      .catch(() => {
+        if (!cancelled) setPreviewError(true);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [file.file_path, file.file_type]);
+
   const handleView = async () => {
+    if (previewUrl) {
+      window.open(previewUrl, '_blank');
+      return;
+    }
     setLoading(true);
     try {
       const url = await api.inspectionReports.files.getSignedUrl(file.file_path);
@@ -60,8 +95,32 @@ function FileRow({ file, onDelete }: { file: InspectionReportFile; onDelete?: ()
       setDeleting(false);
     }
   };
+
+  const isPreviewType = isImageType(file.file_type) || isVideoType(file.file_type);
+  const previewLoading = isPreviewType && !previewUrl && !previewError;
+
   return (
-    <li className="flex items-center justify-between gap-2 py-2 px-3 bg-slate-50 border border-slate-200 rounded-lg">
+    <li className="flex items-center gap-3 py-2 px-3 bg-slate-50 border border-slate-200 rounded-lg">
+      <button
+        type="button"
+        onClick={handleView}
+        disabled={loading || previewLoading}
+        className="shrink-0 w-16 h-16 rounded-lg overflow-hidden bg-slate-200 flex items-center justify-center focus:outline-none focus:ring-2 focus:ring-indigo-500 touch-manipulation min-w-[64px] min-h-[64px]"
+        aria-label="צפה בקובץ"
+      >
+        {previewLoading && (
+          <Loader2 className="w-6 h-6 text-slate-500 animate-spin" />
+        )}
+        {previewUrl && isImageType(file.file_type) && (
+          <img src={previewUrl} alt="" className="w-full h-full object-cover" />
+        )}
+        {previewUrl && isVideoType(file.file_type) && (
+          <video src={previewUrl} className="w-full h-full object-cover" muted playsInline preload="metadata" />
+        )}
+        {(!isPreviewType || previewError) && !previewLoading && (
+          <Paperclip className="w-6 h-6 text-slate-500" />
+        )}
+      </button>
       <span className="text-sm text-slate-800 truncate flex-1 min-w-0" title={file.file_name || file.file_path}>
         {file.file_name || file.file_path}
       </span>
@@ -69,7 +128,7 @@ function FileRow({ file, onDelete }: { file: InspectionReportFile; onDelete?: ()
         <button
           type="button"
           onClick={handleView}
-          disabled={loading}
+          disabled={loading || previewLoading}
           className="min-h-[44px] min-w-[44px] flex items-center justify-center px-3 py-2 text-indigo-600 hover:bg-indigo-50 rounded-lg text-sm font-medium disabled:opacity-50 touch-manipulation"
         >
           {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : 'צפה'}
@@ -278,9 +337,11 @@ export function InspectionTasks() {
       let report = await api.inspectionReports.getByTaskId(selectedTaskId);
       if (!report) {
         report = await api.inspectionReports.upsert(selectedTaskId, reportEditText || null);
+        setDetailReport(report);
       }
       const assetId = uploadAssetId === '' ? undefined : Number(uploadAssetId);
-      await api.inspectionReports.files.upload(report.id, file, assetId);
+      const uploaded = await api.inspectionReports.files.upload(report.id, file, assetId);
+      setDetailFiles((prev) => [uploaded, ...prev]);
       refreshDetail();
     } catch (err) {
       setDetailError(err instanceof Error ? err.message : 'שגיאה בהעלאת הקובץ');

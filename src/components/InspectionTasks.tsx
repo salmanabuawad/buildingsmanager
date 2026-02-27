@@ -331,6 +331,10 @@ export function InspectionTasks() {
     const file = e.target.files?.[0];
     e.target.value = '';
     if (!file || selectedTaskId == null) return;
+    if (uploadAssetId === '') {
+      setDetailError('יש לבחור נכס לפני העלאת תמונה או וידאו');
+      return;
+    }
     setFileUploading(true);
     setDetailError(null);
     try {
@@ -339,12 +343,18 @@ export function InspectionTasks() {
         report = await api.inspectionReports.upsert(selectedTaskId, reportEditText || null);
         setDetailReport(report);
       }
-      const assetId = uploadAssetId === '' ? undefined : Number(uploadAssetId);
+      const assetId = Number(uploadAssetId);
       const uploaded = await api.inspectionReports.files.upload(report.id, file, assetId);
       setDetailFiles((prev) => [uploaded, ...prev]);
-      // Don't call refreshDetail() here: it can refetch before the DB sees the new row and overwrite with []
-    } catch (err) {
-      setDetailError(err instanceof Error ? err.message : 'שגיאה בהעלאת הקובץ');
+    } catch (err: unknown) {
+      const msg =
+        err instanceof Error
+          ? err.message
+          : typeof err === 'object' && err !== null && 'message' in err
+            ? String((err as { message: unknown }).message)
+            : 'שגיאה בהעלאת הקובץ';
+      setDetailError(msg);
+      console.error('Inspection report file upload failed:', err);
     } finally {
       setFileUploading(false);
     }
@@ -681,24 +691,23 @@ export function InspectionTasks() {
                           className="hidden"
                           aria-hidden
                         />
-                        <div className="flex flex-wrap items-center gap-2">
-                          <button
-                            type="button"
-                            onClick={() => fileInputRef.current?.click()}
-                            disabled={fileUploading}
-                            className="flex items-center justify-center gap-2 min-h-[44px] px-4 py-2 border border-slate-300 rounded-lg text-slate-700 hover:bg-slate-50 disabled:opacity-50 touch-manipulation text-sm font-medium"
-                          >
-                            {fileUploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Camera className="w-4 h-4" />}
-                            {fileUploading ? 'מעלה...' : 'הוסף תמונה/וידאו'}
-                          </button>
-                          {taskAssets.length > 0 && (
+                        {taskAssets.length === 0 ? (
+                          <p className="text-amber-700 text-sm bg-amber-50 border border-amber-200 rounded-lg p-3">
+                            אין נכסים במשימה או במבנה — לא ניתן להעלות תמונות/וידאו. פנה למנהל להגדרת נכסים.
+                          </p>
+                        ) : (
+                          <div className="flex flex-wrap items-center gap-2">
+                            <label className="text-sm font-medium text-slate-700 shrink-0">נכס (חובה להעלאה)</label>
                             <select
                               value={uploadAssetId === '' ? '' : String(uploadAssetId)}
-                              onChange={(e) => setUploadAssetId(e.target.value === '' ? '' : Number(e.target.value))}
+                              onChange={(e) => {
+                                setUploadAssetId(e.target.value === '' ? '' : Number(e.target.value));
+                                setDetailError(null);
+                              }}
                               className="min-h-[44px] px-3 py-2 border border-slate-300 rounded-lg text-sm"
-                              title="קישור לנכס (אופציונלי)"
+                              required
                             >
-                              <option value="">ללא נכס</option>
+                              <option value="">בחר נכס</option>
                               {taskAssets.map((a) => (
                                 <option key={a.asset_id} value={a.asset_id}>
                                   נכס {a.asset_id}
@@ -706,8 +715,17 @@ export function InspectionTasks() {
                                 </option>
                               ))}
                             </select>
-                          )}
-                        </div>
+                            <button
+                              type="button"
+                              onClick={() => fileInputRef.current?.click()}
+                              disabled={fileUploading || uploadAssetId === ''}
+                              className="flex items-center justify-center gap-2 min-h-[44px] px-4 py-2 border border-slate-300 rounded-lg text-slate-700 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed touch-manipulation text-sm font-medium"
+                            >
+                              {fileUploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Camera className="w-4 h-4" />}
+                              {fileUploading ? 'מעלה...' : 'הוסף תמונה/וידאו'}
+                            </button>
+                          </div>
+                        )}
                       </div>
                     )}
                     {detailFiles.length === 0 ? (

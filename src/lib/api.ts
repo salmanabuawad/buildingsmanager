@@ -5099,20 +5099,23 @@ export const api = {
         if (error) throw error;
         return (data || []) as InspectionReportFile[];
       },
-      /** Upload a file; pass assetId from task assets (or building assets if task has no asset_ids). Use inspectionTasks.getAssetsForFileSelection(taskId) for the list. */
+      /** Upload a file; assetId is required (inspector must select asset before upload). */
       upload: async (
         reportId: number,
         file: File,
         assetId?: number | null
       ): Promise<InspectionReportFile> => {
         const session = getSession();
-        const ext = file.name.split('.').pop() || 'bin';
         const safeName = `${Date.now()}_${file.name.replace(/[^a-zA-Z0-9._-]/g, '_')}`;
         const filePath = `${reportId}/${safeName}`;
         const { error: uploadError } = await supabase.storage
           .from('inspection-reports')
-          .upload(filePath, file, { contentType: file.type || undefined });
-        if (uploadError) throw uploadError;
+          .upload(filePath, file, { contentType: file.type || undefined, upsert: false });
+        if (uploadError) {
+          const msg = uploadError.message || String(uploadError);
+          console.error('Storage upload failed:', uploadError);
+          throw new Error(msg);
+        }
         const { data: row, error: insertError } = await supabase
           .from('inspection_report_files')
           .insert({
@@ -5125,7 +5128,12 @@ export const api = {
           })
           .select()
           .single();
-        if (insertError) throw insertError;
+        if (insertError) {
+          const msg = insertError.message || String(insertError);
+          console.error('inspection_report_files insert failed:', insertError);
+          throw new Error(msg);
+        }
+        if (!row) throw new Error('ההעלאה הצליחה אך לא התקבלה תשובה מהשרת');
         return row as InspectionReportFile;
       },
       delete: async (fileId: number): Promise<{ success: boolean; error?: string }> => {

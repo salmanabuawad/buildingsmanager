@@ -4565,7 +4565,7 @@ export const api = {
       auth_user_id: string | null;
       user_name: string;
       user_email: string | null;
-      user_role: 'admin' | 'user';
+      user_role: 'admin' | 'user' | 'inspector';
       active: boolean;
       created_at: string;
       updated_at: string;
@@ -4922,6 +4922,33 @@ export const api = {
       const { data, error } = await query;
       if (error) throw error;
       return (data || []) as InspectionTask[];
+    },
+    create: async (input: { title: string; building_number: number; asset_ids?: number[]; assigned_to?: number; note?: string }): Promise<InspectionTask> => {
+      const session = getSession();
+      if (!session?.user_id) throw new Error('לא מחובר');
+      const { data: task, error: taskError } = await supabase
+        .from('inspection_tasks')
+        .insert({
+          title: input.title.trim(),
+          building_number: input.building_number,
+          asset_ids: input.asset_ids?.length ? input.asset_ids : null,
+          assigned_to: input.assigned_to ?? null,
+          note: input.note?.trim() || null,
+          status: 'new',
+          created_by: session.user_id,
+          updated_at: new Date().toISOString(),
+        })
+        .select()
+        .single();
+      if (taskError) throw taskError;
+      const { error: historyError } = await supabase.from('inspection_task_history').insert({
+        task_id: task.id,
+        created_by: session.user_id,
+        action: 'created',
+        comment_text: null,
+      });
+      if (historyError) console.warn('[inspectionTasks.create] history insert failed:', historyError);
+      return task as InspectionTask;
     },
   },
 };

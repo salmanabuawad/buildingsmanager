@@ -5127,7 +5127,7 @@ export const api = {
     returnToInspector: async (taskId: number, note?: string | null): Promise<InspectionTask> => {
       const session = getSession();
       if (!session?.user_id) throw new Error('לא מחובר');
-      if (session.user_role !== 'admin') throw new Error('רק מנהל יכול להחזיר למפקח');
+      if (session.user_role !== 'admin') throw new Error('רק מנהל יכול להחזיר לפקח');
       const now = new Date().toISOString();
       const { data: task, error: updateError } = await supabase
         .from('inspection_tasks')
@@ -5140,7 +5140,7 @@ export const api = {
         .eq('status', 'pending_approval')
         .select()
         .single();
-      if (updateError || !task) throw new Error(updateError?.message || 'לא ניתן להחזיר למפקח');
+      if (updateError || !task) throw new Error(updateError?.message || 'לא ניתן להחזיר לפקח');
       await supabase.from('inspection_task_history').insert({
         task_id: taskId,
         created_by: session.user_id,
@@ -5174,20 +5174,29 @@ export const api = {
       });
       return task as InspectionTask;
     },
-    /** Admin can update task metadata (title, building, assignee, note, asset_ids) at any time. */
+    /** Admin can update task metadata any time. Inspector can update only after starting (in_progress), and only title + note. */
     update: async (
       taskId: number,
       input: { title?: string; building_number?: number; assigned_to?: number | null; note?: string | null; asset_ids?: number[] | null }
     ): Promise<InspectionTask> => {
       const session = getSession();
       if (!session?.user_id) throw new Error('לא מחובר');
-      if (session.user_role !== 'admin') throw new Error('רק מנהל יכול לערוך משימה');
+      const existing = await api.inspectionTasks.getOne(taskId);
+      if (!existing) throw new Error('משימה לא נמצאה');
+      const isAdmin = session.user_role === 'admin';
+      const isInspectorAssigned = session.user_role === 'inspector' && existing.assigned_to === session.user_id && existing.status === 'in_progress';
+      if (!isAdmin && !isInspectorAssigned) throw new Error('אין הרשאה לעדכן משימה זו');
       const updates: Record<string, unknown> = { updated_at: new Date().toISOString() };
-      if (input.title !== undefined) updates.title = input.title.trim();
-      if (input.building_number !== undefined) updates.building_number = input.building_number;
-      if (input.assigned_to !== undefined) updates.assigned_to = input.assigned_to;
-      if (input.note !== undefined) updates.note = input.note?.trim() || null;
-      if (input.asset_ids !== undefined) updates.asset_ids = input.asset_ids?.length ? input.asset_ids : null;
+      if (isAdmin) {
+        if (input.title !== undefined) updates.title = input.title.trim();
+        if (input.building_number !== undefined) updates.building_number = input.building_number;
+        if (input.assigned_to !== undefined) updates.assigned_to = input.assigned_to;
+        if (input.note !== undefined) updates.note = input.note?.trim() || null;
+        if (input.asset_ids !== undefined) updates.asset_ids = input.asset_ids?.length ? input.asset_ids : null;
+      } else {
+        if (input.title !== undefined) updates.title = input.title.trim();
+        if (input.note !== undefined) updates.note = input.note?.trim() || null;
+      }
       const { data: task, error } = await supabase
         .from('inspection_tasks')
         .update(updates)

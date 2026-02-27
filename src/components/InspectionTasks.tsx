@@ -20,7 +20,7 @@ const HISTORY_ACTION_LABELS: Record<InspectionTaskHistoryEntry['action'], string
   created: 'נוצר',
   taken: 'התחיל משימה',
   submitted: 'נשלח לאישור',
-  returned: 'הוחזר למפקח',
+  returned: 'הוחזר לפקח',
   approved: 'אושר',
   cancelled: 'בוטל',
 };
@@ -313,7 +313,8 @@ export function InspectionTasks() {
           const id = params.data?.assigned_to;
           if (id == null) return '';
           const u = inspectors.find((i) => i.user_id === id);
-          return u?.user_name ?? String(id);
+          const name = u?.user_name?.trim();
+          return name ? name : String(id);
         },
         filter: true,
       },
@@ -463,15 +464,20 @@ export function InspectionTasks() {
     load();
   }, [isAdmin, selectedTaskId]);
 
-  // Init admin edit form from detailTask
+  // Init edit form from detailTask (admin: all fields; inspector: when in_progress and assigned to me)
   useEffect(() => {
-    if (!detailTask || !isAdmin) return;
+    if (!detailTask) return;
+    const session = getSession();
+    const inspectorCanEdit = isInspector && session?.user_id === detailTask.assigned_to && detailTask.status === 'in_progress';
+    if (!isAdmin && !inspectorCanEdit) return;
     setEditTaskTitle(detailTask.title);
-    setEditTaskBuildingNumber(detailTask.building_number);
-    setEditTaskAssignedTo(detailTask.assigned_to ?? '');
     setEditTaskNote(detailTask.note ?? '');
-    setEditTaskAssetIds(detailTask.asset_ids ?? []);
-  }, [detailTask?.id, detailTask?.title, detailTask?.building_number, detailTask?.assigned_to, detailTask?.note, detailTask?.asset_ids, isAdmin]);
+    if (isAdmin) {
+      setEditTaskBuildingNumber(detailTask.building_number);
+      setEditTaskAssignedTo(detailTask.assigned_to ?? '');
+      setEditTaskAssetIds(detailTask.asset_ids ?? []);
+    }
+  }, [detailTask?.id, detailTask?.title, detailTask?.building_number, detailTask?.assigned_to, detailTask?.note, detailTask?.asset_ids, detailTask?.status, isAdmin, isInspector]);
 
   // Load building assets for admin edit form (asset_ids selector)
   useEffect(() => {
@@ -523,6 +529,9 @@ export function InspectionTasks() {
 
   /** Admin can edit task and report at any time. */
   const canEditTaskOrReport = canInspectorEdit || isAdmin;
+  /** Inspector can edit task metadata only after starting the task (in_progress). */
+  const canInspectorEditTask = canInspectorEdit && detailTask?.status === 'in_progress';
+  const canShowEditTaskForm = isAdmin || canInspectorEditTask;
 
   const refreshDetail = () => {
     setDetailRefreshTrigger((t) => t + 1);
@@ -632,7 +641,7 @@ export function InspectionTasks() {
       refreshDetail();
       fetchTasks();
     } catch (err) {
-      setDetailError(err instanceof Error ? err.message : 'שגיאה בהחזרה למפקח');
+      setDetailError(err instanceof Error ? err.message : 'שגיאה בהחזרה לפקח');
     } finally {
       setReturnSaving(false);
     }
@@ -896,7 +905,7 @@ export function InspectionTasks() {
                 )}
               </div>
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">מפקח (מוקצה אל)</label>
+                <label className="block text-sm font-medium text-slate-700 mb-1">פקח (מוקצה אל)</label>
                 <select
                   value={createForm.assigned_to === '' ? '' : String(createForm.assigned_to)}
                   onChange={(e) => setCreateForm((f) => ({ ...f, assigned_to: e.target.value === '' ? '' : Number(e.target.value) }))}
@@ -998,9 +1007,9 @@ export function InspectionTasks() {
                       </p>
                     )}
                   </div>
-                  {isAdmin && (
+                  {canShowEditTaskForm && (
                     <div className="space-y-3 pt-2 border-t border-slate-200">
-                      <h4 className="text-sm font-semibold text-slate-700">עריכת משימה (מנהל)</h4>
+                      <h4 className="text-sm font-semibold text-slate-700">{isAdmin ? 'עריכת משימה (מנהל)' : 'עריכת משימה'}</h4>
                       <div className="grid grid-cols-1 gap-3 text-sm">
                         <div>
                           <label className="block font-medium text-slate-700 mb-1">כותרת</label>
@@ -1012,40 +1021,77 @@ export function InspectionTasks() {
                             dir="rtl"
                           />
                         </div>
-                        <div>
-                          <label className="block font-medium text-slate-700 mb-1">מבנה</label>
-                          <select
-                            value={editTaskBuildingNumber === '' ? '' : String(editTaskBuildingNumber)}
-                            onChange={(e) => {
-                              setEditTaskBuildingNumber(e.target.value === '' ? '' : Number(e.target.value));
-                              setEditTaskAssetIds([]);
-                            }}
-                            className="w-full px-3 py-2 border border-slate-300 rounded-lg"
-                          >
-                            <option value="">בחר מבנה</option>
-                            {buildings.map((b) => (
-                              <option key={b.building_number} value={b.building_number}>
-                                מבנה {b.building_number}
-                                {b.address != null ? ` — ${b.address}` : ''}
-                              </option>
-                            ))}
-                          </select>
-                        </div>
-                        <div>
-                          <label className="block font-medium text-slate-700 mb-1">מפקח (מוקצה אל)</label>
-                          <select
-                            value={editTaskAssignedTo === '' ? '' : String(editTaskAssignedTo)}
-                            onChange={(e) => setEditTaskAssignedTo(e.target.value === '' ? '' : Number(e.target.value))}
-                            className="w-full px-3 py-2 border border-slate-300 rounded-lg"
-                          >
-                            <option value="">ללא הקצאה</option>
-                            {inspectors.map((u) => (
-                              <option key={u.user_id} value={u.user_id}>
-                                {u.user_name}
-                              </option>
-                            ))}
-                          </select>
-                        </div>
+                        {isAdmin && (
+                          <>
+                            <div>
+                              <label className="block font-medium text-slate-700 mb-1">מבנה</label>
+                              <select
+                                value={editTaskBuildingNumber === '' ? '' : String(editTaskBuildingNumber)}
+                                onChange={(e) => {
+                                  setEditTaskBuildingNumber(e.target.value === '' ? '' : Number(e.target.value));
+                                  setEditTaskAssetIds([]);
+                                }}
+                                className="w-full px-3 py-2 border border-slate-300 rounded-lg"
+                              >
+                                <option value="">בחר מבנה</option>
+                                {buildings.map((b) => (
+                                  <option key={b.building_number} value={b.building_number}>
+                                    מבנה {b.building_number}
+                                    {b.address != null ? ` — ${b.address}` : ''}
+                                  </option>
+                                ))}
+                              </select>
+                            </div>
+                            <div>
+                              <label className="block font-medium text-slate-700 mb-1">פקח (מוקצה אל)</label>
+                              <select
+                                value={editTaskAssignedTo === '' ? '' : String(editTaskAssignedTo)}
+                                onChange={(e) => setEditTaskAssignedTo(e.target.value === '' ? '' : Number(e.target.value))}
+                                className="w-full px-3 py-2 border border-slate-300 rounded-lg"
+                              >
+                                <option value="">ללא הקצאה</option>
+                                {inspectors.map((u) => (
+                                  <option key={u.user_id} value={u.user_id}>
+                                    {u.user_name}
+                                  </option>
+                                ))}
+                              </select>
+                            </div>
+                            <div>
+                              <label className="block font-medium text-slate-700 mb-1">נכסים (אופציונלי)</label>
+                              {adminEditBuildingAssets.length === 0 ? (
+                                <p className="text-slate-500 text-xs">בחר מבנה כדי לבחור נכסים</p>
+                              ) : (
+                                <div className="border border-slate-200 rounded-lg max-h-[160px] overflow-y-auto p-2 space-y-1.5">
+                                  {adminEditBuildingAssets.map((asset) => {
+                                    const checked = editTaskAssetIds.includes(asset.asset_id);
+                                    return (
+                                      <label
+                                        key={asset.asset_id}
+                                        className="flex items-center gap-2 py-1.5 px-2 rounded hover:bg-slate-50 cursor-pointer min-h-[40px]"
+                                      >
+                                        <input
+                                          type="checkbox"
+                                          checked={checked}
+                                          onChange={() => {
+                                            setEditTaskAssetIds((prev) =>
+                                              checked ? prev.filter((id) => id !== asset.asset_id) : [...prev, asset.asset_id]
+                                            );
+                                          }}
+                                          className="w-4 h-4 rounded border-slate-300 text-indigo-600"
+                                        />
+                                        <span className="text-slate-800">
+                                          נכס {asset.asset_id}
+                                          {asset.payer_id ? ` (${asset.payer_id})` : ''}
+                                        </span>
+                                      </label>
+                                    );
+                                  })}
+                                </div>
+                              )}
+                            </div>
+                          </>
+                        )}
                         <div>
                           <label className="block font-medium text-slate-700 mb-1">הערה</label>
                           <textarea
@@ -1054,39 +1100,6 @@ export function InspectionTasks() {
                             className="w-full px-3 py-2 border border-slate-300 rounded-lg min-h-[70px]"
                             dir="rtl"
                           />
-                        </div>
-                        <div>
-                          <label className="block font-medium text-slate-700 mb-1">נכסים (אופציונלי)</label>
-                          {adminEditBuildingAssets.length === 0 ? (
-                            <p className="text-slate-500 text-xs">בחר מבנה כדי לבחור נכסים</p>
-                          ) : (
-                            <div className="border border-slate-200 rounded-lg max-h-[160px] overflow-y-auto p-2 space-y-1.5">
-                              {adminEditBuildingAssets.map((asset) => {
-                                const checked = editTaskAssetIds.includes(asset.asset_id);
-                                return (
-                                  <label
-                                    key={asset.asset_id}
-                                    className="flex items-center gap-2 py-1.5 px-2 rounded hover:bg-slate-50 cursor-pointer min-h-[40px]"
-                                  >
-                                    <input
-                                      type="checkbox"
-                                      checked={checked}
-                                      onChange={() => {
-                                        setEditTaskAssetIds((prev) =>
-                                          checked ? prev.filter((id) => id !== asset.asset_id) : [...prev, asset.asset_id]
-                                        );
-                                      }}
-                                      className="w-4 h-4 rounded border-slate-300 text-indigo-600"
-                                    />
-                                    <span className="text-slate-800">
-                                      נכס {asset.asset_id}
-                                      {asset.payer_id ? ` (${asset.payer_id})` : ''}
-                                    </span>
-                                  </label>
-                                );
-                              })}
-                            </div>
-                          )}
                         </div>
                         <button
                           type="button"
@@ -1267,12 +1280,12 @@ export function InspectionTasks() {
                     <div className="space-y-3 pt-2 border-t border-slate-200">
                       <h4 className="text-sm font-semibold text-slate-700">פעולות מנהל (ממתין לאישור)</h4>
                       <div>
-                        <label className="block text-sm font-medium text-slate-700 mb-1">הערה להחזרה למפקח (אופציונלי)</label>
+                        <label className="block text-sm font-medium text-slate-700 mb-1">הערה להחזרה לפקח (אופציונלי)</label>
                         <textarea
                           value={returnNote}
                           onChange={(e) => setReturnNote(e.target.value)}
                           className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm min-h-[70px]"
-                          placeholder="הוסף הערה למפקח כשמחזירים את המשימה..."
+                          placeholder="הוסף הערה לפקח כשמחזירים את המשימה..."
                           dir="rtl"
                         />
                       </div>
@@ -1291,7 +1304,7 @@ export function InspectionTasks() {
                           disabled={returnSaving || approveSaving || cancelSaving}
                           className="flex items-center justify-center gap-2 min-h-[44px] px-4 py-2 bg-amber-600 text-white rounded-lg text-sm font-medium hover:bg-amber-700 disabled:opacity-50 touch-manipulation"
                         >
-                          {returnSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <RotateCcw className="w-4 h-4" />} החזר למפקח
+                          {returnSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <RotateCcw className="w-4 h-4" />} החזר לפקח
                         </button>
                         <button
                           type="button"

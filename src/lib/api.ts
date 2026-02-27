@@ -5199,7 +5199,7 @@ export const api = {
           .insert({
             report_id: reportId,
             asset_id: assetId ?? null,
-            file_path,
+            file_path: filePath,
             file_name: file.name,
             file_type: file.type || null,
             uploaded_by: session?.user_id ?? null,

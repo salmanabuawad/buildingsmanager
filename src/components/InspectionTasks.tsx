@@ -1,8 +1,12 @@
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState, useRef, useMemo } from 'react';
 import { api, InspectionTask, InspectionTaskStatus, InspectionReport, InspectionReportFile, InspectionTaskHistoryEntry, Building, Asset } from '../lib/api';
 import { useUserRole } from '../contexts/UserRoleContext';
 import { getSession } from '../lib/usersTableAuth';
 import { Loader2, RefreshCw, ClipboardList, AlertCircle, Plus, X, FileText, Paperclip, Camera, Send, Trash2, CheckCircle, RotateCcw, XCircle, Pencil } from 'lucide-react';
+import { AgGridReact } from 'ag-grid-react';
+import { ColDef, ICellRendererParams } from 'ag-grid-community';
+import 'ag-grid-community/styles/ag-theme-alpine.css';
+import { useFieldConfig } from '../lib/useFieldConfig';
 
 const STATUS_LABELS: Record<InspectionTaskStatus, string> = {
   new: 'חדש',
@@ -39,6 +43,10 @@ function StatusBadge({ status }: { status: InspectionTaskStatus }) {
       {STATUS_LABELS[status]}
     </span>
   );
+}
+
+function StatusCellRenderer(props: ICellRendererParams<InspectionTask>) {
+  return props.value ? <StatusBadge status={props.value as InspectionTaskStatus} /> : null;
 }
 
 interface UserOption {
@@ -274,6 +282,24 @@ export function InspectionTasks() {
   const [approveSaving, setApproveSaving] = useState(false);
   const [returnSaving, setReturnSaving] = useState(false);
   const [cancelSaving, setCancelSaving] = useState(false);
+
+  const gridRef = useRef<AgGridReact<InspectionTask>>(null);
+
+  const taskListColumnDefs = useMemo<ColDef<InspectionTask>[]>(() => [
+    { field: 'id', headerName: 'מזהה', width: 90, type: 'numericColumn', filter: 'agNumberColumnFilter' },
+    { field: 'title', headerName: 'כותרת', flex: 1, minWidth: 140 },
+    { field: 'building_number', headerName: 'מבנה', width: 100, type: 'numericColumn', filter: 'agNumberColumnFilter' },
+    { field: 'status', headerName: 'סטטוס', width: 130, cellRenderer: StatusCellRenderer, filter: true },
+    {
+      field: 'created_at',
+      headerName: 'נוצר',
+      width: 120,
+      valueFormatter: (params) => (params.value ? new Date(params.value).toLocaleDateString('he-IL') : ''),
+      filter: 'agDateColumnFilter',
+    },
+  ], []);
+
+  const configuredTaskListColumnDefs = useFieldConfig(taskListColumnDefs, 'inspection-tasks');
 
   const fetchTasks = async () => {
     try {
@@ -1132,70 +1158,32 @@ export function InspectionTasks() {
           {isInspector && ' משימות שיוקצו אליך יופיעו כאן.'}
         </div>
       ) : (
-        <>
-          {/* Mobile: card list — comfortable tap targets and reading */}
-          <div className="flex flex-col gap-3 md:hidden">
-            {tasks.map((task) => (
-              <button
-                type="button"
-                key={task.id}
-                onClick={() => setSelectedTaskId(task.id)}
-                className="w-full text-right bg-white border border-slate-200 rounded-xl p-4 shadow-sm active:bg-slate-50/80 transition-colors hover:border-slate-300 cursor-pointer touch-manipulation min-h-[44px]"
-              >
-                <div className="flex flex-col gap-2">
-                  <div className="flex items-start justify-between gap-2">
-                    <span className="font-semibold text-slate-800 text-base leading-snug">{task.title}</span>
-                    <StatusBadge status={task.status} />
-                  </div>
-                  <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-slate-600 text-sm">
-                    <span>מבנה {task.building_number}</span>
-                    <span>#{task.id}</span>
-                    {task.created_at && (
-                      <span>{new Date(task.created_at).toLocaleDateString('he-IL')}</span>
-                    )}
-                  </div>
-                </div>
-              </button>
-            ))}
-          </div>
-
-          {/* Desktop: table */}
-          <div className="hidden md:block bg-white border border-slate-200 rounded-lg overflow-hidden shadow-sm">
-            <table className="w-full">
-              <thead className="bg-slate-50 border-b border-slate-200">
-                <tr>
-                  <th className="text-right py-3 px-4 font-semibold text-slate-700">מזהה</th>
-                  <th className="text-right py-3 px-4 font-semibold text-slate-700">כותרת</th>
-                  <th className="text-right py-3 px-4 font-semibold text-slate-700">מבנה</th>
-                  <th className="text-right py-3 px-4 font-semibold text-slate-700">סטטוס</th>
-                  <th className="text-right py-3 px-4 font-semibold text-slate-700">נוצר</th>
-                </tr>
-              </thead>
-              <tbody>
-                {tasks.map((task) => (
-                  <tr
-                    key={task.id}
-                    role="button"
-                    tabIndex={0}
-                    onClick={() => setSelectedTaskId(task.id)}
-                    onKeyDown={(e) => e.key === 'Enter' && setSelectedTaskId(task.id)}
-                    className="border-b border-slate-100 last:border-0 hover:bg-slate-50/50 transition-colors cursor-pointer"
-                  >
-                    <td className="py-3 px-4 text-slate-600">{task.id}</td>
-                    <td className="py-3 px-4 font-medium text-slate-800">{task.title}</td>
-                    <td className="py-3 px-4 text-slate-600">{task.building_number}</td>
-                    <td className="py-3 px-4">
-                      <StatusBadge status={task.status} />
-                    </td>
-                    <td className="py-3 px-4 text-slate-500 text-sm">
-                      {task.created_at ? new Date(task.created_at).toLocaleDateString('he-IL') : ''}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </>
+        <div className="ag-theme-alpine w-full" style={{ height: '50vh', minHeight: 240 }}>
+          <AgGridReact<InspectionTask>
+            ref={gridRef}
+            rowData={tasks}
+            columnDefs={configuredTaskListColumnDefs}
+            defaultColDef={{
+              resizable: true,
+              sortable: true,
+              filter: true,
+              cellStyle: { textAlign: 'right' },
+              headerClass: 'ag-right-aligned-header',
+              minWidth: 60,
+            }}
+            enableRtl={true}
+            domLayout="normal"
+            onRowClicked={(e) => e.data && setSelectedTaskId(e.data.id)}
+            getRowId={(params) => String(params.data.id)}
+            rowSelection={{ mode: 'singleRow', checkboxes: false }}
+            animateRows={false}
+            localeText={{
+              noRowsToShow: 'אין משימות להצגה',
+              loadingOoo: 'טוען...',
+            }}
+            suppressCellFocus={true}
+          />
+        </div>
       )}
     </div>
   );

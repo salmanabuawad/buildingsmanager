@@ -336,7 +336,8 @@ export function FieldConfigManager() {
       'buildings-list',
       'assets-list',
       'asset-details-main',
-      'asset-details-history'
+      'asset-details-history',
+      'inspection-tasks'
     ];
     
     // Sort grid names: priority grids first, then alphabetically

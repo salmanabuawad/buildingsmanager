@@ -99,18 +99,14 @@ function App() {
     setCheckingAuth(false);
   }, []);
 
-  // Inspector main window = task list: when role is inspector, make inspection-tasks the default tab
+  // Inspector: only inspection-tasks tab; hide other pages
   useEffect(() => {
     if (!roleLoading && isAuthenticated && isInspector) {
       setTabs((prev) => {
-        const hasInspectionTab = prev.some((t) => t.type === 'inspection-tasks');
-        if (hasInspectionTab) return prev;
-        return [
-          { id: 'inspection-tasks', type: 'inspection-tasks', label: 'משימות ביקורת', refreshKey: Date.now() },
-          ...prev,
-        ];
+        const inspectionOnly = prev.filter((t) => t.type === 'inspection-tasks');
+        return inspectionOnly.length > 0 ? inspectionOnly : [{ id: 'inspection-tasks', type: 'inspection-tasks', label: 'משימות ביקורת', refreshKey: Date.now() }];
       });
-      setActiveTabId((current) => (current === 'measurement-progress-dashboard' ? 'inspection-tasks' : current));
+      setActiveTabId('inspection-tasks');
     }
   }, [roleLoading, isAuthenticated, isInspector]);
 
@@ -1423,6 +1419,7 @@ function App() {
               </button>
             </div>
           )}
+          {!isInspector && (
           <div>
             <button
               onClick={() => setBuildingsMenuOpen(!buildingsMenuOpen)}
@@ -1474,6 +1471,8 @@ function App() {
               </div>
             )}
           </div>
+          )}
+          {!isInspector && (
           <div>
             <button
               onClick={() => setAssetsMenuOpen(!assetsMenuOpen)}
@@ -1553,6 +1552,8 @@ function App() {
               </div>
             )}
           </div>
+          )}
+          {!isInspector && (
           <div>
             <button
               onClick={() => setAdminMenuOpen(!adminMenuOpen)}
@@ -1677,6 +1678,7 @@ function App() {
               </div>
             )}
           </div>
+          )}
         </nav>
         
         {/* Logout button at bottom of sidebar */}

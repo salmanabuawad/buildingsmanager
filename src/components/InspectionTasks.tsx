@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
-import { api, InspectionTask, InspectionTaskStatus, Building, Asset } from '../lib/api';
+import { api, InspectionTask, InspectionTaskStatus, InspectionReport, InspectionReportFile, Building, Asset } from '../lib/api';
 import { useUserRole } from '../contexts/UserRoleContext';
-import { Loader2, RefreshCw, ClipboardList, AlertCircle, Plus, X } from 'lucide-react';
+import { Loader2, RefreshCw, ClipboardList, AlertCircle, Plus, X, FileText, Paperclip } from 'lucide-react';
 
 const STATUS_LABELS: Record<InspectionTaskStatus, string> = {
   new: 'חדש',
@@ -37,6 +37,34 @@ interface UserOption {
   user_role: string;
 }
 
+function FileRow({ file }: { file: InspectionReportFile }) {
+  const [loading, setLoading] = useState(false);
+  const handleView = async () => {
+    setLoading(true);
+    try {
+      const url = await api.inspectionReports.files.getSignedUrl(file.file_path);
+      window.open(url, '_blank');
+    } finally {
+      setLoading(false);
+    }
+  };
+  return (
+    <li className="flex items-center justify-between gap-2 py-2 px-3 bg-slate-50 border border-slate-200 rounded-lg">
+      <span className="text-sm text-slate-800 truncate flex-1 min-w-0" title={file.file_name || file.file_path}>
+        {file.file_name || file.file_path}
+      </span>
+      <button
+        type="button"
+        onClick={handleView}
+        disabled={loading}
+        className="shrink-0 min-h-[44px] min-w-[44px] flex items-center justify-center px-3 py-2 text-indigo-600 hover:bg-indigo-50 rounded-lg text-sm font-medium disabled:opacity-50 touch-manipulation"
+      >
+        {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : 'צפה'}
+      </button>
+    </li>
+  );
+}
+
 export function InspectionTasks() {
   const { isInspector, isAdmin } = useUserRole();
   const canCreateTasks = !isInspector; // admin and editor can create; inspector cannot
@@ -51,6 +79,12 @@ export function InspectionTasks() {
   const [buildingAssets, setBuildingAssets] = useState<Asset[]>([]);
   const [assetsLoading, setAssetsLoading] = useState(false);
   const [createForm, setCreateForm] = useState({ title: '', building_number: '' as number | '', assigned_to: '' as number | '', note: '', asset_ids: [] as number[] });
+  const [selectedTaskId, setSelectedTaskId] = useState<number | null>(null);
+  const [detailTask, setDetailTask] = useState<InspectionTask | null>(null);
+  const [detailReport, setDetailReport] = useState<InspectionReport | null>(null);
+  const [detailFiles, setDetailFiles] = useState<InspectionReportFile[]>([]);
+  const [detailLoading, setDetailLoading] = useState(false);
+  const [detailError, setDetailError] = useState<string | null>(null);
 
   const fetchTasks = async () => {
     try {
@@ -69,6 +103,46 @@ export function InspectionTasks() {
   useEffect(() => {
     fetchTasks();
   }, []);
+
+  // Load task detail when a task is clicked
+  useEffect(() => {
+    if (selectedTaskId == null) {
+      setDetailTask(null);
+      setDetailReport(null);
+      setDetailFiles([]);
+      setDetailError(null);
+      return;
+    }
+    let cancelled = false;
+    setDetailLoading(true);
+    setDetailError(null);
+    (async () => {
+      try {
+        const [task, report] = await Promise.all([
+          api.inspectionTasks.getOne(selectedTaskId),
+          api.inspectionReports.getByTaskId(selectedTaskId),
+        ]);
+        if (cancelled) return;
+        setDetailTask(task ?? null);
+        setDetailReport(report ?? null);
+        if (report) {
+          const files = await api.inspectionReports.files.list(report.id);
+          if (!cancelled) setDetailFiles(files);
+        } else {
+          setDetailFiles([]);
+        }
+      } catch (err) {
+        if (!cancelled) {
+          setDetailError(err instanceof Error ? err.message : 'שגיאה בטעינת פרטי המשימה');
+        }
+      } finally {
+        if (!cancelled) setDetailLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedTaskId]);
 
   useEffect(() => {
     if (!createModalOpen || !canCreateTasks) return;
@@ -325,6 +399,91 @@ export function InspectionTasks() {
         </div>
       )}
 
+      {/* Task detail modal — opens when clicking a task */}
+      {selectedTaskId != null && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50"
+          dir="rtl"
+          onClick={() => setSelectedTaskId(null)}
+        >
+          <div
+            className="bg-white rounded-xl shadow-xl w-full max-w-lg max-h-[90vh] overflow-hidden flex flex-col"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between p-4 border-b border-slate-200 shrink-0">
+              <h3 className="text-lg font-bold text-slate-800">פרטי משימה</h3>
+              <button
+                type="button"
+                onClick={() => setSelectedTaskId(null)}
+                className="p-2 rounded-lg hover:bg-slate-100 min-w-[44px] min-h-[44px] flex items-center justify-center"
+                aria-label="סגור"
+              >
+                <X className="w-5 h-5 text-slate-600" />
+              </button>
+            </div>
+            <div className="p-4 overflow-y-auto flex-1 min-h-0">
+              {detailLoading && (
+                <div className="flex items-center justify-center py-8">
+                  <Loader2 className="w-10 h-10 text-indigo-600 animate-spin" />
+                </div>
+              )}
+              {detailError && (
+                <div className="flex items-center gap-2 text-red-700 bg-red-50 border border-red-200 rounded-lg p-3 text-sm mb-4">
+                  <AlertCircle className="w-4 h-4 shrink-0" />
+                  {detailError}
+                </div>
+              )}
+              {!detailLoading && detailTask && (
+                <div className="space-y-4">
+                  <div className="grid grid-cols-1 gap-2 text-sm">
+                    <div className="font-semibold text-slate-800 text-base">{detailTask.title}</div>
+                    <div className="flex flex-wrap gap-x-4 gap-y-1 text-slate-600">
+                      <span>מזהה #{detailTask.id}</span>
+                      <span>מבנה {detailTask.building_number}</span>
+                      <StatusBadge status={detailTask.status} />
+                    </div>
+                    {detailTask.note && (
+                      <p className="text-slate-600 text-sm border-t border-slate-100 pt-2 mt-2">{detailTask.note}</p>
+                    )}
+                    {detailTask.created_at && (
+                      <p className="text-slate-500 text-xs">
+                        נוצר: {new Date(detailTask.created_at).toLocaleString('he-IL')}
+                      </p>
+                    )}
+                  </div>
+                  <div>
+                    <h4 className="flex items-center gap-2 text-sm font-semibold text-slate-700 mb-2">
+                      <FileText className="w-4 h-4" /> דוח
+                    </h4>
+                    {detailReport ? (
+                      <div className="bg-slate-50 border border-slate-200 rounded-lg p-3 text-slate-800 text-sm whitespace-pre-wrap min-h-[80px]">
+                        {detailReport.report_text?.trim() || 'אין תוכן דוח.'}
+                      </div>
+                    ) : (
+                      <p className="text-slate-500 text-sm">טרם נוצר דוח למשימה זו.</p>
+                    )}
+                  </div>
+                  <div>
+                    <h4 className="flex items-center gap-2 text-sm font-semibold text-slate-700 mb-2">
+                      <Paperclip className="w-4 h-4" /> קבצים ({detailFiles.length})
+                    </h4>
+                    {detailFiles.length === 0 ? (
+                      <p className="text-slate-500 text-sm">אין קבצים מועלים.</p>
+                    ) : (
+                      <ul className="space-y-2">
+                        {detailFiles.map((f) => (
+                          <FileRow key={f.id} file={f} />
+                        ))}
+                      </ul>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
       {tasks.length === 0 ? (
         <div className="bg-slate-50 border border-slate-200 rounded-xl p-6 sm:p-8 text-center text-slate-600 text-base">
           אין משימות ביקורת כרגע.
@@ -335,9 +494,11 @@ export function InspectionTasks() {
           {/* Mobile: card list — comfortable tap targets and reading */}
           <div className="flex flex-col gap-3 md:hidden">
             {tasks.map((task) => (
-              <div
+              <button
+                type="button"
                 key={task.id}
-                className="bg-white border border-slate-200 rounded-xl p-4 shadow-sm active:bg-slate-50/80 transition-colors"
+                onClick={() => setSelectedTaskId(task.id)}
+                className="w-full text-right bg-white border border-slate-200 rounded-xl p-4 shadow-sm active:bg-slate-50/80 transition-colors hover:border-slate-300 cursor-pointer touch-manipulation min-h-[44px]"
               >
                 <div className="flex flex-col gap-2">
                   <div className="flex items-start justify-between gap-2">
@@ -352,7 +513,7 @@ export function InspectionTasks() {
                     )}
                   </div>
                 </div>
-              </div>
+              </button>
             ))}
           </div>
 
@@ -372,7 +533,11 @@ export function InspectionTasks() {
                 {tasks.map((task) => (
                   <tr
                     key={task.id}
-                    className="border-b border-slate-100 last:border-0 hover:bg-slate-50/50 transition-colors"
+                    role="button"
+                    tabIndex={0}
+                    onClick={() => setSelectedTaskId(task.id)}
+                    onKeyDown={(e) => e.key === 'Enter' && setSelectedTaskId(task.id)}
+                    className="border-b border-slate-100 last:border-0 hover:bg-slate-50/50 transition-colors cursor-pointer"
                   >
                     <td className="py-3 px-4 text-slate-600">{task.id}</td>
                     <td className="py-3 px-4 font-medium text-slate-800">{task.title}</td>

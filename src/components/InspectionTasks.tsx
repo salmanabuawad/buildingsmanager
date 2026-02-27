@@ -181,6 +181,9 @@ export function InspectionTasks() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   /** Files uploaded this session (by task id) so they stay visible even if state/effect overwrites */
   const optimisticFilesRef = useRef<Map<number, InspectionReportFile[]>>(new Map());
+  /** State-based list of files just uploaded (forces re-render so file appears immediately) */
+  const [sessionUploadedFiles, setSessionUploadedFiles] = useState<InspectionReportFile[]>([]);
+  const [uploadSuccessMsg, setUploadSuccessMsg] = useState<string | null>(null);
 
   const fetchTasks = async () => {
     try {
@@ -210,6 +213,8 @@ export function InspectionTasks() {
       setReportEditText('');
       setSubmitComment('');
       optimisticFilesRef.current.clear();
+      setSessionUploadedFiles([]);
+      setUploadSuccessMsg(null);
       return;
     }
     let cancelled = false;
@@ -282,10 +287,18 @@ export function InspectionTasks() {
   const session = getSession();
   const displayFiles = (() => {
     const fromServer = detailFiles;
-    const optimistic = selectedTaskId != null ? optimisticFilesRef.current.get(selectedTaskId) || [] : [];
+    const reportId = detailReport?.id;
+    const fromSession = reportId != null
+      ? sessionUploadedFiles.filter((f) => f.report_id === reportId)
+      : [];
+    const fromRef = selectedTaskId != null ? optimisticFilesRef.current.get(selectedTaskId) || [] : [];
     const serverIds = new Set(fromServer.map((f) => f.id));
-    const extra = optimistic.filter((f) => !serverIds.has(f.id));
-    return [...extra, ...fromServer];
+    const sessionExtra = fromSession.filter((f) => !serverIds.has(f.id));
+    const refExtra = fromRef.filter((f) => !serverIds.has(f.id));
+    const seen = new Set(serverIds);
+    for (const f of sessionExtra) seen.add(f.id);
+    const refOnly = refExtra.filter((f) => !seen.has(f.id));
+    return [...sessionExtra, ...refOnly, ...fromServer];
   })();
 
   const canInspectorEdit =
@@ -359,13 +372,26 @@ export function InspectionTasks() {
         setDetailReport(report);
       }
       const assetId = Number(uploadAssetId);
-      const uploaded = await api.inspectionReports.files.upload(report.id, file, assetId);
+      const raw = await api.inspectionReports.files.upload(report.id, file, assetId);
+      const uploaded: InspectionReportFile = {
+        id: Number((raw as Record<string, unknown>).id) || -Date.now(),
+        report_id: Number((raw as Record<string, unknown>).report_id) ?? report.id,
+        asset_id: (raw as Record<string, unknown>).asset_id != null ? Number((raw as Record<string, unknown>).asset_id) : null,
+        file_path: String((raw as Record<string, unknown>).file_path ?? ''),
+        file_name: (raw as Record<string, unknown>).file_name != null ? String((raw as Record<string, unknown>).file_name) : file.name,
+        file_type: (raw as Record<string, unknown>).file_type != null ? String((raw as Record<string, unknown>).file_type) : file.type ?? null,
+        uploaded_at: String((raw as Record<string, unknown>).uploaded_at ?? new Date().toISOString()),
+        uploaded_by: (raw as Record<string, unknown>).uploaded_by != null ? Number((raw as Record<string, unknown>).uploaded_by) : null,
+      };
       const tid = selectedTaskId;
       optimisticFilesRef.current.set(tid, [
         uploaded,
         ...(optimisticFilesRef.current.get(tid) || []),
       ]);
+      setSessionUploadedFiles((prev) => [uploaded, ...prev]);
       setDetailFiles((prev) => [uploaded, ...prev]);
+      setUploadSuccessMsg(`הקובץ "${file.name}" הועלה בהצלחה`);
+      setTimeout(() => setUploadSuccessMsg(null), 4000);
       setTimeout(() => refreshDetail(), 600);
     } catch (err: unknown) {
       const msg =
@@ -643,9 +669,14 @@ export function InspectionTasks() {
                   <Loader2 className="w-10 h-10 text-indigo-600 animate-spin" />
                 </div>
               )}
+              {uploadSuccessMsg && (
+                <div className="flex items-center gap-2 text-green-800 bg-green-100 border border-green-300 rounded-lg p-3 text-sm mb-4 font-medium">
+                  {uploadSuccessMsg}
+                </div>
+              )}
               {detailError && (
-                <div className="flex items-center gap-2 text-red-700 bg-red-50 border border-red-200 rounded-lg p-3 text-sm mb-4">
-                  <AlertCircle className="w-4 h-4 shrink-0" />
+                <div className="flex items-center gap-2 text-red-700 bg-red-100 border-2 border-red-300 rounded-lg p-4 text-sm mb-4 font-medium">
+                  <AlertCircle className="w-5 h-5 shrink-0" />
                   {detailError}
                 </div>
               )}

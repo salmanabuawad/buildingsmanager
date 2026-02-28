@@ -5189,11 +5189,14 @@ export const api = {
       });
       return task as InspectionTask;
     },
-    /** Admin rejects/cancels task (pending_approval -> cancelled). */
+    /** Admin cancels task at any time. Sets status to cancelled; task remains in DB. */
     cancelTask: async (taskId: number): Promise<InspectionTask> => {
       const session = getSession();
       if (!session?.user_id) throw new Error('לא מחובר');
-      if (session.user_role !== 'admin') throw new Error('רק מנהל יכול לדחות משימה');
+      if (session.user_role !== 'admin') throw new Error('רק מנהל יכול לבטל משימה');
+      const existing = await api.inspectionTasks.getOne(taskId);
+      if (!existing) throw new Error('משימה לא נמצאה');
+      if (existing.status === 'cancelled') return existing;
       const now = new Date().toISOString();
       const { data: task, error: updateError } = await supabase
         .from('inspection_tasks')
@@ -5202,10 +5205,9 @@ export const api = {
           updated_at: now,
         })
         .eq('id', taskId)
-        .eq('status', 'pending_approval')
         .select()
         .single();
-      if (updateError || !task) throw new Error(updateError?.message || 'לא ניתן לדחות את המשימה');
+      if (updateError || !task) throw new Error(updateError?.message || 'לא ניתן לבטל את המשימה');
       await supabase.from('inspection_task_history').insert({
         task_id: taskId,
         created_by: session.user_id,

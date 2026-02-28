@@ -712,7 +712,7 @@ export function InspectionTasks() {
 
   const handleCancelTask = async () => {
     if (selectedTaskId == null) return;
-    if (!window.confirm('לבטל את המשימה? לא ניתן לשחזר.')) return;
+    if (!window.confirm('לבטל את המשימה? המשימה תישמר במערכת עם סטטוס בוטל.')) return;
     setCancelSaving(true);
     setDetailError(null);
     try {
@@ -720,7 +720,7 @@ export function InspectionTasks() {
       refreshDetail();
       fetchTasks();
     } catch (err) {
-      setDetailError(err instanceof Error ? err.message : 'שגיאה בדחיית המשימה');
+      setDetailError(err instanceof Error ? err.message : 'שגיאה בביטול המשימה');
     } finally {
       setCancelSaving(false);
     }
@@ -1408,7 +1408,22 @@ export function InspectionTasks() {
                           disabled={cancelSaving || approveSaving || returnSaving}
                           className="flex items-center justify-center gap-2 min-h-[44px] px-4 py-2 bg-red-600 text-white rounded-lg text-sm font-medium hover:bg-red-700 disabled:opacity-50 touch-manipulation"
                         >
-                          {cancelSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <XCircle className="w-4 h-4" />} דחה משימה
+                          {cancelSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <XCircle className="w-4 h-4" />} ביטול משימה
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                  {isAdmin && detailTask && detailTask.status !== 'cancelled' && !canAdminActOnTask && (
+                    <div className="space-y-3 pt-2 border-t border-slate-200">
+                      <h4 className="text-sm font-semibold text-slate-700">פעולות מנהל</h4>
+                      <div>
+                        <button
+                          type="button"
+                          onClick={handleCancelTask}
+                          disabled={cancelSaving}
+                          className="flex items-center justify-center gap-2 min-h-[44px] px-4 py-2 bg-red-600 text-white rounded-lg text-sm font-medium hover:bg-red-700 disabled:opacity-50 touch-manipulation"
+                        >
+                          {cancelSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <XCircle className="w-4 h-4" />} ביטול משימה
                         </button>
                       </div>
                     </div>

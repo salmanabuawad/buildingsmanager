@@ -595,6 +595,8 @@ export type AuditLog = DistributionAudit;
 
 export type InspectionTaskStatus = 'new' | 'in_progress' | 'pending_approval' | 'approved' | 'cancelled';
 
+export type InspectionTaskPriority = 'high' | 'medium' | 'low';
+
 export interface InspectionTask {
   id: number;
   title: string;
@@ -602,6 +604,7 @@ export interface InspectionTask {
   asset_ids: number[] | null;
   assigned_to: number | null;
   status: InspectionTaskStatus;
+  priority: InspectionTaskPriority;
   created_at: string;
   created_by: number | null;
   updated_at: string;
@@ -4986,7 +4989,7 @@ export const api = {
       }
       return api.assets.getAll(task.building_number);
     },
-    create: async (input: { title: string; building_number: number; asset_ids?: number[]; assigned_to?: number; note?: string }): Promise<InspectionTask> => {
+    create: async (input: { title: string; building_number: number; asset_ids?: number[]; assigned_to?: number; note?: string; priority?: InspectionTaskPriority }): Promise<InspectionTask> => {
       const session = getSession();
       if (!session?.user_id) throw new Error('לא מחובר');
       const { data: task, error: taskError } = await supabase
@@ -4997,6 +5000,7 @@ export const api = {
           asset_ids: input.asset_ids?.length ? input.asset_ids : null,
           assigned_to: input.assigned_to ?? null,
           note: input.note?.trim() || null,
+          priority: input.priority && ['high', 'medium', 'low'].includes(input.priority) ? input.priority : 'medium',
           status: 'new',
           created_by: session.user_id,
           updated_at: new Date().toISOString(),
@@ -5174,10 +5178,10 @@ export const api = {
       });
       return task as InspectionTask;
     },
-    /** Admin can update task metadata any time. Inspector can update only after starting (in_progress), and only title + note. */
+    /** Admin can update task metadata any time. Inspector can update only after starting (in_progress), and only title + note + priority. */
     update: async (
       taskId: number,
-      input: { title?: string; building_number?: number; assigned_to?: number | null; note?: string | null; asset_ids?: number[] | null }
+      input: { title?: string; building_number?: number; assigned_to?: number | null; note?: string | null; asset_ids?: number[] | null; priority?: InspectionTaskPriority }
     ): Promise<InspectionTask> => {
       const session = getSession();
       if (!session?.user_id) throw new Error('לא מחובר');
@@ -5193,9 +5197,11 @@ export const api = {
         if (input.assigned_to !== undefined) updates.assigned_to = input.assigned_to;
         if (input.note !== undefined) updates.note = input.note?.trim() || null;
         if (input.asset_ids !== undefined) updates.asset_ids = input.asset_ids?.length ? input.asset_ids : null;
+        if (input.priority !== undefined && ['high', 'medium', 'low'].includes(input.priority)) updates.priority = input.priority;
       } else {
         if (input.title !== undefined) updates.title = input.title.trim();
         if (input.note !== undefined) updates.note = input.note?.trim() || null;
+        if (input.priority !== undefined && ['high', 'medium', 'low'].includes(input.priority)) updates.priority = input.priority;
       }
       const { data: task, error } = await supabase
         .from('inspection_tasks')

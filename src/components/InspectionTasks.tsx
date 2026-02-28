@@ -1,5 +1,5 @@
 import { useEffect, useState, useRef, useMemo } from 'react';
-import { api, InspectionTask, InspectionTaskStatus, InspectionReport, InspectionReportFile, InspectionTaskHistoryEntry, Building, Asset } from '../lib/api';
+import { api, InspectionTask, InspectionTaskStatus, InspectionTaskPriority, InspectionReport, InspectionReportFile, InspectionTaskHistoryEntry, Building, Asset } from '../lib/api';
 import { useUserRole } from '../contexts/UserRoleContext';
 import { getSession } from '../lib/usersTableAuth';
 import { Loader2, RefreshCw, ClipboardList, AlertCircle, Plus, X, FileText, Paperclip, Camera, Send, Trash2, CheckCircle, RotateCcw, XCircle, Pencil } from 'lucide-react';
@@ -14,6 +14,12 @@ const STATUS_LABELS: Record<InspectionTaskStatus, string> = {
   pending_approval: 'ממתין לאישור',
   approved: 'אושר',
   cancelled: 'בוטל',
+};
+
+const PRIORITY_LABELS: Record<InspectionTaskPriority, string> = {
+  high: 'גבוה',
+  medium: 'בינוני',
+  low: 'נמוך',
 };
 
 const HISTORY_ACTION_LABELS: Record<InspectionTaskHistoryEntry['action'], string> = {
@@ -47,6 +53,27 @@ function StatusBadge({ status }: { status: InspectionTaskStatus }) {
 
 function StatusCellRenderer(props: ICellRendererParams<InspectionTask>) {
   return props.value ? <StatusBadge status={props.value as InspectionTaskStatus} /> : null;
+}
+
+function PriorityBadge({ priority }: { priority: InspectionTaskPriority }) {
+  return (
+    <span
+      className={`inline-flex px-2.5 py-1 rounded-md text-sm font-medium ${
+        priority === 'high'
+          ? 'bg-red-100 text-red-800'
+          : priority === 'low'
+            ? 'bg-slate-100 text-slate-600'
+            : 'bg-amber-100 text-amber-800'
+      }`}
+    >
+      {PRIORITY_LABELS[priority]}
+    </span>
+  );
+}
+
+function PriorityCellRenderer(props: ICellRendererParams<InspectionTask>) {
+  const v = props.value ?? props.data?.priority;
+  return v ? <PriorityBadge priority={v as InspectionTaskPriority} /> : null;
 }
 
 interface UserOption {
@@ -253,7 +280,7 @@ export function InspectionTasks() {
   const [allUsers, setAllUsers] = useState<UserOption[]>([]);
   const [buildingAssets, setBuildingAssets] = useState<Asset[]>([]);
   const [assetsLoading, setAssetsLoading] = useState(false);
-  const [createForm, setCreateForm] = useState({ title: '', building_number: '' as number | '', assigned_to: '' as number | '', note: '', asset_ids: [] as number[] });
+  const [createForm, setCreateForm] = useState({ title: '', building_number: '' as number | '', assigned_to: '' as number | '', note: '', asset_ids: [] as number[], priority: 'medium' as InspectionTaskPriority });
   const [selectedTaskId, setSelectedTaskId] = useState<number | null>(null);
   const [detailTask, setDetailTask] = useState<InspectionTask | null>(null);
   const [detailReport, setDetailReport] = useState<InspectionReport | null>(null);
@@ -288,6 +315,7 @@ export function InspectionTasks() {
   const [editTaskBuildingNumber, setEditTaskBuildingNumber] = useState<number | ''>('');
   const [editTaskAssignedTo, setEditTaskAssignedTo] = useState<number | ''>('');
   const [editTaskNote, setEditTaskNote] = useState('');
+  const [editTaskPriority, setEditTaskPriority] = useState<InspectionTaskPriority>('medium');
   const [editTaskAssetIds, setEditTaskAssetIds] = useState<number[]>([]);
   const [adminEditBuildingAssets, setAdminEditBuildingAssets] = useState<Asset[]>([]);
 
@@ -320,6 +348,7 @@ export function InspectionTasks() {
         filter: true,
       },
       { field: 'status', headerName: 'סטטוס', width: 130, cellRenderer: StatusCellRenderer, filter: true },
+      { field: 'priority', headerName: 'עדיפות', width: 90, cellRenderer: PriorityCellRenderer, filter: true },
       {
         field: 'note',
         headerName: 'הערה',
@@ -476,12 +505,13 @@ export function InspectionTasks() {
     if (!isAdmin && !inspectorCanEdit) return;
     setEditTaskTitle(detailTask.title);
     setEditTaskNote(detailTask.note ?? '');
+    setEditTaskPriority((detailTask as InspectionTask & { priority?: InspectionTaskPriority }).priority ?? 'medium');
     if (isAdmin) {
       setEditTaskBuildingNumber(detailTask.building_number);
       setEditTaskAssignedTo(detailTask.assigned_to ?? '');
       setEditTaskAssetIds(detailTask.asset_ids ?? []);
     }
-  }, [detailTask?.id, detailTask?.title, detailTask?.building_number, detailTask?.assigned_to, detailTask?.note, detailTask?.asset_ids, detailTask?.status, isAdmin, isInspector]);
+  }, [detailTask?.id, detailTask?.title, detailTask?.building_number, detailTask?.assigned_to, detailTask?.note, detailTask?.asset_ids, detailTask?.status, (detailTask as InspectionTask & { priority?: InspectionTaskPriority })?.priority, isAdmin, isInspector]);
 
   // Load building assets for admin edit form (asset_ids selector)
   useEffect(() => {
@@ -497,7 +527,7 @@ export function InspectionTasks() {
 
   const openCreateModal = () => {
     setCreateError(null);
-    setCreateForm({ title: '', building_number: '', assigned_to: '', note: '', asset_ids: [] });
+    setCreateForm({ title: '', building_number: '' as number | '', assigned_to: '' as number | '', note: '', asset_ids: [], priority: 'medium' as InspectionTaskPriority });
     setBuildingAssets([]);
     setCreateModalOpen(true);
   };
@@ -567,19 +597,30 @@ export function InspectionTasks() {
   };
 
   const handleSaveTask = async () => {
-    if (selectedTaskId == null || !isAdmin) return;
-    const buildingNumber = editTaskBuildingNumber === '' ? undefined : Number(editTaskBuildingNumber);
-    if (buildingNumber !== undefined && Number.isNaN(buildingNumber)) return;
+    if (selectedTaskId == null) return;
+    const inspectorSaving = canInspectorEditTask;
+    if (!isAdmin && !inspectorSaving) return;
+    if (isAdmin) {
+      const buildingNumber = editTaskBuildingNumber === '' ? undefined : Number(editTaskBuildingNumber);
+      if (buildingNumber !== undefined && Number.isNaN(buildingNumber)) return;
+    }
     setEditTaskSaving(true);
     setDetailError(null);
     try {
-      const updated = await api.inspectionTasks.update(selectedTaskId, {
-        title: editTaskTitle.trim(),
-        building_number: buildingNumber,
-        assigned_to: editTaskAssignedTo === '' ? null : editTaskAssignedTo,
-        note: editTaskNote.trim() || null,
-        asset_ids: editTaskAssetIds.length > 0 ? editTaskAssetIds : null,
-      });
+      const updated = inspectorSaving
+        ? await api.inspectionTasks.update(selectedTaskId, {
+            title: editTaskTitle.trim(),
+            note: editTaskNote.trim() || null,
+            priority: editTaskPriority,
+          })
+        : await api.inspectionTasks.update(selectedTaskId, {
+            title: editTaskTitle.trim(),
+            building_number: editTaskBuildingNumber === '' ? undefined : Number(editTaskBuildingNumber),
+            assigned_to: editTaskAssignedTo === '' ? null : editTaskAssignedTo,
+            note: editTaskNote.trim() || null,
+            asset_ids: editTaskAssetIds.length > 0 ? editTaskAssetIds : null,
+            priority: editTaskPriority,
+          });
       setDetailTask(updated);
       refreshDetail();
       fetchTasks();
@@ -755,6 +796,7 @@ export function InspectionTasks() {
         asset_ids: createForm.asset_ids.length > 0 ? createForm.asset_ids : undefined,
         assigned_to: createForm.assigned_to === '' ? undefined : Number(createForm.assigned_to),
         note: createForm.note.trim() || undefined,
+        priority: createForm.priority,
       });
       setCreateModalOpen(false);
       await fetchTasks();
@@ -924,6 +966,18 @@ export function InspectionTasks() {
                 </select>
               </div>
               <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">עדיפות</label>
+                <select
+                  value={createForm.priority}
+                  onChange={(e) => setCreateForm((f) => ({ ...f, priority: e.target.value as InspectionTaskPriority }))}
+                  className="w-full px-3 py-2 border border-slate-300 rounded-lg text-base"
+                >
+                  {(Object.entries(PRIORITY_LABELS) as [InspectionTaskPriority, string][]).map(([val, label]) => (
+                    <option key={val} value={val}>{label}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
                 <label className="block text-sm font-medium text-slate-700 mb-1">הערה</label>
                 <textarea
                   value={createForm.note}
@@ -997,10 +1051,11 @@ export function InspectionTasks() {
                 <div className="space-y-4">
                   <div className="grid grid-cols-1 gap-2 text-sm">
                     <div className="font-semibold text-slate-800 text-base">{detailTask.title}</div>
-                    <div className="flex flex-wrap gap-x-4 gap-y-1 text-slate-600">
+                    <div className="flex flex-wrap gap-x-4 gap-y-1 text-slate-600 items-center">
                       <span>מזהה #{detailTask.id}</span>
                       <span>מבנה {detailTask.building_number}</span>
                       <StatusBadge status={detailTask.status} />
+                      <PriorityBadge priority={(detailTask as InspectionTask & { priority?: InspectionTaskPriority }).priority ?? 'medium'} />
                     </div>
                     {detailTask.note && (
                       <p className="text-slate-600 text-sm border-t border-slate-100 pt-2 mt-2">{detailTask.note}</p>
@@ -1096,6 +1151,18 @@ export function InspectionTasks() {
                             </div>
                           </>
                         )}
+                        <div>
+                          <label className="block font-medium text-slate-700 mb-1">עדיפות</label>
+                          <select
+                            value={editTaskPriority}
+                            onChange={(e) => setEditTaskPriority(e.target.value as InspectionTaskPriority)}
+                            className="w-full px-3 py-2 border border-slate-300 rounded-lg"
+                          >
+                            {(Object.entries(PRIORITY_LABELS) as [InspectionTaskPriority, string][]).map(([val, label]) => (
+                              <option key={val} value={val}>{label}</option>
+                            ))}
+                          </select>
+                        </div>
                         <div>
                           <label className="block font-medium text-slate-700 mb-1">הערה</label>
                           <textarea

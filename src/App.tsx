@@ -69,6 +69,8 @@ function App() {
   const [buildingsMenuOpen, setBuildingsMenuOpen] = useState(false);
   const [assetsMenuOpen, setAssetsMenuOpen] = useState(false);
   const [adminMenuOpen, setAdminMenuOpen] = useState(false);
+  const [systemConfigSubmenuOpen, setSystemConfigSubmenuOpen] = useState(false);
+  const [managerActionsSubmenuOpen, setManagerActionsSubmenuOpen] = useState(false);
   const [showBatchValidationModal, setShowBatchValidationModal] = useState(false);
   const [batchValidationModalClosing, setBatchValidationModalClosing] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -1628,21 +1630,48 @@ function App() {
             {adminMenuOpen && (
               <div className="mr-2 mt-2 space-y-1.5">
                 {isAdmin && (
-                  <button
-                    onClick={openInspectionTasks}
-                    className="w-full flex items-center gap-2 px-3 py-2 text-right bg-pink-50/50 hover:bg-pink-100 rounded-lg transition-all text-xs shadow-sm hover:shadow"
-                  >
-                    <span className="font-medium text-slate-700">משימות ביקורת</span>
-                    <ClipboardList className="h-3.5 w-3.5 text-pink-600" />
-                  </button>
+                  <div>
+                    <button
+                      onClick={() => setManagerActionsSubmenuOpen(!managerActionsSubmenuOpen)}
+                      className="w-full flex items-center justify-between px-3 py-2 text-right bg-pink-50/50 hover:bg-pink-100 rounded-lg transition-all text-xs shadow-sm hover:shadow"
+                    >
+                      <div className="flex items-center gap-2">
+                        <span className="font-medium text-slate-700">פעולות מנהל</span>
+                        <UserCog className="h-3.5 w-3.5 text-pink-600" />
+                      </div>
+                      {managerActionsSubmenuOpen ? (
+                        <ChevronDown className="h-3.5 w-3.5 text-slate-500" />
+                      ) : (
+                        <ChevronLeft className="h-3.5 w-3.5 text-slate-500" />
+                      )}
+                    </button>
+                    {managerActionsSubmenuOpen && (
+                      <div className="mr-2 mt-1.5 space-y-1 border-r-2 border-pink-200 pr-2">
+                        <button
+                          onClick={openInspectionTasks}
+                          className="w-full flex items-center gap-2 px-3 py-2 text-right bg-pink-50/80 hover:bg-pink-100 rounded-lg transition-all text-xs"
+                        >
+                          <span className="text-slate-700">משימות ביקורת</span>
+                          <ClipboardList className="h-3 w-3 text-pink-500" />
+                        </button>
+                        <button
+                          onClick={openResetExportModal}
+                          disabled={resetExportLoading}
+                          className="w-full flex items-center gap-2 px-3 py-2 text-right bg-pink-50/80 hover:bg-pink-100 rounded-lg transition-all text-xs disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          <span className="text-slate-700">
+                            איפוס שליחת נתונים מתאריך{displayLatestExportDate ? ` ${displayLatestExportDate}` : ''}
+                          </span>
+                          {resetExportLoading ? (
+                            <Loader2 className="h-3 w-3 text-pink-500 animate-spin" />
+                          ) : (
+                            <RefreshCw className="h-3 w-3 text-pink-500" />
+                          )}
+                        </button>
+                      </div>
+                    )}
+                  </div>
                 )}
-                <button
-                  onClick={openAssetTypes}
-                  className="w-full flex items-center gap-2 px-3 py-2 text-right bg-pink-50/50 hover:bg-pink-100 rounded-lg transition-all text-xs shadow-sm hover:shadow"
-                >
-                  <span className="font-medium text-slate-700">סוגי נכסים</span>
-                  <Tag className="h-3.5 w-3.5 text-pink-600" />
-                </button>
                 {isAdmin && validationRulesEnabled && (
                   <button
                     onClick={openValidationRules}
@@ -1650,24 +1679,6 @@ function App() {
                   >
                     <span className="font-medium text-slate-700">כללי תקינות</span>
                     <Settings className="h-3.5 w-3.5 text-pink-600" />
-                  </button>
-                )}
-                {isAdmin && (
-                  <button
-                    onClick={openFieldConfig}
-                    className="w-full flex items-center gap-2 px-3 py-2 text-right bg-pink-50/50 hover:bg-pink-100 rounded-lg transition-all text-xs shadow-sm hover:shadow"
-                  >
-                    <span className="font-medium text-slate-700">הגדרות שדות</span>
-                    <Settings className="h-3.5 w-3.5 text-pink-600" />
-                  </button>
-                )}
-                {isAdmin && (
-                  <button
-                    onClick={openAddressList}
-                    className="w-full flex items-center gap-2 px-3 py-2 text-right bg-pink-50/50 hover:bg-pink-100 rounded-lg transition-all text-xs shadow-sm hover:shadow"
-                  >
-                    <span className="font-medium text-slate-700">רשימת כתובות</span>
-                    <MapPin className="h-3.5 w-3.5 text-pink-600" />
                   </button>
                 )}
                 {false && (
@@ -1680,56 +1691,75 @@ function App() {
                 </button>
                 )}
                 {isAdmin && (
-                  <button
-                    onClick={openUserManagement}
-                    className="w-full flex items-center gap-2 px-3 py-2 text-right bg-pink-50/50 hover:bg-pink-100 rounded-lg transition-all text-xs shadow-sm hover:shadow"
-                  >
-                    <span className="font-medium text-slate-700">ניהול משתמשים</span>
-                    <Users className="h-3.5 w-3.5 text-pink-600" />
-                  </button>
-                )}
-                {isAdmin && (
-                  <button
-                    onClick={openSystemConfiguration}
-                    className="w-full flex items-center gap-2 px-3 py-2 text-right bg-pink-50/50 hover:bg-pink-100 rounded-lg transition-all text-xs shadow-sm hover:shadow"
-                  >
-                    <span className="font-medium text-slate-700">הגדרות מערכת</span>
-                    <Settings className="h-3.5 w-3.5 text-pink-600" />
-                  </button>
-                )}
-                {isAdmin && (
-                  <button
-                    onClick={openOperators}
-                    className="w-full flex items-center gap-2 px-3 py-2 text-right bg-pink-50/50 hover:bg-pink-100 rounded-lg transition-all text-xs shadow-sm hover:shadow"
-                  >
-                    <span className="font-medium text-slate-700">מפעילים</span>
-                    <Users className="h-3.5 w-3.5 text-pink-600" />
-                  </button>
-                )}
-                {isAdmin && (
-                  <button
-                    onClick={openManagers}
-                    className="w-full flex items-center gap-2 px-3 py-2 text-right bg-pink-50/50 hover:bg-pink-100 rounded-lg transition-all text-xs shadow-sm hover:shadow"
-                  >
-                    <span className="font-medium text-slate-700">מנהלים</span>
-                    <UserCog className="h-3.5 w-3.5 text-pink-600" />
-                  </button>
-                )}
-                {isAdmin && (
-                  <button
-                    onClick={openResetExportModal}
-                    disabled={resetExportLoading}
-                    className="w-full flex items-center gap-2 px-3 py-2 text-right bg-pink-50/50 hover:bg-pink-100 rounded-lg transition-all text-xs shadow-sm hover:shadow disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    <span className="font-medium text-slate-700">
-                      איפוס שליחת נתונים מתאריך{displayLatestExportDate ? ` ${displayLatestExportDate}` : ''}
-                    </span>
-                    {resetExportLoading ? (
-                      <Loader2 className="h-3.5 w-3.5 text-pink-600 animate-spin" />
-                    ) : (
-                      <RefreshCw className="h-3.5 w-3.5 text-pink-600" />
+                  <div>
+                    <button
+                      onClick={() => setSystemConfigSubmenuOpen(!systemConfigSubmenuOpen)}
+                      className="w-full flex items-center justify-between px-3 py-2 text-right bg-pink-50/50 hover:bg-pink-100 rounded-lg transition-all text-xs shadow-sm hover:shadow"
+                    >
+                      <div className="flex items-center gap-2">
+                        <span className="font-medium text-slate-700">הגדרות מערכת</span>
+                        <Settings className="h-3.5 w-3.5 text-pink-600" />
+                      </div>
+                      {systemConfigSubmenuOpen ? (
+                        <ChevronDown className="h-3.5 w-3.5 text-slate-500" />
+                      ) : (
+                        <ChevronLeft className="h-3.5 w-3.5 text-slate-500" />
+                      )}
+                    </button>
+                    {systemConfigSubmenuOpen && (
+                      <div className="mr-2 mt-1.5 space-y-1 border-r-2 border-pink-200 pr-2">
+                        <button
+                          onClick={openSystemConfiguration}
+                          className="w-full flex items-center gap-2 px-3 py-2 text-right bg-pink-50/80 hover:bg-pink-100 rounded-lg transition-all text-xs"
+                        >
+                          <span className="text-slate-700">הגדרות כלליות</span>
+                          <Settings className="h-3 w-3 text-pink-500" />
+                        </button>
+                        <button
+                          onClick={openAssetTypes}
+                          className="w-full flex items-center gap-2 px-3 py-2 text-right bg-pink-50/80 hover:bg-pink-100 rounded-lg transition-all text-xs"
+                        >
+                          <span className="text-slate-700">סוגי נכסים</span>
+                          <Tag className="h-3 w-3 text-pink-500" />
+                        </button>
+                        <button
+                          onClick={openAddressList}
+                          className="w-full flex items-center gap-2 px-3 py-2 text-right bg-pink-50/80 hover:bg-pink-100 rounded-lg transition-all text-xs"
+                        >
+                          <span className="text-slate-700">רשימת כתובות</span>
+                          <MapPin className="h-3 w-3 text-pink-500" />
+                        </button>
+                        <button
+                          onClick={openFieldConfig}
+                          className="w-full flex items-center gap-2 px-3 py-2 text-right bg-pink-50/80 hover:bg-pink-100 rounded-lg transition-all text-xs"
+                        >
+                          <span className="text-slate-700">הגדרות שדות</span>
+                          <Settings className="h-3 w-3 text-pink-500" />
+                        </button>
+                        <button
+                          onClick={openOperators}
+                          className="w-full flex items-center gap-2 px-3 py-2 text-right bg-pink-50/80 hover:bg-pink-100 rounded-lg transition-all text-xs"
+                        >
+                          <span className="text-slate-700">מפעילים</span>
+                          <Users className="h-3 w-3 text-pink-500" />
+                        </button>
+                        <button
+                          onClick={openManagers}
+                          className="w-full flex items-center gap-2 px-3 py-2 text-right bg-pink-50/80 hover:bg-pink-100 rounded-lg transition-all text-xs"
+                        >
+                          <span className="text-slate-700">מנהלים</span>
+                          <UserCog className="h-3 w-3 text-pink-500" />
+                        </button>
+                        <button
+                          onClick={openUserManagement}
+                          className="w-full flex items-center gap-2 px-3 py-2 text-right bg-pink-50/80 hover:bg-pink-100 rounded-lg transition-all text-xs"
+                        >
+                          <span className="text-slate-700">ניהול משתמשים</span>
+                          <Users className="h-3 w-3 text-pink-500" />
+                        </button>
+                      </div>
                     )}
-                  </button>
+                  </div>
                 )}
               </div>
             )}

@@ -28,13 +28,13 @@ export function SystemConfigurationManager() {
   const [emailConfigLoading, setEmailConfigLoading] = useState(true);
   const [testEmailTo, setTestEmailTo] = useState('');
   const [sendingTestEmail, setSendingTestEmail] = useState(false);
-  const [showEmailSection, setShowEmailSection] = useState(true);
 
   const [emailTemplateOperator, setEmailTemplateOperator] = useState<{ subject: string; body: string } | null>(null);
   const [emailTemplateManager, setEmailTemplateManager] = useState<{ subject: string; body: string } | null>(null);
   const [emailTemplatesLoading, setEmailTemplatesLoading] = useState(true);
   const [emailTemplateSaving, setEmailTemplateSaving] = useState<'operator' | 'manager' | null>(null);
   const [showTemplateView, setShowTemplateView] = useState<'operator' | 'manager' | null>(null);
+  const [activeSubTab, setActiveSubTab] = useState<'general' | 'email-smtp' | 'mail-templates'>('general');
 
   useEffect(() => {
     fetchConfigurations();
@@ -368,6 +368,12 @@ export function SystemConfigurationManager() {
     );
   }
 
+  const subTabs = [
+    { id: 'general' as const, label: 'הגדרות כלליות', icon: Settings },
+    { id: 'email-smtp' as const, label: 'הגדרות דוא"ל (SMTP)', icon: Mail },
+    { id: 'mail-templates' as const, label: 'תבניות דוא"ל', icon: FileText },
+  ];
+
   return (
     <div className="w-full mx-auto px-4 py-6">
       {toast && (
@@ -379,23 +385,35 @@ export function SystemConfigurationManager() {
         />
       )}
 
-      {/* Email (SMTP) settings */}
+      {/* Sub-tabs */}
+      <div className="flex items-center gap-1 mb-6 border-b border-slate-200" dir="rtl">
+        {subTabs.map((tab) => {
+          const Icon = tab.icon;
+          return (
+            <button
+              key={tab.id}
+              type="button"
+              onClick={() => setActiveSubTab(tab.id)}
+              className={`flex items-center gap-2 px-4 py-3 rounded-t-lg text-sm font-medium transition-colors border-b-2 -mb-px ${
+                activeSubTab === tab.id
+                  ? 'bg-white text-teal-700 border-teal-600 border-slate-200'
+                  : 'text-slate-600 hover:bg-slate-50 hover:text-slate-800 border-transparent'
+              }`}
+            >
+              <Icon className="h-4 w-4" />
+              {tab.label}
+            </button>
+          );
+        })}
+      </div>
+
+      {/* Tab: הגדרות דוא"ל (SMTP) */}
+      {activeSubTab === 'email-smtp' && (
       <div className="bg-white rounded-xl shadow-lg border border-blue-100 p-6 mb-6">
-        <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center gap-3">
-            <Mail className="h-6 w-6 text-teal-600" />
-            <h2 className="text-xl font-bold text-slate-800">הגדרות דוא&quot;ל (SMTP)</h2>
-          </div>
-          <button
-            type="button"
-            onClick={() => setShowEmailSection((v) => !v)}
-            className="text-sm text-slate-600 hover:text-slate-800"
-          >
-            {showEmailSection ? 'הסתר' : 'הצג'}
-          </button>
+        <div className="flex items-center gap-3 mb-4">
+          <Mail className="h-6 w-6 text-teal-600" />
+          <h2 className="text-xl font-bold text-slate-800">הגדרות דוא&quot;ל (SMTP)</h2>
         </div>
-        {showEmailSection && (
-          <>
             {emailConfigLoading ? (
               <div className="flex items-center gap-2 text-slate-600 py-4">
                 <Loader2 className="h-5 w-5 animate-spin" />
@@ -542,11 +560,11 @@ export function SystemConfigurationManager() {
                 </div>
               </div>
             )}
-          </>
-        )}
       </div>
+      )}
 
-      {/* Email templates (stored in DB) */}
+      {/* Tab: תבניות דוא"ל */}
+      {activeSubTab === 'mail-templates' && (
       <div className="bg-white rounded-xl shadow-lg border border-blue-100 p-6 mb-6">
         <div className="flex items-center gap-3 mb-4">
           <FileText className="h-6 w-6 text-teal-600" />
@@ -816,6 +834,7 @@ export function SystemConfigurationManager() {
           )}
         </div>
       </div>
+      )}
 
       {/* Delete Confirmation Modal */}
       {deleteConfirmOpen && (

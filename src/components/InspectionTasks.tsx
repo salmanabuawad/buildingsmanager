@@ -640,6 +640,7 @@ export function InspectionTasks() {
       }
       refreshDetail();
       fetchTasks();
+      setSelectedTaskId(null);
     } catch (err) {
       setDetailError(err instanceof Error ? err.message : 'שגיאה בשמירת המשימה');
     } finally {

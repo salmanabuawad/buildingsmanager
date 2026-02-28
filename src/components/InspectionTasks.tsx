@@ -950,7 +950,13 @@ export function InspectionTasks() {
                   <p className="text-slate-500 text-sm">אין נכסים במבנה זה</p>
                 ) : (
                   <div className="border border-slate-200 rounded-lg max-h-[180px] overflow-y-auto p-2 space-y-1.5">
-                    {buildingAssets.map((asset) => {
+                    {[...buildingAssets]
+                      .sort((a, b) => {
+                        const aSel = createForm.asset_ids.includes(a.asset_id);
+                        const bSel = createForm.asset_ids.includes(b.asset_id);
+                        return aSel === bSel ? 0 : aSel ? -1 : 1;
+                      })
+                      .map((asset) => {
                       const checked = createForm.asset_ids.includes(asset.asset_id);
                       return (
                         <label
@@ -970,7 +976,6 @@ export function InspectionTasks() {
                           />
                           <span className="text-sm text-slate-800">
                             נכס {asset.asset_id}
-                            {asset.payer_id ? ` (${asset.payer_id})` : ''}
                           </span>
                         </label>
                       );
@@ -1150,7 +1155,13 @@ export function InspectionTasks() {
                                 <p className="text-slate-500 text-xs">בחר מבנה כדי לבחור נכסים</p>
                               ) : (
                                 <div className="border border-slate-200 rounded-lg max-h-[160px] overflow-y-auto p-2 space-y-1.5">
-                                  {adminEditBuildingAssets.map((asset) => {
+                                  {[...adminEditBuildingAssets]
+                                    .sort((a, b) => {
+                                      const aSel = editTaskAssetIds.includes(a.asset_id);
+                                      const bSel = editTaskAssetIds.includes(b.asset_id);
+                                      return aSel === bSel ? 0 : aSel ? -1 : 1;
+                                    })
+                                    .map((asset) => {
                                     const checked = editTaskAssetIds.includes(asset.asset_id);
                                     return (
                                       <label
@@ -1169,7 +1180,6 @@ export function InspectionTasks() {
                                         />
                                         <span className="text-slate-800">
                                           נכס {asset.asset_id}
-                                          {asset.payer_id ? ` (${asset.payer_id})` : ''}
                                         </span>
                                       </label>
                                     );
@@ -1287,7 +1297,6 @@ export function InspectionTasks() {
                               {taskAssets.map((a) => (
                                 <option key={a.asset_id} value={a.asset_id}>
                                   נכס {a.asset_id}
-                                  {a.payer_id ? ` (${a.payer_id})` : ''}
                                 </option>
                               ))}
                             </select>

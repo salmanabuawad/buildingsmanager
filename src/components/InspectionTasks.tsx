@@ -7,6 +7,7 @@ import { AgGridReact } from 'ag-grid-react';
 import { ColDef, ICellRendererParams } from 'ag-grid-community';
 import 'ag-grid-community/styles/ag-theme-alpine.css';
 import { useFieldConfig } from '../lib/useFieldConfig';
+import { notifyTaskAssigned, notifyTaskReturned } from '../lib/inspectionTaskNotifications';
 
 const STATUS_LABELS: Record<InspectionTaskStatus, string> = {
   new: 'חדש',
@@ -390,6 +391,17 @@ export function InspectionTasks() {
     fetchTasks();
   }, []);
 
+  // Deep link: open task from hash #inspection-tasks/123
+  useEffect(() => {
+    const hash = typeof window !== 'undefined' ? window.location.hash : '';
+    const m = hash.match(/#inspection-tasks\/(\d+)/);
+    if (m) {
+      const taskId = parseInt(m[1], 10);
+      if (!Number.isNaN(taskId)) setSelectedTaskId(taskId);
+      window.history.replaceState(null, '', window.location.pathname + (window.location.search || ''));
+    }
+  }, []);
+
   // Load all users for grid name resolution (assigned_to, created_by, approved_by); inspectors for dropdowns
   useEffect(() => {
     api.users.getAll().then((uList) => {
@@ -622,6 +634,9 @@ export function InspectionTasks() {
             priority: editTaskPriority,
           });
       setDetailTask(updated);
+      if (!inspectorSaving && updated.assigned_to && detailTask?.assigned_to !== updated.assigned_to) {
+        notifyTaskAssigned(updated.assigned_to, updated.id, updated.title);
+      }
       refreshDetail();
       fetchTasks();
     } catch (err) {
@@ -681,8 +696,9 @@ export function InspectionTasks() {
     setReturnSaving(true);
     setDetailError(null);
     try {
-      await api.inspectionTasks.returnToInspector(selectedTaskId, returnNote);
+      const task = await api.inspectionTasks.returnToInspector(selectedTaskId, returnNote);
       setReturnNote('');
+      if (task.assigned_to) notifyTaskReturned(task.assigned_to, task.id, task.title);
       refreshDetail();
       fetchTasks();
     } catch (err) {
@@ -790,7 +806,7 @@ export function InspectionTasks() {
     setCreateSaving(true);
     setCreateError(null);
     try {
-      await api.inspectionTasks.create({
+      const task = await api.inspectionTasks.create({
         title: createForm.title.trim(),
         building_number: bn,
         asset_ids: createForm.asset_ids.length > 0 ? createForm.asset_ids : undefined,
@@ -799,6 +815,7 @@ export function InspectionTasks() {
         priority: createForm.priority,
       });
       setCreateModalOpen(false);
+      if (task.assigned_to) notifyTaskAssigned(task.assigned_to, task.id, task.title);
       await fetchTasks();
     } catch (err) {
       setCreateError(err instanceof Error ? err.message : 'שגיאה ביצירת משימה');

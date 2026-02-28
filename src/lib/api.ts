@@ -4593,6 +4593,15 @@ export const api = {
     },
   },
   users: {
+    getOne: async (userId: number): Promise<{ user_id: number; user_name: string; user_email: string | null } | null> => {
+      const { data, error } = await supabase
+        .from('users')
+        .select('user_id, user_name, user_email')
+        .eq('user_id', userId)
+        .maybeSingle();
+      if (error) throw new Error(`Failed to fetch user: ${error.message}`);
+      return data;
+    },
     getAll: async (): Promise<Array<{
       user_id: number;
       auth_user_id: string | null;
@@ -4814,8 +4823,8 @@ export const api = {
       }
       return null;
     },
-    /** Email templates stored in DB (system_configuration). Placeholders: {{name}}, {{date}}, {{assetCount}} */
-    getEmailTemplate: async (name: 'email_template_operator' | 'email_template_manager'): Promise<{ subject: string; body: string } | null> => {
+    /** Email templates stored in DB (system_configuration). Placeholders vary by template. */
+    getEmailTemplate: async (name: 'email_template_operator' | 'email_template_manager' | 'email_template_inspection_task'): Promise<{ subject: string; body: string } | null> => {
       const config = await api.systemConfiguration.getByName(name);
       if (!config?.value) return null;
       try {
@@ -4829,7 +4838,7 @@ export const api = {
       return null;
     },
     upsertEmailTemplate: async (
-      name: 'email_template_operator' | 'email_template_manager',
+      name: 'email_template_operator' | 'email_template_manager' | 'email_template_inspection_task',
       template: { subject: string; body: string },
       description?: string
     ): Promise<SystemConfiguration> => {

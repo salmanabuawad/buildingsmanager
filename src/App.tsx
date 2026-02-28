@@ -119,6 +119,20 @@ function App() {
     }
   }, [roleLoading, isAuthenticated, isInspector]);
 
+  // Deep link: switch to inspection-tasks tab when hash is #inspection-tasks/123
+  useEffect(() => {
+    if (!isAuthenticated) return;
+    const hash = window.location.hash || '';
+    if (hash.match(/#inspection-tasks\/\d+/)) {
+      setTabs((prev) => {
+        const has = prev.some((t) => t.type === 'inspection-tasks');
+        if (!has) return [...prev, { id: 'inspection-tasks', type: 'inspection-tasks', label: 'משימות ביקורת', refreshKey: Date.now() }];
+        return prev;
+      });
+      setActiveTabId('inspection-tasks');
+    }
+  }, [isAuthenticated]);
+
   // Load UI configuration
   useEffect(() => {
     const loadUIConfig = async () => {

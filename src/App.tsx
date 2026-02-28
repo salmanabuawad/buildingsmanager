@@ -1956,7 +1956,9 @@ function App() {
               />
             )}
             {activeTab?.type === 'inspection-tasks' && (
-              <InspectionTasks key={activeTab.id} />
+              <div className="h-full flex flex-col min-h-0">
+                <InspectionTasks key={activeTab.id} />
+              </div>
             )}
           </div>
         </div>

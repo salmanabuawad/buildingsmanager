@@ -863,7 +863,7 @@ export function InspectionTasks() {
   }
 
   return (
-    <div className="p-4 sm:p-6 pb-safe min-h-[60vh] flex flex-col" dir="rtl">
+    <div className="p-4 sm:p-6 pb-safe flex flex-col flex-1 min-h-0" dir="rtl">
       {/* Header: stacked on mobile, row on desktop; touch-friendly buttons */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-4 sm:mb-6">
         <h2 className="text-lg sm:text-xl font-bold text-slate-800 flex items-center gap-2 min-h-[44px] items-center">
@@ -1481,7 +1481,7 @@ export function InspectionTasks() {
           {isInspector && ' משימות שיוקצו אליך יופיעו כאן.'}
         </div>
       ) : (
-        <div className="ag-theme-alpine w-full" style={{ height: '50vh', minHeight: 240 }}>
+        <div className="ag-theme-alpine w-full flex-1 min-h-[240px]" dir="rtl">
           <AgGridReact<InspectionTask>
             ref={gridRef}
             rowData={tasks}

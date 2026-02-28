@@ -4,7 +4,7 @@
 INSERT INTO system_configuration (name, value, description, created_by, updated_by)
 VALUES (
   'email_template_inspection_task',
-  '{"subject":"משימת ביקורת: {{taskTitle}}","body":"שלום {{inspectorName}},\n\nמשימת ביקורת {{action}}.\n\nכותרת: {{taskTitle}}\nמזהה משימה: #{{taskId}}\n\nלפתיחת המשימה ישירות: {{taskLink}}\n\nבברכה,\nמערכת ניהול נכסים"}'::text,
+  '{"subject":"משימת ביקורת: {{taskTitle}}","body":"שלום {{inspectorName}},\n\nמשימת ביקורת {{action}}.\n\nכותרת: {{taskTitle}}\nמזהה משימה: #{{taskId}}\n\nלפתיחת המשימה (ללא צורך בהתחברות): {{taskLink}}\n\nהקישור הוא חד-פעמי ותקף ל־7 ימים.\n\nבברכה,\nמערכת ניהול נכסים"}'::text,
   'תבנית אימייל להקצאת משימה / החזרה לפקח. משתנים: {{inspectorName}} {{taskTitle}} {{taskId}} {{taskLink}} {{action}}',
   'migration',
   'migration'

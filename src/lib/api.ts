@@ -4625,7 +4625,7 @@ export const api = {
       return data || [];
     },
     update: async (userId: number, updates: {
-      user_role?: 'admin' | 'user';
+      user_role?: 'admin' | 'user' | 'inspector';
       active?: boolean;
       user_name?: string;
       user_email?: string;
@@ -4647,7 +4647,7 @@ export const api = {
       user_name: string;
       user_email: string;
       password: string;
-      user_role?: 'admin' | 'user';
+      user_role?: 'admin' | 'user' | 'inspector';
     }): Promise<{
       user_id: number;
       auth_user_id: string | null;
@@ -5025,6 +5025,18 @@ export const api = {
       });
       if (historyError) console.warn('[inspectionTasks.create] history insert failed:', historyError);
       return task as InspectionTask;
+    },
+    /** Create one-time access token for task deep link (admin only). Returns token for email. */
+    createAccessToken: async (taskId: number, userId: number): Promise<string> => {
+      const session = getSession();
+      if (!session?.user_id) throw new Error('לא מחובר');
+      const { data, error } = await supabase.rpc('inspection_task_create_access_token', {
+        p_task_id: taskId,
+        p_user_id: userId,
+        p_caller_user_id: session.user_id,
+      });
+      if (error) throw new Error(error.message || 'לא ניתן ליצור טוקן');
+      return data as string;
     },
     /** Inspector marks task as in progress (new -> in_progress). */
     takeTask: async (taskId: number): Promise<InspectionTask> => {

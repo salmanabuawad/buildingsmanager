@@ -21,7 +21,7 @@ import { MeasurementProgressDashboard } from './components/MeasurementProgressDa
 import { InspectionTasks } from './components/InspectionTasks';
 import { X, Settings, Building, Home, Tag, Search, Plus, Building2, Upload, ChevronDown, ChevronLeft, Trash2, Database, CheckCircle2, AlertCircle, Loader2, Menu, MapPin, Edit, Square, Save, FileText, RefreshCw, Download, LogOut, Users, UserCog, BarChart3, Mail, ClipboardList } from 'lucide-react';
 import { api, AssetType } from './lib/api';
-import { getSession, logoutUsersTable } from './lib/usersTableAuth';
+import { getSession, logoutUsersTable, loginByTaskToken } from './lib/usersTableAuth';
 import { assetValidators, validateEntity, getAssetTypes, getLatestExportDate as getCachedLatestExportDate } from './lib/validation';
 import { usePreferences } from './contexts/PreferencesContext';
 import { useUserRole } from './contexts/UserRoleContext';
@@ -44,7 +44,9 @@ interface Tab {
 
 function App() {
   const { preferences, setEditMode } = usePreferences();
-  const { isLoading: roleLoading, isReadOnly, isAdmin, isInspector, refreshRole } = useUserRole();
+  const { isLoading: roleLoading, isReadOnly, isAdmin, isInspector, userRole, refreshRole } = useUserRole();
+
+  const roleLabel = userRole === 'admin' ? 'מנהל' : userRole === 'inspector' ? 'פקח' : 'משתמש';
   const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
   const [checkingAuth, setCheckingAuth] = useState(true);
   
@@ -102,11 +104,29 @@ function App() {
   const [resetExportLoading, setResetExportLoading] = useState(false);
   const [latestExportDate, setLatestExportDate] = useState<string | null>(null);
   
-  // Check authentication (users-table session only)
+  // Check authentication (users-table session only). Handle one-time token from email deep link.
   useEffect(() => {
-    setIsAuthenticated(!!getSession());
-    setCheckingAuth(false);
-  }, []);
+    (async () => {
+      const hash = window.location.hash || '';
+      const tokenMatch = hash.match(/[?&]token=([^&]+)/);
+      const token = tokenMatch ? decodeURIComponent(tokenMatch[1]) : null;
+
+      if (token && !getSession()) {
+        const result = await loginByTaskToken(token);
+        if (result.success) {
+          setIsAuthenticated(true);
+          await refreshRole();
+          const cleanHash = `#inspection-tasks/${result.taskId}`;
+          window.history.replaceState(null, '', window.location.pathname + (window.location.search || '') + cleanHash);
+          setCheckingAuth(false);
+          return;
+        }
+      }
+
+      setIsAuthenticated(!!getSession());
+      setCheckingAuth(false);
+    })();
+  }, [refreshRole]);
 
   // Inspector: only inspection-tasks tab; hide other pages
   useEffect(() => {
@@ -119,10 +139,14 @@ function App() {
     }
   }, [roleLoading, isAuthenticated, isInspector]);
 
-  // Deep link: switch to inspection-tasks tab when hash is #inspection-tasks/123
+  // Deep link: switch to inspection-tasks tab when hash is #inspection-tasks/123. Strip token if present (user already logged in).
   useEffect(() => {
     if (!isAuthenticated) return;
     const hash = window.location.hash || '';
+    if (hash.includes('?token=')) {
+      const cleanHash = hash.split('?')[0] || '#inspection-tasks';
+      window.history.replaceState(null, '', window.location.pathname + (window.location.search || '') + cleanHash);
+    }
     if (hash.match(/#inspection-tasks\/\d+/)) {
       setTabs((prev) => {
         const has = prev.some((t) => t.type === 'inspection-tasks');
@@ -1427,6 +1451,15 @@ function App() {
         )}
         <div className="p-2 border-b border-purple-100 bg-gradient-to-br from-purple-100 via-indigo-50 to-white">
           <h2 className="text-xs font-semibold bg-gradient-to-r from-purple-700 to-indigo-700 bg-clip-text text-transparent">תפריט ראשי</h2>
+          {!roleLoading && userRole && (
+            <span className={`inline-block mt-1.5 px-2 py-0.5 rounded text-xs font-medium ${
+              userRole === 'admin' ? 'bg-pink-100 text-pink-800' :
+              userRole === 'inspector' ? 'bg-indigo-100 text-indigo-800' :
+              'bg-slate-100 text-slate-700'
+            }`}>
+              {roleLabel}
+            </span>
+          )}
         </div>
         <nav className="flex-1 p-3 space-y-2">
           {isInspector && (

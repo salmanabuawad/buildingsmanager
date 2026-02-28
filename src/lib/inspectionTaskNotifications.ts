@@ -8,13 +8,14 @@
 import { api } from './api';
 import { emailService } from './emailService';
 
-/** Build deep link URL to open a specific inspection task (works when app is on inspection-tasks tab). */
-export function getTaskDeepLink(taskId: number): string {
+/** Build deep link URL to open a specific inspection task. With token: one-time login, no password. */
+export function getTaskDeepLink(taskId: number, token?: string | null): string {
+  const hash = token ? `#inspection-tasks/${taskId}?token=${encodeURIComponent(token)}` : `#inspection-tasks/${taskId}`;
   if (typeof window !== 'undefined') {
     const base = `${window.location.origin}${window.location.pathname || '/'}`.replace(/\/$/, '');
-    return `${base}#inspection-tasks/${taskId}`;
+    return `${base}${hash}`;
   }
-  return `#inspection-tasks/${taskId}`;
+  return hash;
 }
 
 function applyTemplate(template: string, vars: Record<string, string>): string {
@@ -37,7 +38,13 @@ async function sendNotification(
       console.warn('[inspectionTaskNotifications] No valid email for user', assignedToUserId);
       return;
     }
-    const taskLink = getTaskDeepLink(taskId);
+    let token: string | null = null;
+    try {
+      token = await api.inspectionTasks.createAccessToken(taskId, assignedToUserId);
+    } catch (e) {
+      console.warn('[inspectionTaskNotifications] Failed to create token:', e);
+    }
+    const taskLink = getTaskDeepLink(taskId, token);
     const action = kind === 'assigned' ? 'הוקצתה אליך' : 'הוחזרה אליך לתיקון';
     const vars = {
       inspectorName: user.user_name || 'פקח',
@@ -60,7 +67,7 @@ async function sendNotification(
       subject = kind === 'assigned'
         ? `משימת ביקורת הוקצתה אליך: ${taskTitle}`
         : `משימה הוחזרה אליך: ${taskTitle}`;
-      body = `שלום ${vars.inspectorName},\n\nמשימת ביקורת ${action}.\nכותרת: ${taskTitle}\nמזהה משימה: #${taskId}\n\nלפתיחת המשימה: ${taskLink}\n\nבברכה,\nמערכת ניהול נכסים`;
+      body = `שלום ${vars.inspectorName},\n\nמשימת ביקורת ${action}.\nכותרת: ${taskTitle}\nמזהה משימה: #${taskId}\n\nלפתיחת המשימה ישירות (ללא צורך בהתחברות): ${taskLink}\n\nהקישור הוא חד-פעמי ותקף ל־7 ימים.\n\nבברכה,\nמערכת ניהול נכסים`;
     }
     const result = await emailService.sendEmail({
       to: [user.user_email],

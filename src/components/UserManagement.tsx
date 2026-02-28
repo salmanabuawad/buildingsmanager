@@ -8,7 +8,7 @@ interface User {
   auth_user_id: string | null;
   user_name: string;
   user_email: string | null;
-  user_role: 'admin' | 'user';
+  user_role: 'admin' | 'user' | 'inspector';
   active: boolean;
   created_at: string;
   updated_at: string;
@@ -33,9 +33,10 @@ export function UserManagement() {
     user_email: '',
     password: '',
     confirmPassword: '',
-    user_role: 'user' as 'admin' | 'user',
+    user_role: 'user' as 'admin' | 'user' | 'inspector',
   });
   const [creatingUser, setCreatingUser] = useState(false);
+  const [editingCell, setEditingCell] = useState<{ userId: number; field: 'user_name' | 'user_email'; value: string } | null>(null);
 
   const fetchUsers = async () => {
     try {
@@ -55,7 +56,7 @@ export function UserManagement() {
     fetchUsers();
   }, []);
 
-  const handleUpdateUser = async (userId: number, updates: { user_role?: 'admin' | 'user'; active?: boolean }) => {
+  const handleUpdateUser = async (userId: number, updates: { user_role?: 'admin' | 'user' | 'inspector'; active?: boolean; user_name?: string; user_email?: string }) => {
     if (!isAdmin) {
       setError('אין לך הרשאה לעדכן משתמשים');
       return;
@@ -82,7 +83,7 @@ export function UserManagement() {
     }
   };
 
-  const handleRoleChange = (userId: number, newRole: 'admin' | 'user') => {
+  const handleRoleChange = (userId: number, newRole: 'admin' | 'user' | 'inspector') => {
     handleUpdateUser(userId, { user_role: newRole });
   };
 
@@ -320,21 +321,67 @@ export function UserManagement() {
                 ) : (
                   users.map((user) => (
                     <tr key={user.user_id} className="hover:bg-purple-50/50 transition-colors">
-                      <td className="px-4 py-3 text-sm text-slate-900 font-medium">
-                        {user.user_name}
+                      <td className="px-4 py-3">
+                        {editingCell?.userId === user.user_id && editingCell?.field === 'user_name' ? (
+                          <input
+                            type="text"
+                            value={editingCell.value}
+                            onChange={(e) => setEditingCell((c) => (c ? { ...c, value: e.target.value } : null))}
+                            onBlur={() => {
+                              const v = editingCell?.value.trim();
+                              if (editingCell && v && v !== user.user_name) {
+                                handleUpdateUser(user.user_id, { user_name: v });
+                              }
+                              setEditingCell(null);
+                            }}
+                            onKeyDown={(e) => e.key === 'Enter' && (e.target as HTMLInputElement).blur()}
+                            autoFocus
+                            className="w-full px-2 py-1 text-sm border border-purple-300 rounded focus:ring-2 focus:ring-purple-500"
+                          />
+                        ) : (
+                          <span
+                            className="text-sm text-slate-900 font-medium cursor-pointer hover:bg-purple-100 rounded px-1 -mx-1"
+                            onClick={() => setEditingCell({ userId: user.user_id, field: 'user_name', value: user.user_name })}
+                          >
+                            {user.user_name}
+                          </span>
+                        )}
                       </td>
-                      <td className="px-4 py-3 text-sm text-slate-600">
-                        {user.user_email || '-'}
+                      <td className="px-4 py-3">
+                        {editingCell?.userId === user.user_id && editingCell?.field === 'user_email' ? (
+                          <input
+                            type="email"
+                            value={editingCell.value}
+                            onChange={(e) => setEditingCell((c) => (c ? { ...c, value: e.target.value } : null))}
+                            onBlur={() => {
+                              if (editingCell && editingCell.value.trim() !== (user.user_email || '')) {
+                                handleUpdateUser(user.user_id, { user_email: editingCell.value.trim() || undefined });
+                              }
+                              setEditingCell(null);
+                            }}
+                            onKeyDown={(e) => e.key === 'Enter' && (e.target as HTMLInputElement).blur()}
+                            autoFocus
+                            className="w-full px-2 py-1 text-sm border border-purple-300 rounded focus:ring-2 focus:ring-purple-500"
+                          />
+                        ) : (
+                          <span
+                            className="text-sm text-slate-600 cursor-pointer hover:bg-purple-100 rounded px-1 -mx-1"
+                            onClick={() => setEditingCell({ userId: user.user_id, field: 'user_email', value: user.user_email || '' })}
+                          >
+                            {user.user_email || '-'}
+                          </span>
+                        )}
                       </td>
                       <td className="px-4 py-3">
                         <select
                           value={user.user_role}
-                          onChange={(e) => handleRoleChange(user.user_id, e.target.value as 'admin' | 'user')}
+                          onChange={(e) => handleRoleChange(user.user_id, e.target.value as 'admin' | 'user' | 'inspector')}
                           disabled={saving === user.user_id}
                           className="px-3 py-1.5 text-sm border border-purple-300 rounded-lg bg-white hover:bg-purple-50 focus:outline-none focus:ring-2 focus:ring-purple-500 disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                           <option value="admin">מנהל</option>
                           <option value="user">משתמש</option>
+                          <option value="inspector">פקח</option>
                         </select>
                       </td>
                       <td className="px-4 py-3">
@@ -560,13 +607,15 @@ export function UserManagement() {
                 </label>
                 <select
                   value={newUser.user_role}
-                  onChange={(e) => setNewUser({ ...newUser, user_role: e.target.value as 'admin' | 'user' })}
+                  onChange={(e) => setNewUser({ ...newUser, user_role: e.target.value as 'admin' | 'user' | 'inspector' })}
                   disabled={creatingUser}
                   className="w-full px-3 py-2 border border-purple-300 rounded-lg bg-white hover:bg-purple-50 focus:outline-none focus:ring-2 focus:ring-purple-500 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <option value="user">משתמש</option>
                   <option value="admin">מנהל</option>
+                  <option value="inspector">פקח</option>
                 </select>
+                <p className="mt-1 text-xs text-slate-500">מנהל: גישה מלאה. משתמש: מבנים, נכסים ועריכה. פקח: משימות ביקורת בלבד.</p>
               </div>
 
               <div>

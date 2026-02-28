@@ -92,3 +92,36 @@ export async function loginUsersTable(
 export function logoutUsersTable(): void {
   clearSession();
 }
+
+/** Login using one-time task access token (from email deep link). No password required. */
+export async function loginByTaskToken(
+  token: string
+): Promise<{ success: true; session: UsersTableSession; taskId: number } | { success: false; error: string }> {
+  try {
+    const { data, error } = await supabase.rpc('auth_login_by_task_token', {
+      p_token: token.trim(),
+    });
+
+    if (error) {
+      const msg = error.message || 'טוקן לא תקף או שפג תוקפו';
+      return { success: false, error: msg };
+    }
+
+    const d = data as { user_id: number; user_name: string; user_role: string; task_id: number } | null;
+    if (!d?.user_id || !d?.user_name || d.task_id == null) {
+      return { success: false, error: 'טוקן לא תקף או שפג תוקפו.' };
+    }
+
+    const role = (d.user_role === 'admin' ? 'admin' : d.user_role === 'inspector' ? 'inspector' : 'user') as 'admin' | 'user' | 'inspector';
+    const session: UsersTableSession = {
+      user_id: d.user_id,
+      user_name: d.user_name,
+      user_role: role,
+    };
+    setSession(session);
+    return { success: true, session, taskId: d.task_id };
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
+    return { success: false, error: msg || 'שגיאה בהתחברות עם הטוקן.' };
+  }
+}

@@ -98,6 +98,7 @@ import './i18n/i18n';
 import { ValidationProvider } from './contexts/ValidationContext';
 import { PreferencesProvider } from './contexts/PreferencesContext';
 import { UserRoleProvider } from './contexts/UserRoleContext';
+import { HelpProvider } from './contexts/HelpContext';
 
 // Helper function to check if an error is from external scripts
 const isExternalScriptError = (event: ErrorEvent | Event): boolean => {
@@ -189,9 +190,11 @@ createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <UserRoleProvider>
       <PreferencesProvider>
-        <ValidationProvider>
-          <App />
-        </ValidationProvider>
+        <HelpProvider>
+          <ValidationProvider>
+            <App />
+          </ValidationProvider>
+        </HelpProvider>
       </PreferencesProvider>
     </UserRoleProvider>
   </StrictMode>

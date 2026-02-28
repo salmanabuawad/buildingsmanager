@@ -19,13 +19,15 @@ import { ManagersManager } from './components/ManagersManager';
 import { MeasuredNotExportedAssets } from './components/MeasuredNotExportedAssets';
 import { MeasurementProgressDashboard } from './components/MeasurementProgressDashboard';
 import { InspectionTasks } from './components/InspectionTasks';
-import { X, Settings, Building, Home, Tag, Search, Plus, Building2, Upload, ChevronDown, ChevronLeft, Trash2, Database, CheckCircle2, AlertCircle, Loader2, Menu, MapPin, Edit, Square, Save, FileText, RefreshCw, Download, LogOut, Users, UserCog, BarChart3, Mail, ClipboardList } from 'lucide-react';
+import { X, Settings, Building, Home, Tag, Search, Plus, Building2, Upload, ChevronDown, ChevronLeft, Trash2, Database, CheckCircle2, AlertCircle, Loader2, Menu, MapPin, Edit, Square, Save, FileText, RefreshCw, Download, LogOut, Users, UserCog, BarChart3, Mail, ClipboardList, HelpCircle } from 'lucide-react';
 import { api, AssetType } from './lib/api';
 import { getSession, logoutUsersTable, loginByTaskToken } from './lib/usersTableAuth';
 import { assetValidators, validateEntity, getAssetTypes, getLatestExportDate as getCachedLatestExportDate } from './lib/validation';
 import { usePreferences } from './contexts/PreferencesContext';
 import { useUserRole } from './contexts/UserRoleContext';
+import { useHelp } from './contexts/HelpContext';
 import { Login } from './components/Login';
+import { HelpModal } from './components/HelpModal';
 
 interface Tab {
   id: string;
@@ -45,6 +47,7 @@ interface Tab {
 function App() {
   const { preferences, setEditMode } = usePreferences();
   const { isLoading: roleLoading, isReadOnly, isAdmin, isInspector, userRole, refreshRole } = useUserRole();
+  const { setContextFromTabType, openHelp } = useHelp();
 
   const roleLabel = userRole === 'admin' ? 'מנהל' : userRole === 'inspector' ? 'פקח' : 'משתמש';
   const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
@@ -176,6 +179,28 @@ function App() {
       loadUIConfig();
     }
   }, [isAuthenticated]);
+
+  // Sync help context when active tab changes
+  useEffect(() => {
+    if (!isAuthenticated) {
+      setContextFromTabType('general');
+      return;
+    }
+    const activeTab = tabs.find((t) => t.id === activeTabId);
+    setContextFromTabType(activeTab?.type ?? 'general');
+  }, [isAuthenticated, tabs, activeTabId, setContextFromTabType]);
+
+  // F1 opens contextual help
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'F1') {
+        e.preventDefault();
+        openHelp();
+      }
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [openHelp]);
 
   const handleLoginSuccess = async () => {
     setIsAuthenticated(true);
@@ -555,7 +580,12 @@ function App() {
   }
 
   if (!isAuthenticated) {
-    return <Login onLoginSuccess={handleLoginSuccess} />;
+    return (
+      <>
+        <Login onLoginSuccess={handleLoginSuccess} />
+        <HelpModal />
+      </>
+    );
   }
 
   // Helper function to open a new tab, closing any existing tab of the same type
@@ -1767,8 +1797,16 @@ function App() {
           )}
         </nav>
         
-        {/* Logout button at bottom of sidebar */}
-        <div className="p-3 border-t border-purple-200">
+        {/* Help and Logout at bottom of sidebar */}
+        <div className="p-3 border-t border-purple-200 space-y-2">
+          <button
+            onClick={() => openHelp()}
+            className="w-full flex items-center gap-2 px-4 py-2 text-right bg-slate-50 hover:bg-slate-100 rounded-md transition-all text-sm text-slate-600 hover:text-slate-800"
+            title="עזרה (F1)"
+          >
+            <HelpCircle className="h-4 w-4" />
+            <span>עזרה (F1)</span>
+          </button>
           <button
             onClick={handleLogout}
             className="w-full flex items-center gap-2 px-4 py-2.5 text-right bg-red-50 hover:bg-red-100 active:bg-red-200 rounded-md transition-all duration-200 shadow-sm border border-red-200 hover:shadow-md hover:border-red-300 group"
@@ -2247,6 +2285,7 @@ function App() {
           </div>
         </div>
       )}
+      <HelpModal />
     </div>
   );
 }

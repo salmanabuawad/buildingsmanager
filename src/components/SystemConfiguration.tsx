@@ -677,7 +677,10 @@ export function SystemConfigurationManager() {
           </div>
         )}
       </div>
+      )}
 
+      {/* Tab: הגדרות כלליות */}
+      {activeSubTab === 'general' && (
       <div className="bg-white rounded-xl shadow-lg border border-blue-100 p-6">
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center gap-3">

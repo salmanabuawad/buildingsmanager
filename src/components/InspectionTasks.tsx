@@ -313,6 +313,7 @@ export function InspectionTasks() {
   const [approveSaving, setApproveSaving] = useState(false);
   const [returnSaving, setReturnSaving] = useState(false);
   const [cancelSaving, setCancelSaving] = useState(false);
+  const [cancelConfirmOpen, setCancelConfirmOpen] = useState(false);
   const [editTaskSaving, setEditTaskSaving] = useState(false);
   const [editTaskTitle, setEditTaskTitle] = useState('');
   const [editTaskBuildingNumber, setEditTaskBuildingNumber] = useState<number | ''>('');
@@ -713,11 +714,12 @@ export function InspectionTasks() {
 
   const handleCancelTask = async () => {
     if (selectedTaskId == null) return;
-    if (!window.confirm('לבטל את המשימה? המשימה תישמר במערכת עם סטטוס בוטל.')) return;
     setCancelSaving(true);
     setDetailError(null);
     try {
       await api.inspectionTasks.cancelTask(selectedTaskId);
+      setCancelConfirmOpen(false);
+      setSelectedTaskId(null);
       refreshDetail();
       fetchTasks();
     } catch (err) {
@@ -1405,7 +1407,7 @@ export function InspectionTasks() {
                         </button>
                         <button
                           type="button"
-                          onClick={handleCancelTask}
+                          onClick={() => setCancelConfirmOpen(true)}
                           disabled={cancelSaving || approveSaving || returnSaving}
                           className="flex items-center justify-center gap-2 min-h-[44px] px-4 py-2 bg-red-600 text-white rounded-lg text-sm font-medium hover:bg-red-700 disabled:opacity-50 touch-manipulation"
                         >
@@ -1420,7 +1422,7 @@ export function InspectionTasks() {
                       <div>
                         <button
                           type="button"
-                          onClick={handleCancelTask}
+                          onClick={() => setCancelConfirmOpen(true)}
                           disabled={cancelSaving}
                           className="flex items-center justify-center gap-2 min-h-[44px] px-4 py-2 bg-red-600 text-white rounded-lg text-sm font-medium hover:bg-red-700 disabled:opacity-50 touch-manipulation"
                         >
@@ -1431,6 +1433,41 @@ export function InspectionTasks() {
                   )}
                 </div>
               )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Cancel task confirmation modal */}
+      {cancelConfirmOpen && (
+        <div className="fixed inset-0 z-[55] flex items-center justify-center p-4 bg-black/50" dir="rtl" onClick={() => !cancelSaving && setCancelConfirmOpen(false)}>
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-md" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between p-4 border-b border-slate-200">
+              <h3 className="text-lg font-bold text-slate-800">ביטול משימה</h3>
+              <button type="button" onClick={() => !cancelSaving && setCancelConfirmOpen(false)} className="p-2 rounded-lg hover:bg-slate-100" aria-label="סגור">
+                <X className="w-5 h-5 text-slate-600" />
+              </button>
+            </div>
+            <div className="p-4 space-y-4">
+              <p className="text-slate-700">לבטל את המשימה? המשימה תישמר במערכת עם סטטוס בוטל.</p>
+              <div className="flex gap-2 justify-end">
+                <button
+                  type="button"
+                  onClick={() => !cancelSaving && setCancelConfirmOpen(false)}
+                  disabled={cancelSaving}
+                  className="min-h-[44px] px-4 py-2 border border-slate-300 rounded-lg text-slate-700 hover:bg-slate-50 disabled:opacity-50"
+                >
+                  לא, חזור
+                </button>
+                <button
+                  type="button"
+                  onClick={handleCancelTask}
+                  disabled={cancelSaving}
+                  className="min-h-[44px] px-4 py-2 bg-red-600 text-white rounded-lg font-medium hover:bg-red-700 disabled:opacity-50"
+                >
+                  {cancelSaving ? <Loader2 className="w-4 h-4 animate-spin inline ml-1" /> : null} כן, בטל משימה
+                </button>
+              </div>
             </div>
           </div>
         </div>

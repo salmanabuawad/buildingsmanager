@@ -8,6 +8,7 @@ import { ColDef, ICellRendererParams } from 'ag-grid-community';
 import 'ag-grid-community/styles/ag-theme-alpine.css';
 import { useFieldConfig } from '../lib/useFieldConfig';
 import { notifyTaskAssigned, notifyTaskReturned } from '../lib/inspectionTaskNotifications';
+import { compressFile, getFileTypeCategory } from '../lib/fileCompression';
 
 const STATUS_LABELS: Record<InspectionTaskStatus, string> = {
   new: 'חדש',
@@ -741,7 +742,13 @@ export function InspectionTasks() {
         setDetailReport(report);
       }
       const assetId = Number(uploadAssetId);
-      const raw = await api.inspectionReports.files.upload(report.id, file, assetId);
+      // Compress images to <30KB before upload (will be copied to asset_files on approval)
+      let fileToUpload = file;
+      const category = getFileTypeCategory(file.name, file.type);
+      if (category === 'image') {
+        fileToUpload = await compressFile(file);
+      }
+      const raw = await api.inspectionReports.files.upload(report.id, fileToUpload, assetId);
       const uploaded: InspectionReportFile = {
         id: Number((raw as Record<string, unknown>).id) || -Date.now(),
         report_id: Number((raw as Record<string, unknown>).report_id) ?? report.id,

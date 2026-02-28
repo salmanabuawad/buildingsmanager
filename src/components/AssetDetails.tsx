@@ -1584,7 +1584,7 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
       // Get the current measurement_date from the asset
       const currentAsset = allMeasurements.find(a => a.asset_id === assetId && a.is_latest === true);
       const measurementDate = currentAsset?.measurement_date || null;
-      await api.assets.files.add(assetId, publicUrl, file.name, file.size, file.type, measurementDate);
+      await api.assets.files.add(assetId, publicUrl, file.name, compressedFile.size, compressedFile.type || file.type, measurementDate);
 
       setUploadProgress({ assetId, progress: 100, fileName: file.name });
 

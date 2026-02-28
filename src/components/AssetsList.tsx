@@ -4742,7 +4742,7 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
       // But we want to associate files with the latest measurement, so we get the asset's measurement_date
       const asset = assets.find(a => a.asset_id === assetId);
       const measurementDate = asset?.measurement_date || null;
-      await api.assets.files.add(assetId, publicUrl, file.name, file.size, file.type, measurementDate);
+      await api.assets.files.add(assetId, publicUrl, file.name, compressedFile.size, compressedFile.type || file.type, measurementDate);
 
       setUploadProgress({ assetId, progress: 100, fileName: file.name });
 

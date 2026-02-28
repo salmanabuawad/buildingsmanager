@@ -4,6 +4,7 @@ import i18n from '../i18n/i18n';
 import { sanitizeText, sanitizeNumber, sanitizeInteger, sanitizeDate } from './sanitize';
 import { parseDateFromDDMMYYYY } from './dateUtils';
 import { setLatestExportDate } from './validation';
+import { compressFile, getFileTypeCategory } from './fileCompression';
 
 /**
  * ============================================================================
@@ -3091,10 +3092,17 @@ export const api = {
             const newFileName = `${timestamp}.${fileExt}`;
             const newFilePath = `${assetId}/${newFileName}`;
             
+            // Compress images to <30KB before re-uploading
+            let dataToUpload: Blob | File = fileData;
+            if (getFileTypeCategory(file.file_name || fileName, file.file_type || undefined) === 'image' && fileData.size > 30 * 1024) {
+              const fileForCompress = new File([fileData], file.file_name || fileName, { type: file.file_type || 'application/octet-stream' });
+              dataToUpload = await compressFile(fileForCompress);
+            }
+            
             // Upload to new path
             const { error: uploadError } = await supabase.storage
               .from('structure-drawings')
-              .upload(newFilePath, fileData);
+              .upload(newFilePath, dataToUpload, { contentType: dataToUpload.type || file.file_type || undefined });
             
             if (uploadError) {
               console.error(`Error uploading cloned file:`, uploadError);
@@ -3114,8 +3122,8 @@ export const api = {
                 asset_id: assetId,
                 file_url: publicUrl,
                 file_name: file.file_name,
-                file_size: file.file_size,
-                file_type: file.file_type,
+                file_size: dataToUpload.size,
+                file_type: dataToUpload.type || file.file_type,
                 uploaded_by: userInfo.user_name,
                 measurement_date: targetMeasurementDate
               })
@@ -5128,16 +5136,23 @@ export const api = {
             const { data: blob, error: downloadErr } = await supabase.storage.from('inspection-reports').download(f.file_path);
             if (downloadErr || !blob) continue;
             const safeName = (f.file_name || f.file_path.split('/').pop() || `inspection_${f.id}`).replace(/[^a-zA-Z0-9._-]/g, '_');
+            const mimeType = f.file_type || blob.type || undefined;
+            let dataToUpload: Blob | File = blob;
+            // Compress images to <30KB before inserting into asset_files
+            if (getFileTypeCategory(safeName, mimeType) === 'image' && blob.size > 30 * 1024) {
+              const file = new File([blob], safeName, { type: mimeType || 'application/octet-stream' });
+              dataToUpload = await compressFile(file);
+            }
             const targetPath = `${f.asset_id}/${Date.now()}_${safeName}`;
-            const { error: uploadErr } = await supabase.storage.from('structure-drawings').upload(targetPath, blob, { contentType: f.file_type || undefined });
+            const { error: uploadErr } = await supabase.storage.from('structure-drawings').upload(targetPath, dataToUpload, { contentType: dataToUpload.type || mimeType });
             if (uploadErr) continue;
             const { data: { publicUrl } } = supabase.storage.from('structure-drawings').getPublicUrl(targetPath);
             await supabase.from('asset_files').insert({
               asset_id: f.asset_id,
               file_url: publicUrl,
               file_name: f.file_name || safeName,
-              file_size: blob.size,
-              file_type: f.file_type || null,
+              file_size: dataToUpload.size,
+              file_type: dataToUpload.type || f.file_type || null,
               uploaded_by: userInfo.user_name,
               measurement_date: null,
             });

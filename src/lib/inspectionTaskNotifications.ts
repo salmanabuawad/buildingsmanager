@@ -47,7 +47,7 @@ async function sendNotification(
     const taskLink = getTaskDeepLink(taskId, token);
     const action = kind === 'assigned' ? 'הוקצתה אליך' : 'הוחזרה אליך לתיקון';
     const vars = {
-      inspectorName: user.user_name || 'פקח',
+      inspectorName: user.full_name?.trim() || user.user_name || 'פקח',
       taskTitle,
       taskId: String(taskId),
       taskLink,

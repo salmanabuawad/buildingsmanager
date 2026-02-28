@@ -8,6 +8,7 @@ interface User {
   auth_user_id: string | null;
   user_name: string;
   user_email: string | null;
+  full_name: string | null;
   user_role: 'admin' | 'user' | 'inspector';
   active: boolean;
   created_at: string;
@@ -31,12 +32,13 @@ export function UserManagement() {
   const [newUser, setNewUser] = useState({
     user_name: '',
     user_email: '',
+    full_name: '',
     password: '',
     confirmPassword: '',
     user_role: 'user' as 'admin' | 'user' | 'inspector',
   });
   const [creatingUser, setCreatingUser] = useState(false);
-  const [editingCell, setEditingCell] = useState<{ userId: number; field: 'user_name' | 'user_email'; value: string } | null>(null);
+  const [editingCell, setEditingCell] = useState<{ userId: number; field: 'user_name' | 'user_email' | 'full_name'; value: string } | null>(null);
 
   const fetchUsers = async () => {
     try {
@@ -56,7 +58,7 @@ export function UserManagement() {
     fetchUsers();
   }, []);
 
-  const handleUpdateUser = async (userId: number, updates: { user_role?: 'admin' | 'user' | 'inspector'; active?: boolean; user_name?: string; user_email?: string }) => {
+  const handleUpdateUser = async (userId: number, updates: { user_role?: 'admin' | 'user' | 'inspector'; active?: boolean; user_name?: string; user_email?: string; full_name?: string | null }) => {
     if (!isAdmin) {
       setError('אין לך הרשאה לעדכן משתמשים');
       return;
@@ -172,6 +174,7 @@ export function UserManagement() {
       const result = await api.users.create({
         user_name: newUser.user_name,
         user_email: newUser.user_email,
+        full_name: newUser.full_name || null,
         password: newUser.password,
         user_role: newUser.user_role,
       });
@@ -184,6 +187,7 @@ export function UserManagement() {
       setNewUser({
         user_name: '',
         user_email: '',
+        full_name: '',
         password: '',
         confirmPassword: '',
         user_role: 'user',
@@ -230,6 +234,7 @@ export function UserManagement() {
     setNewUser({
       user_name: '',
       user_email: '',
+      full_name: '',
       password: '',
       confirmPassword: '',
       user_role: 'user',
@@ -242,6 +247,7 @@ export function UserManagement() {
     setNewUser({
       user_name: '',
       user_email: '',
+      full_name: '',
       password: '',
       confirmPassword: '',
       user_role: 'user',
@@ -304,6 +310,7 @@ export function UserManagement() {
               <thead className="bg-gradient-to-r from-purple-50 to-indigo-50 border-b border-purple-200">
                 <tr>
                   <th className="px-4 py-3 text-right text-sm font-semibold text-slate-700">שם משתמש</th>
+                  <th className="px-4 py-3 text-right text-sm font-semibold text-slate-700">שם מלא</th>
                   <th className="px-4 py-3 text-right text-sm font-semibold text-slate-700">אימייל</th>
                   <th className="px-4 py-3 text-right text-sm font-semibold text-slate-700">תפקיד</th>
                   <th className="px-4 py-3 text-right text-sm font-semibold text-slate-700">סטטוס</th>
@@ -314,7 +321,7 @@ export function UserManagement() {
               <tbody className="divide-y divide-purple-100">
                 {users.length === 0 ? (
                   <tr>
-                    <td colSpan={6} className="px-4 py-8 text-center text-slate-500">
+                    <td colSpan={7} className="px-4 py-8 text-center text-slate-500">
                       לא נמצאו משתמשים
                     </td>
                   </tr>
@@ -344,6 +351,32 @@ export function UserManagement() {
                             onClick={() => setEditingCell({ userId: user.user_id, field: 'user_name', value: user.user_name })}
                           >
                             {user.user_name}
+                          </span>
+                        )}
+                      </td>
+                      <td className="px-4 py-3">
+                        {editingCell?.userId === user.user_id && editingCell?.field === 'full_name' ? (
+                          <input
+                            type="text"
+                            value={editingCell.value}
+                            onChange={(e) => setEditingCell((c) => (c ? { ...c, value: e.target.value } : null))}
+                            onBlur={() => {
+                              const v = editingCell?.value.trim() || null;
+                              if (editingCell && v !== (user.full_name || '')) {
+                                handleUpdateUser(user.user_id, { full_name: v || null });
+                              }
+                              setEditingCell(null);
+                            }}
+                            onKeyDown={(e) => e.key === 'Enter' && (e.target as HTMLInputElement).blur()}
+                            autoFocus
+                            className="w-full px-2 py-1 text-sm border border-purple-300 rounded focus:ring-2 focus:ring-purple-500"
+                          />
+                        ) : (
+                          <span
+                            className="text-sm text-slate-600 cursor-pointer hover:bg-purple-100 rounded px-1 -mx-1"
+                            onClick={() => setEditingCell({ userId: user.user_id, field: 'full_name', value: user.full_name || '' })}
+                          >
+                            {user.full_name || '-'}
                           </span>
                         )}
                       </td>
@@ -584,6 +617,20 @@ export function UserManagement() {
                   disabled={creatingUser}
                   className="w-full px-3 py-2 border border-purple-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 disabled:opacity-50 disabled:cursor-not-allowed"
                   placeholder="הזן שם משתמש"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-2">
+                  שם מלא
+                </label>
+                <input
+                  type="text"
+                  value={newUser.full_name}
+                  onChange={(e) => setNewUser({ ...newUser, full_name: e.target.value })}
+                  disabled={creatingUser}
+                  className="w-full px-3 py-2 border border-purple-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                  placeholder="הזן שם מלא (אופציונלי)"
                 />
               </div>
 

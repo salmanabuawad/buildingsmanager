@@ -4601,10 +4601,10 @@ export const api = {
     },
   },
   users: {
-    getOne: async (userId: number): Promise<{ user_id: number; user_name: string; user_email: string | null } | null> => {
+    getOne: async (userId: number): Promise<{ user_id: number; user_name: string; user_email: string | null; full_name: string | null } | null> => {
       const { data, error } = await supabase
         .from('users')
-        .select('user_id, user_name, user_email')
+        .select('user_id, user_name, user_email, full_name')
         .eq('user_id', userId)
         .maybeSingle();
       if (error) throw new Error(`Failed to fetch user: ${error.message}`);
@@ -4615,6 +4615,7 @@ export const api = {
       auth_user_id: string | null;
       user_name: string;
       user_email: string | null;
+      full_name: string | null;
       user_role: 'admin' | 'user' | 'inspector';
       active: boolean;
       created_at: string;
@@ -4622,7 +4623,7 @@ export const api = {
     }>> => {
       const { data, error } = await supabase
         .from('users')
-        .select('user_id, auth_user_id, user_name, user_email, user_role, active, created_at, updated_at')
+        .select('user_id, auth_user_id, user_name, user_email, full_name, user_role, active, created_at, updated_at')
         .order('user_name');
       
       if (error) {
@@ -4637,6 +4638,7 @@ export const api = {
       active?: boolean;
       user_name?: string;
       user_email?: string;
+      full_name?: string | null;
     }): Promise<void> => {
       const { error } = await supabase
         .from('users')
@@ -4656,6 +4658,7 @@ export const api = {
       user_email: string;
       password: string;
       user_role?: 'admin' | 'user' | 'inspector';
+      full_name?: string | null;
     }): Promise<{
       user_id: number;
       auth_user_id: string | null;
@@ -4665,6 +4668,7 @@ export const api = {
         p_user_email: userData.user_email || '',
         p_password: userData.password,
         p_user_role: userData.user_role || 'user',
+        p_full_name: userData.full_name || null,
       });
       if (error) {
         console.error('Error creating user:', error);

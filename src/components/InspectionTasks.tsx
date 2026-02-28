@@ -81,6 +81,7 @@ function PriorityCellRenderer(props: ICellRendererParams<InspectionTask>) {
 interface UserOption {
   user_id: number;
   user_name: string;
+  full_name?: string | null;
   user_role: string;
 }
 
@@ -328,8 +329,8 @@ export function InspectionTasks() {
     const userName = (id: number | null | undefined, users: UserOption[]) => {
       if (id == null) return '—';
       const u = users.find((i) => i.user_id === id);
-      const name = u?.user_name?.trim();
-      return name ? name : String(id);
+      const name = (u?.full_name?.trim() || u?.user_name?.trim()) || null;
+      return name || String(id);
     };
     return [
       { field: 'id', headerName: 'מזהה', width: 90, type: 'numericColumn', filter: 'agNumberColumnFilter' },

@@ -1800,12 +1800,12 @@ function App() {
         {/* Help and Logout at bottom of sidebar */}
         <div className="p-3 border-t border-purple-200 space-y-2">
           <button
-            onClick={() => openHelp()}
+            onClick={() => openHelp('manual')}
             className="w-full flex items-center gap-2 px-4 py-2 text-right bg-slate-50 hover:bg-slate-100 rounded-md transition-all text-sm text-slate-600 hover:text-slate-800"
-            title="עזרה (F1)"
+            title="מדריך משתמש (F1 למענה מותאם למסך)"
           >
             <HelpCircle className="h-4 w-4" />
-            <span>עזרה (F1)</span>
+            <span>עזרה</span>
           </button>
           <button
             onClick={handleLogout}

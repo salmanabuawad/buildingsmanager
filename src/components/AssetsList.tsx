@@ -1473,14 +1473,16 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
   useEffect(() => {
     const api = gridRef.current?.api;
     if (!api) return;
-    // Redraw rows to apply getRowStyle (red border for validation errors)
-    api.redrawRows();
-    // Explicitly refresh actions column so cell renderer runs with latest validationErrorsRef
-    const rowNodes: any[] = [];
-    api.forEachNode((node) => rowNodes.push(node));
-    if (rowNodes.length > 0) {
-      api.refreshCells({ rowNodes, columns: ['actions'], force: true });
-    }
+    // Defer to next frame so React has committed validationErrors state; ref is already updated on render
+    const rafId = requestAnimationFrame(() => {
+      api.redrawRows();
+      const rowNodes: any[] = [];
+      api.forEachNode((node) => rowNodes.push(node));
+      if (rowNodes.length > 0) {
+        api.refreshCells({ rowNodes, columns: ['actions'], force: true });
+      }
+    });
+    return () => cancelAnimationFrame(rafId);
   }, [validationErrors]);
   async function fetchData(showLoading = true, skipBuildingFetch = false) {
     try {
@@ -1869,13 +1871,14 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
     return errors;
   }, []);
 
-  const getRowStyle = useCallback((params: { data?: { asset_id?: unknown }; } | null) => {
+  const getRowStyle = useCallback((params: { data?: { asset_id?: unknown; _validationError?: string }; } | null) => {
     if (!params?.data) return null;
     const assetId = String(params.data.asset_id);
     if (deletedAssets.has(assetId)) {
       return { backgroundColor: '#fee2e2', opacity: 0.7 };
     }
-    if (validationErrors?.has(assetId)) {
+    const hasError = (params.data as any)._validationError != null || validationErrors?.has(assetId);
+    if (hasError) {
       return { borderLeft: '3px solid #dc2626', backgroundColor: '#fef2f2' };
     }
     return null;
@@ -2068,11 +2071,35 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
       // Also don't refresh cells here - wait until editing stops to prevent re-renders during typing
 
       // When validateInline is false, clear validation errors on edit (validate before save only).
-      // When validateInline is true, do NOT clear - onCellEditingStopped will run inline validation.
+      // When validateInline is true, run inline validation here (onCellValueChanged fires for dropdown/select edits; onCellEditingStopped may not)
       startTransition(() => {
         setIsValidatedForSave(false);
         if (!validateInline) {
           setValidationErrors(new Map());
+        } else if (shouldMarkAsDirty) {
+          const nextDirty = { ...(dirtyAssets.get(assetId) || {}), [field]: newValue };
+          if (updatedAsset.business_distribution_area !== data.business_distribution_area) {
+            nextDirty.business_distribution_area = updatedAsset.business_distribution_area;
+          }
+          const assetForValidation = { ...data, ...nextDirty };
+          const cachedData = { assetTypes: assetTypes || [], building: building };
+          AssetValidationHandler.validateSingleAsset(assetForValidation, { taxRegion: validationTaxRegion, cachedData })
+            .then((result) => {
+              const discountErrors = validateDiscountDates(assetForValidation);
+              const allErrors = [...(result.errors || []), ...discountErrors];
+              const actualValid = result.valid && allErrors.length === 0;
+              setValidationErrors((prev) => {
+                const next = new Map(prev);
+                if (actualValid) next.delete(assetId);
+                else if (allErrors.length > 0) next.set(assetId, allErrors.join('\n'));
+                return next;
+              });
+              if (gridRef.current?.api) {
+                gridRef.current.api.refreshCells({ force: true });
+                gridRef.current.api.redrawRows();
+              }
+            })
+            .catch((err) => console.error('[AssetsList] Inline validation error:', err));
         }
       });
 
@@ -2081,7 +2108,7 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
       setToast({ message: 'Failed to track change', type: 'error' });
       setTimeout(() => setToast(null), 3000);
     }
-  }, [validationTaxRegion, assetTypes, building, setAssets, taxRegion, newAssets, originalAssets, operators, validateInline]);
+  }, [validationTaxRegion, assetTypes, building, setAssets, taxRegion, newAssets, originalAssets, operators, validateInline, dirtyAssets, validateDiscountDates]);
 
   // Track when cell editing starts - store initial value
   const onCellEditingStarted = useCallback((event: any) => {
@@ -5145,13 +5172,13 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
         // Safety checks for state variables - use empty defaults if undefined
         const safeNewAssets = newAssets || new Set<string>();
         const safeDeletedAssets = deletedAssets || new Set<string>();
-        // Use ref to always read latest validationErrors (avoids stale closure when grid caches cell renderer)
-        const safeValidationErrors = validationErrorsRef.current || new Map<string, string>();
+        // Prefer _validationError from row data (set when rowData updates); fallback to ref
+        const errorFromData = (asset as any)._validationError;
+        const hasValidationError = (errorFromData != null && errorFromData !== '') || (validationErrorsRef.current || new Map()).has(assetId);
         const safeSelectedAssets = selectedAssets || new Set<string>();
         
         const isNew = safeNewAssets.has(assetId);
         const isDeleted = safeDeletedAssets.has(assetId);
-        const hasValidationError = safeValidationErrors.has(assetId);
         
         // Debug logging for validation errors
         if (process.env.NODE_ENV === 'development' && hasValidationError) {
@@ -5235,7 +5262,7 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
                 </button>
               )
             )}
-            {hasValidationError && safeValidationErrors && safeValidationErrors.has(assetId) && (() => {
+            {hasValidationError && (() => {
               // Validation tooltip component
               const ValidationTooltipButton = ({ errorMessage, onErrorClick }: { errorMessage: string, onErrorClick: () => void }) => {
                 const [isHovered, setIsHovered] = useState(false);
@@ -5291,7 +5318,7 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
                 );
               };
 
-              const errorMsg = safeValidationErrors.get(assetId) || 'שגיאת אימות';
+              const errorMsg = (typeof errorFromData === 'string' ? errorFromData : null) || (validationErrorsRef.current || new Map()).get(assetId) || 'שגיאת אימות';
               return (
                 <ValidationTooltipButton
                   errorMessage={errorMsg}
@@ -6014,7 +6041,10 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
         // Preserve original order within error/non-error groups
         return a.idx - b.idx;
       })
-      .map(x => x.asset);
+      .map(({ asset }) => ({
+        ...asset,
+        _validationError: validationErrors.get(String(asset.asset_id))
+      }));
   }, [assets, validationErrors]);
 
   const areAllAssetsResidence = useMemo(() => {

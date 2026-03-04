@@ -6027,9 +6027,14 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
   const configuredColumnDefs = useFieldConfig(columnDefs, 'assets-list');
 
   // Check if all visible assets are residential assets (מגורים)
-  // Sort assets to put errored rows first
+  // Sort assets to put errored rows first; merge dirty changes so edits show with validation errors
   const sortedAssets = useMemo(() => {
-    return [...assets].map((asset, idx) => ({ asset, idx }))
+    return [...assets].map((asset, idx) => {
+      const assetId = String(asset.asset_id);
+      const dirty = dirtyAssets.get(assetId);
+      const merged = dirty ? { ...asset, ...dirty } : asset;
+      return { asset: merged, idx };
+    })
       .sort((a, b) => {
         const aId = String(a.asset.asset_id);
         const bId = String(b.asset.asset_id);
@@ -6038,14 +6043,13 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
         if (aHasError !== bHasError) {
           return aHasError ? -1 : 1;
         }
-        // Preserve original order within error/non-error groups
         return a.idx - b.idx;
       })
       .map(({ asset }) => ({
         ...asset,
         _validationError: validationErrors.get(String(asset.asset_id))
       }));
-  }, [assets, validationErrors]);
+  }, [assets, validationErrors, dirtyAssets]);
 
   const areAllAssetsResidence = useMemo(() => {
     if (!assets || assets.length === 0 || !assetTypes || assetTypes.length === 0) {

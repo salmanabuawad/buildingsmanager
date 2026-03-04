@@ -2067,11 +2067,13 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
       // We'll update our state in onCellEditingStopped
       // Also don't refresh cells here - wait until editing stops to prevent re-renders during typing
 
-      // No online validation on edit: user must click Validate.
-      // Use startTransition to prevent blocking the UI during typing
+      // When validateInline is false, clear validation errors on edit (validate before save only).
+      // When validateInline is true, do NOT clear - onCellEditingStopped will run inline validation.
       startTransition(() => {
         setIsValidatedForSave(false);
-        setValidationErrors(new Map());
+        if (!validateInline) {
+          setValidationErrors(new Map());
+        }
       });
 
     } catch (error) {
@@ -2079,7 +2081,7 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
       setToast({ message: 'Failed to track change', type: 'error' });
       setTimeout(() => setToast(null), 3000);
     }
-  }, [validationTaxRegion, assetTypes, building, setAssets, taxRegion, newAssets, originalAssets, operators]);
+  }, [validationTaxRegion, assetTypes, building, setAssets, taxRegion, newAssets, originalAssets, operators, validateInline]);
 
   // Track when cell editing starts - store initial value
   const onCellEditingStarted = useCallback((event: any) => {

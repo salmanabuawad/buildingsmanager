@@ -237,34 +237,28 @@ export function FileViewer({ fileUrl, fileName }: FileViewerProps) {
       return;
     }
 
-    const printWindow = window.open('', '_blank');
-    if (!printWindow) {
-      alert('לא ניתן לפתוח חלון להדפסה. ייתכן שחוסם חלונות קופצים חוסם את הפעולה.');
-      return;
-    }
+    const iframe = document.createElement('iframe');
+    iframe.style.display = 'none';
+    iframe.src = urlToPrint;
 
-    printWindow.document.write(`
-      <html>
-        <head>
-          <title>הדפסה</title>
-          <style>
-            body { margin: 0; padding: 0; }
-            iframe { border: none; width: 100%; height: 100vh; }
-          </style>
-        </head>
-        <body>
-          <iframe src="${urlToPrint}"></iframe>
-          <script>
-            window.onload = function() {
-              setTimeout(() => {
-                window.print();
-              }, 500);
-            };
-          </script>
-        </body>
-      </html>
-    `);
-    printWindow.document.close();
+    iframe.onload = () => {
+      setTimeout(() => {
+        iframe.contentWindow?.print();
+      }, 500);
+    };
+
+    iframe.onerror = () => {
+      document.body.removeChild(iframe);
+      alert('לא ניתן להדפיס את הקובץ. נסה להוריד אותו במקום זאת.');
+    };
+
+    document.body.appendChild(iframe);
+
+    setTimeout(() => {
+      if (document.body.contains(iframe)) {
+        document.body.removeChild(iframe);
+      }
+    }, 60000);
   }
 
   // Loading state

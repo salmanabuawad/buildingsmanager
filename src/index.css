@@ -5,7 +5,8 @@
 /* Hide "Made in Bolt" badge when injected by Bolt hosting */
 a.badge[href="https://bolt.new"],
 a[href="https://bolt.new"],
-a[href*="bolt.new"].badge {
+a[href*="bolt.new"].badge,
+div[style*="position: fixed"][style*="bottom: 1rem"][style*="right: 1rem"][style*="z-index: 2147483647"] {
   display: none !important;
   visibility: hidden !important;
 }

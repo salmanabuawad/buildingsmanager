@@ -188,7 +188,13 @@ import('./lib/fieldConfigUtils').then(({ loadFieldConfigurations }) => {
 
 // Hide "Made in Bolt" badge if Bolt hosting injects it
 const hideBoltBadge = () => {
-  document.querySelectorAll('a.badge[href="https://bolt.new"], a[href="https://bolt.new"], a[href*="bolt.new"].badge').forEach((el) => {
+  const selectors = [
+    'a.badge[href="https://bolt.new"]',
+    'a[href="https://bolt.new"]',
+    'a[href*="bolt.new"].badge',
+    'div[style*="position: fixed"][style*="bottom: 1rem"][style*="right: 1rem"][style*="z-index: 2147483647"]'
+  ];
+  document.querySelectorAll(selectors.join(', ')).forEach((el) => {
     (el as HTMLElement).style.display = 'none';
     (el as HTMLElement).style.visibility = 'hidden';
   });

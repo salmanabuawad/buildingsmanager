@@ -1825,7 +1825,7 @@ function App() {
             <span className="font-medium text-sm text-red-700 group-hover:text-red-900">התנתק</span>
             <LogOut className="h-4 w-4 text-red-600 group-hover:text-red-700" />
           </button>
-          <p className="text-center text-xs text-slate-400 pt-1">Galil software • החל 05/2022</p>
+          <p className="text-center text-xs text-slate-400 pt-1">© Kortex Digital</p>
         </div>
         
       </div>

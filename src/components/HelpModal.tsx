@@ -40,7 +40,7 @@ export function HelpModal() {
           <span>💡 לחץ F1 בכל מסך להצגת עזרה מותאמת להקשר</span>
           <div className="flex items-center gap-3">
             <kbd className="px-2 py-1 bg-slate-100 rounded border border-slate-300 font-mono text-xs">F1</kbd>
-            <span className="text-slate-400 text-xs">Galil software • החל 05/2022</span>
+            <span className="text-slate-400 text-xs">© Kortex Digital</span>
           </div>
         </div>
       </div>

@@ -237,26 +237,53 @@ export function FileViewer({ fileUrl, fileName }: FileViewerProps) {
       return;
     }
 
-    fetch(urlToPrint)
-      .then(response => response.blob())
-      .then(blob => {
-        const blobUrl = URL.createObjectURL(blob);
-        const printWindow = window.open(blobUrl, '_blank');
-        if (!printWindow) {
-          alert('לא ניתן לפתוח חלון להדפסה. בדוק אם חוסם חלונות קופצים פעיל.');
-          URL.revokeObjectURL(blobUrl);
-          return;
+    const printContainer = document.createElement('div');
+    printContainer.id = 'print-container-' + Date.now();
+    printContainer.style.display = 'none';
+    document.body.appendChild(printContainer);
+
+    if (fileType === 'pdf' || fileType === 'image') {
+      const iframe = document.createElement('iframe');
+      iframe.src = urlToPrint;
+      iframe.style.width = '100%';
+      iframe.style.height = '100%';
+      printContainer.appendChild(iframe);
+
+      iframe.onload = () => {
+        try {
+          iframe.contentWindow?.print();
+        } catch (e) {
+          window.print();
         }
-        printWindow.onload = () => {
-          setTimeout(() => {
-            printWindow.print();
-            URL.revokeObjectURL(blobUrl);
-          }, 500);
-        };
-      })
-      .catch(() => {
+        setTimeout(() => {
+          document.body.removeChild(printContainer);
+        }, 1000);
+      };
+
+      iframe.onerror = () => {
+        document.body.removeChild(printContainer);
         alert('לא ניתן להדפיס את הקובץ. נסה להוריד אותו במקום זאת.');
-      });
+      };
+    } else {
+      fetch(urlToPrint)
+        .then(response => response.blob())
+        .then(blob => {
+          const blobUrl = URL.createObjectURL(blob);
+          const link = document.createElement('a');
+          link.href = blobUrl;
+          link.download = fileName || 'file';
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+          document.body.removeChild(printContainer);
+          URL.revokeObjectURL(blobUrl);
+          alert('הקובץ הורדו. אתה יכול להדפיס אותו מתוך התוכנה המתאימה.');
+        })
+        .catch(() => {
+          document.body.removeChild(printContainer);
+          alert('לא ניתן להדפיס את הקובץ. נסה להוריד אותו במקום זאת.');
+        });
+    }
   }
 
   // Loading state

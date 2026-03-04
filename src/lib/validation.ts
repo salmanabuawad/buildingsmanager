@@ -261,10 +261,18 @@ function getValidTaxRegionsForAssetType(
         );
       }
     } else if (allMatchingByName.length === 0) {
-      // Check if asset type exists with different name format
-      const similarNames = cachedData.assetTypes.filter(at => 
-        String(at.name).includes(String(assetTypeName)) || String(assetTypeName).includes(String(at.name))
-      );
+      // Check if asset type exists with different name format (only when not purely numeric - e.g. 9999 may be tax_region mistaken for asset type)
+      const assetTypeStr = String(assetTypeName);
+      const isPurelyNumeric = /^[0-9]+$/.test(assetTypeStr.trim());
+      const similarNames = isPurelyNumeric
+        ? []
+        : cachedData.assetTypes.filter(at => {
+            const nameStr = String(at.name);
+            // Avoid false positives: "9999".includes("9") matches too many; require meaningful overlap
+            if (nameStr.includes(assetTypeStr)) return true;
+            if (assetTypeStr.includes(nameStr) && nameStr.length >= 2) return true;
+            return false;
+          });
       if (similarNames.length > 0 && process.env.NODE_ENV === 'development') {
         console.warn(`[getValidTaxRegionsForAssetType] No exact match for ${assetTypeName}, but found similar names:`, 
           similarNames.map(at => ({ name: at.name, active: at.active }))

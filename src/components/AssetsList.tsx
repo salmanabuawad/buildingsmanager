@@ -1467,18 +1467,14 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
     };
   }, [buildingNumber]);
 
-  // Refresh grid when validation errors change to show error styling
+  // Refresh grid when validation errors change to show error styling and invalid icon
   useEffect(() => {
-    if (validationErrors.size > 0 && gridRef.current?.api) {
-      if (process.env.NODE_ENV === 'development') {
+    if (gridRef.current?.api) {
+      // Redraw rows to apply getRowStyle (red border for validation errors)
+      gridRef.current.api.redrawRows();
+      if (validationErrors.size > 0) {
+        gridRef.current.api.refreshCells({ force: true });
       }
-      // Lightweight refresh to update cell styling for validation errors
-      setTimeout(() => {
-        if (gridRef.current?.api) {
-          // Refresh cells without forcing - preserves cache and scroll position
-          gridRef.current.api.refreshCells({ force: false });
-        }
-      }, 50);
     }
   }, [validationErrors]);
   async function fetchData(showLoading = true, skipBuildingFetch = false) {
@@ -1874,8 +1870,11 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
     if (deletedAssets.has(assetId)) {
       return { backgroundColor: '#fee2e2', opacity: 0.7 };
     }
+    if (validationErrors?.has(assetId)) {
+      return { borderLeft: '3px solid #dc2626', backgroundColor: '#fef2f2' };
+    }
     return null;
-  }, [deletedAssets]);
+  }, [deletedAssets, validationErrors]);
 
   const onCellValueChanged = useCallback(async (event: any) => {
     // Skip validation if we're currently refreshing after save (prevents unnecessary API calls)
@@ -2216,6 +2215,7 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
           });
           if (gridRef.current?.api) {
             gridRef.current.api.refreshCells({ force: true });
+            gridRef.current.api.redrawRows();
           }
         }).catch((err) => {
           console.error('[AssetsList] Inline validation error:', err);

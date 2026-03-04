@@ -4799,19 +4799,20 @@ export const api = {
       
       if (error) throw error;
     },
-    getUIConfig: async (): Promise<{ validation_rules_enabled: boolean }> => {
+    getUIConfig: async (): Promise<{ validation_rules_enabled: boolean; validate_inline: boolean }> => {
       const config = await api.systemConfiguration.getByName('ui_config');
       if (config && config.value) {
         try {
           const configData = JSON.parse(config.value);
           return {
             validation_rules_enabled: configData.validation_rules_enabled ?? false,
+            validate_inline: configData.validate_inline ?? true,
           };
         } catch {
-          return { validation_rules_enabled: false };
+          return { validation_rules_enabled: false, validate_inline: true };
         }
       }
-      return { validation_rules_enabled: false };
+      return { validation_rules_enabled: false, validate_inline: true };
     },
     getEmailConfig: async (): Promise<any> => {
       const config = await api.systemConfiguration.getByName('email_config');

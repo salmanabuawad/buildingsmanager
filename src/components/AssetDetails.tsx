@@ -29,6 +29,7 @@ interface AssetDetailsProps {
   assetId?: number;
   buildingNumber?: number;
   taxRegion?: string;
+  validateInline?: boolean;
   onDataUpdate?: () => void;
   onAssetCreated?: (assetDbId: number, assetIdentifier: string) => void;
 }
@@ -38,7 +39,7 @@ export interface AssetDetailsRef {
   refresh: () => Promise<void>;
 }
 
-export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ assetId, buildingNumber, taxRegion, onDataUpdate, onAssetCreated }, ref) => {
+export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ assetId, buildingNumber, taxRegion, validateInline = true, onDataUpdate, onAssetCreated }, ref) => {
   const { t } = useTranslation();
   const { preferences, setEditMode } = usePreferences();
   const { validationRules } = useValidationRules(); // Get validation rules from context
@@ -506,6 +507,11 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
 
       // Debounce expensive database validations (800ms delay for better performance)
       // This prevents validation from running on every keystroke
+      // Skip when validateInline is false (validate before save only)
+      if (!validateInline) {
+        validationTimerRef.current.delete(String(assetId));
+        return;
+      }
       const timer = setTimeout(async () => {
         try {
           // Prepare cached data for validation (all data is already in memory)
@@ -583,7 +589,7 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
       setError('Failed to track change');
       setTimeout(() => setError(null), 3000);
     }
-  }, [validationTaxRegion, assetTypes, building, validateDiscountDates]);
+  }, [validationTaxRegion, assetTypes, building, validateDiscountDates, validateInline]);
 
   const onCellEditingStopped = useCallback((event: any) => {
     const { data, column, colDef } = event;

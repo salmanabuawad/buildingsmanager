@@ -52,7 +52,11 @@ export interface AssetDataEntryRef {
   hasUnsavedChanges: () => boolean;
 }
 
-export const AssetDataEntry = forwardRef<AssetDataEntryRef, {}>((props, ref) => {
+interface AssetDataEntryProps {
+  validateInline?: boolean;
+}
+
+export const AssetDataEntry = forwardRef<AssetDataEntryRef, AssetDataEntryProps>(({ validateInline = true }, ref) => {
   const { t } = useTranslation();
   const { isReadOnly } = useUserRole();
   const gridRef = useRef<AgGridReact>(null);
@@ -197,6 +201,21 @@ export const AssetDataEntry = forwardRef<AssetDataEntryRef, {}>((props, ref) => 
     updatedRow._isDirty = true;
     updatedRow._validationErrors.clear();
 
+    // Skip inline validation when validateInline is false (validate before save only)
+    if (!validateInline) {
+      setRowData(prev => {
+        const newData = prev.map(row => {
+          if (row.id === updatedRow.id) return { ...updatedRow };
+          return row;
+        });
+        return newData;
+      });
+      if (gridRef.current) {
+        setTimeout(() => gridRef.current?.api.refreshCells({ force: true }), 0);
+      }
+      return;
+    }
+
     // Only validate sub-assets if main type is 199 or 299
     const shouldValidateSubAssets = updatedRow.main_asset_type === '199' || updatedRow.main_asset_type === '299';
     const validations = [
@@ -325,7 +344,7 @@ export const AssetDataEntry = forwardRef<AssetDataEntryRef, {}>((props, ref) => 
         gridRef.current?.api.refreshCells({ force: true });
       }, 0);
     }
-  }, []);
+  }, [validateInline]);
   const handleSaveAll = async () => {
     setLoading(true);
     setError(null);

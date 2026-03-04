@@ -9,6 +9,7 @@ import { api } from './api';
 
 export interface UIConfig {
   validation_rules_enabled: boolean;
+  validate_inline: boolean;
 }
 
 export interface EmailConfig {
@@ -56,7 +57,7 @@ class SystemConfigService {
       return config;
     } catch (error) {
       console.error('Error loading UI config:', error);
-      return { validation_rules_enabled: false };
+      return { validation_rules_enabled: false, validate_inline: true };
     }
   }
 
@@ -164,6 +165,14 @@ class SystemConfigService {
   async isValidationRulesEnabled(): Promise<boolean> {
     const uiConfig = await this.getUIConfig();
     return uiConfig.validation_rules_enabled;
+  }
+
+  /**
+   * Check if inline validation (after cell blur) is enabled
+   */
+  async isValidateInlineEnabled(): Promise<boolean> {
+    const uiConfig = await this.getUIConfig();
+    return uiConfig.validate_inline;
   }
 
   /**

@@ -94,6 +94,7 @@ function App() {
     errors: Array<{ assetId: string; buildingNumber: number; errors: string[] }>;
   } | null>(null);
   const [validationRulesEnabled, setValidationRulesEnabled] = useState<boolean>(false);
+  const [validateInline, setValidateInline] = useState<boolean>(true);
   
   // Refs to child components for checking dirty state
   const buildingsListRef = useRef<BuildingsListRef | null>(null);
@@ -177,6 +178,7 @@ function App() {
       try {
         const uiConfig = await api.systemConfiguration.getUIConfig();
         setValidationRulesEnabled(uiConfig.validation_rules_enabled);
+        setValidateInline(uiConfig.validate_inline ?? true);
       } catch (error) {
         console.error('Error loading UI config:', error);
         // Default to false if error
@@ -1974,7 +1976,7 @@ function App() {
               <FieldConfigManager key={activeTab.refreshKey} />
             )}
             {activeTab?.type === 'asset-data-entry' && (
-              <AssetDataEntry ref={assetDataEntryRef} key={activeTab.refreshKey} />
+              <AssetDataEntry ref={assetDataEntryRef} key={activeTab.refreshKey} validateInline={validateInline} />
             )}
             {activeTab?.type === 'building-list-import' && (
               <BuildingListImport key={activeTab.refreshKey} />
@@ -1992,6 +1994,7 @@ function App() {
                 assetId={activeTab.assetId ? parseInt(activeTab.assetId) : undefined}
                 buildingNumber={activeTab.buildingNumber}
                 taxRegion={activeTab.taxRegion}
+                validateInline={validateInline}
                 onDataUpdate={handleDataUpdate}
                 onAssetCreated={(assetDbId, assetIdentifier) => {
                   // Update the current tab to show the newly created asset

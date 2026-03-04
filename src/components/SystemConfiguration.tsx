@@ -36,8 +36,32 @@ export function SystemConfigurationManager() {
   const [showTemplateView, setShowTemplateView] = useState<'operator' | 'manager' | null>(null);
   const [activeSubTab, setActiveSubTab] = useState<'general' | 'email-smtp' | 'mail-templates'>('general');
 
+  const [uiConfig, setUiConfig] = useState<{ validation_rules_enabled: boolean; validate_inline: boolean }>({
+    validation_rules_enabled: false,
+    validate_inline: true,
+  });
+  const [uiConfigSaving, setUiConfigSaving] = useState(false);
+
   useEffect(() => {
     fetchConfigurations();
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const config = await api.systemConfiguration.getUIConfig();
+        if (!cancelled) {
+          setUiConfig({
+            validation_rules_enabled: config.validation_rules_enabled ?? false,
+            validate_inline: config.validate_inline ?? true,
+          });
+        }
+      } catch {
+        if (!cancelled) setUiConfig({ validation_rules_enabled: false, validate_inline: true });
+      }
+    })();
+    return () => { cancelled = true; };
   }, []);
 
   useEffect(() => {
@@ -319,6 +343,28 @@ export function SystemConfigurationManager() {
       setToast({ message: e instanceof Error ? e.message : 'קובץ JSON לא תקין. יש להעלות קובץ עם שדות subject ו-body', type: 'error' });
     } finally {
       setEmailTemplateSaving(null);
+    }
+  };
+
+  const handleSaveUiConfig = async () => {
+    if (!isAdmin) return;
+    setUiConfigSaving(true);
+    setToast(null);
+    try {
+      await api.systemConfiguration.upsert(
+        'ui_config',
+        JSON.stringify({
+          validation_rules_enabled: uiConfig.validation_rules_enabled,
+          validate_inline: uiConfig.validate_inline,
+        }),
+        'UI settings (validation rules, inline validation)'
+      );
+      setToast({ message: 'ההגדרות נשמרו. ייתכן שיהיה צורך לרענן את הדף.', type: 'success' });
+      setTimeout(() => window.location.reload(), 1500);
+    } catch (err) {
+      setToast({ message: err instanceof Error ? err.message : 'שגיאה בשמירה', type: 'error' });
+    } finally {
+      setUiConfigSaving(false);
     }
   };
 
@@ -682,6 +728,47 @@ export function SystemConfigurationManager() {
       {/* Tab: הגדרות כלליות */}
       {activeSubTab === 'general' && (
       <div className="bg-white rounded-xl shadow-lg border border-blue-100 p-6">
+        {/* UI Config: validation and inline validation */}
+        <div className="mb-6 p-4 bg-slate-50 rounded-lg border border-slate-200">
+          <h2 className="text-lg font-semibold text-slate-800 mb-3">הגדרות אימות</h2>
+          <div className="space-y-3">
+            <label className="flex items-center gap-3 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={uiConfig.validation_rules_enabled}
+                onChange={(e) => setUiConfig((c) => ({ ...c, validation_rules_enabled: e.target.checked }))}
+                disabled={!isAdmin}
+                className="h-4 w-4 rounded border-slate-300 text-teal-600"
+              />
+              <span className="text-sm text-slate-700">הצג תפריט כללי תקינות</span>
+            </label>
+            <label className="flex items-center gap-3 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={uiConfig.validate_inline}
+                onChange={(e) => setUiConfig((c) => ({ ...c, validate_inline: e.target.checked }))}
+                disabled={!isAdmin}
+                className="h-4 w-4 rounded border-slate-300 text-teal-600"
+              />
+              <span className="text-sm text-slate-700">אימות בזמן אמת (אחרי יציאה מתא)</span>
+            </label>
+            <p className="text-xs text-slate-500">
+              אם כבוי: אימות יתבצע רק בלחיצה על שמור
+            </p>
+            {isAdmin && (
+              <button
+                type="button"
+                onClick={handleSaveUiConfig}
+                disabled={uiConfigSaving}
+                className="flex items-center gap-2 px-4 py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700 transition-colors disabled:opacity-50"
+              >
+                {uiConfigSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+                שמור הגדרות אימות
+              </button>
+            )}
+          </div>
+        </div>
+
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center gap-3">
             <Settings className="h-6 w-6 text-teal-600" />

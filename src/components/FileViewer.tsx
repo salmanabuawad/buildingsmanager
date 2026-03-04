@@ -237,28 +237,26 @@ export function FileViewer({ fileUrl, fileName }: FileViewerProps) {
       return;
     }
 
-    const iframe = document.createElement('iframe');
-    iframe.style.display = 'none';
-    iframe.src = urlToPrint;
-
-    iframe.onload = () => {
-      setTimeout(() => {
-        iframe.contentWindow?.print();
-      }, 500);
-    };
-
-    iframe.onerror = () => {
-      document.body.removeChild(iframe);
-      alert('לא ניתן להדפיס את הקובץ. נסה להוריד אותו במקום זאת.');
-    };
-
-    document.body.appendChild(iframe);
-
-    setTimeout(() => {
-      if (document.body.contains(iframe)) {
-        document.body.removeChild(iframe);
-      }
-    }, 60000);
+    fetch(urlToPrint)
+      .then(response => response.blob())
+      .then(blob => {
+        const blobUrl = URL.createObjectURL(blob);
+        const printWindow = window.open(blobUrl, '_blank');
+        if (!printWindow) {
+          alert('לא ניתן לפתוח חלון להדפסה. בדוק אם חוסם חלונות קופצים פעיל.');
+          URL.revokeObjectURL(blobUrl);
+          return;
+        }
+        printWindow.onload = () => {
+          setTimeout(() => {
+            printWindow.print();
+            URL.revokeObjectURL(blobUrl);
+          }, 500);
+        };
+      })
+      .catch(() => {
+        alert('לא ניתן להדפיס את הקובץ. נסה להוריד אותו במקום זאת.');
+      });
   }
 
   // Loading state

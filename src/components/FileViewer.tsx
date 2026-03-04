@@ -236,7 +236,35 @@ export function FileViewer({ fileUrl, fileName }: FileViewerProps) {
       alert('כתובת הקובץ אינה זמינה. נסה שוב.');
       return;
     }
-    window.open(urlToPrint, '_blank');
+
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) {
+      alert('לא ניתן לפתוח חלון להדפסה. ייתכן שחוסם חלונות קופצים חוסם את הפעולה.');
+      return;
+    }
+
+    printWindow.document.write(`
+      <html>
+        <head>
+          <title>הדפסה</title>
+          <style>
+            body { margin: 0; padding: 0; }
+            iframe { border: none; width: 100%; height: 100vh; }
+          </style>
+        </head>
+        <body>
+          <iframe src="${urlToPrint}"></iframe>
+          <script>
+            window.onload = function() {
+              setTimeout(() => {
+                window.print();
+              }, 500);
+            };
+          </script>
+        </body>
+      </html>
+    `);
+    printWindow.document.close();
   }
 
   // Loading state

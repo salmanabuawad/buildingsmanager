@@ -10,6 +10,7 @@ interface UserRoleContextType {
   isInspector: boolean;
   isUser: boolean;
   isReadOnly: boolean; // same as isUser
+  isDev: boolean; // user_name === 'dev' - required for inspection tasks access
   refreshRole: () => Promise<void>;
 }
 
@@ -19,14 +20,18 @@ export function UserRoleProvider({ children }: { children: ReactNode }) {
   const [userRole, setUserRole] = useState<UserRole | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
+  const [isDev, setIsDev] = useState(false);
+
   const fetchUserRole = useCallback(() => {
     const s = getSession();
     if (!s) {
       setUserRole('user');
+      setIsDev(false);
       setIsLoading(false);
       return;
     }
     setUserRole(s.user_role === 'admin' ? 'admin' : s.user_role === 'inspector' ? 'inspector' : 'user');
+    setIsDev(s.user_name === 'dev');
     setIsLoading(false);
   }, []);
 
@@ -51,6 +56,7 @@ export function UserRoleProvider({ children }: { children: ReactNode }) {
       isInspector,
       isUser,
       isReadOnly,
+      isDev,
       refreshRole,
     }}>
       {children}

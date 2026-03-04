@@ -186,6 +186,17 @@ import('./lib/fieldConfigUtils').then(({ loadFieldConfigurations }) => {
     });
 });
 
+// Hide "Made in Bolt" badge if Bolt hosting injects it
+const hideBoltBadge = () => {
+  document.querySelectorAll('a.badge[href="https://bolt.new"], a[href="https://bolt.new"], a[href*="bolt.new"].badge').forEach((el) => {
+    (el as HTMLElement).style.display = 'none';
+    (el as HTMLElement).style.visibility = 'hidden';
+  });
+};
+hideBoltBadge();
+const boltBadgeObserver = new MutationObserver(hideBoltBadge);
+boltBadgeObserver.observe(document.body, { childList: true, subtree: true });
+
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <UserRoleProvider>

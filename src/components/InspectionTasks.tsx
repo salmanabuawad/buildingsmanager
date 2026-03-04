@@ -270,7 +270,7 @@ function FileRow({
 }
 
 export function InspectionTasks() {
-  const { isInspector, isAdmin } = useUserRole();
+  const { isInspector, isAdmin, isDev } = useUserRole();
   const canCreateTasks = !isInspector; // admin and editor can create; inspector cannot
   const [tasks, setTasks] = useState<InspectionTask[]>([]);
   const [loading, setLoading] = useState(true);
@@ -391,11 +391,17 @@ export function InspectionTasks() {
   };
 
   useEffect(() => {
+    if (!isDev) {
+      setLoading(false);
+      setTasks([]);
+      return;
+    }
     fetchTasks();
-  }, []);
+  }, [isDev]);
 
-  // Deep link: open task from hash #inspection-tasks/123
+  // Deep link: open task from hash #inspection-tasks/123 (only for dev)
   useEffect(() => {
+    if (!isDev) return;
     const hash = typeof window !== 'undefined' ? window.location.hash : '';
     const m = hash.match(/#inspection-tasks\/(\d+)/);
     if (m) {
@@ -403,10 +409,11 @@ export function InspectionTasks() {
       if (!Number.isNaN(taskId)) setSelectedTaskId(taskId);
       window.history.replaceState(null, '', window.location.pathname + (window.location.search || ''));
     }
-  }, []);
+  }, [isDev]);
 
   // Load all users for grid name resolution (assigned_to, created_by, approved_by); inspectors for dropdowns
   useEffect(() => {
+    if (!isDev) return;
     api.users.getAll().then((uList) => {
       const list = uList as UserOption[];
       setAllUsers(list);
@@ -414,10 +421,11 @@ export function InspectionTasks() {
         setInspectors(list.filter((u) => u.user_role === 'inspector'));
       }
     }).catch(() => {});
-  }, [isInspector]);
+  }, [isInspector, isDev]);
 
   // Load task detail when a task is clicked or after a mutation
   useEffect(() => {
+    if (!isDev) return;
     if (selectedTaskId == null) {
       setDetailTask(null);
       setDetailReport(null);
@@ -470,10 +478,11 @@ export function InspectionTasks() {
     return () => {
       cancelled = true;
     };
-  }, [selectedTaskId, detailRefreshTrigger]);
+  }, [selectedTaskId, detailRefreshTrigger, isDev]);
 
   // Load task assets for file-upload and (for admin) edit-form asset selector
   useEffect(() => {
+    if (!isDev) return;
     const session = getSession();
     const inspectorAssigned = isInspector && detailTask && session?.user_id === detailTask.assigned_to;
     if (!selectedTaskId || !detailTask || (!inspectorAssigned && !isAdmin)) {
@@ -481,10 +490,10 @@ export function InspectionTasks() {
       return;
     }
     api.inspectionTasks.getAssetsForFileSelection(selectedTaskId).then(setTaskAssets).catch(() => setTaskAssets([]));
-  }, [selectedTaskId, detailTask?.id, detailTask?.assigned_to, isInspector, isAdmin]);
+  }, [selectedTaskId, detailTask?.id, detailTask?.assigned_to, isInspector, isAdmin, isDev]);
 
   useEffect(() => {
-    if (!createModalOpen || !canCreateTasks) return;
+    if (!isDev || !createModalOpen || !canCreateTasks) return;
     const load = async () => {
       try {
         const [bList, uList] = await Promise.all([api.buildings.getAll(), api.users.getAll()]);
@@ -495,11 +504,11 @@ export function InspectionTasks() {
       }
     };
     load();
-  }, [createModalOpen, canCreateTasks]);
+  }, [createModalOpen, canCreateTasks, isDev]);
 
   // Load buildings + inspectors when admin opens a task (for edit form)
   useEffect(() => {
-    if (!isAdmin || !selectedTaskId) return;
+    if (!isDev || !isAdmin || !selectedTaskId) return;
     const load = async () => {
       try {
         const [bList, uList] = await Promise.all([api.buildings.getAll(), api.users.getAll()]);
@@ -510,7 +519,7 @@ export function InspectionTasks() {
       }
     };
     load();
-  }, [isAdmin, selectedTaskId]);
+  }, [isAdmin, selectedTaskId, isDev]);
 
   // Init edit form from detailTask (admin: all fields; inspector: when in_progress and assigned to me)
   useEffect(() => {
@@ -834,6 +843,14 @@ export function InspectionTasks() {
       setCreateSaving(false);
     }
   };
+
+  if (!isDev) {
+    return (
+      <div className="h-full flex items-center justify-center p-8" dir="rtl">
+        <p className="text-slate-600 text-lg">אין גישה למשימות ביקורת. גישה זו שמורה למשתמש dev.</p>
+      </div>
+    );
+  }
 
   if (loading) {
     return (

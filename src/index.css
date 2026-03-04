@@ -2,6 +2,14 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Hide "Made in Bolt" badge when injected by Bolt hosting */
+a.badge[href="https://bolt.new"],
+a[href="https://bolt.new"],
+a[href*="bolt.new"].badge {
+  display: none !important;
+  visibility: hidden !important;
+}
+
 input[type="number"]::-webkit-inner-spin-button,
 input[type="number"]::-webkit-outer-spin-button {
   -webkit-appearance: none;

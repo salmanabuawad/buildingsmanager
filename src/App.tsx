@@ -31,7 +31,7 @@ import { HelpModal } from './components/HelpModal';
 
 interface Tab {
   id: string;
-  type: 'buildings' | 'assets' | 'admin' | 'asset-types' | 'asset-search' | 'validation-rules' | 'building-list-import' | 'assets-file-import' | 'assets-skeleton-import' | 'asset-details' | 'transfer-areas' | 'address-list' | 'field-config' | 'asset-data-entry' | 'audit-log' | 'user-management' | 'system-configuration' | 'operators' | 'managers' | 'measured-not-exported-assets' | 'measurement-progress-dashboard' | 'inspection-tasks';
+  type: 'buildings' | 'assets' | 'admin' | 'asset-types' | 'asset-search' | 'validation-rules' | 'building-list-import' | 'assets-file-import' | 'assets-skeleton-import' | 'asset-details' | 'transfer-areas' | 'address-list' | 'field-config' | 'asset-data-entry' | 'audit-log' | 'user-management' | 'system-configuration' | 'operators' | 'managers' | 'measured-not-exported-assets' | 'measurement-progress-dashboard' | 'inspection-tasks' | 'no-tasks-access';
   buildingNumber?: number;
   label: string;
   refreshKey?: number;
@@ -46,7 +46,7 @@ interface Tab {
 
 function App() {
   const { preferences, setEditMode } = usePreferences();
-  const { isLoading: roleLoading, isReadOnly, isAdmin, isInspector, userRole, refreshRole } = useUserRole();
+  const { isLoading: roleLoading, isReadOnly, isAdmin, isInspector, isDev, userRole, refreshRole } = useUserRole();
   const { setContextFromTabType, openHelp } = useHelp();
 
   const roleLabel = userRole === 'admin' ? 'מנהל' : userRole === 'inspector' ? 'פקח' : 'משתמש';
@@ -55,18 +55,22 @@ function App() {
   
   const [tabs, setTabs] = useState<Tab[]>(() => {
     const s = getSession();
+    const dev = s?.user_name === 'dev';
     if (s?.user_role === 'inspector') {
-      return [{ id: 'inspection-tasks', type: 'inspection-tasks', label: 'משימות ביקורת', refreshKey: Date.now() }];
+      return dev ? [{ id: 'inspection-tasks', type: 'inspection-tasks', label: 'משימות ביקורת', refreshKey: Date.now() }] : [{ id: 'no-tasks-access', type: 'no-tasks-access', label: 'אין גישה למשימות ביקורת', refreshKey: Date.now() }];
     }
-    return [
+    const base = [
       { id: 'measurement-progress-dashboard', type: 'measurement-progress-dashboard', label: 'התקדמות פעילות מדידות', refreshKey: Date.now() },
-      { id: 'inspection-tasks', type: 'inspection-tasks', label: 'משימות ביקורת', refreshKey: Date.now() },
       { id: 'buildings', type: 'buildings', label: 'מבנים', refreshKey: Date.now() }
     ];
+    if (dev) base.splice(1, 0, { id: 'inspection-tasks', type: 'inspection-tasks', label: 'משימות ביקורת', refreshKey: Date.now() });
+    return base;
   });
   const [activeTabId, setActiveTabId] = useState(() => {
     const s = getSession();
-    return s?.user_role === 'inspector' ? 'inspection-tasks' : 'measurement-progress-dashboard';
+    const dev = s?.user_name === 'dev';
+    if (s?.user_role === 'inspector') return dev ? 'inspection-tasks' : 'no-tasks-access';
+    return 'measurement-progress-dashboard';
   });
   const [showCreateBuildingModal, setShowCreateBuildingModal] = useState(false);
   const [buildingsMenuOpen, setBuildingsMenuOpen] = useState(false);
@@ -121,8 +125,10 @@ function App() {
         if (result.success) {
           setIsAuthenticated(true);
           await refreshRole();
-          const cleanHash = `#inspection-tasks/${result.taskId}`;
-          window.history.replaceState(null, '', window.location.pathname + (window.location.search || '') + cleanHash);
+          const s = getSession();
+          const dev = s?.user_name === 'dev';
+          const cleanHash = dev ? `#inspection-tasks/${result.taskId}` : '';
+          window.history.replaceState(null, '', window.location.pathname + (window.location.search || '') + (cleanHash || '#'));
           setCheckingAuth(false);
           return;
         }
@@ -133,18 +139,21 @@ function App() {
     })();
   }, [refreshRole]);
 
-  // Inspector: only inspection-tasks tab; hide other pages
+  // Inspector: only inspection-tasks tab when isDev; else no-tasks-access
   useEffect(() => {
     if (!roleLoading && isAuthenticated && isInspector) {
       setTabs((prev) => {
-        const inspectionOnly = prev.filter((t) => t.type === 'inspection-tasks');
-        return inspectionOnly.length > 0 ? inspectionOnly : [{ id: 'inspection-tasks', type: 'inspection-tasks', label: 'משימות ביקורת', refreshKey: Date.now() }];
+        if (isDev) {
+          const inspectionOnly = prev.filter((t) => t.type === 'inspection-tasks');
+          return inspectionOnly.length > 0 ? inspectionOnly : [{ id: 'inspection-tasks', type: 'inspection-tasks', label: 'משימות ביקורת', refreshKey: Date.now() }];
+        }
+        return [{ id: 'no-tasks-access', type: 'no-tasks-access', label: 'אין גישה למשימות ביקורת', refreshKey: Date.now() }];
       });
-      setActiveTabId('inspection-tasks');
+      setActiveTabId(isDev ? 'inspection-tasks' : 'no-tasks-access');
     }
-  }, [roleLoading, isAuthenticated, isInspector]);
+  }, [roleLoading, isAuthenticated, isInspector, isDev]);
 
-  // Deep link: switch to inspection-tasks tab when hash is #inspection-tasks/123. Strip token if present (user already logged in).
+  // Deep link: switch to inspection-tasks tab when hash is #inspection-tasks/123. Only for isDev. Strip token if present (user already logged in).
   useEffect(() => {
     if (!isAuthenticated) return;
     const hash = window.location.hash || '';
@@ -152,7 +161,7 @@ function App() {
       const cleanHash = hash.split('?')[0] || '#inspection-tasks';
       window.history.replaceState(null, '', window.location.pathname + (window.location.search || '') + cleanHash);
     }
-    if (hash.match(/#inspection-tasks\/\d+/)) {
+    if (isDev && hash.match(/#inspection-tasks\/\d+/)) {
       setTabs((prev) => {
         const has = prev.some((t) => t.type === 'inspection-tasks');
         if (!has) return [...prev, { id: 'inspection-tasks', type: 'inspection-tasks', label: 'משימות ביקורת', refreshKey: Date.now() }];
@@ -160,7 +169,7 @@ function App() {
       });
       setActiveTabId('inspection-tasks');
     }
-  }, [isAuthenticated]);
+  }, [isAuthenticated, isDev]);
 
   // Load UI configuration
   useEffect(() => {
@@ -1494,7 +1503,7 @@ function App() {
           )}
         </div>
         <nav className="flex-1 p-3 space-y-2">
-          {isInspector && (
+          {isInspector && isDev && (
             <div>
               <button
                 onClick={openInspectionTasks}
@@ -1677,6 +1686,7 @@ function App() {
                     </button>
                     {managerActionsSubmenuOpen && (
                       <div className="mr-2 mt-1.5 space-y-1 border-r-2 border-pink-200 pr-2">
+                        {isDev && (
                         <button
                           onClick={openInspectionTasks}
                           className="w-full flex items-center gap-2 px-3 py-2 text-right bg-pink-50/80 hover:bg-pink-100 rounded-lg transition-all text-xs"
@@ -1684,6 +1694,7 @@ function App() {
                           <span className="text-slate-700">משימות ביקורת</span>
                           <ClipboardList className="h-3 w-3 text-pink-500" />
                         </button>
+                        )}
                         <button
                           onClick={openResetExportModal}
                           disabled={resetExportLoading}
@@ -1814,6 +1825,7 @@ function App() {
             <span className="font-medium text-sm text-red-700 group-hover:text-red-900">התנתק</span>
             <LogOut className="h-4 w-4 text-red-600 group-hover:text-red-700" />
           </button>
+          <p className="text-center text-xs text-slate-400 pt-1">Galil software • החל 05/2022</p>
         </div>
         
       </div>
@@ -1855,7 +1867,7 @@ function App() {
                       <AlertCircle className="h-4 w-4 text-purple-700" />
                     ) : tab.type === 'measurement-progress-dashboard' ? (
                       <BarChart3 className="h-4 w-4 text-purple-700" />
-                    ) : tab.type === 'inspection-tasks' ? (
+                    ) : tab.type === 'inspection-tasks' || tab.type === 'no-tasks-access' ? (
                       <ClipboardList className="h-4 w-4 text-purple-700" />
                     ) : tab.type === 'validation-rules' ? (
                       <Settings className="h-4 w-4 text-purple-700" />
@@ -1886,7 +1898,7 @@ function App() {
                       {tab.label}
                     </span>
                   </div>
-                  {tab.type !== 'buildings' && tab.type !== 'measurement-progress-dashboard' && !(isInspector && tab.type === 'inspection-tasks') && (
+                  {tab.type !== 'buildings' && tab.type !== 'measurement-progress-dashboard' && !(isInspector && tab.type === 'inspection-tasks') && tab.type !== 'no-tasks-access' && (
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
@@ -2023,7 +2035,12 @@ function App() {
                 onOpenMeasuredNotExportedAssets={openMeasuredNotExportedAssets}
               />
             )}
-            {activeTab?.type === 'inspection-tasks' && (
+            {activeTab?.type === 'no-tasks-access' && (
+              <div className="h-full flex items-center justify-center p-8" dir="rtl">
+                <p className="text-slate-600 text-lg">אין גישה למשימות ביקורת. גישה זו שמורה למשתמש dev.</p>
+              </div>
+            )}
+            {activeTab?.type === 'inspection-tasks' && isDev && (
               <div className="h-full flex flex-col min-h-0">
                 <InspectionTasks key={activeTab.id} />
               </div>

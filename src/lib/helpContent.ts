@@ -35,7 +35,7 @@ export interface HelpEntry {
 export const HELP_CONTENT: Record<HelpContextId, HelpEntry> = {
   manual: {
     title: 'מדריך משתמש - מערכת ניהול נכסים',
-    content: `מדריך משתמש מלא – מערכת ניהול נכסים
+    content: `מדריך משתמש מלא – מערכת ניהול נכסים (Galil software • החל 05/2022)
 💡 בכל מסך – לחץ F1 להצגת עזרה מותאמת להקשר.
 
 תפקידים: מנהל (גישה מלאה) | משתמש (עריכה וניהול) | פקח (משימות ביקורת בלבד)

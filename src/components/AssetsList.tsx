@@ -331,6 +331,8 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
   const [deletedAssets, setDeletedAssets] = useState<Set<string>>(new Set());
   const [originalAssets, setOriginalAssets] = useState<Asset[]>([]);
   const [validationErrors, setValidationErrors] = useState<Map<string, string>>(new Map());
+  const validationErrorsRef = useRef<Map<string, string>>(new Map());
+  validationErrorsRef.current = validationErrors;
   // Save is gated behind an explicit Validate action.
   // Any edit resets this back to false.
   const [isValidatedForSave, setIsValidatedForSave] = useState(false);
@@ -1469,12 +1471,15 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
 
   // Refresh grid when validation errors change to show error styling and invalid icon
   useEffect(() => {
-    if (gridRef.current?.api) {
-      // Redraw rows to apply getRowStyle (red border for validation errors)
-      gridRef.current.api.redrawRows();
-      if (validationErrors.size > 0) {
-        gridRef.current.api.refreshCells({ force: true });
-      }
+    const api = gridRef.current?.api;
+    if (!api) return;
+    // Redraw rows to apply getRowStyle (red border for validation errors)
+    api.redrawRows();
+    // Explicitly refresh actions column so cell renderer runs with latest validationErrorsRef
+    const rowNodes: any[] = [];
+    api.forEachNode((node) => rowNodes.push(node));
+    if (rowNodes.length > 0) {
+      api.refreshCells({ rowNodes, columns: ['actions'], force: true });
     }
   }, [validationErrors]);
   async function fetchData(showLoading = true, skipBuildingFetch = false) {
@@ -5138,7 +5143,8 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
         // Safety checks for state variables - use empty defaults if undefined
         const safeNewAssets = newAssets || new Set<string>();
         const safeDeletedAssets = deletedAssets || new Set<string>();
-        const safeValidationErrors = validationErrors || new Map<string, string>();
+        // Use ref to always read latest validationErrors (avoids stale closure when grid caches cell renderer)
+        const safeValidationErrors = validationErrorsRef.current || new Map<string, string>();
         const safeSelectedAssets = selectedAssets || new Set<string>();
         
         const isNew = safeNewAssets.has(assetId);

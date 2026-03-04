@@ -183,6 +183,7 @@ function App() {
         console.error('Error loading UI config:', error);
         // Default to false if error
         setValidationRulesEnabled(false);
+        setValidateInline(true); // Default inline validation on when config fails
       }
     };
     
@@ -1930,6 +1931,7 @@ function App() {
                 onOpenValidationRules={openValidationRules}
                 showCreateModal={showCreateBuildingModal}
                 setShowCreateModal={setShowCreateBuildingModal}
+                validateInline={validateInline}
               />
             )}
             {activeTab?.type === 'assets' && activeTab.buildingNumber && (
@@ -1938,6 +1940,7 @@ function App() {
                   key={activeTab.refreshKey}
                   buildingNumber={activeTab.buildingNumber}
                   taxRegion={activeTab.taxRegion}
+                  validateInline={validateInline}
                   onSelectAsset={handleSelectAsset}
                   onOpenTransferAreas={handleOpenTransferAreas}
                   onOpenNewAsset={handleOpenNewAsset}

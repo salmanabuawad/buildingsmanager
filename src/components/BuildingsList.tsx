@@ -467,6 +467,7 @@ interface BuildingsListProps {
   onOpenValidationRules?: () => void;
   showCreateModal: boolean;
   setShowCreateModal: (show: boolean) => void;
+  validateInline?: boolean;
 }
 
 export interface BuildingsListRef {
@@ -481,7 +482,8 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
   onOpenAssetSearch, 
   onOpenValidationRules,
   showCreateModal, 
-  setShowCreateModal 
+  setShowCreateModal,
+  validateInline = true
 }, ref) => {
   const { t } = useTranslation();
   const { isReadOnly } = useUserRole();
@@ -543,13 +545,15 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
     const hasChanges = dirtyBuildings.size > 0 || buildingsToDelete.size > 0 || newBuildings.size > 0;
     if (hasChanges) {
       setIsValidatedForSave(false);
-      // Clear stale validation messages (no online validation UX)
-      setValidationErrors(new Map());
-      setInvalidTaxRegions(new Set());
-      setInvalidTaxRegionBuildings(new Set());
+      // Clear stale validation messages when validateInline is false (validate before save only)
+      if (!validateInline) {
+        setValidationErrors(new Map());
+        setInvalidTaxRegions(new Set());
+        setInvalidTaxRegionBuildings(new Set());
+      }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [dirtyBuildings, buildingsToDelete, newBuildings]);
+  }, [dirtyBuildings, buildingsToDelete, newBuildings, validateInline]);
 
   // Translate field names from English to Hebrew for error messages
   const translateFieldName = useCallback((fieldName: string): string => {
@@ -1406,8 +1410,40 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
       }
     }
 
-    // No online validation on edit: user must click "אמת הכל".
-    // We still refresh the grid after updating dirty state below.
+    // When validateInline is true, run building validation after cell change
+    if (validateInline && shouldMarkAsDirty) {
+      const updatedBuilding = { ...building, ...updatedDirtyChanges };
+      buildingValidators.validateAllFields(updatedBuilding).then((validation) => {
+        setValidationErrors((prev) => {
+          const next = new Map(prev);
+          if (validation.valid) {
+            next.delete(newBuildingKey);
+          } else {
+            next.set(newBuildingKey, validation.errors);
+          }
+          return next;
+        });
+        if (updatedBuilding.tax_region && updatedBuilding.building_number && updatedBuilding.building_number > 0) {
+          buildingValidators.checkTaxRegionInvalid(updatedBuilding.tax_region).then((isInvalid) => {
+            if (isInvalid) {
+              setInvalidTaxRegions((prev) => new Set(prev).add(updatedBuilding.building_number!));
+              setInvalidTaxRegionBuildings((prev) => new Set(prev).add(newBuildingKey));
+            } else {
+              setInvalidTaxRegionBuildings((prev) => {
+                const next = new Set(prev);
+                next.delete(newBuildingKey);
+                return next;
+              });
+            }
+          }).catch(() => {});
+        }
+        if (gridRef.current?.api) {
+          gridRef.current.api.refreshCells({ rowNodes: [event.node], force: true });
+        }
+      }).catch((err) => {
+        console.error('[BuildingsList] Inline validation error:', err);
+      });
+    }
 
     // Refresh grid to show dirty state and validation errors
     if (gridRef.current?.api) {
@@ -1432,7 +1468,7 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
         }, 0);
       }
     }
-  }, [newBuildings, isNewBuilding, getBuildingKey, dirtyBuildings, validationErrors, validateTaxRegionRemoval, originalBuildings, buildings, setBuildings, setFilteredBuildings, setDirtyBuildings]);
+  }, [newBuildings, isNewBuilding, getBuildingKey, dirtyBuildings, validationErrors, validateTaxRegionRemoval, originalBuildings, buildings, setBuildings, setFilteredBuildings, setDirtyBuildings, validateInline]);
 
   // Ensure clearing a numeric cell (e.g. shared areas) always triggers dirty when edit stops.
   const onCellEditingStopped = useCallback((event: any) => {
@@ -1537,8 +1573,38 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
       };
       setBuildings(prev => prev.map(applyBuildingUpdate));
       setFilteredBuildings(prev => prev.map(applyBuildingUpdate));
+      // When validateInline is true, run building validation after edit stops
+      if (validateInline) {
+        const nextDirty = { ...(dirtyBuildings.get(buildingKey) || {}), [field]: newValue };
+        let updatedBuilding = { ...building, ...nextDirty };
+        if (['residence_shared_area', 'business_shared_area', 'shared_parking_area'].includes(field)) {
+          const total = (Number(updatedBuilding.net_area) || 0) + (Number(updatedBuilding.residence_shared_area) || 0) + (Number(updatedBuilding.business_shared_area) || 0) + (Number(updatedBuilding.shared_parking_area) || 0);
+          updatedBuilding = { ...updatedBuilding, total_building_area: total };
+        }
+        buildingValidators.validateAllFields(updatedBuilding).then((validation) => {
+          setValidationErrors((prev) => {
+            const next = new Map(prev);
+            if (validation.valid) next.delete(buildingKey);
+            else next.set(buildingKey, validation.errors);
+            return next;
+          });
+          if (updatedBuilding.tax_region && updatedBuilding.building_number && updatedBuilding.building_number > 0) {
+            buildingValidators.checkTaxRegionInvalid(updatedBuilding.tax_region).then((isInvalid) => {
+              if (isInvalid) {
+                setInvalidTaxRegions((prev) => new Set(prev).add(updatedBuilding.building_number!));
+                setInvalidTaxRegionBuildings((prev) => new Set(prev).add(buildingKey));
+              } else {
+                setInvalidTaxRegionBuildings((prev) => { const n = new Set(prev); n.delete(buildingKey); return n; });
+              }
+            }).catch(() => {});
+          }
+          if (gridRef.current?.api) {
+            gridRef.current.api.refreshCells({ rowNodes: [event.node], force: true });
+          }
+        }).catch((err) => console.error('[BuildingsList] Inline validation error:', err));
+      }
     }
-  }, [getBuildingKey, isNewBuilding, originalBuildings]);
+  }, [getBuildingKey, isNewBuilding, originalBuildings, validateInline, dirtyBuildings]);
 
   // Track when cell editing starts - store initial value
   const onCellEditingStarted = useCallback((event: any) => {

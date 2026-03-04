@@ -32,6 +32,7 @@ import { AssetStatisticsModal } from './AssetStatisticsModal';
 interface AssetsListProps {
   buildingNumber: number;
   taxRegion?: string;
+  validateInline?: boolean;
   onSelectAsset: (assetId: string, assetIdentifier: string, buildingNumber: number, taxRegion?: string) => void;
   onOpenTransferAreas?: (selectedAssetIds: string[], buildingNumber: number, taxRegion?: string) => void;
   onOpenNewAsset?: (buildingNumber: number, taxRegion?: string) => void;
@@ -312,7 +313,7 @@ const OperatorCellEditor = React.forwardRef<any, OperatorCellEditorParams>((prop
 OperatorCellEditor.displayName = 'OperatorCellEditor';
 
 function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsListRef>) {
-  const { buildingNumber, taxRegion, onSelectAsset, onOpenTransferAreas, onOpenNewAsset, selectedAssetIds, onOpenAssetsTab, onCloseTabAndOpenMultiTax, onCloseTab, isErrorFixingMode = false } = props;
+  const { buildingNumber, taxRegion, validateInline = true, onSelectAsset, onOpenTransferAreas, onOpenNewAsset, selectedAssetIds, onOpenAssetsTab, onCloseTabAndOpenMultiTax, onCloseTab, isErrorFixingMode = false } = props;
   const { t } = useTranslation();
   const { validationRules } = useValidationRules(); // Get validation rules from context
   const { isReadOnly } = useUserRole();
@@ -2174,6 +2175,8 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
     
     // Only update if value changed (or if it's a new asset)
     if (isNew || valueChanged) {
+      const nextDirtyForAsset = { ...(dirtyAssets.get(assetId) || {}), [field]: newValue };
+      const updatedAsset = { ...data, ...nextDirtyForAsset };
       setDirtyAssets(prev => {
         const next = new Map(prev);
         const existing = next.get(assetId) || {};
@@ -2188,10 +2191,38 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
           String(a.asset_id) === assetId ? { ...a, [field]: newValue } : a
         ));
         setIsValidatedForSave(false);
-        setValidationErrors(new Map());
+        if (!validateInline) {
+          setValidationErrors(new Map());
+        }
       });
+      // When validateInline is true, run single-asset validation after cell blur
+      if (validateInline) {
+        const cachedData = { assetTypes: assetTypes || [], building: building };
+        AssetValidationHandler.validateSingleAsset(updatedAsset, {
+          taxRegion: validationTaxRegion,
+          cachedData,
+        }).then((result) => {
+          const discountErrors = validateDiscountDates(updatedAsset);
+          const allErrors = [...(result.errors || []), ...discountErrors];
+          const actualValid = result.valid && allErrors.length === 0;
+          setValidationErrors((prev) => {
+            const next = new Map(prev);
+            if (actualValid) {
+              next.delete(assetId);
+            } else if (allErrors.length > 0) {
+              next.set(assetId, allErrors.join('\n'));
+            }
+            return next;
+          });
+          if (gridRef.current?.api) {
+            gridRef.current.api.refreshCells({ force: true });
+          }
+        }).catch((err) => {
+          console.error('[AssetsList] Inline validation error:', err);
+        });
+      }
     }
-  }, [newAssets, originalAssets]);
+  }, [newAssets, originalAssets, validateInline, validationTaxRegion, assetTypes, building, dirtyAssets, validateDiscountDates]);
 
   // Helper function to run validation programmatically (without modal)
   async function runValidationProgrammatically(): Promise<{ hasErrors: boolean; errorMessage?: string }> {

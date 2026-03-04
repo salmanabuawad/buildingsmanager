@@ -381,14 +381,17 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
   const [exportToAutomationCount, setExportToAutomationCount] = useState<number>(0);
 
   // Any change invalidates the last validation snapshot (user must re-validate).
+  // When validateInline is true, do NOT clear validation errors – inline validation will set them.
   useEffect(() => {
     const hasChanges = dirtyAssets.size > 0 || newAssets.size > 0 || deletedAssets.size > 0;
     if (hasChanges) {
       setIsValidatedForSave(false);
-      setValidationErrors(new Map());
+      if (!validateInline) {
+        setValidationErrors(new Map());
+      }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [dirtyAssets, newAssets, deletedAssets]);
+  }, [dirtyAssets, newAssets, deletedAssets, validateInline]);
 
   
   // Save tax region in a variable for validation handler

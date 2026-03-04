@@ -6251,7 +6251,7 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
                 </p>
                 {building?.address && (
                   <p className="text-sm text-white font-semibold bg-white/20 px-2 py-1 rounded">
-                    כתובת: {buildingAddress || '-'}
+                    כתובת: {buildingAddress || '-'}{building?.building_number_in_street != null && building.building_number_in_street !== '' ? ` מס' ${building.building_number_in_street}` : ''}
                   </p>
                 )}
                 {isResidentTaxRegion && building?.residence_shared_area != null && building.residence_shared_area > 0 && (

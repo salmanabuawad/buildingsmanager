@@ -3716,7 +3716,7 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
                   </p>
                   {building?.address && (
                     <p className="text-[10px] sm:text-xs text-teal-50 font-medium bg-white/20 px-1.5 py-0.5 rounded">
-                      כתובת: {buildingAddress || '-'}
+                      כתובת: {buildingAddress || '-'}{building?.building_number_in_street != null && building.building_number_in_street !== '' ? ` מס' ${building.building_number_in_street}` : ''}
                     </p>
                   )}
                   {asset?.apartment_number && (

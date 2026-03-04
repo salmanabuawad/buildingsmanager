@@ -3705,20 +3705,20 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
             {building && (
               <div className="flex items-center gap-2 mt-0.5 flex-wrap">
                 <div className="flex items-center gap-1.5">
-                  <p className="text-[10px] sm:text-xs text-teal-50">
-                    מבנה {building.building_number}
-                  </p>
+                  {((building?.address ?? building?.building_address) || building?.building_number_in_street != null) && (
+                    <p className="text-[10px] sm:text-xs text-teal-50 font-medium bg-white/20 px-1.5 py-0.5 rounded">
+                      כתובת: {(buildingAddress ?? '-')}{building?.building_number_in_street != null ? ` מס' ${building.building_number_in_street}` : ''}
+                    </p>
+                  )}
                   <p className="text-[10px] sm:text-xs text-teal-50 font-medium bg-white/20 px-1.5 py-0.5 rounded">
                     גוש: {building?.gosh || '-'}
                   </p>
                   <p className="text-[10px] sm:text-xs text-teal-50 font-medium bg-white/20 px-1.5 py-0.5 rounded">
                     חלקה: {building?.helka || '-'}
                   </p>
-                  {((building?.address ?? building?.building_address) || building?.building_number_in_street != null) && (
-                    <p className="text-[10px] sm:text-xs text-teal-50 font-medium bg-white/20 px-1.5 py-0.5 rounded">
-                      כתובת: {(buildingAddress ?? '-')}{building?.building_number_in_street != null ? ` מס' ${building.building_number_in_street}` : ''}
-                    </p>
-                  )}
+                  <p className="text-[10px] sm:text-xs text-teal-50">
+                    מבנה {building.building_number}
+                  </p>
                   {asset?.apartment_number && (
                     <p className="text-[10px] sm:text-xs text-teal-50 font-medium bg-white/20 px-1.5 py-0.5 rounded">
                       מספר דירה: {asset.apartment_number}

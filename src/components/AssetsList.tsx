@@ -6237,23 +6237,23 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
             <div className="flex items-center gap-3 flex-wrap">
               <BuildingIcon className="w-7 h-7 text-white" />
               <div className="flex items-center gap-2 flex-wrap">
-                <h1 className="text-lg sm:text-xl font-bold text-white">
-                  {t('buildingNumber')} {building?.building_number}
-                </h1>
-                <p className="text-sm text-white/90 font-semibold bg-white/20 px-2 py-1 rounded">
-                  סך הכל: {assets.length} נכסים
-                </p>
+                {((building?.address ?? building?.building_address) || building?.building_number_in_street != null) && (
+                  <p className="text-sm text-white font-semibold bg-white/20 px-2 py-1 rounded">
+                    כתובת: {(buildingAddress ?? '-')}{building?.building_number_in_street != null ? ` מס' ${building.building_number_in_street}` : ''}
+                  </p>
+                )}
                 <p className="text-sm text-white font-semibold bg-white/20 px-2 py-1 rounded">
                   גוש: {building?.gosh || '-'}
                 </p>
                 <p className="text-sm text-white font-semibold bg-white/20 px-2 py-1 rounded">
                   חלקה: {building?.helka || '-'}
                 </p>
-                {((building?.address ?? building?.building_address) || building?.building_number_in_street != null) && (
-                  <p className="text-sm text-white font-semibold bg-white/20 px-2 py-1 rounded">
-                    כתובת: {(buildingAddress ?? '-')}{building?.building_number_in_street != null ? ` מס' ${building.building_number_in_street}` : ''}
-                  </p>
-                )}
+                <p className="text-sm text-white/90 font-semibold bg-white/20 px-2 py-1 rounded">
+                  סך הכל: {assets.length} נכסים
+                </p>
+                <h1 className="text-lg sm:text-xl font-bold text-white">
+                  {t('buildingNumber')} {building?.building_number}
+                </h1>
                 {isResidentTaxRegion && building?.residence_shared_area != null && building.residence_shared_area > 0 && (
                   <p className="text-sm text-white font-semibold bg-indigo-700 px-2 py-1 rounded">
                     שטח משותף מגורים: {building.residence_shared_area.toLocaleString('he-IL')}

@@ -236,20 +236,53 @@ export function FileViewer({ fileUrl, fileName }: FileViewerProps) {
       alert('כתובת הקובץ אינה זמינה. נסה שוב.');
       return;
     }
-    const printWindow = window.open(urlToPrint, '_blank', 'noopener,noreferrer');
-    if (printWindow) {
-      printWindow.onload = () => {
+
+    const printContainer = document.createElement('div');
+    printContainer.id = 'print-container-' + Date.now();
+    printContainer.style.display = 'none';
+    document.body.appendChild(printContainer);
+
+    if (fileType === 'pdf' || fileType === 'image') {
+      const iframe = document.createElement('iframe');
+      iframe.src = urlToPrint;
+      iframe.style.width = '100%';
+      iframe.style.height = '100%';
+      printContainer.appendChild(iframe);
+
+      iframe.onload = () => {
+        try {
+          iframe.contentWindow?.print();
+        } catch (e) {
+          window.print();
+        }
         setTimeout(() => {
-          try {
-            printWindow.print();
-            printWindow.onafterprint = () => printWindow.close();
-          } catch (e) {
-            printWindow.close();
-          }
-        }, 500);
+          document.body.removeChild(printContainer);
+        }, 1000);
+      };
+
+      iframe.onerror = () => {
+        document.body.removeChild(printContainer);
+        alert('לא ניתן להדפיס את הקובץ. נסה להוריד אותו במקום זאת.');
       };
     } else {
-      alert('לא ניתן לפתוח חלון להדפסה. ייתכן שחוסם חלונות קופצים חוסם את הפעולה.');
+      fetch(urlToPrint)
+        .then(response => response.blob())
+        .then(blob => {
+          const blobUrl = URL.createObjectURL(blob);
+          const link = document.createElement('a');
+          link.href = blobUrl;
+          link.download = fileName || 'file';
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+          document.body.removeChild(printContainer);
+          URL.revokeObjectURL(blobUrl);
+          alert('הקובץ הורדו. אתה יכול להדפיס אותו מתוך התוכנה המתאימה.');
+        })
+        .catch(() => {
+          document.body.removeChild(printContainer);
+          alert('לא ניתן להדפיס את הקובץ. נסה להוריד אותו במקום זאת.');
+        });
     }
   }
 

@@ -713,98 +713,101 @@ input[type="submit"]:disabled {
   @apply px-5 py-2.5 text-base;
 }
 
-/* Unified: all primary action buttons use app-accent */
-.btn-primary {
-  @apply bg-app-accent hover:bg-app-accent-hover active:bg-app-accent-active text-white border border-app-accent/30 disabled:bg-gray-400 disabled:border-gray-500/20 disabled:shadow-none disabled:cursor-not-allowed;
+@layer components {
+  /* Unified: all primary action buttons use app-accent */
+  .btn-primary {
+    @apply bg-app-accent hover:bg-app-accent-hover active:bg-app-accent-active text-white border border-app-accent/30 disabled:bg-gray-400 disabled:border-gray-500/20 disabled:shadow-none disabled:cursor-not-allowed;
+  }
+
+  .btn-secondary {
+    @apply bg-app-accent hover:bg-app-accent-hover active:bg-app-accent-active text-white border border-app-accent/30 disabled:bg-gray-400 disabled:border-gray-500/20 disabled:shadow-none disabled:cursor-not-allowed;
+  }
+
+  .btn-app-primary {
+    @apply bg-app-accent hover:bg-app-accent-hover active:bg-app-accent-active text-white rounded disabled:opacity-50 disabled:cursor-not-allowed transition-colors;
+  }
+
+  /* Unified icon color for non-semantic icons */
+  .text-app-icon {
+    @apply text-app-accent;
+  }
 }
 
-.btn-secondary {
-  @apply bg-app-accent hover:bg-app-accent-hover active:bg-app-accent-active text-white border border-app-accent/30 disabled:bg-gray-400 disabled:border-gray-500/20 disabled:shadow-none disabled:cursor-not-allowed;
-}
+  /* Icon-dominant action button - icon on top, small text below (reference: no background) */
+  .btn-action {
+    @apply flex flex-col items-center justify-center gap-0.5 px-2.5 py-1.5 rounded-md transition-all duration-200 font-medium min-w-[64px];
+  }
+  .btn-action svg {
+    @apply h-4 w-4 shrink-0;
+  }
+  .btn-action span {
+    @apply text-[10px] leading-tight;
+  }
 
-.btn-app-primary {
-  @apply bg-app-accent hover:bg-app-accent-hover active:bg-app-accent-active text-white rounded disabled:opacity-50 disabled:cursor-not-allowed transition-colors;
-}
+  .btn-danger {
+    @apply bg-app-destructive hover:bg-red-700 active:bg-red-800 text-white border border-red-700/20 disabled:bg-gray-400 disabled:border-gray-500/20 disabled:shadow-none disabled:cursor-not-allowed;
+  }
 
-/* Unified icon color for non-semantic icons */
-.text-app-icon {
-  @apply text-app-accent;
-}
+  .btn-cancel {
+    @apply bg-gray-500 hover:bg-gray-600 active:bg-gray-700 text-white border border-gray-600/20 disabled:bg-gray-400 disabled:border-gray-500/20 disabled:shadow-none disabled:cursor-not-allowed;
+  }
 
-/* Icon-dominant action button - icon on top, small text below (reference: no background) */
-.btn-action {
-  @apply flex flex-col items-center justify-center gap-0.5 px-2.5 py-1.5 rounded-md transition-all duration-200 font-medium min-w-[64px];
-}
-.btn-action svg {
-  @apply h-4 w-4 shrink-0;
-}
-.btn-action span {
-  @apply text-[10px] leading-tight;
-}
+  .btn-export {
+    @apply bg-app-accent hover:bg-app-accent-hover active:bg-app-accent-active text-white border border-app-accent/30 disabled:bg-gray-400 disabled:border-gray-500/20 disabled:shadow-none disabled:cursor-not-allowed;
+  }
 
-.btn-danger {
-  @apply bg-app-destructive hover:bg-red-700 active:bg-red-800 text-white border border-red-700/20 disabled:bg-gray-400 disabled:border-gray-500/20 disabled:shadow-none disabled:cursor-not-allowed;
-}
+  .btn-icon {
+    @apply p-1 rounded-md transition-colors hover:scale-110 active:scale-100;
+  }
 
-.btn-cancel {
-  @apply bg-gray-500 hover:bg-gray-600 active:bg-gray-700 text-white border border-gray-600/20 disabled:bg-gray-400 disabled:border-gray-500/20 disabled:shadow-none disabled:cursor-not-allowed;
-}
+  .btn-icon-danger {
+    @apply p-1 rounded-md transition-colors text-red-600 hover:text-red-700 hover:bg-red-100 active:bg-red-200;
+  }
 
-.btn-export {
-  @apply bg-app-accent hover:bg-app-accent-hover active:bg-app-accent-active text-white border border-app-accent/30 disabled:bg-gray-400 disabled:border-gray-500/20 disabled:shadow-none disabled:cursor-not-allowed;
-}
+  .btn-menu {
+    @apply w-full flex items-center justify-between px-4 py-2.5 text-right bg-white rounded-lg transition-all duration-200 shadow-sm border border-slate-200 hover:shadow-md;
+  }
+  .btn-menu:hover {
+    @apply bg-app-bg hover:border-app-input-border;
+  }
+  .btn-menu:active {
+    @apply bg-slate-100;
+  }
+  .btn-menu span {
+    @apply font-medium text-sm text-app-text-primary group-hover:text-app-text-primary;
+  }
+  .btn-menu svg {
+    @apply text-app-text-muted group-hover:text-app-accent;
+  }
 
-.btn-icon {
-  @apply p-1 rounded-md transition-colors hover:scale-110 active:scale-100;
-}
+  .btn-menu-item {
+    @apply w-full flex items-center gap-2 px-3 py-2 text-right bg-slate-50 hover:bg-slate-100 hover:scale-[1.02] active:bg-slate-200 rounded-lg transition-all duration-200 text-xs shadow-sm hover:shadow-md;
+  }
+  .btn-menu-item span {
+    @apply font-medium text-app-text-primary;
+  }
+  .btn-menu-item svg {
+    @apply text-app-text-muted;
+  }
+  .btn-menu-item.btn-primary {
+    @apply bg-app-accent/10 hover:bg-app-accent/20 active:bg-app-accent/30;
+  }
+  .btn-menu-item.btn-primary svg {
+    @apply text-app-accent;
+  }
+  .btn-menu-item.btn-export {
+    @apply bg-app-accent/10 hover:bg-app-accent/20 active:bg-app-accent/30;
+  }
+  .btn-menu-item.btn-export svg {
+    @apply text-app-accent;
+  }
 
-.btn-icon-danger {
-  @apply p-1 rounded-md transition-colors text-red-600 hover:text-red-700 hover:bg-red-100 active:bg-red-200;
-}
-
-.btn-menu {
-  @apply w-full flex items-center justify-between px-4 py-2.5 text-right bg-white rounded-lg transition-all duration-200 shadow-sm border border-slate-200 hover:shadow-md;
-}
-.btn-menu:hover {
-  @apply bg-app-bg hover:border-app-input-border;
-}
-.btn-menu:active {
-  @apply bg-slate-100;
-}
-.btn-menu span {
-  @apply font-medium text-sm text-app-text-primary group-hover:text-app-text-primary;
-}
-.btn-menu svg {
-  @apply text-app-text-muted group-hover:text-app-accent;
-}
-
-.btn-menu-item {
-  @apply w-full flex items-center gap-2 px-3 py-2 text-right bg-slate-50 hover:bg-slate-100 hover:scale-[1.02] active:bg-slate-200 rounded-lg transition-all duration-200 text-xs shadow-sm hover:shadow-md;
-}
-.btn-menu-item span {
-  @apply font-medium text-app-text-primary;
-}
-.btn-menu-item svg {
-  @apply text-app-text-muted;
-}
-.btn-menu-item.btn-primary {
-  @apply bg-app-accent/10 hover:bg-app-accent/20 active:bg-app-accent/30;
-}
-.btn-menu-item.btn-primary svg {
-  @apply text-app-accent;
-}
-.btn-menu-item.btn-export {
-  @apply bg-app-accent/10 hover:bg-app-accent/20 active:bg-app-accent/30;
-}
-.btn-menu-item.btn-export svg {
-  @apply text-app-accent;
-}
-
-/* Unified form elements - reference styling */
-.input-base {
-  @apply w-full px-3 py-2 border border-app-input-border rounded-lg bg-white text-app-text-primary placeholder:text-app-text-muted focus:ring-2 focus:ring-app-accent focus:border-app-accent outline-none transition-all text-right;
-}
-.label-base {
-  @apply block text-sm font-medium text-app-text-primary mb-1;
+  /* Unified form elements - reference styling */
+  .input-base {
+    @apply w-full px-3 py-2 border border-app-input-border rounded-lg bg-white text-app-text-primary placeholder:text-app-text-muted focus:ring-2 focus:ring-app-accent focus:border-app-accent outline-none transition-all text-right;
+  }
+  .label-base {
+    @apply block text-sm font-medium text-app-text-primary mb-1;
+  }
 }
 

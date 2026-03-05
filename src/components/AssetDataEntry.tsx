@@ -873,7 +873,7 @@ export const AssetDataEntry = forwardRef<AssetDataEntryRef, AssetDataEntryProps>
                   className={`px-2 py-1 text-xs rounded transition-colors font-medium whitespace-nowrap ${
                     loading
                       ? 'bg-gray-300 text-gray-500 '
-                      : 'bg-blue-600 hover:bg-blue-700 text-white'
+                      : 'bg-app-accent hover:bg-app-accent-hover text-white'
                   }`}
                   title="הוסף מדידה חדשה"
                 >
@@ -936,7 +936,7 @@ export const AssetDataEntry = forwardRef<AssetDataEntryRef, AssetDataEntryProps>
                 const newValue = e.target.checked ? true : false;
                 params.setValue(newValue);
               }}
-              className="w-4 h-4 text-blue-600 rounded focus:ring-2 focus:ring-blue-500 cursor-pointer"
+              className="w-4 h-4 text-app-accent rounded focus:ring-2 focus:ring-app-accent cursor-pointer"
             />
           </div>
         );
@@ -1403,7 +1403,7 @@ export const AssetDataEntry = forwardRef<AssetDataEntryRef, AssetDataEntryProps>
       {loading && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg p-6 shadow-2xl flex flex-col items-center gap-4">
-            <Loader2 className="h-12 w-12 text-blue-600 animate-spin" />
+            <Loader2 className="h-12 w-12 text-app-accent animate-spin" />
             <p className="text-gray-700 font-medium text-lg">מעבד נתונים...</p>
           </div>
         </div>
@@ -1441,7 +1441,7 @@ export const AssetDataEntry = forwardRef<AssetDataEntryRef, AssetDataEntryProps>
                   }
                 }}
                 placeholder="כל המבנים"
-                className="w-full md:w-64 px-2 py-1 text-xs border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 bg-white"
+                className="w-full md:w-64 px-2 py-1 text-xs border border-gray-300 rounded-lg focus:ring-2 focus:ring-app-accent focus:border-app-accent bg-white"
               />
               <datalist id="building-list">
                 {buildings.map(building => (
@@ -1545,7 +1545,7 @@ export const AssetDataEntry = forwardRef<AssetDataEntryRef, AssetDataEntryProps>
                     showToast('שגיאה בייצוא לקובץ Excel', 'error');
                   }
                 }}
-                className="flex items-center gap-1 px-3 py-1 text-xs bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 text-white rounded-md transition-all duration-200 shadow-sm hover:shadow-md font-semibold"
+                className="flex items-center gap-1 px-3 py-1 text-xs bg-app-accent hover:bg-app-accent-hover active:bg-app-accent-active text-white rounded-md transition-all duration-200 shadow-sm hover:shadow-md font-semibold"
                 title="ייצא ל-Excel"
               >
                 <Download className="h-3.5 w-3.5" />
@@ -1555,7 +1555,7 @@ export const AssetDataEntry = forwardRef<AssetDataEntryRef, AssetDataEntryProps>
                 <button
                   onClick={handleSaveAll}
                   disabled={loading}
-                  className="flex items-center gap-1 px-3 py-1 text-xs bg-teal-600 hover:bg-teal-700 active:bg-teal-800 text-white rounded-md transition-all duration-200 shadow-sm hover:shadow-md disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none font-semibold"
+                  className="flex items-center gap-1 px-3 py-1 text-xs bg-app-accent hover:bg-app-accent-hover active:bg-app-accent-active text-white rounded-md transition-all duration-200 shadow-sm hover:shadow-md disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none font-semibold"
                 >
                   {loading ? (
                     <Loader2 className="h-3.5 w-3.5 animate-spin" />

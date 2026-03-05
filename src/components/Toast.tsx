@@ -42,7 +42,7 @@ export function Toast({ message, type = 'error', onClose, duration }: ToastProps
       bg: 'bg-blue-50',
       border: 'border-blue-200',
       text: 'text-blue-800',
-      icon: <Info className="w-7 h-7 text-blue-600" />,
+      icon: <Info className="w-7 h-7 text-app-accent" />,
     },
   };
 

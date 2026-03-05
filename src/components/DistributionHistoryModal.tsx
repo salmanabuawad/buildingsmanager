@@ -239,7 +239,7 @@ export function DistributionHistoryModal({
     <div className={`bg-white ${inline ? '' : 'rounded-xl shadow-2xl'} pt-2 sm:pt-3 px-4 sm:px-6 pb-4 sm:pb-6 ${inline ? '' : 'transition-all duration-300 border border-gray-100'} ${inline ? '' : isClosing ? 'opacity-0 scale-95' : 'opacity-100 scale-100'} ${inline ? 'w-full h-full' : 'max-w-[95vw] w-full max-h-[90vh]'} flex flex-col`} dir="rtl">
         {/* Header */}
         {!inline && (
-        <div className="flex items-center justify-between mb-4 px-4 py-3 rounded-t-lg bg-teal-50 border-b border-teal-200">
+        <div className="flex items-center justify-between mb-4 px-4 py-3 rounded-t-lg bg-[#f0f0f0] border-b border-slate-200">
           <h2 className="text-2xl font-bold text-gray-900">
             {selectedRecord ? (() => {
               const formattedDateTime = selectedRecord.created_at ? formatDateTimeToDDMMYYYYHHMM(selectedRecord.created_at) : '';
@@ -269,7 +269,7 @@ export function DistributionHistoryModal({
                   onClick={() => handleRecordClick(record)}
                   className={`flex items-center gap-2 px-4 py-2.5 text-sm font-semibold transition-all duration-200 rounded-t-lg flex-shrink-0 ${
                     selectedRecord && selectedRecord.id === record.id
-                      ? 'text-teal-700 bg-white border-b-2 border-teal-600 shadow-md -mb-0.5'
+                      ? 'text-slate-800 bg-white border-b-2 border-app-accent shadow-md -mb-0.5'
                       : 'text-gray-600 hover:text-teal-600 hover:bg-white/50'
                   }`}
                 >
@@ -300,7 +300,7 @@ export function DistributionHistoryModal({
 
           {loading ? (
             <div className="flex items-center justify-center py-12">
-              <Loader2 className="h-8 w-8 animate-spin text-teal-500" />
+              <Loader2 className="h-8 w-8 animate-spin text-app-accent" />
               <span className="mr-3 text-gray-600">טוען היסטוריה...</span>
             </div>
           ) : error ? (
@@ -448,7 +448,7 @@ export function DistributionHistoryModal({
                             <td className="border border-gray-300 px-2 py-1.5 text-right font-semibold" rowSpan={2} style={{ verticalAlign: 'middle' }}>
                               <button
                                 onClick={handleAssetIdClick}
-                                className="text-blue-600 hover:text-blue-800 hover:underline cursor-pointer font-semibold"
+                                className="text-app-accent hover:text-app-accent-hover hover:underline cursor-pointer font-semibold"
                                 title="פתח פרטי נכס"
                               >
                                 {row.asset_id}

@@ -251,12 +251,14 @@ export function BuildingListImport() {
 
   return (
     <div className="max-w-4xl mx-auto px-4 py-8">
-      <div className="mb-8 bg-gradient-to-r from-blue-600 to-teal-600 rounded-xl shadow-lg p-6">
-        <div className="flex items-center gap-3">
-          <Upload className="w-10 h-10 text-white bg-white/20 rounded-lg p-2" />
+      <div className="page-header mb-8 rounded-xl p-6">
+        <div className="relative flex items-center gap-3 flex-wrap">
+          <div className="page-header-icon shrink-0">
+            <Upload className="w-6 h-6" />
+          </div>
           <div>
-            <h1 className="text-3xl font-bold text-white">ייבוא מבנים מקובץ File</h1>
-            <p className="text-blue-50 mt-1">העלה קובץ File כדי לייבא מבנים במרוכז</p>
+            <h1 className="page-header-title text-2xl sm:text-3xl font-bold">ייבוא מבנים מקובץ File</h1>
+            <p className="page-header-label mt-1 opacity-90">העלה קובץ File כדי לייבא מבנים במרוכז</p>
           </div>
         </div>
       </div>
@@ -288,7 +290,7 @@ export function BuildingListImport() {
               <li><strong>כתובת (dropdown)</strong> (אופציונלי) - מספר שלם או "מספר - תיאור" (סמל רחוב מטבלת כתובות)</li>
             </ul>
 
-            <div className="bg-white rounded-lg p-4 border border-slate-300">
+            <div className="bg-white rounded-lg p-4 border border-app-input-border">
               <p className="font-semibold text-slate-900 mb-2">דוגמה:</p>
               <pre className="font-mono text-sm text-slate-700 leading-relaxed">
 1001,10,150.5,50.2,603,604
@@ -313,10 +315,10 @@ export function BuildingListImport() {
           </div>
         </div>
 
-        <div className="space-y-4">
+        <div className="action-bar space-y-4">
           <button
             onClick={downloadTemplate}
-            className="w-full flex items-center justify-center gap-3 px-6 py-4 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-lg hover:from-blue-700 hover:to-indigo-700 transition-all shadow-md hover:shadow-lg"
+            className="w-full flex items-center justify-center gap-3 px-6 py-4 bg-app-accent text-white rounded-lg hover:bg-app-accent-hover transition-all shadow-md hover:shadow-lg"
           >
             <Download className="h-5 w-5" />
             <span className="font-semibold">הורד קובץ דוגמה</span>
@@ -332,7 +334,7 @@ export function BuildingListImport() {
           <button
             onClick={() => fileInputRef.current?.click()}
             disabled={isImporting}
-            className="w-full flex items-center justify-center gap-3 px-6 py-4 bg-gradient-to-r from-teal-600 to-blue-600 text-white rounded-lg hover:from-teal-700 hover:to-blue-700 transition-all shadow-md hover:shadow-lg disabled:opacity-50 "
+            className="w-full flex items-center justify-center gap-3 px-6 py-4 bg-app-header text-white rounded-lg hover:opacity-90 transition-all shadow-md hover:shadow-lg disabled:opacity-50"
           >
             {isImporting ? (
               <Loader2 className="h-5 w-5 animate-spin" />

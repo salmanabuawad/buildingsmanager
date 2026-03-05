@@ -55,11 +55,13 @@ export function AssetSearchByRange({ onSelectAsset }: AssetSearchProps) {
 
   return (
     <div className="max-w-7xl mx-auto px-2 sm:px-4 py-4 sm:py-8 md:py-12">
-      <div className="mb-6 sm:mb-8 bg-gradient-to-r from-blue-600 to-teal-600 rounded-xl shadow-lg p-6">
-        <div className="flex items-center gap-3">
-          <Search className="w-10 h-10 text-white bg-white/20 rounded-lg p-2" strokeWidth={1.5} />
-          <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold text-white">
-            {t('assetSearch') || 'Asset Search'}
+      <div className="page-header mb-6 sm:mb-8 rounded-xl p-4" dir="rtl">
+        <div className="relative flex items-center gap-3 flex-wrap">
+          <div className="page-header-icon shrink-0">
+            <Search className="w-6 h-6" strokeWidth={2} />
+          </div>
+          <h1 className="page-header-title text-xl sm:text-2xl font-bold">
+            {t('assetSearch') || 'חיפוש נכסים'}
           </h1>
         </div>
       </div>
@@ -76,7 +78,7 @@ export function AssetSearchByRange({ onSelectAsset }: AssetSearchProps) {
                 value={fromNumber}
                 onChange={(e) => setFromNumber(e.target.value)}
                 placeholder="826812801"
-                className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500"
+                className="w-full px-4 py-2 border border-app-input-border rounded-lg focus:outline-none focus:ring-2 focus:ring-app-accent"
                 required
               />
             </div>
@@ -89,17 +91,17 @@ export function AssetSearchByRange({ onSelectAsset }: AssetSearchProps) {
                 value={toNumber}
                 onChange={(e) => setToNumber(e.target.value)}
                 placeholder="826812899"
-                className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500"
+                className="w-full px-4 py-2 border border-app-input-border rounded-lg focus:outline-none focus:ring-2 focus:ring-app-accent"
                 required
               />
             </div>
           </div>
 
-          <div className="flex gap-2">
+          <div className="action-bar mt-4 flex gap-2">
             <button
               type="submit"
               disabled={loading || !fromNumber || !toNumber}
-              className="flex items-center gap-2 px-6 py-2 bg-teal-600 hover:bg-teal-700 active:bg-teal-800 text-white rounded-md transition-all duration-200 shadow-sm hover:shadow-md disabled:opacity-50  disabled:shadow-none"
+              className="btn btn-primary"
             >
               <Search className="h-5 w-5" />
               {loading ? (t('loading') || 'Loading...') : (t('search') || 'Search')}
@@ -107,7 +109,7 @@ export function AssetSearchByRange({ onSelectAsset }: AssetSearchProps) {
             <button
               type="button"
               onClick={handleReset}
-              className="px-6 py-2 bg-slate-200 hover:bg-slate-300 active:bg-slate-400 text-slate-700 rounded-md transition-all duration-200 shadow-sm hover:shadow-md"
+              className="btn btn-cancel"
             >
               {t('reset') || 'Reset'}
             </button>
@@ -163,7 +165,7 @@ export function AssetSearchByRange({ onSelectAsset }: AssetSearchProps) {
                       <td className="px-4 py-3">
                         <button
                           onClick={() => onSelectAsset(String(asset.asset_id), String(asset.asset_id), asset.building_number)}
-                          className="px-4 py-1.5 bg-gradient-to-r from-teal-600 to-blue-600 text-white rounded-lg hover:from-teal-700 hover:to-blue-700 transition-all shadow-md hover:shadow-lg hover:scale-105 text-sm font-semibold whitespace-nowrap"
+                          className="px-4 py-1.5 bg-app-header text-white rounded-lg hover:opacity-90 transition-all shadow-md hover:shadow-lg text-sm font-semibold whitespace-nowrap"
                         >
                           {t('viewDetails') || 'View Details'}
                         </button>
@@ -171,7 +173,7 @@ export function AssetSearchByRange({ onSelectAsset }: AssetSearchProps) {
                       <td className="px-4 py-3">
                         <button
                           onClick={() => onSelectAsset(String(asset.asset_id), String(asset.asset_id), asset.building_number)}
-                          className="text-blue-600 hover:text-blue-800 underline decoration-blue-600 hover:decoration-blue-800 cursor-pointer transition-colors font-semibold"
+                          className="text-app-accent hover:text-app-accent-hover underline cursor-pointer transition-colors font-semibold"
                           title="לחץ כדי לפתוח את הנכס"
                         >
                           {asset.asset_id}
@@ -182,7 +184,7 @@ export function AssetSearchByRange({ onSelectAsset }: AssetSearchProps) {
                       </td>
                       <td className="px-4 py-3 text-slate-700">
                         <div className="flex items-center gap-2">
-                          <BuildingIcon className="h-4 w-4 text-teal-600" />
+                          <BuildingIcon className="h-4 w-4 text-app-accent" />
                           {asset.building_number}
                         </div>
                       </td>

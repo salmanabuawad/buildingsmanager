@@ -230,7 +230,7 @@ export function MeasurementHistory({ assetId }: MeasurementHistoryProps) {
         <h2 className="text-lg sm:text-xl font-bold text-slate-900">{t('measurementHistory')}</h2>
         <button
           onClick={() => setIsAdding(true)}
-          className="flex items-center gap-2 px-3 py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700 transition-colors text-sm"
+          className="flex items-center gap-2 px-3 py-2 bg-app-accent text-white rounded-lg hover:bg-app-accent-hover transition-colors text-sm"
         >
           <Plus className="h-4 w-4" />
           {t('addMeasurement')}
@@ -252,7 +252,7 @@ export function MeasurementHistory({ assetId }: MeasurementHistoryProps) {
           <h3 className="font-semibold text-slate-900 mb-3">{t('addMeasurement')}</h3>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div className="sm:col-span-2">
-              <label className="text-sm font-medium text-slate-700 block mb-2">
+              <label className="text-sm font-medium text-app-text-primary block mb-2">
                 {t('dwgFile')}
               </label>
               <input
@@ -266,7 +266,7 @@ export function MeasurementHistory({ assetId }: MeasurementHistoryProps) {
                 <button
                   onClick={() => fileInputRef.current?.click()}
                   disabled={isUploading && uploadingFor === 'new'}
-                  className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="flex items-center gap-2 px-4 py-2 bg-app-accent text-white rounded-lg hover:bg-app-accent-hover transition-colors text-sm disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <Upload className="h-4 w-4" />
                   {isUploading && uploadingFor === 'new' ? t('loading') : t('uploadDwgFile')}
@@ -276,7 +276,7 @@ export function MeasurementHistory({ assetId }: MeasurementHistoryProps) {
                   <button
                     onClick={() => fileInputRef.current?.click()}
                     disabled={isUploading && uploadingFor === 'new'}
-                    className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="flex items-center gap-2 px-4 py-2 bg-app-accent text-white rounded-lg hover:bg-app-accent-hover transition-colors text-sm disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     <Upload className="h-4 w-4" />
                     {t('changeFile')}
@@ -304,7 +304,7 @@ export function MeasurementHistory({ assetId }: MeasurementHistoryProps) {
                 <div className="mt-3">
                   <button
                     onClick={() => setPreviewingDrawing(null)}
-                    className="mb-2 flex items-center gap-2 px-3 py-1 bg-slate-200 text-slate-700 rounded-lg hover:bg-slate-300 transition-colors text-sm"
+                    className="mb-2 flex items-center gap-2 px-3 py-1 bg-slate-200 text-app-text-primary rounded-lg hover:bg-slate-300 transition-colors text-sm"
                   >
                     <X className="h-4 w-4" />
                     {t('closePreview')}
@@ -314,7 +314,7 @@ export function MeasurementHistory({ assetId }: MeasurementHistoryProps) {
               )}
             </div>
             <div>
-              <label className="text-sm font-medium text-slate-700 block mb-1">
+              <label className="text-sm font-medium text-app-text-primary block mb-1">
                 {t('measurementDate')}
               </label>
               <input
@@ -323,11 +323,11 @@ export function MeasurementHistory({ assetId }: MeasurementHistoryProps) {
                 onChange={(e) =>
                   setNewMeasurement({ ...newMeasurement, measurement_date: e.target.value })
                 }
-                className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm"
+                className="w-full px-3 py-2 border border-app-input-border rounded-lg text-sm"
               />
             </div>
             <div>
-              <label className="text-sm font-medium text-slate-700 block mb-1">
+              <label className="text-sm font-medium text-app-text-primary block mb-1">
                 {t('assetArea')}
               </label>
               <input
@@ -336,11 +336,11 @@ export function MeasurementHistory({ assetId }: MeasurementHistoryProps) {
                 onChange={(e) =>
                   setNewMeasurement({ ...newMeasurement, asset_area: parseFloat(e.target.value) || 0 })
                 }
-                className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm"
+                className="w-full px-3 py-2 border border-app-input-border rounded-lg text-sm"
               />
             </div>
             <div>
-              <label className="text-sm font-medium text-slate-700 block mb-1">
+              <label className="text-sm font-medium text-app-text-primary block mb-1">
                 {t('storageArea')}
               </label>
               <input
@@ -349,11 +349,11 @@ export function MeasurementHistory({ assetId }: MeasurementHistoryProps) {
                 onChange={(e) =>
                   setNewMeasurement({ ...newMeasurement, storage_area: parseFloat(e.target.value) || 0 })
                 }
-                className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm"
+                className="w-full px-3 py-2 border border-app-input-border rounded-lg text-sm"
               />
             </div>
             <div>
-              <label className="text-sm font-medium text-slate-700 block mb-1">
+              <label className="text-sm font-medium text-app-text-primary block mb-1">
                 {t('pergolaArea')}
               </label>
               <input
@@ -362,11 +362,11 @@ export function MeasurementHistory({ assetId }: MeasurementHistoryProps) {
                 onChange={(e) =>
                   setNewMeasurement({ ...newMeasurement, pergola_area: parseFloat(e.target.value) || 0 })
                 }
-                className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm"
+                className="w-full px-3 py-2 border border-app-input-border rounded-lg text-sm"
               />
             </div>
             <div>
-              <label className="text-sm font-medium text-slate-700 block mb-1">
+              <label className="text-sm font-medium text-app-text-primary block mb-1">
                 {t('balconyArea')}
               </label>
               <input
@@ -375,11 +375,11 @@ export function MeasurementHistory({ assetId }: MeasurementHistoryProps) {
                 onChange={(e) =>
                   setNewMeasurement({ ...newMeasurement, balcony_area: parseFloat(e.target.value) || 0 })
                 }
-                className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm"
+                className="w-full px-3 py-2 border border-app-input-border rounded-lg text-sm"
               />
             </div>
             <div className="sm:col-span-2">
-              <label className="text-sm font-medium text-slate-700 block mb-1">
+              <label className="text-sm font-medium text-app-text-primary block mb-1">
                 {t('notes')}
               </label>
               <textarea
@@ -387,7 +387,7 @@ export function MeasurementHistory({ assetId }: MeasurementHistoryProps) {
                 onChange={(e) =>
                   setNewMeasurement({ ...newMeasurement, notes: e.target.value })
                 }
-                className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm"
+                className="w-full px-3 py-2 border border-app-input-border rounded-lg text-sm"
                 rows={2}
               />
             </div>
@@ -395,7 +395,7 @@ export function MeasurementHistory({ assetId }: MeasurementHistoryProps) {
           <div className="flex gap-2 mt-3">
             <button
               onClick={handleAddMeasurement}
-              className="flex items-center gap-2 px-4 py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700 transition-colors text-sm"
+              className="flex items-center gap-2 px-4 py-2 bg-app-accent text-white rounded-lg hover:bg-app-accent-hover transition-colors text-sm"
             >
               <Save className="h-4 w-4" />
               {t('save')}
@@ -405,7 +405,7 @@ export function MeasurementHistory({ assetId }: MeasurementHistoryProps) {
                 setIsAdding(false);
                 setNewMeasurement(emptyMeasurement);
               }}
-              className="flex items-center gap-2 px-4 py-2 bg-slate-200 text-slate-700 rounded-lg hover:bg-slate-300 transition-colors text-sm"
+              className="flex items-center gap-2 px-4 py-2 bg-slate-200 text-app-text-primary rounded-lg hover:bg-slate-300 transition-colors text-sm"
             >
               <X className="h-4 w-4" />
               {t('cancel')}
@@ -421,13 +421,13 @@ export function MeasurementHistory({ assetId }: MeasurementHistoryProps) {
           {measurements.map((measurement) => (
             <div
               key={measurement.id}
-              className="border border-slate-200 rounded-lg p-4 hover:border-teal-300 transition-colors"
+              className="border border-slate-200 rounded-lg p-4 hover:border-app-accent/50 transition-colors"
             >
               {editingId === measurement.id ? (
                 <div>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div className="sm:col-span-2">
-                      <label className="text-sm font-medium text-slate-700 block mb-2">
+                      <label className="text-sm font-medium text-app-text-primary block mb-2">
                         {t('dwgFile')}
                       </label>
                       <input
@@ -441,7 +441,7 @@ export function MeasurementHistory({ assetId }: MeasurementHistoryProps) {
                         <button
                           onClick={() => document.getElementById(`file-edit-${measurement.id}`)?.click()}
                           disabled={isUploading && uploadingFor === measurement.id}
-                          className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                          className="flex items-center gap-2 px-4 py-2 bg-app-accent text-white rounded-lg hover:bg-app-accent-hover transition-colors text-sm disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                           <Upload className="h-4 w-4" />
                           {isUploading && uploadingFor === measurement.id ? t('loading') : t('uploadDwgFile')}
@@ -451,7 +451,7 @@ export function MeasurementHistory({ assetId }: MeasurementHistoryProps) {
                           <button
                             onClick={() => document.getElementById(`file-edit-${measurement.id}`)?.click()}
                             disabled={isUploading && uploadingFor === measurement.id}
-                            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                            className="flex items-center gap-2 px-4 py-2 bg-app-accent text-white rounded-lg hover:bg-app-accent-hover transition-colors text-sm disabled:opacity-50 disabled:cursor-not-allowed"
                           >
                             <Upload className="h-4 w-4" />
                             {t('changeFile')}
@@ -479,7 +479,7 @@ export function MeasurementHistory({ assetId }: MeasurementHistoryProps) {
                         <div className="mt-3">
                           <button
                             onClick={() => setPreviewingDrawing(null)}
-                            className="mb-2 flex items-center gap-2 px-3 py-1 bg-slate-200 text-slate-700 rounded-lg hover:bg-slate-300 transition-colors text-sm"
+                            className="mb-2 flex items-center gap-2 px-3 py-1 bg-slate-200 text-app-text-primary rounded-lg hover:bg-slate-300 transition-colors text-sm"
                           >
                             <X className="h-4 w-4" />
                             {t('closePreview')}
@@ -489,7 +489,7 @@ export function MeasurementHistory({ assetId }: MeasurementHistoryProps) {
                       )}
                     </div>
                     <div>
-                      <label className="text-sm font-medium text-slate-700 block mb-1">
+                      <label className="text-sm font-medium text-app-text-primary block mb-1">
                         {t('measurementDate')}
                       </label>
                       <input
@@ -498,11 +498,11 @@ export function MeasurementHistory({ assetId }: MeasurementHistoryProps) {
                         onChange={(e) =>
                           setEditValues({ ...editValues, measurement_date: e.target.value })
                         }
-                        className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm"
+                        className="w-full px-3 py-2 border border-app-input-border rounded-lg text-sm"
                       />
                     </div>
                     <div>
-                      <label className="text-sm font-medium text-slate-700 block mb-1">
+                      <label className="text-sm font-medium text-app-text-primary block mb-1">
                         {t('assetArea')}
                       </label>
                       <input
@@ -511,11 +511,11 @@ export function MeasurementHistory({ assetId }: MeasurementHistoryProps) {
                         onChange={(e) =>
                           setEditValues({ ...editValues, asset_area: parseFloat(e.target.value) || 0 })
                         }
-                        className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm"
+                        className="w-full px-3 py-2 border border-app-input-border rounded-lg text-sm"
                       />
                     </div>
                     <div>
-                      <label className="text-sm font-medium text-slate-700 block mb-1">
+                      <label className="text-sm font-medium text-app-text-primary block mb-1">
                         {t('storageArea')}
                       </label>
                       <input
@@ -524,11 +524,11 @@ export function MeasurementHistory({ assetId }: MeasurementHistoryProps) {
                         onChange={(e) =>
                           setEditValues({ ...editValues, storage_area: parseFloat(e.target.value) || 0 })
                         }
-                        className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm"
+                        className="w-full px-3 py-2 border border-app-input-border rounded-lg text-sm"
                       />
                     </div>
                     <div>
-                      <label className="text-sm font-medium text-slate-700 block mb-1">
+                      <label className="text-sm font-medium text-app-text-primary block mb-1">
                         {t('pergolaArea')}
                       </label>
                       <input
@@ -537,11 +537,11 @@ export function MeasurementHistory({ assetId }: MeasurementHistoryProps) {
                         onChange={(e) =>
                           setEditValues({ ...editValues, pergola_area: parseFloat(e.target.value) || 0 })
                         }
-                        className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm"
+                        className="w-full px-3 py-2 border border-app-input-border rounded-lg text-sm"
                       />
                     </div>
                     <div>
-                      <label className="text-sm font-medium text-slate-700 block mb-1">
+                      <label className="text-sm font-medium text-app-text-primary block mb-1">
                         {t('balconyArea')}
                       </label>
                       <input
@@ -550,11 +550,11 @@ export function MeasurementHistory({ assetId }: MeasurementHistoryProps) {
                         onChange={(e) =>
                           setEditValues({ ...editValues, balcony_area: parseFloat(e.target.value) || 0 })
                         }
-                        className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm"
+                        className="w-full px-3 py-2 border border-app-input-border rounded-lg text-sm"
                       />
                     </div>
                     <div className="sm:col-span-2">
-                      <label className="text-sm font-medium text-slate-700 block mb-1">
+                      <label className="text-sm font-medium text-app-text-primary block mb-1">
                         {t('notes')}
                       </label>
                       <textarea
@@ -562,7 +562,7 @@ export function MeasurementHistory({ assetId }: MeasurementHistoryProps) {
                         onChange={(e) =>
                           setEditValues({ ...editValues, notes: e.target.value })
                         }
-                        className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm"
+                        className="w-full px-3 py-2 border border-app-input-border rounded-lg text-sm"
                         rows={2}
                       />
                     </div>
@@ -570,7 +570,7 @@ export function MeasurementHistory({ assetId }: MeasurementHistoryProps) {
                   <div className="flex gap-2 mt-3">
                     <button
                       onClick={() => handleUpdateMeasurement(measurement.id)}
-                      className="flex items-center gap-2 px-4 py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700 transition-colors text-sm"
+                      className="flex items-center gap-2 px-4 py-2 bg-app-accent text-white rounded-lg hover:bg-app-accent-hover transition-colors text-sm"
                     >
                       <Save className="h-4 w-4" />
                       {t('save')}
@@ -580,7 +580,7 @@ export function MeasurementHistory({ assetId }: MeasurementHistoryProps) {
                         setEditingId(null);
                         setEditValues({});
                       }}
-                      className="flex items-center gap-2 px-4 py-2 bg-slate-200 text-slate-700 rounded-lg hover:bg-slate-300 transition-colors text-sm"
+                      className="flex items-center gap-2 px-4 py-2 bg-slate-200 text-app-text-primary rounded-lg hover:bg-slate-300 transition-colors text-sm"
                     >
                       <X className="h-4 w-4" />
                       {t('cancel')}
@@ -599,7 +599,7 @@ export function MeasurementHistory({ assetId }: MeasurementHistoryProps) {
                     <div className="flex gap-2">
                         <button
                           onClick={() => startEdit(measurement)}
-                          className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                          className="p-2 text-app-accent hover:bg-slate-50 rounded-lg transition-colors"
                         >
                           <Edit2 className="h-4 w-4" />
                         </button>
@@ -652,7 +652,7 @@ export function MeasurementHistory({ assetId }: MeasurementHistoryProps) {
                   {measurement.drawing_file_url ? (
                     <div className="mt-3 pt-3 border-t border-slate-200">
                       <div className="flex items-center justify-between mb-2">
-                        <span className="text-sm font-medium text-slate-700">{t('dwgFile')}</span>
+                        <span className="text-sm font-medium text-app-text-primary">{t('dwgFile')}</span>
                         <div className="flex gap-2">
                           <input
                             type="file"
@@ -671,7 +671,7 @@ export function MeasurementHistory({ assetId }: MeasurementHistoryProps) {
                           <button
                             onClick={() => document.getElementById(`file-view-${measurement.id}`)?.click()}
                             disabled={isUploading && uploadingFor === measurement.id}
-                            className="flex items-center gap-1 px-3 py-1 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-xs disabled:opacity-50 disabled:cursor-not-allowed"
+                            className="flex items-center gap-1 px-3 py-1 bg-app-accent text-white rounded-lg hover:bg-app-accent-hover transition-colors text-xs disabled:opacity-50 disabled:cursor-not-allowed"
                           >
                             <Upload className="h-3 w-3" />
                             {t('changeFile')}
@@ -702,7 +702,7 @@ export function MeasurementHistory({ assetId }: MeasurementHistoryProps) {
                       <button
                         onClick={() => document.getElementById(`file-view-${measurement.id}`)?.click()}
                         disabled={isUploading && uploadingFor === measurement.id}
-                        className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm disabled:opacity-50 disabled:cursor-not-allowed w-full justify-center"
+                        className="flex items-center gap-2 px-4 py-2 bg-app-accent text-white rounded-lg hover:bg-app-accent-hover transition-colors text-sm disabled:opacity-50 disabled:cursor-not-allowed w-full justify-center"
                       >
                         <Upload className="h-4 w-4" />
                         {isUploading && uploadingFor === measurement.id ? t('loading') : t('uploadDwgFile')}

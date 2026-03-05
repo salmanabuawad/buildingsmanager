@@ -3,7 +3,7 @@ import { api } from '../lib/api';
 import { AgGridReact } from 'ag-grid-react';
 import { ColDef } from 'ag-grid-community';
 import 'ag-grid-community/styles/ag-theme-alpine.css';
-import { BarChart3, Calendar, Loader2, AlertCircle, RefreshCw } from 'lucide-react';
+import { BarChart3, Calendar, Loader2, AlertCircle, RefreshCw, Search, Building2, Home, Square, CheckCircle2 } from 'lucide-react';
 import { formatDateToDDMMYYYY, parseDateFromDDMMYYYY } from '../lib/dateUtils';
 
 interface YearlyData {
@@ -191,7 +191,7 @@ export const MeasurementProgressDashboard = ({ onOpenBuildingsList, onOpenMeasur
   if (loading) {
     return (
       <div className="flex items-center justify-center h-full">
-        <Loader2 className="h-8 w-8 animate-spin text-purple-600" />
+        <Loader2 className="h-8 w-8 animate-spin text-app-accent" />
       </div>
     );
   }
@@ -203,7 +203,7 @@ export const MeasurementProgressDashboard = ({ onOpenBuildingsList, onOpenMeasur
         <p className="text-red-600">{error}</p>
         <button
           onClick={fetchData}
-          className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700"
+          className="px-4 py-2 bg-app-accent text-white rounded hover:bg-app-accent-hover"
         >
           נסה שוב
         </button>
@@ -213,26 +213,28 @@ export const MeasurementProgressDashboard = ({ onOpenBuildingsList, onOpenMeasur
 
   return (
     <div className="h-full flex flex-col bg-white">
-      {/* Header */}
-      <div className="flex items-center justify-between p-4 border-b border-purple-200 bg-gradient-to-r from-purple-50 to-indigo-50">
+      {/* Header - icon-dominant */}
+      <div className="flex items-center justify-between p-4 border-b border-slate-200 bg-[#f0f0f0]">
         <div className="flex items-center gap-3">
-          <BarChart3 className="h-6 w-6 text-purple-600" />
+          <div className="p-2 rounded-lg bg-white/80 border border-slate-200">
+            <BarChart3 className="h-7 w-7 text-app-accent" />
+          </div>
           <h2 className="text-xl font-bold text-slate-800">התקדמות פעילות מדידות</h2>
         </div>
         <button
           onClick={fetchData}
-          className="flex items-center gap-2 px-4 py-2 bg-white border border-purple-300 rounded-lg hover:bg-purple-50 text-purple-700 transition-colors"
+          title="רענן"
+          className="flex items-center justify-center w-10 h-10 rounded-lg bg-white border border-app-input-border hover:bg-slate-50 text-slate-600 hover:text-app-accent transition-colors"
         >
-          <RefreshCw className="h-4 w-4" />
-          רענן
+          <RefreshCw className="h-5 w-5" />
         </button>
       </div>
 
       {/* Date Range Selector */}
-      <div className="p-4 border-b border-purple-200 bg-white">
+      <div className="p-4 border-b border-slate-200 bg-white">
         <div className="flex items-center gap-4">
           <div className="flex items-center gap-2">
-            <Calendar className="h-5 w-5 text-purple-600" />
+            <Calendar className="h-5 w-5 text-app-accent" />
             <label className="text-sm font-medium text-slate-700">מתאריך:</label>
             <input
               type="text"
@@ -244,7 +246,7 @@ export const MeasurementProgressDashboard = ({ onOpenBuildingsList, onOpenMeasur
                 }
               }}
               placeholder="DD/MM/YYYY"
-              className="px-3 py-2 border border-purple-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+              className="px-3 py-2 border border-app-input-border rounded focus:ring-2 focus:ring-app-accent focus:border-app-accent"
               dir="rtl"
             />
           </div>
@@ -260,63 +262,83 @@ export const MeasurementProgressDashboard = ({ onOpenBuildingsList, onOpenMeasur
                 }
               }}
               placeholder="DD/MM/YYYY"
-              className="px-3 py-2 border border-purple-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+              className="px-3 py-2 border border-app-input-border rounded focus:ring-2 focus:ring-app-accent focus:border-app-accent"
               dir="rtl"
             />
           </div>
           <button
             onClick={fetchData}
-            className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
+            title="חפש"
+            className="flex items-center justify-center gap-1.5 px-3 py-2 bg-app-accent text-white rounded hover:bg-app-accent-hover transition-colors"
           >
-            חפש
+            <Search className="h-4 w-4" />
+            <span className="text-sm">חפש</span>
           </button>
         </div>
       </div>
 
       {/* Summary Cards */}
       {data && (
-        <div className="p-4 border-b border-purple-200 bg-gradient-to-r from-indigo-50 to-purple-50">
+        <div className="p-4 border-b border-slate-200 bg-[#f0f0f0]">
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
             <div 
-              className={`bg-white rounded-lg p-4 shadow-sm border border-purple-100 ${onOpenBuildingsList ? 'cursor-pointer hover:shadow-md transition-shadow' : ''}`}
+              className={`bg-white rounded p-4 shadow-sm border border-slate-200 ${onOpenBuildingsList ? 'cursor-pointer hover:shadow-md transition-shadow' : ''}`}
               onClick={onOpenBuildingsList}
               title={onOpenBuildingsList ? 'לחץ לפתיחת רשימת מבנים' : ''}
             >
-              <p className="text-sm text-slate-600 mb-1">סה"כ מבנים</p>
-              <p className="text-2xl font-bold text-purple-700">
+              <div className="flex items-center gap-2 mb-2">
+                <Building2 className="h-5 w-5 text-app-accent" />
+                <p className="text-sm text-slate-600">סה"כ מבנים</p>
+              </div>
+              <p className="text-2xl font-bold text-app-accent">
                 {data.total.totalBuildings.toLocaleString('he-IL')}
               </p>
             </div>
-            <div className="bg-white rounded-lg p-4 shadow-sm border border-purple-100">
-              <p className="text-sm text-slate-600 mb-1">סה"כ נכסים</p>
-              <p className="text-2xl font-bold text-indigo-700">
+            <div className="bg-white rounded p-4 shadow-sm border border-slate-200">
+              <div className="flex items-center gap-2 mb-2">
+                <Home className="h-5 w-5 text-app-accent" />
+                <p className="text-sm text-slate-600">סה"כ נכסים</p>
+              </div>
+              <p className="text-2xl font-bold text-app-accent">
                 {data.total.totalAssets.toLocaleString('he-IL')}
               </p>
             </div>
-            <div className="bg-white rounded-lg p-4 shadow-sm border border-purple-100">
-              <p className="text-sm text-slate-600 mb-1">תאריכי מדידה</p>
+            <div className="bg-white rounded p-4 shadow-sm border border-slate-200">
+              <div className="flex items-center gap-2 mb-2">
+                <Calendar className="h-5 w-5 text-app-accent" />
+                <p className="text-sm text-slate-600">תאריכי מדידה</p>
+              </div>
               <p className="text-2xl font-bold text-blue-700">
                 {data.total.uniqueMeasurementDates.toLocaleString('he-IL')}
               </p>
             </div>
-            <div className="bg-white rounded-lg p-4 shadow-sm border border-purple-100">
-              <p className="text-sm text-slate-600 mb-1">סה"כ שטח (מ"ר)</p>
+            <div className="bg-white rounded p-4 shadow-sm border border-slate-200">
+              <div className="flex items-center gap-2 mb-2">
+                <Square className="h-5 w-5 text-green-600" />
+                <p className="text-sm text-slate-600">סה"כ שטח (מ"ר)</p>
+              </div>
               <p className="text-2xl font-bold text-green-700">
                 {data.total.totalArea.toLocaleString('he-IL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
               </p>
             </div>
-            <div className="bg-white rounded-lg p-4 shadow-sm border border-purple-100">
-              <p className="text-sm text-slate-600 mb-1">נשלחו לעירייה</p>
-              <p className="text-2xl font-bold text-teal-700">
+            <div className="bg-white rounded p-4 shadow-sm border border-slate-200">
+              <div className="flex items-center gap-2 mb-2">
+                <CheckCircle2 className="h-5 w-5 text-green-600" />
+                <p className="text-sm text-slate-600">נשלחו לעירייה</p>
+              </div>
+              <p className="text-2xl font-bold text-app-accent">
                 {data.total.exportedCount.toLocaleString('he-IL')}
               </p>
             </div>
             <div 
-              className={`bg-white rounded-lg p-4 shadow-sm border border-purple-100 ${onOpenMeasuredNotExportedAssets ? 'cursor-pointer hover:shadow-md transition-shadow' : ''}`}
+              className={`bg-white rounded p-4 shadow-sm border border-slate-200 ${onOpenMeasuredNotExportedAssets ? 'cursor-pointer hover:shadow-md transition-shadow' : ''}`}
               onClick={onOpenMeasuredNotExportedAssets}
               title={onOpenMeasuredNotExportedAssets ? 'לחץ לפתיחת נכסים שנמדדו ולא נשלחו' : ''}
             >
-              <p className="text-sm text-slate-600 mb-1">לא נשלחו לעירייה</p>
+              <div className="flex items-center gap-2 mb-2">
+                <AlertCircle className="h-5 w-5 text-orange-600" />
+                <p className="text-sm text-slate-600">לא נשלחו לעירייה</p>
+              </div>
               <p className="text-2xl font-bold text-orange-700">
                 {data.total.notExportedCount.toLocaleString('he-IL')}
               </p>
@@ -329,7 +351,7 @@ export const MeasurementProgressDashboard = ({ onOpenBuildingsList, onOpenMeasur
       {data && (
         <div className="flex-1 p-4">
           <h3 className="text-lg font-semibold text-slate-800 mb-4">פירוט שנתי</h3>
-          <div className="bg-white rounded-xl shadow-lg hover:shadow-xl transition-shadow duration-200 overflow-hidden border border-slate-200 w-full">
+          <div className="bg-white rounded shadow overflow-hidden border border-slate-200 w-full">
             <div className="ag-theme-alpine buildings-list-grid" style={{ height: 'calc(100vh - 600px)', minHeight: '300px', width: '100%', minWidth: '100%', overflowX: 'auto' }}>
               <AgGridReact
                 rowData={data.yearly}

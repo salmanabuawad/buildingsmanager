@@ -271,7 +271,7 @@ export function UserManagement() {
     <div className="p-6 max-w-7xl mx-auto">
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-3">
-          <User className="h-6 w-6 text-purple-600" />
+          <User className="h-6 w-6 text-app-accent" />
           <h1 className="text-2xl font-bold text-slate-900">ניהול משתמשים</h1>
         </div>
         <div className="flex items-center gap-2">
@@ -285,7 +285,7 @@ export function UserManagement() {
           <button
             onClick={fetchUsers}
             disabled={loading}
-            className="flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            className="flex items-center gap-2 px-4 py-2 bg-app-accent text-white rounded-lg hover:bg-app-accent-hover transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
             רענן
@@ -301,13 +301,13 @@ export function UserManagement() {
 
       {loading ? (
         <div className="flex items-center justify-center py-12">
-          <Loader2 className="h-8 w-8 text-purple-600 animate-spin" />
+          <Loader2 className="h-8 w-8 text-app-accent animate-spin" />
         </div>
       ) : (
-        <div className="bg-white rounded-lg shadow-lg border border-purple-200 overflow-hidden">
+        <div className="bg-white rounded-lg shadow-lg border border-slate-200 overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full" dir="rtl">
-              <thead className="bg-gradient-to-r from-purple-50 to-indigo-50 border-b border-purple-200">
+              <thead className="bg-gradient-to-r bg-[#f0f0f0] border-b border-slate-200">
                 <tr>
                   <th className="px-4 py-3 text-right text-sm font-semibold text-slate-700">שם משתמש</th>
                   <th className="px-4 py-3 text-right text-sm font-semibold text-slate-700">שם מלא</th>
@@ -318,7 +318,7 @@ export function UserManagement() {
                   <th className="px-4 py-3 text-right text-sm font-semibold text-slate-700">פעולות</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-purple-100">
+              <tbody className="divide-y divide-slate-200">
                 {users.length === 0 ? (
                   <tr>
                     <td colSpan={7} className="px-4 py-8 text-center text-slate-500">
@@ -327,7 +327,7 @@ export function UserManagement() {
                   </tr>
                 ) : (
                   users.map((user) => (
-                    <tr key={user.user_id} className="hover:bg-purple-50/50 transition-colors">
+                    <tr key={user.user_id} className="hover:bg-slate-50/50 transition-colors">
                       <td className="px-4 py-3">
                         {editingCell?.userId === user.user_id && editingCell?.field === 'user_name' ? (
                           <input
@@ -343,11 +343,11 @@ export function UserManagement() {
                             }}
                             onKeyDown={(e) => e.key === 'Enter' && (e.target as HTMLInputElement).blur()}
                             autoFocus
-                            className="w-full px-2 py-1 text-sm border border-purple-300 rounded focus:ring-2 focus:ring-purple-500"
+                            className="w-full px-2 py-1 text-sm border border-app-input-border rounded focus:ring-2 focus:ring-app-accent"
                           />
                         ) : (
                           <span
-                            className="text-sm text-slate-900 font-medium cursor-pointer hover:bg-purple-100 rounded px-1 -mx-1"
+                            className="text-sm text-slate-900 font-medium cursor-pointer hover:bg-slate-100 rounded px-1 -mx-1"
                             onClick={() => setEditingCell({ userId: user.user_id, field: 'user_name', value: user.user_name })}
                           >
                             {user.user_name}
@@ -369,11 +369,11 @@ export function UserManagement() {
                             }}
                             onKeyDown={(e) => e.key === 'Enter' && (e.target as HTMLInputElement).blur()}
                             autoFocus
-                            className="w-full px-2 py-1 text-sm border border-purple-300 rounded focus:ring-2 focus:ring-purple-500"
+                            className="w-full px-2 py-1 text-sm border border-app-input-border rounded focus:ring-2 focus:ring-app-accent"
                           />
                         ) : (
                           <span
-                            className="text-sm text-slate-600 cursor-pointer hover:bg-purple-100 rounded px-1 -mx-1"
+                            className="text-sm text-slate-600 cursor-pointer hover:bg-slate-100 rounded px-1 -mx-1"
                             onClick={() => setEditingCell({ userId: user.user_id, field: 'full_name', value: user.full_name || '' })}
                           >
                             {user.full_name || '-'}
@@ -394,11 +394,11 @@ export function UserManagement() {
                             }}
                             onKeyDown={(e) => e.key === 'Enter' && (e.target as HTMLInputElement).blur()}
                             autoFocus
-                            className="w-full px-2 py-1 text-sm border border-purple-300 rounded focus:ring-2 focus:ring-purple-500"
+                            className="w-full px-2 py-1 text-sm border border-app-input-border rounded focus:ring-2 focus:ring-app-accent"
                           />
                         ) : (
                           <span
-                            className="text-sm text-slate-600 cursor-pointer hover:bg-purple-100 rounded px-1 -mx-1"
+                            className="text-sm text-slate-600 cursor-pointer hover:bg-slate-100 rounded px-1 -mx-1"
                             onClick={() => setEditingCell({ userId: user.user_id, field: 'user_email', value: user.user_email || '' })}
                           >
                             {user.user_email || '-'}
@@ -410,7 +410,7 @@ export function UserManagement() {
                           value={user.user_role}
                           onChange={(e) => handleRoleChange(user.user_id, e.target.value as 'admin' | 'user' | 'inspector')}
                           disabled={saving === user.user_id}
-                          className="px-3 py-1.5 text-sm border border-purple-300 rounded-lg bg-white hover:bg-purple-50 focus:outline-none focus:ring-2 focus:ring-purple-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                          className="px-3 py-1.5 text-sm border border-app-input-border rounded-lg bg-white hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-app-accent disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                           <option value="admin">מנהל</option>
                           <option value="user">משתמש</option>
@@ -521,7 +521,7 @@ export function UserManagement() {
                     value={newPassword}
                     onChange={(e) => setNewPassword(e.target.value)}
                     disabled={changingPassword}
-                    className="w-full px-3 py-2 border border-purple-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="w-full px-3 py-2 border border-app-input-border rounded-lg focus:outline-none focus:ring-2 focus:ring-app-accent disabled:opacity-50 disabled:cursor-not-allowed"
                     placeholder="הזן סיסמה חדשה"
                   />
                   <button
@@ -543,7 +543,7 @@ export function UserManagement() {
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
                   disabled={changingPassword}
-                  className="w-full px-3 py-2 border border-purple-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="w-full px-3 py-2 border border-app-input-border rounded-lg focus:outline-none focus:ring-2 focus:ring-app-accent disabled:opacity-50 disabled:cursor-not-allowed"
                   placeholder="הזן שוב את הסיסמה"
                 />
               </div>
@@ -565,7 +565,7 @@ export function UserManagement() {
                   }
                 }}
                 disabled={changingPassword || !newPassword || !confirmPassword}
-                className="px-4 py-2 text-sm font-medium text-white bg-purple-600 hover:bg-purple-700 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                className="px-4 py-2 text-sm font-medium text-white bg-app-accent hover:bg-app-accent-hover rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
               >
                 {changingPassword ? (
                   <>
@@ -615,7 +615,7 @@ export function UserManagement() {
                   value={newUser.user_name}
                   onChange={(e) => setNewUser({ ...newUser, user_name: e.target.value })}
                   disabled={creatingUser}
-                  className="w-full px-3 py-2 border border-purple-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="w-full px-3 py-2 border border-app-input-border rounded-lg focus:outline-none focus:ring-2 focus:ring-app-accent disabled:opacity-50 disabled:cursor-not-allowed"
                   placeholder="הזן שם משתמש"
                 />
               </div>
@@ -629,7 +629,7 @@ export function UserManagement() {
                   value={newUser.full_name}
                   onChange={(e) => setNewUser({ ...newUser, full_name: e.target.value })}
                   disabled={creatingUser}
-                  className="w-full px-3 py-2 border border-purple-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="w-full px-3 py-2 border border-app-input-border rounded-lg focus:outline-none focus:ring-2 focus:ring-app-accent disabled:opacity-50 disabled:cursor-not-allowed"
                   placeholder="הזן שם מלא (אופציונלי)"
                 />
               </div>
@@ -643,7 +643,7 @@ export function UserManagement() {
                   value={newUser.user_email}
                   onChange={(e) => setNewUser({ ...newUser, user_email: e.target.value })}
                   disabled={creatingUser}
-                  className="w-full px-3 py-2 border border-purple-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="w-full px-3 py-2 border border-app-input-border rounded-lg focus:outline-none focus:ring-2 focus:ring-app-accent disabled:opacity-50 disabled:cursor-not-allowed"
                   placeholder="הזן אימייל"
                 />
               </div>
@@ -656,7 +656,7 @@ export function UserManagement() {
                   value={newUser.user_role}
                   onChange={(e) => setNewUser({ ...newUser, user_role: e.target.value as 'admin' | 'user' | 'inspector' })}
                   disabled={creatingUser}
-                  className="w-full px-3 py-2 border border-purple-300 rounded-lg bg-white hover:bg-purple-50 focus:outline-none focus:ring-2 focus:ring-purple-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="w-full px-3 py-2 border border-app-input-border rounded-lg bg-white hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-app-accent disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <option value="user">משתמש</option>
                   <option value="admin">מנהל</option>
@@ -675,7 +675,7 @@ export function UserManagement() {
                     value={newUser.password}
                     onChange={(e) => setNewUser({ ...newUser, password: e.target.value })}
                     disabled={creatingUser}
-                    className="w-full px-3 py-2 border border-purple-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="w-full px-3 py-2 border border-app-input-border rounded-lg focus:outline-none focus:ring-2 focus:ring-app-accent disabled:opacity-50 disabled:cursor-not-allowed"
                     placeholder="הזן סיסמה"
                   />
                   <button
@@ -697,7 +697,7 @@ export function UserManagement() {
                   value={newUser.confirmPassword}
                   onChange={(e) => setNewUser({ ...newUser, confirmPassword: e.target.value })}
                   disabled={creatingUser}
-                  className="w-full px-3 py-2 border border-purple-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="w-full px-3 py-2 border border-app-input-border rounded-lg focus:outline-none focus:ring-2 focus:ring-app-accent disabled:opacity-50 disabled:cursor-not-allowed"
                   placeholder="הזן שוב את הסיסמה"
                 />
               </div>

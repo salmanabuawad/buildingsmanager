@@ -3746,7 +3746,7 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="text-center">
-          <Loader2 className="h-12 w-12 text-teal-600 animate-spin mx-auto" />
+          <Loader2 className="h-12 w-12 text-app-accent animate-spin mx-auto" />
           <p className="mt-4 text-slate-700 font-medium">{t('loadingBuildings')}</p>
         </div>
       </div>
@@ -3759,98 +3759,97 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
       {exporting && (
         <div className="fixed inset-0 bg-black bg-opacity-50 z-[9999] flex items-center justify-center" style={{ cursor: 'wait' }}>
           <div className="bg-white rounded-lg p-6 shadow-xl flex flex-col items-center gap-4 min-w-[280px]">
-            <Loader2 className="h-12 w-12 text-teal-600 animate-spin" />
+            <Loader2 className="h-12 w-12 text-app-accent animate-spin" />
             <p className="text-slate-700 font-medium text-lg">שולח נתונים לעירייה</p>
             <p className="text-slate-600 text-sm text-center">{exportProgressMessage || 'מתחיל...'}</p>
           </div>
         </div>
       )}
-      <div className="w-full px-2 sm:px-4 md:px-6 py-2 sm:py-4">
-        <div className="mb-4 bg-gradient-to-r from-teal-600 to-blue-600 rounded-xl shadow-lg p-4">
-          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-3">
-            <img src="/buildings.png" alt="Buildings" className="w-8 h-8 bg-white rounded-lg p-1.5 shadow-sm" />
-            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-4">
-              <h1 className="text-lg sm:text-xl md:text-2xl font-bold text-white">{t('propertyListings')}</h1>
-              <span className="text-xs sm:text-sm text-teal-50 bg-white/20 px-2 sm:px-3 py-1 rounded-lg font-semibold">
-                <span className="font-semibold">סה"כ מבנים:</span> {filteredBuildings.length}
-              </span>
+      <div className="w-full px-2 sm:px-4 md:px-6 py-1.5 sm:py-2">
+        <div className="page-header mb-1.5 rounded-md px-2 py-1.5">
+          <div className="relative flex items-center gap-1.5 flex-wrap">
+            <div className="page-header-icon shrink-0">
+              <img src="/buildings.png" alt="Buildings" className="w-4 h-4" />
             </div>
+            <h1 className="page-header-title text-sm sm:text-base font-bold">{t('propertyListings')}</h1>
+            <span className="page-header-badge">סה"כ מבנים: {filteredBuildings.length}</span>
           </div>
         </div>
 
-        <div className="mb-4">
-          <div className="relative w-full sm:max-w-xs">
+        <div className="mb-1.5 flex flex-wrap items-center gap-2 sm:gap-3">
+          <div className="relative w-full sm:w-auto sm:min-w-[10rem] sm:max-w-[11rem]">
             <input
               type="text"
               value={buildingFilter}
               onChange={(e) => setBuildingFilter(e.target.value)}
               placeholder={t('searchByBuildingNumber')}
-              className="w-full px-4 py-2.5 pr-10 border-2 border-slate-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 text-right text-sm shadow-sm hover:shadow-md hover:border-slate-400 transition-all duration-200"
+              className="w-full px-2.5 py-1.5 pr-8 border border-app-input-border rounded-md focus:ring-2 focus:ring-app-accent focus:border-app-accent text-right text-sm"
             />
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-slate-400" />
+            <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 h-3.5 w-3.5 text-slate-400" />
           </div>
-        </div>
-
-        <div className="mb-4 flex flex-col sm:flex-row justify-between gap-2 sm:gap-3">
-          <div className="flex gap-2">
+          <div className="action-bar flex-1 min-w-0 py-1 px-2">
+          <div className="flex flex-col sm:flex-row justify-between gap-1.5 sm:gap-2">
+            <div className="flex gap-1.5">
             {!isReadOnly && (
               <button
                 type="button"
                 onClick={addEmptyBuildingRow}
-                className="flex items-center gap-1.5 px-3 py-1.5 text-sm bg-emerald-500 hover:bg-emerald-600 active:bg-emerald-700 text-white rounded-md transition-all duration-200 shadow-sm hover:shadow-md font-medium"
+                className="btn btn-action btn-primary"
               >
-                <Plus className="h-4 w-4" />
-                הוסף מבנה
+                <Plus className="h-5 w-5" />
+                <span>הוסף מבנה</span>
               </button>
             )}
             <button
               type="button"
               onClick={handleValidateAll}
-              className="flex items-center gap-1.5 px-3 py-1.5 text-sm bg-cyan-500 hover:bg-cyan-600 active:bg-cyan-700 text-white rounded-md transition-all duration-200 shadow-sm hover:shadow-md font-medium"
+              className="btn btn-action btn-primary"
             >
-              <CheckCircle2 className="h-4 w-4" />
-              אמת הכל
+              <CheckCircle2 className="h-5 w-5" />
+              <span>אמת הכל</span>
             </button>
             <button
               type="button"
               onClick={handleExportBuildingsToExcel}
               disabled={loading || buildings.length === 0}
-              className="flex items-center gap-1.5 px-3 py-1.5 text-sm bg-blue-500 hover:bg-blue-600 active:bg-blue-700 text-white rounded-md transition-all duration-200 shadow-sm hover:shadow-md font-medium disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none"
+              className="btn btn-action btn-export"
               title="ייצא את כל המבנים לקובץ Excel"
             >
-              <Download className="h-4 w-4" />
-              ייצא ל-Excel
+              <Download className="h-5 w-5" />
+              <span>ייצא ל-Excel</span>
             </button>
           </div>
           {!isReadOnly && (
-            <div className="flex gap-2">
+            <div className="flex gap-1.5">
               <button
                 type="button"
                 onClick={handleCancelAll}
-                className="flex items-center justify-center gap-2 px-4 sm:px-5 py-2.5 text-sm bg-gray-500 hover:bg-gray-600 active:bg-gray-700 text-white rounded-md transition-all duration-200 shadow-sm hover:shadow-md font-semibold w-full sm:w-auto"
+                className="btn btn-action btn-cancel"
               >
-                <X className="h-4 w-4" />
-                {t('cancel')}
+                <X className="h-5 w-5" />
+                <span>{t('cancel')}</span>
               </button>
               <button
                 type="button"
                 onClick={handleSaveAll}
                 disabled={isSaving || totalChanges === 0}
-                className="flex items-center justify-center gap-2 px-4 sm:px-5 py-2.5 text-sm bg-teal-600 hover:bg-teal-700 active:bg-teal-800 text-white rounded-md transition-all duration-200 shadow-sm hover:shadow-md disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none disabled:shadow-none font-semibold w-full sm:w-auto"
+                className="btn btn-action btn-primary"
               >
                 {isSaving ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
+                  <Loader2 className="h-5 w-5 animate-spin" />
                 ) : (
-                  <Save className="h-4 w-4" />
+                  <Save className="h-5 w-5" />
                 )}
-                {loading ? t('saving') : `${t('saveAll')}${totalChanges > 0 ? ` (${totalChanges})` : ''}`}
+                <span>{loading ? t('saving') : t('saveAll')}{totalChanges > 0 ? ` (${totalChanges})` : ''}</span>
               </button>
             </div>
           )}
+          </div>
+        </div>
         </div>
 
         <div className="bg-white rounded-xl shadow-lg hover:shadow-xl transition-shadow duration-200 overflow-hidden border-2 border-blue-400 w-full">
-          <div className="ag-theme-alpine buildings-list-grid" style={{ height: 'calc(100vh - 400px)', minHeight: '300px', width: '100%', minWidth: '100%', overflowX: 'auto' }}>
+          <div className="ag-theme-alpine buildings-list-grid" style={{ height: 'calc(100vh - 260px)', minHeight: '280px', width: '100%', minWidth: '100%', overflowX: 'auto' }}>
             <AgGridReact
               ref={gridRef}
               rowData={sortedBuildings}
@@ -4024,7 +4023,7 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
                   type="number"
                   value={newBuilding.building_number}
                   onChange={(e) => setNewBuilding(prev => ({ ...prev, building_number: e.target.value }))}
-                  className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent"
+                  className="w-full px-4 py-2 border border-app-input-border rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent"
                   placeholder="Enter building number"
                 />
               </div>
@@ -4036,7 +4035,7 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
                   type="text"
                   value={newBuilding.tax_region}
                   onChange={(e) => setNewBuilding(prev => ({ ...prev, tax_region: e.target.value }))}
-                  className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent"
+                  className="w-full px-4 py-2 border border-app-input-border rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent"
                   placeholder="e.g., 1 or 1,2,3"
                 />
               </div>
@@ -4104,7 +4103,7 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
                         setShowAddressDropdown(false);
                       }
                     }}
-                    className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent"
+                    className="w-full px-4 py-2 border border-app-input-border rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent"
                     placeholder="Type street code or name..."
                   />
                   {showAddressDropdown && (() => {
@@ -4119,14 +4118,14 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
                     
                     if (filteredAddresses.length === 0) {
                       return (
-                        <div className="absolute z-10 w-full mt-1 bg-white border border-slate-300 rounded-lg shadow-lg max-h-60 overflow-auto">
+                        <div className="absolute z-10 w-full mt-1 bg-white border border-app-input-border rounded-lg shadow-lg max-h-60 overflow-auto">
                           <div className="px-4 py-2 text-slate-500 text-sm">No addresses found</div>
                         </div>
                       );
                     }
                     
                     return (
-                      <div className="absolute z-10 w-full mt-1 bg-white border border-slate-300 rounded-lg shadow-lg max-h-60 overflow-auto">
+                      <div className="absolute z-10 w-full mt-1 bg-white border border-app-input-border rounded-lg shadow-lg max-h-60 overflow-auto">
                         {filteredAddresses.map((address, index) => (
                           <div
                             key={address.id || `${address.street_code}-${index}`}
@@ -4165,13 +4164,13 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
                     setCreateModalClosing(false);
                   }, 300);
                 }}
-                className="flex-1 px-4 py-2 border border-slate-300 text-slate-700 rounded-lg hover:bg-slate-50 transition-colors"
+                className="flex-1 px-4 py-2 border border-app-input-border text-slate-700 rounded-lg hover:bg-slate-50 transition-colors"
               >
                 Cancel
               </button>
               <button
                 onClick={handleCreateBuilding}
-                className="flex-1 px-4 py-2 bg-gradient-to-r from-teal-600 to-blue-600 text-white rounded-lg hover:from-teal-700 hover:to-blue-700 transition-all shadow-md hover:shadow-lg"
+                className="flex-1 px-4 py-2 bg-app-header text-white rounded-lg hover:opacity-90 transition-all shadow-md hover:shadow-lg"
               >
                 Create
               </button>

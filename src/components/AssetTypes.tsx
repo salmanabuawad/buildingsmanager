@@ -1454,7 +1454,7 @@ export function AssetTypes() {
       <div className="flex items-center justify-center min-h-screen">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-teal-600 mx-auto"></div>
-          <p className="mt-4 text-slate-700 font-medium">{t('loading')}</p>
+          <p className="mt-4 text-app-text-primary font-medium">{t('loading')}</p>
         </div>
       </div>
     );
@@ -1462,15 +1462,13 @@ export function AssetTypes() {
 
   return (
     <div className="max-w-5xl mx-auto px-2 py-3">
-      <div className="mb-3 bg-gradient-to-r from-blue-600 to-teal-600 rounded-lg shadow-lg p-2">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Tag className="w-7 h-7 text-white bg-white/20 rounded-lg p-1" />
-            <h1 className="text-lg sm:text-xl font-bold text-white">{t('assetTypes')}</h1>
+      <div className="page-header mb-3 rounded-xl p-4">
+        <div className="relative flex items-center gap-3 flex-wrap">
+          <div className="page-header-icon shrink-0">
+            <Tag className="w-6 h-6" />
           </div>
-          <div className="text-white text-sm font-medium">
-            {assetTypes.length} רשומות
-          </div>
+          <h1 className="page-header-title text-lg sm:text-xl font-bold">{t('assetTypes')}</h1>
+          <span className="page-header-label">{assetTypes.length} רשומות</span>
         </div>
       </div>
 
@@ -1492,7 +1490,7 @@ export function AssetTypes() {
             <h2 className="text-xl font-bold text-slate-900">{t('assetTypes')}</h2>
           </div>
           {!isAdding && (
-            <div className="flex gap-2">
+            <div className="action-bar flex gap-2">
               <input
                 ref={fileInputRef}
                 type="file"
@@ -1523,7 +1521,7 @@ export function AssetTypes() {
                 type="button"
                 onClick={exportAssetTypes}
                 disabled={assetTypes.length === 0}
-                className="flex items-center gap-2 px-4 py-2 bg-purple-600 hover:bg-purple-700 active:bg-purple-800 text-white rounded-md transition-all duration-200 shadow-sm hover:shadow-md disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none font-medium"
+                className="flex items-center gap-2 px-4 py-2 bg-app-accent hover:bg-app-accent-hover active:bg-app-accent-active text-white rounded-md transition-all duration-200 shadow-sm hover:shadow-md disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none font-medium"
                 title="ייצא את כל סוגי הנכסים"
               >
                 <FileText className="h-5 w-5" />
@@ -1585,7 +1583,7 @@ export function AssetTypes() {
             </h3>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">
+                <label className="block text-sm font-medium text-app-text-primary mb-1">
                   קוד נכס *
                 </label>
                 <input
@@ -1594,24 +1592,24 @@ export function AssetTypes() {
                   onChange={(e) => {
                     setFormData({ ...formData, name: e.target.value });
                   }}
-                  className="w-full px-3 py-2 border-2 border-slate-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 hover:border-slate-400 transition-all duration-200"
+                  className="w-full px-3 py-2 border-2 border-app-input-border rounded-lg focus:ring-2 focus:ring-app-accent focus:border-app-accent hover:border-slate-400 transition-all duration-200"
                   placeholder="199"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">
+                <label className="block text-sm font-medium text-app-text-primary mb-1">
                   תיאור
                 </label>
                 <input
                   type="text"
                   value={formData.description}
                   onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                  className="w-full px-3 py-2 border-2 border-slate-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 hover:border-slate-400 transition-all duration-200"
+                  className="w-full px-3 py-2 border-2 border-app-input-border rounded-lg focus:ring-2 focus:ring-app-accent focus:border-app-accent hover:border-slate-400 transition-all duration-200"
                   placeholder="תיאור"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">
+                <label className="block text-sm font-medium text-app-text-primary mb-1">
                   אזור מיסים
                 </label>
                 <input
@@ -1619,73 +1617,73 @@ export function AssetTypes() {
                   step="1"
                   value={formData.tax_region}
                   onChange={(e) => setFormData({ ...formData, tax_region: e.target.value })}
-                  className="w-full px-3 py-2 border-2 border-slate-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 hover:border-slate-400 transition-all duration-200"
+                  className="w-full px-3 py-2 border-2 border-app-input-border rounded-lg focus:ring-2 focus:ring-app-accent focus:border-app-accent hover:border-slate-400 transition-all duration-200"
                   placeholder="10"
                 />
               </div>
               <div>
-                <label className="flex items-center gap-2 text-sm font-medium text-slate-700 mb-1">
+                <label className="flex items-center gap-2 text-sm font-medium text-app-text-primary mb-1">
                   <input
                     type="checkbox"
                     checked={formData.elevator === true}
                     onChange={(e) => setFormData({ ...formData, elevator: e.target.checked })}
-                    className="w-4 h-4 text-blue-600 rounded focus:ring-2 focus:ring-blue-500 cursor-pointer"
+                    className="w-4 h-4 text-app-accent rounded focus:ring-2 focus:ring-app-accent cursor-pointer"
                   />
                   מעלית
                 </label>
               </div>
               <div>
-                <label className="flex items-center gap-2 text-sm font-medium text-slate-700 mb-1">
+                <label className="flex items-center gap-2 text-sm font-medium text-app-text-primary mb-1">
                   <input
                     type="checkbox"
                     checked={formData.single_double_family === true}
                     onChange={(e) => setFormData({ ...formData, single_double_family: e.target.checked })}
-                    className="w-4 h-4 text-blue-600 rounded focus:ring-2 focus:ring-blue-500 cursor-pointer"
+                    className="w-4 h-4 text-app-accent rounded focus:ring-2 focus:ring-app-accent cursor-pointer"
                   />
                   בית פרטי חד משפחתי דו משפחתי
                 </label>
               </div>
               <div>
-                <label className="flex items-center gap-2 text-sm font-medium text-slate-700 mb-1">
+                <label className="flex items-center gap-2 text-sm font-medium text-app-text-primary mb-1">
                   <input
                     type="checkbox"
                     checked={formData.penthouse === true}
                     onChange={(e) => setFormData({ ...formData, penthouse: e.target.checked })}
-                    className="w-4 h-4 text-blue-600 rounded focus:ring-2 focus:ring-blue-500 cursor-pointer"
+                    className="w-4 h-4 text-app-accent rounded focus:ring-2 focus:ring-app-accent cursor-pointer"
                   />
                   דירת גג
                 </label>
               </div>
               <div>
-                <label className="flex items-center gap-2 text-sm font-medium text-slate-700 mb-1">
+                <label className="flex items-center gap-2 text-sm font-medium text-app-text-primary mb-1">
                   <input
                     type="checkbox"
                     checked={formData.condo === true}
                     onChange={(e) => setFormData({ ...formData, condo: e.target.checked })}
-                    className="w-4 h-4 text-blue-600 rounded focus:ring-2 focus:ring-blue-500 cursor-pointer"
+                    className="w-4 h-4 text-app-accent rounded focus:ring-2 focus:ring-app-accent cursor-pointer"
                   />
                   בית משותף
                 </label>
               </div>
               <div>
-                <label className="flex items-center gap-2 text-sm font-medium text-slate-700 mb-1">
+                <label className="flex items-center gap-2 text-sm font-medium text-app-text-primary mb-1">
                   <input
                     type="checkbox"
                     checked={formData.townhouses === true}
                     onChange={(e) => setFormData({ ...formData, townhouses: e.target.checked })}
-                    className="w-4 h-4 text-blue-600 rounded focus:ring-2 focus:ring-blue-500 cursor-pointer"
+                    className="w-4 h-4 text-app-accent rounded focus:ring-2 focus:ring-app-accent cursor-pointer"
                   />
                   מבנים צמודי קרקע טוריים מעל 2 יחידות
                 </label>
               </div>
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">
+                <label className="block text-sm font-medium text-app-text-primary mb-1">
                   עסקים/מגורים
                 </label>
                 <select
                   value={formData.business_residence || ''}
                   onChange={(e) => setFormData({ ...formData, business_residence: e.target.value || '' })}
-                  className="w-full px-3 py-2 border-2 border-slate-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 hover:border-slate-400 transition-all duration-200"
+                  className="w-full px-3 py-2 border-2 border-app-input-border rounded-lg focus:ring-2 focus:ring-app-accent focus:border-app-accent hover:border-slate-400 transition-all duration-200"
                 >
                   <option value="">-- בחר --</option>
                   <option value="עסקים">עסקים</option>
@@ -1693,62 +1691,62 @@ export function AssetTypes() {
                 </select>
               </div>
               <div>
-                <label className="flex items-center gap-2 text-sm font-medium text-slate-700 mb-1" title="נכסים מסוג זה לא נספרים בחישוב שטח המבנה הכולל">
+                <label className="flex items-center gap-2 text-sm font-medium text-app-text-primary mb-1" title="נכסים מסוג זה לא נספרים בחישוב שטח המבנה הכולל">
                   <input
                     type="checkbox"
                     checked={formData.non_accountable_for_total_area}
                     onChange={(e) => setFormData({ ...formData, non_accountable_for_total_area: e.target.checked })}
-                    className="w-4 h-4 text-blue-600 rounded focus:ring-2 focus:ring-blue-500 cursor-pointer"
+                    className="w-4 h-4 text-app-accent rounded focus:ring-2 focus:ring-app-accent cursor-pointer"
                   />
                   לא נספר בחישוב שטח מבנה
                 </label>
               </div>
               <div>
-                <label className="flex items-center gap-2 text-sm font-medium text-slate-700 mb-1" title="נכסים מסוג זה לא נכללים בפיזור שטח משותף. שינוי ערך זה יאפס את דגלי הפיזור במבנים מושפעים">
+                <label className="flex items-center gap-2 text-sm font-medium text-app-text-primary mb-1" title="נכסים מסוג זה לא נכללים בפיזור שטח משותף. שינוי ערך זה יאפס את דגלי הפיזור במבנים מושפעים">
                   <input
                     type="checkbox"
                     checked={formData.non_accountable_for_distribution}
                     onChange={(e) => setFormData({ ...formData, non_accountable_for_distribution: e.target.checked })}
-                    className="w-4 h-4 text-blue-600 rounded focus:ring-2 focus:ring-blue-500 cursor-pointer"
+                    className="w-4 h-4 text-app-accent rounded focus:ring-2 focus:ring-app-accent cursor-pointer"
                   />
                   לא נספר בפיזור
                 </label>
               </div>
               <div>
-                <label className="flex items-center gap-2 text-sm font-medium text-slate-700 mb-1" title="נכסים מסוג זה לא יופיעו בסטטיסטיקות נכסים">
+                <label className="flex items-center gap-2 text-sm font-medium text-app-text-primary mb-1" title="נכסים מסוג זה לא יופיעו בסטטיסטיקות נכסים">
                   <input
                     type="checkbox"
                     checked={formData.not_accountable_for_statistics}
                     onChange={(e) => setFormData({ ...formData, not_accountable_for_statistics: e.target.checked })}
-                    className="w-4 h-4 text-blue-600 rounded focus:ring-2 focus:ring-blue-500 cursor-pointer"
+                    className="w-4 h-4 text-app-accent rounded focus:ring-2 focus:ring-app-accent cursor-pointer"
                   />
                   לא נספר בסטטיסטיקה
                 </label>
               </div>
               <div>
-                <label className="flex items-center gap-2 text-sm font-medium text-slate-700 mb-1" title="סוג נכס זה משמש לפיזור שטח משותף מגורים. שטח משותף יווסף כנכס משנה מסוג זה">
+                <label className="flex items-center gap-2 text-sm font-medium text-app-text-primary mb-1" title="סוג נכס זה משמש לפיזור שטח משותף מגורים. שטח משותף יווסף כנכס משנה מסוג זה">
                   <input
                     type="checkbox"
                     checked={formData.use_shared_area}
                     onChange={(e) => setFormData({ ...formData, use_shared_area: e.target.checked })}
-                    className="w-4 h-4 text-blue-600 rounded focus:ring-2 focus:ring-blue-500 cursor-pointer"
+                    className="w-4 h-4 text-app-accent rounded focus:ring-2 focus:ring-app-accent cursor-pointer"
                   />
                   שימוש בשטח משותף
                 </label>
               </div>
               <div>
-                <label className="flex items-center gap-2 text-sm font-medium text-slate-700 mb-1" title="סוג נכס זה משמש לשטח חניה משותף">
+                <label className="flex items-center gap-2 text-sm font-medium text-app-text-primary mb-1" title="סוג נכס זה משמש לשטח חניה משותף">
                   <input
                     type="checkbox"
                     checked={formData.use_for_parking_shared_area}
                     onChange={(e) => setFormData({ ...formData, use_for_parking_shared_area: e.target.checked })}
-                    className="w-4 h-4 text-blue-600 rounded focus:ring-2 focus:ring-blue-500 cursor-pointer"
+                    className="w-4 h-4 text-app-accent rounded focus:ring-2 focus:ring-app-accent cursor-pointer"
                   />
                   שימוש בשטח חניה משותף
                 </label>
               </div>
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">
+                <label className="block text-sm font-medium text-app-text-primary mb-1">
                   שטח מ
                 </label>
                 <input
@@ -1756,12 +1754,12 @@ export function AssetTypes() {
                   step="0.01"
                   value={formData.min_size}
                   onChange={(e) => setFormData({ ...formData, min_size: e.target.value })}
-                  className="w-full px-3 py-2 border-2 border-slate-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 hover:border-slate-400 transition-all duration-200"
+                  className="w-full px-3 py-2 border-2 border-app-input-border rounded-lg focus:ring-2 focus:ring-app-accent focus:border-app-accent hover:border-slate-400 transition-all duration-200"
                   placeholder="0"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">
+                <label className="block text-sm font-medium text-app-text-primary mb-1">
                   שטח עד
                 </label>
                 <input
@@ -1769,7 +1767,7 @@ export function AssetTypes() {
                   step="0.01"
                   value={formData.max_size}
                   onChange={(e) => setFormData({ ...formData, max_size: e.target.value })}
-                  className="w-full px-3 py-2 border-2 border-slate-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 hover:border-slate-400 transition-all duration-200"
+                  className="w-full px-3 py-2 border-2 border-app-input-border rounded-lg focus:ring-2 focus:ring-app-accent focus:border-app-accent hover:border-slate-400 transition-all duration-200"
                   placeholder="0"
                 />
               </div>
@@ -1789,7 +1787,7 @@ export function AssetTypes() {
               </button>
               <button
                 onClick={resetForm}
-                className="flex items-center gap-2 px-4 py-2 bg-slate-200 hover:bg-slate-300 active:bg-slate-400 text-slate-700 rounded-md transition-all duration-200 shadow-sm hover:shadow-md font-medium"
+                className="flex items-center gap-2 px-4 py-2 bg-slate-200 hover:bg-slate-300 active:bg-slate-400 text-app-text-primary rounded-md transition-all duration-200 shadow-sm hover:shadow-md font-medium"
               >
                 {t('cancel')}
               </button>

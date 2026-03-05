@@ -1452,7 +1452,7 @@ export const MeasuredNotExportedAssets = ({ onSelectAsset }: MeasuredNotExported
   if (loading) {
     return (
       <div className="flex items-center justify-center h-full">
-        <Loader2 className="h-8 w-8 animate-spin text-purple-600" />
+        <Loader2 className="h-8 w-8 animate-spin text-app-accent" />
       </div>
     );
   }
@@ -1464,7 +1464,7 @@ export const MeasuredNotExportedAssets = ({ onSelectAsset }: MeasuredNotExported
         <p className="text-red-600">{error}</p>
         <button
           onClick={fetchData}
-          className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700"
+          className="px-4 py-2 bg-app-accent text-white rounded-lg hover:bg-app-accent-hover"
         >
           נסה שוב
         </button>
@@ -1478,50 +1478,52 @@ export const MeasuredNotExportedAssets = ({ onSelectAsset }: MeasuredNotExported
       {exporting && (
         <div className="fixed inset-0 bg-black bg-opacity-50 z-[9999] flex items-center justify-center" style={{ cursor: 'wait' }}>
           <div className="bg-white rounded-lg p-6 shadow-xl flex flex-col items-center gap-4 min-w-[280px]">
-            <Loader2 className="h-12 w-12 text-purple-600 animate-spin" />
-            <p className="text-slate-700 font-medium text-lg text-center">שולח נתונים לעירייה</p>
+            <Loader2 className="h-12 w-12 text-app-accent animate-spin" />
+            <p className="text-app-text-primary font-medium text-lg text-center">שולח נתונים לעירייה</p>
             <p className="text-slate-600 text-sm text-center">{exportProgressMessage || 'מתחיל...'}</p>
           </div>
         </div>
       )}
-      {/* Header */}
-      <div className="flex items-center justify-between p-4 border-b border-purple-200 bg-gradient-to-r from-purple-50 to-indigo-50">
-        <div className="flex items-center gap-3">
-          <BuildingIcon className="h-6 w-6 text-purple-600" />
-          <h2 className="text-xl font-bold text-slate-800">נכסים שנמדדו ולא נשלחו לעירייה</h2>
-          <span className="px-3 py-1 bg-purple-100 text-purple-700 rounded-full text-sm font-medium">
-            {assets.length} נכסים
-          </span>
+      {/* Header - gradient bar */}
+      <div className="page-header flex items-center justify-between p-4 rounded-b-xl">
+        <div className="relative flex items-center gap-3 flex-wrap">
+          <div className="page-header-icon shrink-0">
+            <BuildingIcon className="h-6 w-6" />
+          </div>
+          <h2 className="page-header-title text-xl font-bold">נכסים שנמדדו ולא נשלחו לעירייה</h2>
+          <span className="page-header-pill">{assets.length} נכסים</span>
         </div>
-        <div className="flex items-center gap-2">
-          <button
-            onClick={fetchData}
-            className="flex items-center gap-2 px-4 py-2 bg-white border border-purple-300 rounded-lg hover:bg-purple-50 text-purple-700 transition-colors"
-          >
-            <RefreshCw className="h-4 w-4" />
-            רענן
-          </button>
-          <button
-            onClick={handleExportToExcel}
-            className="flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
-          >
+      </div>
+
+      <div className="action-bar flex items-center justify-end gap-2">
+        <button
+          onClick={fetchData}
+          title="רענן"
+          className="btn btn-cancel btn-md"
+        >
+          <RefreshCw className="h-5 w-5" />
+        </button>
+        <button
+          onClick={handleExportToExcel}
+          title="ייצא ל-Excel"
+          className="btn btn-export btn-md"
+        >
+          <Download className="h-5 w-5" />
+          <span className="text-sm hidden sm:inline">ייצא ל-Excel</span>
+        </button>
+        <button
+          type="button"
+          onClick={handleExportToAutomation}
+          disabled={loading || exporting}
+          className="btn btn-md bg-orange-500 hover:bg-orange-600 text-white disabled:opacity-50"
+        >
+          {exporting ? (
+            <Loader2 className="h-4 w-4 animate-spin" />
+          ) : (
             <Download className="h-4 w-4" />
-            ייצא ל-Excel
-          </button>
-          <button
-            type="button"
-            onClick={handleExportToAutomation}
-            disabled={loading || exporting}
-            className="flex items-center gap-1.5 px-3 py-1.5 text-sm bg-purple-500 hover:bg-purple-600 active:bg-purple-700 text-white rounded-md transition-all duration-200 shadow-sm hover:shadow-md font-medium disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none"
-          >
-            {exporting ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : (
-              <Download className="h-4 w-4" />
-            )}
-            שליחת נתונים לעירייה{exportToAutomationCount > 0 ? ` (${exportToAutomationCount})` : ''}
-          </button>
-        </div>
+          )}
+          שליחת נתונים לעירייה{exportToAutomationCount > 0 ? ` (${exportToAutomationCount})` : ''}
+        </button>
       </div>
 
       {/* Grid */}

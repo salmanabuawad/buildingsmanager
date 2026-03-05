@@ -6231,51 +6231,39 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
           </div>
         );
       })()}
-      <div className="w-full py-3" style={{ maxWidth: '100vw', width: '100%', paddingLeft: '0.5rem', paddingRight: '0.5rem' }}>
-        <div className="mb-3 bg-gradient-to-r from-teal-600 to-blue-600 rounded-lg shadow-lg p-2">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3 flex-wrap">
-              <BuildingIcon className="w-7 h-7 text-white" />
-              <div className="flex items-center gap-2 flex-wrap">
+      <div className="w-full py-2" style={{ maxWidth: '100vw', width: '100%', paddingLeft: '0.5rem', paddingRight: '0.5rem' }}>
+        <div className="page-header mb-2 rounded-lg px-3 py-2">
+          <div className="relative flex items-center gap-2 flex-wrap">
+            <div className="page-header-icon shrink-0">
+              <BuildingIcon className="w-5 h-5" />
+            </div>
+            <div className="flex items-center gap-1.5 flex-wrap">
                 {((building?.address ?? building?.building_address) || building?.building_number_in_street != null) && (
-                  <p className="text-sm text-white font-semibold bg-white/20 px-2 py-1 rounded">
+                  <span className="page-header-badge page-header-badge-address">
+                    <BuildingIcon className="w-4 h-4" />
                     כתובת: {(buildingAddress ?? '-')}{building?.building_number_in_street != null ? ` מס' ${building.building_number_in_street}` : ''}
-                  </p>
+                  </span>
                 )}
-                <p className="text-sm text-white font-semibold bg-white/20 px-2 py-1 rounded">
-                  גוש: {building?.gosh || '-'}
-                </p>
-                <p className="text-sm text-white font-semibold bg-white/20 px-2 py-1 rounded">
-                  חלקה: {building?.helka || '-'}
-                </p>
-                <p className="text-sm text-white/90 font-semibold bg-white/20 px-2 py-1 rounded">
-                  סך הכל: {assets.length} נכסים
-                </p>
-                <h1 className="text-lg sm:text-xl font-bold text-white">
-                  {t('buildingNumber')} {building?.building_number}
-                </h1>
+                {taxRegion ? (
+                  <span className="page-header-badge page-header-badge-area">
+                    {getAreaDescriptionForTaxRegion(taxRegion)}
+                  </span>
+                ) : null}
+                <span className="page-header-label">גוש: {building?.gosh || '-'}</span>
+                <span className="page-header-label">חלקה: {building?.helka || '-'}</span>
+                <span className="page-header-label">סך הכל: {assets.length} נכסים</span>
+                <span className="page-header-label font-bold">מזהה מבנה {building?.building_number || '-'}</span>
                 {isResidentTaxRegion && building?.residence_shared_area != null && building.residence_shared_area > 0 && (
-                  <p className="text-sm text-white font-semibold bg-indigo-700 px-2 py-1 rounded">
-                    שטח משותף מגורים: {building.residence_shared_area.toLocaleString('he-IL')}
-                  </p>
+                  <span className="page-header-label">שטח משותף מגורים: {building.residence_shared_area.toLocaleString('he-IL')}</span>
                 )}
                 {taxRegion && !isMultiTaxRegion && !isResidentTaxRegion && building?.business_shared_area != null && building.business_shared_area > 0 && (
-                  <p className="text-sm text-white font-semibold bg-purple-700 px-2 py-1 rounded">
-                    שטח משותף עסקים: {building.business_shared_area.toLocaleString('he-IL')}
-                  </p>
+                  <span className="page-header-label">שטח משותף עסקים: {building.business_shared_area.toLocaleString('he-IL')}</span>
                 )}
                 {taxRegion && !isMultiTaxRegion && !isResidentTaxRegion && building?.overload_ratio != null && (
-                  <p className="text-sm text-white font-semibold bg-purple-600 px-2 py-1 rounded">
-                    אחוז העמסה: {building.overload_ratio.toFixed(2)}%
-                  </p>
+                  <span className="page-header-pill">אחוז העמסה: {building.overload_ratio.toFixed(2)}%</span>
                 )}
-              </div>
-              {taxRegion ? (
-                <p className="text-sm text-white font-semibold bg-teal-700 px-3 py-1 rounded">
-                  {getAreaDescriptionForTaxRegion(taxRegion)}
-                </p>
-              ) : (() => {
-                // Get unique tax regions from assets
+            </div>
+            {!taxRegion && (() => {
                 const assetTaxRegions = new Set<number>();
                 assets.forEach(asset => {
                   if (asset.tax_region != null) {
@@ -6290,17 +6278,14 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
                 const sortedRegions = Array.from(assetTaxRegions).sort((a, b) => a - b);
                 const regionDescriptions = sortedRegions.map(region => getAreaDescriptionForTaxRegion(region));
                 return sortedRegions.length > 0 ? (
-                  <p className="text-sm text-white font-semibold bg-teal-700 px-3 py-1 rounded">
-                    {regionDescriptions.join(', ')}
-                  </p>
+                  <span className="page-header-badge page-header-badge-area">{regionDescriptions.join(', ')}</span>
                 ) : null;
-              })()}
-            </div>
+            })()}
           </div>
         </div>
-        <div className="mb-3">
+        <div className="action-bar mb-2">
           {/* All Action Buttons in One Row */}
-          <div className="flex flex-wrap items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2 justify-between">
             {/* Hide add button if building has more than one tax region and no specific taxRegion is selected, or in error fixing mode */}
             {!isErrorFixingMode && (() => {
               const hasMultipleTaxRegions = building?.tax_region && building.tax_region.includes(',');
@@ -6329,32 +6314,32 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
                       addEmptyRow();
                     }
                   }}
-                  className="btn btn-primary btn-md"
+                  className="btn btn-action btn-primary"
                 >
-                  <Plus className="h-4 w-4" />
-                  הוסף נכס
+                  <Plus className="h-5 w-5" />
+                  <span>הוסף נכס</span>
                 </button>
               );
             })()}
             <button
               type="button"
               onClick={handleBatchValidateBuildingAssets}
-              className="btn btn-secondary btn-md"
+              className="btn btn-action btn-primary"
               title={selectedAssets.size > 0 ? `אמת ${selectedAssets.size} נכסים נבחרים` : 'אמת את כל הנכסים'}
             >
-              <CheckCircle2 className="h-4 w-4" />
-              {selectedAssets.size > 0 ? `אמת נבחרים (${selectedAssets.size})` : 'אמת הכל'}
+              <CheckCircle2 className="h-5 w-5" />
+              <span>{selectedAssets.size > 0 ? `אמת נבחרים (${selectedAssets.size})` : 'אמת הכל'}</span>
             </button>
             {!isErrorFixingMode && (
               <button
                 type="button"
                 onClick={handleExportToExcel}
                 disabled={loading || assets.length === 0}
-                className="btn btn-export btn-md"
+                className="btn btn-action btn-export"
                 title="ייצא את כל הנכסים לקובץ Excel"
               >
-                <FileSpreadsheet className="h-4 w-4" />
-                ייצא ל-Excel
+                <FileSpreadsheet className="h-5 w-5" />
+                <span>ייצא ל-Excel</span>
               </button>
             )}
             {/* Export to automation button - follows export condition (measured but not exported) */}
@@ -6363,11 +6348,11 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
                 type="button"
                 onClick={handleExportToAutomation}
                 disabled={loading || exporting || exportToAutomationCount === 0}
-                className="flex items-center gap-2 px-4 py-2 text-sm bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 active:from-orange-700 active:to-orange-800 disabled:from-gray-400 disabled:to-gray-500  text-white rounded-lg transition-all duration-200 shadow-md hover:shadow-lg disabled:shadow-none disabled:cursor-not-allowed font-semibold border border-orange-700/20 disabled:border-gray-500/20"
+                className="btn btn-action text-orange-600 hover:bg-black/5 active:bg-black/10 disabled:opacity-50 min-w-[90px] [&_svg]:text-orange-600 [&_span]:text-orange-600"
                 title={exportToAutomationCount > 0 ? `שלח ${exportToAutomationCount} נכסים שנמדדו ולא נשלחו לעירייה` : 'אין נכסים לשליחה - כל הנכסים כבר נשלחו לעירייה'}
               >
-                {exporting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
-                שליחת נתונים לעירייה{exportToAutomationCount > 0 ? ` (${exportToAutomationCount})` : ''}
+                {exporting ? <Loader2 className="h-5 w-5 animate-spin" /> : <Upload className="h-5 w-5" />}
+                <span>שליחה לעירייה{exportToAutomationCount > 0 ? ` (${exportToAutomationCount})` : ''}</span>
               </button>
             )}
             {/* Statistics button - visible in business and residence tabs (not in multi-tax tabs) */}
@@ -6376,11 +6361,11 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
                 type="button"
                 onClick={() => setShowAssetStatisticsModal(true)}
                 disabled={loading || assets.length === 0}
-                className="flex items-center gap-2 px-4 py-2 text-sm bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 active:from-blue-700 active:to-blue-800 disabled:from-gray-400 disabled:to-gray-500  text-white rounded-lg transition-all duration-200 shadow-md hover:shadow-lg disabled:shadow-none disabled:cursor-not-allowed font-semibold border border-blue-700/20 disabled:border-gray-500/20"
+                className="btn btn-action btn-primary"
                 title="הצג סטטיסטיקות לפי סוגי נכסים ותתי-סוגים"
               >
-                <BarChart3 className="h-4 w-4" />
-                סטטיסטיקות
+                <BarChart3 className="h-5 w-5" />
+                <span>סטטיסטיקות</span>
               </button>
             )}
             {/* Change tax region button - only show in "all assets" tab (when taxRegion is not set) and not in error fixing mode */}
@@ -6389,11 +6374,11 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
                 type="button"
                 onClick={() => setChangeTaxRegionModalOpen(true)}
                 disabled={loading || selectedAssets.size === 0}
-                className="flex items-center gap-2 px-4 py-2 text-sm bg-gradient-to-r from-purple-500 to-purple-600 hover:from-purple-600 hover:to-purple-700 active:from-purple-700 active:to-purple-800 disabled:from-gray-400 disabled:to-gray-500  text-white rounded-lg transition-all duration-200 shadow-md hover:shadow-lg disabled:shadow-none disabled:cursor-not-allowed font-semibold border border-purple-700/20 disabled:border-gray-500/20"
+                className="btn btn-action btn-primary"
                 title={selectedAssets.size > 0 ? `שנה אזור מס ל-${selectedAssets.size} נכסים נבחרים` : 'בחר נכסים לשינוי אזור מס'}
               >
-                <MapPin className="h-4 w-4" />
-                שנה אזור מס {selectedAssets.size > 0 ? `(${selectedAssets.size})` : ''}
+                <MapPin className="h-5 w-5" />
+                <span>שנה אזור מס{selectedAssets.size > 0 ? ` (${selectedAssets.size})` : ''}</span>
               </button>
             )}
             {/* Distribute shared area button - always visible in residence tabs, enabled when flag is on (blinking alert), hidden in error fixing mode */}
@@ -6407,7 +6392,7 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
                   building.need_residence_distribution !== true
                   // Note: Allow distribution even if area is 0, as long as flag is true (blinking alert is on)
                 }
-                className="flex items-center gap-2 px-4 py-2 text-sm bg-gradient-to-r from-teal-500 to-teal-600 hover:from-teal-600 hover:to-teal-700 active:from-teal-700 active:to-teal-800 disabled:from-gray-400 disabled:to-gray-500  text-white rounded-lg transition-all duration-200 shadow-md hover:shadow-lg disabled:shadow-none disabled:cursor-not-allowed font-semibold border border-teal-700/20 disabled:border-gray-500/20"
+                className="btn btn-action btn-secondary-ghost"
                 title={building.need_residence_distribution === true 
                   ? building.residence_shared_area != null && building.residence_shared_area > 0
                     ? `פזר שטח משותף מגורים (${building.residence_shared_area.toLocaleString('he-IL')}) בין כל נכסי המגורים`
@@ -6416,8 +6401,8 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
                     : 'פזר שטח משותף מגורים בין כל נכסי המגורים'
                   : 'יש לשנות את שטח משותף מגורים כדי לאפשר פיזור'}
               >
-                <Download className="h-4 w-4" />
-                פזר שטח משותף מגורים
+                <Download className="h-5 w-5" />
+                <span>פזר שטח משותף מגורים</span>
               </button>
             )}
             {/* Distribute business shared area button - always visible in business tabs, enabled when flag is on (blinking alert), hidden in error fixing mode */}
@@ -6431,7 +6416,7 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
                   building.need_business_distribution !== true
                   // Note: Allow distribution even if area is 0, as long as flag is true (blinking alert is on)
                 }
-                className="flex items-center gap-2 px-4 py-2 text-sm bg-gradient-to-r from-violet-500 to-violet-600 hover:from-violet-600 hover:to-violet-700 active:from-violet-700 active:to-violet-800 disabled:from-gray-400 disabled:to-gray-500  text-white rounded-lg transition-all duration-200 shadow-md hover:shadow-lg disabled:shadow-none disabled:cursor-not-allowed font-semibold border border-violet-700/20 disabled:border-gray-500/20"
+                className="btn btn-action btn-secondary-ghost"
                 title={building.need_business_distribution === true
                   ? building.business_shared_area != null && building.business_shared_area > 0
                     ? `פזר שטח משותף עסקים (${building.business_shared_area.toLocaleString('he-IL')}) בין כל נכסי העסקים`
@@ -6440,8 +6425,8 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
                     : 'פזר שטח משותף עסקים בין כל נכסי העסקים'
                   : 'יש לשנות את שטח משותף עסקים כדי לאפשר פיזור'}
               >
-                <Download className="h-4 w-4" />
-                פזר שטח משותף עסקים
+                <Download className="h-5 w-5" />
+                <span>פזר שטח משותף עסקים</span>
               </button>
             )}
             {/* Show save and cancel buttons only if a specific tax region is selected (same visibility logic as delete button) */}
@@ -6479,40 +6464,39 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
                         }
                       }}
                       disabled={!canTransferAreas}
-                      className="flex items-center gap-2 px-4 py-2 text-sm bg-gradient-to-r from-indigo-500 to-indigo-600 hover:from-indigo-600 hover:to-indigo-700 active:from-indigo-700 active:to-indigo-800 disabled:from-gray-400 disabled:to-gray-500  text-white rounded-lg transition-all duration-200 shadow-md hover:shadow-lg disabled:shadow-none disabled:cursor-not-allowed font-semibold border border-indigo-700/20 disabled:border-gray-500/20"
+                      className="btn btn-action btn-secondary-ghost min-w-[90px]"
                       title={canTransferAreas ? `העברת שטחים (${selectedAssets.size} נכסים נבחרו)` : 'בחר לפחות 2 נכסים להעברת שטחים'}
                     >
-                      <MoveLeft className="h-4 w-4" />
-                      העברת שטחים {selectedAssets.size > 0 ? `(${selectedAssets.size})` : ''}
+                      <MoveLeft className="h-5 w-5" />
+                      <span>העברת שטחים{selectedAssets.size > 0 ? ` (${selectedAssets.size})` : ''}</span>
                     </button>
                   )}
                   {!isReadOnly && (
-                    <>
-                      <button
-                        type="button"
-                        onClick={handleCancelAll}
-                        disabled={loading || totalChanges === 0}
-                        className="flex items-center gap-2 px-4 py-2 text-sm bg-gradient-to-r from-gray-500 to-gray-600 hover:from-gray-600 hover:to-gray-700 active:from-gray-700 active:to-gray-800 disabled:from-gray-300 disabled:to-gray-400  text-white rounded-lg transition-all duration-200 shadow-md hover:shadow-lg disabled:shadow-none font-semibold border border-gray-700/20 disabled:border-gray-400/20"
-                      >
-                        <X className="h-4 w-4" />
-                        ביטול
-                      </button>
-                      {/* Save button: enabled when there are changes, validation runs before save */}
+                    <div className="flex flex-row gap-2 ml-auto">
                       <button
                         type="button"
                         onClick={handleSaveAll}
                         disabled={isSaving || loading || totalChanges === 0}
-                        className="flex items-center gap-2 px-4 py-2 text-sm bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 active:from-green-700 active:to-green-800 disabled:from-gray-300 disabled:to-gray-400  text-white rounded-lg transition-all duration-200 shadow-md hover:shadow-lg disabled:shadow-none font-semibold border border-green-700/20 disabled:border-gray-400/20"
+                        className="btn btn-action btn-primary"
                         title={totalChanges === 0 ? 'אין שינויים לשמירה' : undefined}
                       >
                         {isSaving || loading ? (
-                          <Loader2 className="h-4 w-4 animate-spin" />
+                          <Loader2 className="h-5 w-5 animate-spin" />
                         ) : (
-                          <Save className="h-4 w-4" />
+                          <Save className="h-5 w-5" />
                         )}
-                        {isSaving || loading ? 'שומר...' : `שמור הכל${totalChanges > 0 ? ` (${totalChanges})` : ''}`}
+                        <span>{isSaving || loading ? 'שומר...' : 'שמור הכל'}{totalChanges > 0 ? ` (${totalChanges})` : ''}</span>
                       </button>
-                    </>
+                      <button
+                        type="button"
+                        onClick={handleCancelAll}
+                        disabled={loading || totalChanges === 0}
+                        className="btn btn-action btn-cancel"
+                      >
+                        <X className="h-5 w-5" />
+                        <span>ביטול</span>
+                      </button>
+                    </div>
                   )}
                 </>
               );

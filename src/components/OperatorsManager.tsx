@@ -455,7 +455,7 @@ export function OperatorsManager() {
                   value={formData.name}
                   onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                   placeholder="שם המפעיל"
-                  className="w-full px-3 py-2 border-2 border-slate-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500"
+                  className="w-full px-3 py-2 border-2 border-app-input-border rounded-lg focus:ring-2 focus:ring-app-accent focus:border-app-accent"
                 />
               </div>
               <div>
@@ -465,7 +465,7 @@ export function OperatorsManager() {
                   value={formData.email}
                   onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                   placeholder="example@domain.com"
-                  className="w-full px-3 py-2 border-2 border-slate-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500"
+                  className="w-full px-3 py-2 border-2 border-app-input-border rounded-lg focus:ring-2 focus:ring-app-accent focus:border-app-accent"
                 />
               </div>
               <div>
@@ -475,7 +475,7 @@ export function OperatorsManager() {
                   value={formData.phone}
                   onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
                   placeholder="טלפון"
-                  className="w-full px-3 py-2 border-2 border-slate-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500"
+                  className="w-full px-3 py-2 border-2 border-app-input-border rounded-lg focus:ring-2 focus:ring-app-accent focus:border-app-accent"
                 />
               </div>
             </div>

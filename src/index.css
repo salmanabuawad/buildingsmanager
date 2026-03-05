@@ -2,6 +2,164 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Page header - solid dark blue (reference style) */
+.page-header {
+  background: #2E62A2;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
+  position: relative;
+}
+.page-header-icon {
+  padding: 0.375rem;
+  border-radius: 0.375rem;
+  background: rgba(255, 255, 255, 0.2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.page-header-icon svg,
+.page-header-icon img {
+  color: white;
+}
+.page-header-title {
+  font-size: 1rem;
+  font-weight: 600;
+  color: white;
+}
+.page-header-badge {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: white;
+  padding: 0.125rem 0.375rem;
+  border-radius: 0.25rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+.page-header-badge-address {
+  background: rgba(255, 255, 255, 0.25);
+}
+.page-header-badge-area {
+  background: rgba(34, 197, 94, 0.9);
+}
+.page-header-label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.95);
+}
+.page-header-pill {
+  font-size: 0.75rem;
+  font-weight: 600;
+  background: rgba(125, 211, 252, 0.9);
+  color: #1e293b;
+  padding: 0.125rem 0.375rem;
+  border-radius: 9999px;
+}
+
+/* Action bar - light gray container for buttons below headers */
+.action-bar {
+  background: #E8EDF1;
+  border-radius: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+  border: 1px solid rgba(0, 0, 0, 0.04);
+}
+
+/* Action bar buttons - ghost style, no background (reference) */
+.action-bar button {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+}
+.action-bar button:hover:not(:disabled) {
+  background: rgba(0, 0, 0, 0.05) !important;
+}
+.action-bar .btn-primary,
+.action-bar .btn-secondary,
+.action-bar .btn-export {
+  background: transparent !important;
+  color: #2E62A2 !important;
+  border: none !important;
+  box-shadow: none !important;
+}
+.action-bar .btn-primary svg,
+.action-bar .btn-secondary svg,
+.action-bar .btn-export svg {
+  color: inherit !important;
+  stroke: currentColor;
+}
+.action-bar .btn-primary span,
+.action-bar .btn-secondary span,
+.action-bar .btn-export span {
+  color: inherit !important;
+}
+.action-bar .btn-primary:hover,
+.action-bar .btn-secondary:hover,
+.action-bar .btn-export:hover {
+  background: rgba(0, 0, 0, 0.05) !important;
+}
+.action-bar .btn-primary:disabled,
+.action-bar .btn-secondary:disabled,
+.action-bar .btn-export:disabled {
+  background: rgba(0, 0, 0, 0.06) !important;
+  color: #6C757D !important;
+  opacity: 0.7 !important;
+}
+.action-bar .btn-primary:disabled svg,
+.action-bar .btn-primary:disabled span,
+.action-bar .btn-secondary:disabled svg,
+.action-bar .btn-secondary:disabled span,
+.action-bar .btn-export:disabled svg,
+.action-bar .btn-export:disabled span {
+  color: #6C757D !important;
+}
+.action-bar .btn-cancel {
+  background: transparent !important;
+  color: #333333 !important;
+  border: none !important;
+  box-shadow: none !important;
+}
+.action-bar .btn-cancel svg,
+.action-bar .btn-cancel span {
+  color: inherit !important;
+}
+.action-bar .btn-cancel:hover {
+  background: rgba(0, 0, 0, 0.05) !important;
+}
+.action-bar .btn-cancel:disabled {
+  background: rgba(0, 0, 0, 0.06) !important;
+  color: #6C757D !important;
+  opacity: 0.7 !important;
+}
+.action-bar .btn-cancel:disabled svg,
+.action-bar .btn-cancel:disabled span {
+  color: #6C757D !important;
+}
+
+/* Secondary ghost buttons (distribute, transfer) - visible icons and text */
+.btn-secondary-ghost {
+  background: transparent !important;
+  color: #2E62A2 !important;
+  border: none !important;
+}
+.btn-secondary-ghost svg,
+.btn-secondary-ghost span {
+  color: #2E62A2;
+}
+.btn-secondary-ghost:hover:not(:disabled) {
+  background: rgba(0, 0, 0, 0.05) !important;
+}
+/* Disabled state - very clear */
+.btn-secondary-ghost:disabled {
+  background: rgba(0, 0, 0, 0.06) !important;
+  opacity: 0.7 !important;
+  color: #6C757D !important;
+  cursor: not-allowed !important;
+}
+.btn-secondary-ghost:disabled svg,
+.btn-secondary-ghost:disabled span {
+  color: #6C757D !important;
+}
+
 /* Hide "Made in Bolt" badge when injected by Bolt hosting */
 a.badge[href="https://bolt.new"],
 a[href="https://bolt.new"],
@@ -200,14 +358,14 @@ input[type="number"] {
 
 /* Light blue border on focused cells using box-shadow to avoid layout shift */
 .ag-theme-alpine .ag-cell-focus {
-  box-shadow: inset 0 0 0 2px #2196f3 !important;
+  box-shadow: inset 0 0 0 2px #2196F3 !important;
   outline: none !important;
 }
 
 /* Light blue border on editing cells - only on the cell wrapper */
 .ag-theme-alpine .ag-cell-inline-editing,
 .ag-theme-alpine .ag-cell-editing {
-  box-shadow: inset 0 0 0 2px #2196f3 !important;
+  box-shadow: inset 0 0 0 2px #2196F3 !important;
   outline: none !important;
   padding: 0 !important;
 }
@@ -436,7 +594,7 @@ html {
 }
 
 *:focus-visible:not(.ag-cell):not(.ag-cell *) {
-  outline: 2px solid #228be6;
+  outline: 2px solid #2196F3;
   outline-offset: 2px;
 }
 
@@ -555,16 +713,37 @@ input[type="submit"]:disabled {
   @apply px-5 py-2.5 text-base;
 }
 
+/* Unified: all primary action buttons use app-accent */
 .btn-primary {
-  @apply bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white border border-emerald-700/20 disabled:bg-gray-400 disabled:border-gray-500/20 disabled:shadow-none disabled:cursor-not-allowed;
+  @apply bg-app-accent hover:bg-app-accent-hover active:bg-app-accent-active text-white border border-app-accent/30 disabled:bg-gray-400 disabled:border-gray-500/20 disabled:shadow-none disabled:cursor-not-allowed;
 }
 
 .btn-secondary {
-  @apply bg-cyan-600 hover:bg-cyan-700 active:bg-cyan-800 text-white border border-cyan-700/20 disabled:bg-gray-400 disabled:border-gray-500/20 disabled:shadow-none disabled:cursor-not-allowed;
+  @apply bg-app-accent hover:bg-app-accent-hover active:bg-app-accent-active text-white border border-app-accent/30 disabled:bg-gray-400 disabled:border-gray-500/20 disabled:shadow-none disabled:cursor-not-allowed;
+}
+
+.btn-app-primary {
+  @apply bg-app-accent hover:bg-app-accent-hover active:bg-app-accent-active text-white rounded disabled:opacity-50 disabled:cursor-not-allowed transition-colors;
+}
+
+/* Unified icon color for non-semantic icons */
+.text-app-icon {
+  @apply text-app-accent;
+}
+
+/* Icon-dominant action button - icon on top, small text below (reference: no background) */
+.btn-action {
+  @apply flex flex-col items-center justify-center gap-0.5 px-2.5 py-1.5 rounded-md transition-all duration-200 font-medium min-w-[64px];
+}
+.btn-action svg {
+  @apply h-4 w-4 shrink-0;
+}
+.btn-action span {
+  @apply text-[10px] leading-tight;
 }
 
 .btn-danger {
-  @apply bg-red-600 hover:bg-red-700 active:bg-red-800 text-white border border-red-700/20 disabled:bg-gray-400 disabled:border-gray-500/20 disabled:shadow-none disabled:cursor-not-allowed;
+  @apply bg-app-destructive hover:bg-red-700 active:bg-red-800 text-white border border-red-700/20 disabled:bg-gray-400 disabled:border-gray-500/20 disabled:shadow-none disabled:cursor-not-allowed;
 }
 
 .btn-cancel {
@@ -572,7 +751,7 @@ input[type="submit"]:disabled {
 }
 
 .btn-export {
-  @apply bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white border border-blue-700/20 disabled:bg-gray-400 disabled:border-gray-500/20 disabled:shadow-none disabled:cursor-not-allowed;
+  @apply bg-app-accent hover:bg-app-accent-hover active:bg-app-accent-active text-white border border-app-accent/30 disabled:bg-gray-400 disabled:border-gray-500/20 disabled:shadow-none disabled:cursor-not-allowed;
 }
 
 .btn-icon {
@@ -584,41 +763,48 @@ input[type="submit"]:disabled {
 }
 
 .btn-menu {
-  @apply w-full flex items-center justify-between px-4 py-2.5 text-right bg-white rounded-lg transition-all duration-200 shadow-sm border border-purple-100 hover:shadow-md;
+  @apply w-full flex items-center justify-between px-4 py-2.5 text-right bg-white rounded-lg transition-all duration-200 shadow-sm border border-slate-200 hover:shadow-md;
 }
 .btn-menu:hover {
-  @apply bg-purple-50 hover:border-purple-300;
+  @apply bg-app-bg hover:border-app-input-border;
 }
 .btn-menu:active {
-  @apply bg-purple-100;
+  @apply bg-slate-100;
 }
 .btn-menu span {
-  @apply font-medium text-sm text-slate-700 group-hover:text-purple-900;
+  @apply font-medium text-sm text-app-text-primary group-hover:text-app-text-primary;
 }
 .btn-menu svg {
-  @apply text-purple-600 group-hover:text-purple-700;
+  @apply text-app-text-muted group-hover:text-app-accent;
 }
 
 .btn-menu-item {
-  @apply w-full flex items-center gap-2 px-3 py-2 text-right bg-purple-50 hover:bg-purple-100 hover:scale-[1.02] active:bg-purple-200 rounded-lg transition-all duration-200 text-xs shadow-sm hover:shadow-md;
+  @apply w-full flex items-center gap-2 px-3 py-2 text-right bg-slate-50 hover:bg-slate-100 hover:scale-[1.02] active:bg-slate-200 rounded-lg transition-all duration-200 text-xs shadow-sm hover:shadow-md;
 }
 .btn-menu-item span {
-  @apply font-medium text-slate-700;
+  @apply font-medium text-app-text-primary;
 }
 .btn-menu-item svg {
-  @apply text-purple-600;
+  @apply text-app-text-muted;
 }
 .btn-menu-item.btn-primary {
-  @apply bg-emerald-50 hover:bg-emerald-100 active:bg-emerald-200;
+  @apply bg-app-accent/10 hover:bg-app-accent/20 active:bg-app-accent/30;
 }
 .btn-menu-item.btn-primary svg {
-  @apply text-emerald-600;
+  @apply text-app-accent;
 }
 .btn-menu-item.btn-export {
-  @apply bg-blue-50 hover:bg-blue-100 active:bg-blue-200;
+  @apply bg-app-accent/10 hover:bg-app-accent/20 active:bg-app-accent/30;
 }
 .btn-menu-item.btn-export svg {
-  @apply text-blue-600;
+  @apply text-app-accent;
 }
 
+/* Unified form elements - reference styling */
+.input-base {
+  @apply w-full px-3 py-2 border border-app-input-border rounded-lg bg-white text-app-text-primary placeholder:text-app-text-muted focus:ring-2 focus:ring-app-accent focus:border-app-accent outline-none transition-all text-right;
+}
+.label-base {
+  @apply block text-sm font-medium text-app-text-primary mb-1;
+}
 

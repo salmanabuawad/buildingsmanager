@@ -614,7 +614,7 @@ export function AddressListComponent() {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-teal-600 mx-auto"></div>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-app-accent mx-auto"></div>
           <p className="mt-4 text-slate-700 font-medium">{t('loading')}</p>
         </div>
       </div>
@@ -623,15 +623,13 @@ export function AddressListComponent() {
 
   return (
     <div className="max-w-5xl mx-auto px-4 py-3">
-      <div className="mb-3 bg-gradient-to-r from-blue-600 to-teal-600 rounded-lg shadow-lg p-2">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <MapPin className="w-7 h-7 text-white bg-white/20 rounded-lg p-1" />
-            <h1 className="text-lg sm:text-xl font-bold text-white">רשימת כתובות</h1>
+      <div className="page-header mb-3 rounded-xl p-4">
+        <div className="relative flex items-center gap-3 flex-wrap">
+          <div className="page-header-icon shrink-0">
+            <MapPin className="w-6 h-6" />
           </div>
-          <div className="text-white text-sm font-medium">
-            {addresses.length} רשומות
-          </div>
+          <h1 className="page-header-title text-lg sm:text-xl font-bold">רשימת כתובות</h1>
+          <span className="page-header-label">{addresses.length} רשומות</span>
         </div>
       </div>
 
@@ -686,7 +684,7 @@ export function AddressListComponent() {
           </div>
           <div className="w-full bg-blue-200 rounded-full h-2.5">
             <div
-              className="bg-blue-600 h-2.5 rounded-full transition-all duration-300 ease-out"
+              className="bg-app-accent h-2.5 rounded-full transition-all duration-300 ease-out"
               style={{ width: `${importProgress.percentage}%` }}
             />
           </div>
@@ -701,7 +699,7 @@ export function AddressListComponent() {
               סך הכל: {addresses.length} כתובות
             </span>
           </div>
-          <div className="flex gap-2">
+          <div className="action-bar flex gap-2">
             <input
               ref={fileInputRef}
               type="file"
@@ -711,7 +709,7 @@ export function AddressListComponent() {
             />
             <button
               onClick={handleExportToExcel}
-              className="flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 text-white rounded-md transition-all duration-200 shadow-sm hover:shadow-md"
+              className="flex items-center gap-2 px-4 py-2 bg-app-accent hover:bg-app-accent-hover active:bg-app-accent-active text-white rounded-md transition-all duration-200 shadow-sm hover:shadow-md"
               title="ייצא נתונים ל-Excel"
             >
               <Download className="h-5 w-5" />
@@ -720,7 +718,7 @@ export function AddressListComponent() {
             <div className="flex items-center">
               <button
                 onClick={() => handleExportTemplate('excel')}
-                className="flex items-center gap-2 px-4 py-2 bg-teal-600 hover:bg-teal-700 active:bg-teal-800 text-white rounded-l-md rounded-r-none transition-all duration-200 shadow-sm hover:shadow-md border-r-2 border-teal-500"
+                className="flex items-center gap-2 px-4 py-2 bg-app-accent hover:bg-app-accent-hover active:bg-app-accent-active text-white rounded-l-md rounded-r-none transition-all duration-200 shadow-sm hover:shadow-md border-r-2 border-app-accent/50"
                 title="הורד תבנית לקובץ Excel"
               >
                 <Download className="h-5 w-5" />
@@ -728,7 +726,7 @@ export function AddressListComponent() {
               </button>
               <button
                 onClick={() => handleExportTemplate('csv')}
-                className="flex items-center justify-center min-w-[50px] px-3 py-2 bg-teal-600 hover:bg-teal-700 active:bg-teal-800 text-white rounded-r-md rounded-l-none transition-all duration-200 shadow-sm hover:shadow-md text-sm font-medium whitespace-nowrap"
+                className="flex items-center justify-center min-w-[50px] px-3 py-2 bg-app-accent hover:bg-app-accent-hover active:bg-app-accent-active text-white rounded-r-md rounded-l-none transition-all duration-200 shadow-sm hover:shadow-md text-sm font-medium whitespace-nowrap"
                 title="הורד תבנית CSV"
               >
                 CSV
@@ -737,7 +735,7 @@ export function AddressListComponent() {
             <button
               onClick={() => fileInputRef.current?.click()}
               disabled={isImporting}
-              className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white rounded-md transition-all duration-200 shadow-sm hover:shadow-md disabled:opacity-50 disabled:shadow-none"
+              className="flex items-center gap-2 px-4 py-2 bg-app-accent hover:bg-app-accent-hover active:bg-app-accent-active text-white rounded-md transition-all duration-200 shadow-sm hover:shadow-md disabled:opacity-50 disabled:shadow-none"
             >
               <Upload className="h-5 w-5" />
               <span className="hidden sm:inline">{isImporting ? t('loading') : 'ייבא קובץ'}</span>
@@ -758,7 +756,7 @@ export function AddressListComponent() {
           <button
             onClick={handleSaveAll}
             disabled={isSaving || (dirtyAddresses.size === 0 && deletedAddresses.size === 0)}
-            className="flex items-center justify-center gap-2 px-4 sm:px-5 py-2.5 text-sm bg-teal-600 hover:bg-teal-700 active:bg-teal-800 text-white rounded-md transition-all duration-200 shadow-sm hover:shadow-md disabled:opacity-50  disabled:shadow-none font-semibold w-full sm:w-auto"
+            className="flex items-center justify-center gap-2 px-4 sm:px-5 py-2.5 text-sm bg-app-accent hover:bg-app-accent-hover active:bg-app-accent-active text-white rounded-md transition-all duration-200 shadow-sm hover:shadow-md disabled:opacity-50  disabled:shadow-none font-semibold w-full sm:w-auto"
           >
             {isSaving ? (
               <Loader2 className="h-4 w-4 animate-spin" />

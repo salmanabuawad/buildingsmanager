@@ -278,10 +278,12 @@ export function AssetStatisticsModal({ isOpen, onClose, assets, assetTypes, buil
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
       <div className="bg-white rounded-lg shadow-2xl w-full max-w-6xl h-[90vh] flex flex-col m-4 transform transition-all">
         {/* Header */}
-        <div className="flex items-center justify-between p-3 border-b border-gray-200 bg-gradient-to-r from-teal-600 to-blue-600 rounded-t-lg flex-shrink-0">
-          <div className="flex items-center gap-2">
-            <BarChart3 className="h-4 w-4 text-white" />
-            <h2 className="text-lg font-bold text-white">סטטיסטיקות נכסים</h2>
+        <div className="page-header flex items-center justify-between p-4 rounded-t-lg flex-shrink-0">
+          <div className="relative flex items-center gap-3 flex-wrap">
+            <div className="page-header-icon shrink-0">
+              <BarChart3 className="h-5 w-5" />
+            </div>
+            <h2 className="page-header-title text-lg font-bold">סטטיסטיקות נכסים</h2>
           </div>
           <button
             onClick={onClose}

@@ -45,7 +45,7 @@ function StatusBadge({ status }: { status: InspectionTaskStatus }) {
               ? 'bg-amber-100 text-amber-800'
               : status === 'in_progress'
                 ? 'bg-blue-100 text-blue-800'
-                : 'bg-slate-100 text-slate-700'
+                : 'bg-slate-100 text-app-text-primary'
       }`}
     >
       {STATUS_LABELS[status]}
@@ -193,7 +193,7 @@ function FileRow({
         type="button"
         onClick={handleView}
         disabled={loading || previewLoading}
-        className="shrink-0 w-16 h-16 rounded-lg overflow-hidden bg-slate-200 flex items-center justify-center focus:outline-none focus:ring-2 focus:ring-indigo-500 touch-manipulation min-w-[64px] min-h-[64px]"
+        className="shrink-0 w-16 h-16 rounded-lg overflow-hidden bg-slate-200 flex items-center justify-center focus:outline-none focus:ring-2 focus:ring-app-accent touch-manipulation min-w-[64px] min-h-[64px]"
         aria-label="צפה בקובץ"
       >
         {previewLoading && (
@@ -218,7 +218,7 @@ function FileRow({
               onChange={(e) => setEditName(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && handleSaveName()}
               onBlur={handleSaveName}
-              className="flex-1 min-w-0 px-2 py-1 text-sm border border-slate-300 rounded"
+              className="flex-1 min-w-0 px-2 py-1 text-sm border border-app-input-border rounded"
               autoFocus
               disabled={renaming}
             />
@@ -226,7 +226,7 @@ function FileRow({
           </>
         ) : (
           <span
-            className={`text-sm text-slate-800 truncate ${canRename ? 'cursor-pointer hover:text-indigo-600' : ''}`}
+            className={`text-sm text-slate-800 truncate ${canRename ? 'cursor-pointer hover:text-app-accent' : ''}`}
             title={file.file_name || file.file_path}
             onClick={canRename ? () => setIsEditingName(true) : undefined}
           >
@@ -237,7 +237,7 @@ function FileRow({
           <button
             type="button"
             onClick={() => setIsEditingName(true)}
-            className="shrink-0 min-w-[32px] min-h-[32px] flex items-center justify-center text-slate-500 hover:text-indigo-600 rounded"
+            className="shrink-0 min-w-[32px] min-h-[32px] flex items-center justify-center text-slate-500 hover:text-app-accent rounded"
             aria-label="שנה שם"
           >
             <Pencil className="w-4 h-4" />
@@ -249,7 +249,7 @@ function FileRow({
           type="button"
           onClick={handleView}
           disabled={loading || previewLoading}
-          className="min-h-[44px] min-w-[44px] flex items-center justify-center px-3 py-2 text-indigo-600 hover:bg-indigo-50 rounded-lg text-sm font-medium disabled:opacity-50 touch-manipulation"
+          className="min-h-[44px] min-w-[44px] flex items-center justify-center px-3 py-2 text-app-accent hover:bg-slate-50 rounded-lg text-sm font-medium disabled:opacity-50 touch-manipulation"
         >
           {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : 'צפה'}
         </button>
@@ -856,7 +856,7 @@ export function InspectionTasks() {
     return (
       <div className="flex items-center justify-center min-h-[50vh] safe-area-pb" dir="rtl">
         <div className="text-center px-4">
-          <Loader2 className="w-12 h-12 text-indigo-600 animate-spin mx-auto mb-4" />
+          <Loader2 className="w-12 h-12 text-app-accent animate-spin mx-auto mb-4" />
           <p className="text-slate-600 text-base">טוען משימות ביקורת...</p>
         </div>
       </div>
@@ -887,7 +887,7 @@ export function InspectionTasks() {
       {/* Header: stacked on mobile, row on desktop; touch-friendly buttons */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-4 sm:mb-6">
         <h2 className="text-lg sm:text-xl font-bold text-slate-800 flex items-center gap-2 min-h-[44px] items-center">
-          <ClipboardList className="w-6 h-6 sm:w-7 sm:h-7 text-indigo-600 shrink-0" />
+          <ClipboardList className="w-6 h-6 sm:w-7 sm:h-7 text-app-accent shrink-0" />
           <span className="text-base sm:text-xl">{isInspector ? 'משימות והעלאות' : 'ניהול משימות ביקורת'}</span>
         </h2>
         <div className="flex flex-wrap items-center gap-2">
@@ -895,7 +895,7 @@ export function InspectionTasks() {
             <button
               type="button"
               onClick={openCreateModal}
-              className="flex items-center justify-center gap-2 min-h-[44px] px-4 py-3 text-white bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 rounded-xl text-base font-medium touch-manipulation"
+              className="flex items-center justify-center gap-2 min-h-[44px] px-4 py-3 text-white bg-app-accent hover:bg-app-accent-hover active:bg-app-accent-active rounded-xl text-base font-medium touch-manipulation"
             >
               <Plus className="w-5 h-5" /> משימה חדשה
             </button>
@@ -903,7 +903,7 @@ export function InspectionTasks() {
           <button
             type="button"
             onClick={fetchTasks}
-            className="flex items-center justify-center gap-2 min-h-[44px] px-4 py-3 w-full sm:w-auto text-slate-700 bg-white border border-slate-200 rounded-xl hover:bg-slate-50 active:bg-slate-100 transition-colors text-base font-medium touch-manipulation"
+            className="flex items-center justify-center gap-2 min-h-[44px] px-4 py-3 w-full sm:w-auto text-app-text-primary bg-white border border-slate-200 rounded-xl hover:bg-slate-50 active:bg-slate-100 transition-colors text-base font-medium touch-manipulation"
           >
             <RefreshCw className="w-5 h-5" /> רענן
           </button>
@@ -928,22 +928,22 @@ export function InspectionTasks() {
                 </div>
               )}
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">כותרת *</label>
+                <label className="block text-sm font-medium text-app-text-primary mb-1">כותרת *</label>
                 <input
                   type="text"
                   value={createForm.title}
                   onChange={(e) => setCreateForm((f) => ({ ...f, title: e.target.value }))}
-                  className="w-full px-3 py-2 border border-slate-300 rounded-lg text-base"
+                  className="w-full px-3 py-2 border border-app-input-border rounded-lg text-base"
                   placeholder="כותרת המשימה"
                   required
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">מבנה *</label>
+                <label className="block text-sm font-medium text-app-text-primary mb-1">מבנה *</label>
                 <select
                   value={createForm.building_number === '' ? '' : String(createForm.building_number)}
                   onChange={(e) => setCreateForm((f) => ({ ...f, building_number: e.target.value === '' ? '' : Number(e.target.value) }))}
-                  className="w-full px-3 py-2 border border-slate-300 rounded-lg text-base"
+                  className="w-full px-3 py-2 border border-app-input-border rounded-lg text-base"
                   required
                 >
                   <option value="">בחר מבנה</option>
@@ -956,7 +956,7 @@ export function InspectionTasks() {
                 </select>
               </div>
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">נכסים (אופציונלי)</label>
+                <label className="block text-sm font-medium text-app-text-primary mb-1">נכסים (אופציונלי)</label>
                 {createForm.building_number === '' || createForm.building_number === undefined ? (
                   <p className="text-slate-500 text-sm">בחר מבנה כדי לבחור נכסים</p>
                 ) : assetsLoading ? (
@@ -989,7 +989,7 @@ export function InspectionTasks() {
                                 asset_ids: checked ? f.asset_ids.filter((id) => id !== asset.asset_id) : [...f.asset_ids, asset.asset_id],
                               }));
                             }}
-                            className="w-4 h-4 rounded border-slate-300 text-indigo-600"
+                            className="w-4 h-4 rounded border-app-input-border text-app-accent"
                           />
                           <span className="text-sm text-slate-800">
                             נכס {asset.asset_id}
@@ -1001,11 +1001,11 @@ export function InspectionTasks() {
                 )}
               </div>
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">פקח (מוקצה אל)</label>
+                <label className="block text-sm font-medium text-app-text-primary mb-1">פקח (מוקצה אל)</label>
                 <select
                   value={createForm.assigned_to === '' ? '' : String(createForm.assigned_to)}
                   onChange={(e) => setCreateForm((f) => ({ ...f, assigned_to: e.target.value === '' ? '' : Number(e.target.value) }))}
-                  className="w-full px-3 py-2 border border-slate-300 rounded-lg text-base"
+                  className="w-full px-3 py-2 border border-app-input-border rounded-lg text-base"
                 >
                   <option value="">ללא הקצאה</option>
                   {inspectors.map((u) => (
@@ -1016,11 +1016,11 @@ export function InspectionTasks() {
                 </select>
               </div>
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">עדיפות</label>
+                <label className="block text-sm font-medium text-app-text-primary mb-1">עדיפות</label>
                 <select
                   value={createForm.priority}
                   onChange={(e) => setCreateForm((f) => ({ ...f, priority: e.target.value as InspectionTaskPriority }))}
-                  className="w-full px-3 py-2 border border-slate-300 rounded-lg text-base"
+                  className="w-full px-3 py-2 border border-app-input-border rounded-lg text-base"
                 >
                   {(Object.entries(PRIORITY_LABELS) as [InspectionTaskPriority, string][]).map(([val, label]) => (
                     <option key={val} value={val}>{label}</option>
@@ -1028,11 +1028,11 @@ export function InspectionTasks() {
                 </select>
               </div>
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">הערה</label>
+                <label className="block text-sm font-medium text-app-text-primary mb-1">הערה</label>
                 <textarea
                   value={createForm.note}
                   onChange={(e) => setCreateForm((f) => ({ ...f, note: e.target.value }))}
-                  className="w-full px-3 py-2 border border-slate-300 rounded-lg text-base min-h-[80px]"
+                  className="w-full px-3 py-2 border border-app-input-border rounded-lg text-base min-h-[80px]"
                   placeholder="הערה (אופציונלי)"
                   rows={3}
                 />
@@ -1041,14 +1041,14 @@ export function InspectionTasks() {
                 <button
                   type="submit"
                   disabled={createSaving}
-                  className="flex-1 min-h-[44px] px-4 py-2 bg-indigo-600 text-white rounded-lg font-medium disabled:opacity-50"
+                  className="flex-1 min-h-[44px] px-4 py-2 bg-app-accent text-white rounded-lg font-medium disabled:opacity-50"
                 >
                   {createSaving ? 'יוצר...' : 'צור משימה'}
                 </button>
                 <button
                   type="button"
                   onClick={() => !createSaving && setCreateModalOpen(false)}
-                  className="min-h-[44px] px-4 py-2 border border-slate-300 rounded-lg font-medium"
+                  className="min-h-[44px] px-4 py-2 border border-app-input-border rounded-lg font-medium"
                 >
                   ביטול
                 </button>
@@ -1083,7 +1083,7 @@ export function InspectionTasks() {
             <div className="p-4 overflow-y-auto flex-1 min-h-0">
               {detailLoading && (
                 <div className="flex items-center justify-center py-8">
-                  <Loader2 className="w-10 h-10 text-indigo-600 animate-spin" />
+                  <Loader2 className="w-10 h-10 text-app-accent animate-spin" />
                 </div>
               )}
               {uploadSuccessMsg && (
@@ -1118,29 +1118,29 @@ export function InspectionTasks() {
                   </div>
                   {canShowEditTaskForm && (
                     <div className="space-y-3 pt-2 border-t border-slate-200">
-                      <h4 className="text-sm font-semibold text-slate-700">{isAdmin ? 'עריכת משימה (מנהל)' : 'עריכת משימה'}</h4>
+                      <h4 className="text-sm font-semibold text-app-text-primary">{isAdmin ? 'עריכת משימה (מנהל)' : 'עריכת משימה'}</h4>
                       <div className="grid grid-cols-1 gap-3 text-sm">
                         <div>
-                          <label className="block font-medium text-slate-700 mb-1">כותרת</label>
+                          <label className="block font-medium text-app-text-primary mb-1">כותרת</label>
                           <input
                             type="text"
                             value={editTaskTitle}
                             onChange={(e) => setEditTaskTitle(e.target.value)}
-                            className="w-full px-3 py-2 border border-slate-300 rounded-lg"
+                            className="w-full px-3 py-2 border border-app-input-border rounded-lg"
                             dir="rtl"
                           />
                         </div>
                         {isAdmin && (
                           <>
                             <div>
-                              <label className="block font-medium text-slate-700 mb-1">מבנה</label>
+                              <label className="block font-medium text-app-text-primary mb-1">מבנה</label>
                               <select
                                 value={editTaskBuildingNumber === '' ? '' : String(editTaskBuildingNumber)}
                                 onChange={(e) => {
                                   setEditTaskBuildingNumber(e.target.value === '' ? '' : Number(e.target.value));
                                   setEditTaskAssetIds([]);
                                 }}
-                                className="w-full px-3 py-2 border border-slate-300 rounded-lg"
+                                className="w-full px-3 py-2 border border-app-input-border rounded-lg"
                               >
                                 <option value="">בחר מבנה</option>
                                 {buildings.map((b) => (
@@ -1152,11 +1152,11 @@ export function InspectionTasks() {
                               </select>
                             </div>
                             <div>
-                              <label className="block font-medium text-slate-700 mb-1">פקח (מוקצה אל)</label>
+                              <label className="block font-medium text-app-text-primary mb-1">פקח (מוקצה אל)</label>
                               <select
                                 value={editTaskAssignedTo === '' ? '' : String(editTaskAssignedTo)}
                                 onChange={(e) => setEditTaskAssignedTo(e.target.value === '' ? '' : Number(e.target.value))}
-                                className="w-full px-3 py-2 border border-slate-300 rounded-lg"
+                                className="w-full px-3 py-2 border border-app-input-border rounded-lg"
                               >
                                 <option value="">ללא הקצאה</option>
                                 {inspectors.map((u) => (
@@ -1167,7 +1167,7 @@ export function InspectionTasks() {
                               </select>
                             </div>
                             <div>
-                              <label className="block font-medium text-slate-700 mb-1">נכסים (אופציונלי)</label>
+                              <label className="block font-medium text-app-text-primary mb-1">נכסים (אופציונלי)</label>
                               {adminEditBuildingAssets.length === 0 ? (
                                 <p className="text-slate-500 text-xs">בחר מבנה כדי לבחור נכסים</p>
                               ) : (
@@ -1193,7 +1193,7 @@ export function InspectionTasks() {
                                               checked ? prev.filter((id) => id !== asset.asset_id) : [...prev, asset.asset_id]
                                             );
                                           }}
-                                          className="w-4 h-4 rounded border-slate-300 text-indigo-600"
+                                          className="w-4 h-4 rounded border-app-input-border text-app-accent"
                                         />
                                         <span className="text-slate-800">
                                           נכס {asset.asset_id}
@@ -1207,11 +1207,11 @@ export function InspectionTasks() {
                           </>
                         )}
                         <div>
-                          <label className="block font-medium text-slate-700 mb-1">עדיפות</label>
+                          <label className="block font-medium text-app-text-primary mb-1">עדיפות</label>
                           <select
                             value={editTaskPriority}
                             onChange={(e) => setEditTaskPriority(e.target.value as InspectionTaskPriority)}
-                            className="w-full px-3 py-2 border border-slate-300 rounded-lg"
+                            className="w-full px-3 py-2 border border-app-input-border rounded-lg"
                           >
                             {(Object.entries(PRIORITY_LABELS) as [InspectionTaskPriority, string][]).map(([val, label]) => (
                               <option key={val} value={val}>{label}</option>
@@ -1219,11 +1219,11 @@ export function InspectionTasks() {
                           </select>
                         </div>
                         <div>
-                          <label className="block font-medium text-slate-700 mb-1">הערה</label>
+                          <label className="block font-medium text-app-text-primary mb-1">הערה</label>
                           <textarea
                             value={editTaskNote}
                             onChange={(e) => setEditTaskNote(e.target.value)}
-                            className="w-full px-3 py-2 border border-slate-300 rounded-lg min-h-[70px]"
+                            className="w-full px-3 py-2 border border-app-input-border rounded-lg min-h-[70px]"
                             dir="rtl"
                           />
                         </div>
@@ -1231,7 +1231,7 @@ export function InspectionTasks() {
                           type="button"
                           onClick={handleSaveTask}
                           disabled={editTaskSaving}
-                          className="min-h-[44px] px-4 py-2 bg-indigo-600 text-white rounded-lg font-medium hover:bg-indigo-700 disabled:opacity-50 touch-manipulation"
+                          className="min-h-[44px] px-4 py-2 bg-app-accent text-white rounded-lg font-medium hover:bg-app-accent-hover disabled:opacity-50 touch-manipulation"
                         >
                           {editTaskSaving ? <Loader2 className="w-4 h-4 animate-spin inline ml-1" /> : null} שמור שינויים במשימה
                         </button>
@@ -1239,7 +1239,7 @@ export function InspectionTasks() {
                     </div>
                   )}
                   <div>
-                    <h4 className="flex items-center gap-2 text-sm font-semibold text-slate-700 mb-2">
+                    <h4 className="flex items-center gap-2 text-sm font-semibold text-app-text-primary mb-2">
                       <FileText className="w-4 h-4" /> דוח
                     </h4>
                     {canEditTaskOrReport ? (
@@ -1247,7 +1247,7 @@ export function InspectionTasks() {
                         <textarea
                           value={reportEditText}
                           onChange={(e) => setReportEditText(e.target.value)}
-                          className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm min-h-[120px]"
+                          className="w-full px-3 py-2 border border-app-input-border rounded-lg text-sm min-h-[120px]"
                           placeholder="כתוב את תוכן הדוח..."
                           dir="rtl"
                         />
@@ -1255,7 +1255,7 @@ export function InspectionTasks() {
                           type="button"
                           onClick={handleSaveReport}
                           disabled={saveReportSaving}
-                          className="min-h-[44px] px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm font-medium hover:bg-indigo-700 disabled:opacity-50 touch-manipulation"
+                          className="min-h-[44px] px-4 py-2 bg-app-accent text-white rounded-lg text-sm font-medium hover:bg-app-accent-hover disabled:opacity-50 touch-manipulation"
                         >
                           {saveReportSaving ? <Loader2 className="w-4 h-4 animate-spin inline ml-1" /> : null} שמור דוח
                         </button>
@@ -1270,14 +1270,14 @@ export function InspectionTasks() {
                   </div>
                   <div>
                     <div className="flex items-center justify-between gap-2 mb-2">
-                      <h4 className="flex items-center gap-2 text-sm font-semibold text-slate-700">
+                      <h4 className="flex items-center gap-2 text-sm font-semibold text-app-text-primary">
                         <Paperclip className="w-4 h-4" /> קבצים ({displayFiles.length})
                       </h4>
                       {detailReport && (
                         <button
                           type="button"
                           onClick={refreshFilesOnly}
-                          className="text-xs text-indigo-600 hover:underline min-h-[32px] px-2"
+                          className="text-xs text-app-accent hover:underline min-h-[32px] px-2"
                         >
                           רענן רשימה
                         </button>
@@ -1300,14 +1300,14 @@ export function InspectionTasks() {
                           </p>
                         ) : (
                           <div className="flex flex-wrap items-center gap-2">
-                            <label className="text-sm font-medium text-slate-700 shrink-0">נכס (חובה להעלאה)</label>
+                            <label className="text-sm font-medium text-app-text-primary shrink-0">נכס (חובה להעלאה)</label>
                             <select
                               value={uploadAssetId === '' ? '' : String(uploadAssetId)}
                               onChange={(e) => {
                                 setUploadAssetId(e.target.value === '' ? '' : Number(e.target.value));
                                 setDetailError(null);
                               }}
-                              className="min-h-[44px] px-3 py-2 border border-slate-300 rounded-lg text-sm"
+                              className="min-h-[44px] px-3 py-2 border border-app-input-border rounded-lg text-sm"
                               required
                             >
                               <option value="">בחר נכס</option>
@@ -1321,7 +1321,7 @@ export function InspectionTasks() {
                               type="button"
                               onClick={() => fileInputRef.current?.click()}
                               disabled={fileUploading || uploadAssetId === ''}
-                              className="flex items-center justify-center gap-2 min-h-[44px] px-4 py-2 border border-slate-300 rounded-lg text-slate-700 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed touch-manipulation text-sm font-medium"
+                              className="flex items-center justify-center gap-2 min-h-[44px] px-4 py-2 border border-app-input-border rounded-lg text-app-text-primary hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed touch-manipulation text-sm font-medium"
                             >
                               {fileUploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Camera className="w-4 h-4" />}
                               {fileUploading ? 'מעלה...' : 'הוסף תמונה/וידאו'}
@@ -1352,15 +1352,15 @@ export function InspectionTasks() {
                   </div>
                   {detailHistory.length > 0 && (
                     <div className="space-y-2 pt-2 border-t border-slate-200">
-                      <h4 className="text-sm font-semibold text-slate-700">היסטוריה והערות</h4>
+                      <h4 className="text-sm font-semibold text-app-text-primary">היסטוריה והערות</h4>
                       <ul className="space-y-3">
                         {detailHistory.map((h) => (
                           <li key={h.id} className="text-sm border-r-2 border-slate-200 pr-2" dir="rtl">
-                            <span className="font-medium text-slate-700">{HISTORY_ACTION_LABELS[h.action]}</span>
+                            <span className="font-medium text-app-text-primary">{HISTORY_ACTION_LABELS[h.action]}</span>
                             <span className="text-slate-500 mx-1">—</span>
                             <span className="text-slate-600">{new Date(h.created_at).toLocaleString('he-IL')}</span>
                             {h.comment_text && (
-                              <p className="mt-1 text-slate-700 bg-slate-50 rounded p-2">{h.comment_text}</p>
+                              <p className="mt-1 text-app-text-primary bg-slate-50 rounded p-2">{h.comment_text}</p>
                             )}
                           </li>
                         ))}
@@ -1370,11 +1370,11 @@ export function InspectionTasks() {
                   {canInspectorEdit && (
                     <div className="space-y-3 pt-2 border-t border-slate-200">
                       <div>
-                        <label className="block text-sm font-medium text-slate-700 mb-1">הערה עם שליחה לאישור (אופציונלי)</label>
+                        <label className="block text-sm font-medium text-app-text-primary mb-1">הערה עם שליחה לאישור (אופציונלי)</label>
                         <textarea
                           value={submitComment}
                           onChange={(e) => setSubmitComment(e.target.value)}
-                          className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm min-h-[70px]"
+                          className="w-full px-3 py-2 border border-app-input-border rounded-lg text-sm min-h-[70px]"
                           placeholder="הוסף הערה..."
                           dir="rtl"
                         />
@@ -1403,13 +1403,13 @@ export function InspectionTasks() {
                   )}
                   {canAdminActOnTask && (
                     <div className="space-y-3 pt-2 border-t border-slate-200">
-                      <h4 className="text-sm font-semibold text-slate-700">פעולות מנהל (ממתין לאישור)</h4>
+                      <h4 className="text-sm font-semibold text-app-text-primary">פעולות מנהל (ממתין לאישור)</h4>
                       <div>
-                        <label className="block text-sm font-medium text-slate-700 mb-1">הערה להחזרה לפקח (אופציונלי)</label>
+                        <label className="block text-sm font-medium text-app-text-primary mb-1">הערה להחזרה לפקח (אופציונלי)</label>
                         <textarea
                           value={returnNote}
                           onChange={(e) => setReturnNote(e.target.value)}
-                          className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm min-h-[70px]"
+                          className="w-full px-3 py-2 border border-app-input-border rounded-lg text-sm min-h-[70px]"
                           placeholder="הוסף הערה לפקח כשמחזירים את המשימה..."
                           dir="rtl"
                         />
@@ -1444,7 +1444,7 @@ export function InspectionTasks() {
                   )}
                   {isAdmin && detailTask && detailTask.status !== 'cancelled' && !canAdminActOnTask && (
                     <div className="space-y-3 pt-2 border-t border-slate-200">
-                      <h4 className="text-sm font-semibold text-slate-700">פעולות מנהל</h4>
+                      <h4 className="text-sm font-semibold text-app-text-primary">פעולות מנהל</h4>
                       <div>
                         <button
                           type="button"
@@ -1475,13 +1475,13 @@ export function InspectionTasks() {
               </button>
             </div>
             <div className="p-4 space-y-4">
-              <p className="text-slate-700">לבטל את המשימה? המשימה תישמר במערכת עם סטטוס בוטל.</p>
+              <p className="text-app-text-primary">לבטל את המשימה? המשימה תישמר במערכת עם סטטוס בוטל.</p>
               <div className="flex gap-2 justify-end">
                 <button
                   type="button"
                   onClick={() => !cancelSaving && setCancelConfirmOpen(false)}
                   disabled={cancelSaving}
-                  className="min-h-[44px] px-4 py-2 border border-slate-300 rounded-lg text-slate-700 hover:bg-slate-50 disabled:opacity-50"
+                  className="min-h-[44px] px-4 py-2 border border-app-input-border rounded-lg text-app-text-primary hover:bg-slate-50 disabled:opacity-50"
                 >
                   לא, חזור
                 </button>
@@ -1537,14 +1537,14 @@ export function InspectionTasks() {
                   href={viewFileUrl}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="text-indigo-600 underline"
+                  className="text-app-accent underline"
                 >
                   פתח בטאב חדש
                 </a>
                 <button
                   type="button"
                   onClick={() => { setViewFileUrl(null); setViewFileType(null); }}
-                  className="block mt-4 mx-auto min-h-[44px] px-4 py-2 border border-slate-300 rounded-lg"
+                  className="block mt-4 mx-auto min-h-[44px] px-4 py-2 border border-app-input-border rounded-lg"
                 >
                   סגור
                 </button>

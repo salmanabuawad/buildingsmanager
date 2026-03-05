@@ -293,7 +293,7 @@ export function ChangeTaxRegionModal({
       <div className="bg-white rounded-lg shadow-xl max-w-md w-full mx-4 max-h-[90vh] overflow-y-auto">
         <div className="flex items-center justify-between p-6 border-b border-gray-200">
           <div className="flex items-center gap-3">
-            <Building className="h-5 w-5 text-blue-600" />
+            <Building className="h-5 w-5 text-app-accent" />
             <h2 className="text-xl font-bold text-gray-900">שינוי אזור מס</h2>
           </div>
           <button
@@ -381,7 +381,7 @@ export function ChangeTaxRegionModal({
           <button
             onClick={handleValidate}
             disabled={loading || isValidating || !selectedTaxRegion || assetsToUpdate.length === 0}
-            className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-purple-600 rounded-lg hover:bg-purple-700 disabled:opacity-50  transition-colors"
+            className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-app-accent rounded hover:bg-app-accent-hover disabled:opacity-50  transition-colors"
           >
             {isValidating ? (
               <Loader2 className="h-4 w-4 animate-spin" />
@@ -393,7 +393,7 @@ export function ChangeTaxRegionModal({
           <button
             onClick={handleSave}
             disabled={loading || isValidating || !selectedTaxRegion || !validationCompleted || (validationResults?.invalid ?? 0) > 0}
-            className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 disabled:opacity-50  transition-colors"
+            className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-app-accent rounded hover:bg-app-accent-hover disabled:opacity-50  transition-colors"
           >
             {loading ? (
               <Loader2 className="h-4 w-4 animate-spin" />

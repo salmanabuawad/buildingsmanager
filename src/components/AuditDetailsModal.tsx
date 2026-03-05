@@ -522,7 +522,7 @@ export function AuditDetailsModal({ isOpen, onClose, actionId }: AuditDetailsMod
         <div className="flex-1 overflow-auto p-4 space-y-4">
           {loading && (
             <div className="flex items-center justify-center py-8">
-              <Loader2 className="h-8 w-8 text-teal-600 animate-spin" />
+              <Loader2 className="h-8 w-8 text-app-header animate-spin" />
               <span className="mr-2 text-slate-700">טוען...</span>
             </div>
           )}

@@ -52,7 +52,7 @@ export function DetailRowRenderer(params: DetailRowParams) {
     return (
       <div className="p-4 bg-gray-50 border-t border-gray-200">
         <div className="flex items-center justify-center py-4">
-          <Loader2 className="h-6 w-6 text-teal-600 animate-spin" />
+          <Loader2 className="h-6 w-6 text-app-accent animate-spin" />
           <span className="mr-2 text-slate-700">טוען פרטי ביקורת...</span>
         </div>
       </div>
@@ -63,7 +63,7 @@ export function DetailRowRenderer(params: DetailRowParams) {
     return (
       <div className="p-4 bg-gray-50 border-t border-gray-200">
         <div className="flex items-center justify-center py-4">
-          <Loader2 className="h-6 w-6 text-teal-600 animate-spin" />
+          <Loader2 className="h-6 w-6 text-app-accent animate-spin" />
           <span className="mr-2 text-slate-700">טוען פרטי ביקורת...</span>
         </div>
       </div>
@@ -290,7 +290,7 @@ export function DetailRowRenderer(params: DetailRowParams) {
               asset.tax_region ? String(asset.tax_region) : undefined
             );
           }}
-          className="text-blue-600 hover:text-blue-800 underline decoration-blue-600 hover:decoration-blue-800 cursor-pointer transition-colors font-semibold"
+          className="text-app-accent hover:text-app-accent-hover underline decoration-blue-600 hover:decoration-blue-800 cursor-pointer transition-colors font-semibold"
           title="לחץ כדי לפתוח את הנכס"
         >
           {assetId}

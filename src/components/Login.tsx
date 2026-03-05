@@ -32,17 +32,17 @@ export function Login({ onLoginSuccess }: LoginProps) {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 px-4">
+    <div className="min-h-screen flex items-center justify-center bg-[#f5f5f5] px-4">
       <div className="max-w-md w-full">
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-20 h-20 bg-gradient-to-br from-indigo-600 to-purple-600 rounded-2xl shadow-lg mb-4">
+          <div className="inline-flex items-center justify-center w-20 h-20 bg-app-header rounded-lg shadow-lg mb-4">
             <Building2 className="w-12 h-12 text-white" />
           </div>
           <h1 className="text-3xl font-bold text-slate-800 mb-2">מערכת ניהול מבנים</h1>
           <p className="text-slate-600">התחברות למערכת</p>
         </div>
 
-        <div className="bg-white rounded-2xl shadow-xl p-8 border border-slate-200">
+        <div className="bg-white rounded-lg shadow-md p-8 border border-slate-200">
           <form onSubmit={handleSubmit} className="space-y-6">
             <div>
               <label htmlFor="username" className="block text-sm font-medium text-slate-700 mb-2 text-right">
@@ -55,7 +55,7 @@ export function Login({ onLoginSuccess }: LoginProps) {
                 onChange={(e) => setUserName(e.target.value)}
                 required
                 disabled={loading}
-                className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all text-right disabled:bg-slate-100 disabled:cursor-not-allowed"
+                className="w-full px-4 py-3 border border-app-input-border rounded focus:ring-2 focus:ring-app-accent focus:border-app-accent outline-none transition-all text-right disabled:bg-slate-100 disabled:cursor-not-allowed"
                 placeholder="הזן שם משתמש"
                 dir="rtl"
                 autoComplete="username"
@@ -74,7 +74,7 @@ export function Login({ onLoginSuccess }: LoginProps) {
                   onChange={(e) => setPassword(e.target.value)}
                   required
                   disabled={loading}
-                  className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all text-right disabled:bg-slate-100 disabled:cursor-not-allowed"
+                  className="w-full px-4 py-3 border border-app-input-border rounded focus:ring-2 focus:ring-app-accent focus:border-app-accent outline-none transition-all text-right disabled:bg-slate-100 disabled:cursor-not-allowed"
                   placeholder="הזן סיסמה"
                   dir="rtl"
                   autoComplete="current-password"
@@ -100,7 +100,7 @@ export function Login({ onLoginSuccess }: LoginProps) {
             <button
               type="submit"
               disabled={loading || !userName.trim() || !password}
-              className="w-full py-3 px-4 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none flex items-center justify-center gap-2"
+              className="w-full py-3 px-4 bg-app-accent hover:bg-app-accent-hover text-white font-semibold rounded shadow-md transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none flex items-center justify-center gap-2"
             >
               {loading ? (
                 <>

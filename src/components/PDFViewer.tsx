@@ -189,30 +189,30 @@ export function PDFViewer({ fileUrl, fileName }: PDFViewerProps) {
 
   return (
     <div className="w-full">
-      <div className="bg-slate-100 border border-slate-300 rounded-t-lg p-4 flex items-center justify-between flex-wrap gap-4">
+      <div className="bg-slate-100 border border-app-input-border rounded-t-lg p-4 flex items-center justify-between flex-wrap gap-4">
         <div className="flex items-center gap-2">
           <button
             onClick={zoomOut}
             disabled={scale <= 0.5}
-            className="p-2 bg-white border border-slate-300 rounded hover:bg-slate-50 disabled:opacity-50 "
+            className="p-2 bg-white border border-app-input-border rounded hover:bg-slate-50 disabled:opacity-50 "
             title="Zoom Out"
           >
             <ZoomOut className="h-5 w-5" />
           </button>
-          <span className="text-sm font-medium text-slate-700 min-w-[80px] text-center">
+          <span className="text-sm font-medium text-app-text-primary min-w-[80px] text-center">
             {Math.round(scale * 100)}%
           </span>
           <button
             onClick={zoomIn}
             disabled={scale >= 3.0}
-            className="p-2 bg-white border border-slate-300 rounded hover:bg-slate-50 disabled:opacity-50 "
+            className="p-2 bg-white border border-app-input-border rounded hover:bg-slate-50 disabled:opacity-50 "
             title="Zoom In"
           >
             <ZoomIn className="h-5 w-5" />
           </button>
           <button
             onClick={rotate}
-            className="p-2 bg-white border border-slate-300 rounded hover:bg-slate-50 ml-2"
+            className="p-2 bg-white border border-app-input-border rounded hover:bg-slate-50 ml-2"
             title="Rotate"
           >
             <RotateCw className="h-5 w-5" />
@@ -225,18 +225,18 @@ export function PDFViewer({ fileUrl, fileName }: PDFViewerProps) {
               <button
                 onClick={previousPage}
                 disabled={pageNumber <= 1}
-                className="flex items-center gap-1 px-3 py-1 bg-white border border-slate-300 rounded hover:bg-slate-50 disabled:opacity-50  text-sm"
+                className="flex items-center gap-1 px-3 py-1 bg-white border border-app-input-border rounded hover:bg-slate-50 disabled:opacity-50  text-sm"
               >
                 <ChevronRight className="h-4 w-4 text-black" />
                 Previous
               </button>
-              <span className="text-sm text-slate-700">
+              <span className="text-sm text-app-text-primary">
                 Page {pageNumber} of {numPages}
               </span>
               <button
                 onClick={nextPage}
                 disabled={pageNumber >= numPages}
-                className="flex items-center gap-1 px-3 py-1 bg-white border border-slate-300 rounded hover:bg-slate-50 disabled:opacity-50  text-sm"
+                className="flex items-center gap-1 px-3 py-1 bg-white border border-app-input-border rounded hover:bg-slate-50 disabled:opacity-50  text-sm"
               >
                 Next
                 <ChevronLeft className="h-4 w-4 text-black" />
@@ -254,7 +254,7 @@ export function PDFViewer({ fileUrl, fileName }: PDFViewerProps) {
         </div>
       </div>
 
-      <div className="border border-t-0 border-slate-300 rounded-b-lg bg-slate-50 p-4 overflow-auto max-h-[600px]">
+      <div className="border border-t-0 border-app-input-border rounded-b-lg bg-slate-50 p-4 overflow-auto max-h-[600px]">
         <div className="flex justify-center">
           {isPreparingUrl ? (
             <div className="flex items-center justify-center p-12">

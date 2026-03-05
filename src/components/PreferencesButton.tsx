@@ -30,7 +30,7 @@ export function PreferencesButton() {
       >
         <div className="flex items-center gap-2">
           <span className="font-medium text-sm text-slate-700 group-hover:text-blue-900">העדפות עריכה</span>
-          <Settings className="h-4 w-4 text-blue-600 group-hover:text-blue-700" />
+          <Settings className="h-4 w-4 text-app-accent group-hover:text-app-accent" />
         </div>
         <div className="text-xs text-slate-500">
           {preferences.editMode === 'inline' ? 'ישירה' : 'חלון'}
@@ -76,7 +76,7 @@ export function PreferencesButton() {
                       onChange={(e) => {
                         setEditMode(e.target.value as EditMode);
                       }}
-                      className="w-4 h-4 text-blue-600 focus:ring-blue-500 focus:ring-2"
+                      className="w-4 h-4 text-app-accent focus:ring-app-accent focus:ring-2"
                     />
                     <div className="text-right">
                       <div className="font-medium text-slate-800">עריכה ישירה בתא</div>
@@ -93,7 +93,7 @@ export function PreferencesButton() {
                       onChange={(e) => {
                         setEditMode(e.target.value as EditMode);
                       }}
-                      className="w-4 h-4 text-blue-600 focus:ring-blue-500 focus:ring-2"
+                      className="w-4 h-4 text-app-accent focus:ring-app-accent focus:ring-2"
                     />
                     <div className="text-right">
                       <div className="font-medium text-slate-800">עריכה בחלון נפרד</div>

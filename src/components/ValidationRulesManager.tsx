@@ -511,7 +511,7 @@ export function ValidationRulesManager() {
               </button>
               <button
                 onClick={cancelEdit}
-                className="p-1 text-slate-600 hover:text-slate-700"
+                className="p-1 text-slate-600 hover:text-app-text-primary"
                 title={t('cancel')}
               >
                 <X className="h-4 w-4" />
@@ -681,7 +681,7 @@ export function ValidationRulesManager() {
           <Settings className="h-5 w-5 text-teal-600" />
           <h2 className="text-lg font-bold text-slate-800">{t('validationRules')}</h2>
         </div>
-        <div className="flex gap-2">
+        <div className="action-bar flex gap-2">
           <input
             ref={fileInputRef}
             type="file"
@@ -699,7 +699,7 @@ export function ValidationRulesManager() {
           </button>
           <button
             onClick={handleExportToExcel}
-            className="flex items-center gap-2 px-3 py-1.5 text-sm bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
+            className="flex items-center gap-2 px-3 py-1.5 text-sm bg-app-accent text-white rounded hover:bg-app-accent-hover transition-colors"
           >
             <Download className="h-4 w-4" />
             ייצא ל-Excel
@@ -916,7 +916,7 @@ export function ValidationRulesManager() {
             </button>
             <button
               onClick={() => setIsAdding(false)}
-              className="px-4 py-2 bg-slate-200 text-slate-700 rounded-lg hover:bg-slate-300"
+              className="px-4 py-2 bg-slate-200 text-app-text-primary rounded-lg hover:bg-slate-300"
             >
               {t('cancel')}
             </button>

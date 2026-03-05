@@ -177,7 +177,7 @@ export function AssetFilesModal({ isOpen, onClose, assetId, measurementDate, onF
               <button
                 onClick={handleViewAll}
                 disabled={selectedFiles.size === 0}
-                className="flex items-center gap-1 px-3 py-1.5 text-sm bg-blue-600 hover:bg-blue-700 text-white rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                className="flex items-center gap-1 px-3 py-1.5 text-sm bg-app-accent hover:bg-app-accent-hover text-white rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <Eye className="h-4 w-4" />
                 צפה בנבחרים{selectedFiles.size > 0 ? ` (${selectedFiles.size})` : ''}
@@ -219,7 +219,7 @@ export function AssetFilesModal({ isOpen, onClose, assetId, measurementDate, onF
                     type="checkbox"
                     checked={selectedFiles.size === files.length && files.length > 0}
                     onChange={handleSelectAll}
-                    className="w-4 h-4 text-blue-600 rounded focus:ring-2 focus:ring-blue-500"
+                    className="w-4 h-4 text-app-accent rounded focus:ring-2 focus:ring-app-accent"
                   />
                   <label className="text-sm text-gray-700 cursor-pointer">
                     בחר הכל ({selectedFiles.size}/{files.length})
@@ -247,7 +247,7 @@ export function AssetFilesModal({ isOpen, onClose, assetId, measurementDate, onF
                             handleToggleSelect(file.id);
                           }}
                           onClick={(e) => e.stopPropagation()}
-                          className="w-4 h-4 text-blue-600 rounded focus:ring-2 focus:ring-blue-500 mt-1"
+                          className="w-4 h-4 text-app-accent rounded focus:ring-2 focus:ring-app-accent mt-1"
                         />
                         <div className="flex-1">
                           <div className="flex items-center justify-center mb-2 text-gray-600">

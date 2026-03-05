@@ -407,7 +407,7 @@ export function SystemConfigurationManager() {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="text-center">
-          <Loader2 className="h-12 w-12 text-teal-600 animate-spin mx-auto" />
+          <Loader2 className="h-12 w-12 text-app-accent animate-spin mx-auto" />
           <p className="mt-4 text-slate-700 font-medium">טוען הגדרות מערכת...</p>
         </div>
       </div>
@@ -442,7 +442,7 @@ export function SystemConfigurationManager() {
               onClick={() => setActiveSubTab(tab.id)}
               className={`flex items-center gap-2 px-4 py-3 rounded-t-lg text-sm font-medium transition-colors border-b-2 -mb-px ${
                 activeSubTab === tab.id
-                  ? 'bg-white text-teal-700 border-teal-600 border-slate-200'
+                  ? 'bg-white text-app-accent border-teal-600 border-slate-200'
                   : 'text-slate-600 hover:bg-slate-50 hover:text-slate-800 border-transparent'
               }`}
             >
@@ -457,7 +457,7 @@ export function SystemConfigurationManager() {
       {activeSubTab === 'email-smtp' && (
       <div className="bg-white rounded-xl shadow-lg border border-blue-100 p-6 mb-6">
         <div className="flex items-center gap-3 mb-4">
-          <Mail className="h-6 w-6 text-teal-600" />
+          <Mail className="h-6 w-6 text-app-accent" />
           <h2 className="text-xl font-bold text-slate-800">הגדרות דוא&quot;ל (SMTP)</h2>
         </div>
             {emailConfigLoading ? (
@@ -496,7 +496,7 @@ export function SystemConfigurationManager() {
                     value={emailConfig?.smtp_host ?? ''}
                     onChange={(e) => setEmailConfig((c) => ({ ...c, smtp_host: e.target.value }))}
                     placeholder="smtp.gmail.com"
-                    className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm"
+                    className="w-full px-3 py-2 border border-app-input-border rounded-lg text-sm"
                   />
                 </div>
                 <div>
@@ -507,7 +507,7 @@ export function SystemConfigurationManager() {
                     max={65535}
                     value={emailConfig?.smtp_port ?? 587}
                     onChange={(e) => setEmailConfig((c) => ({ ...c, smtp_port: parseInt(e.target.value, 10) || 587 }))}
-                    className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm"
+                    className="w-full px-3 py-2 border border-app-input-border rounded-lg text-sm"
                   />
                 </div>
                 <div>
@@ -515,7 +515,7 @@ export function SystemConfigurationManager() {
                   <select
                     value={emailConfig?.smtp_encryption ?? 'tls'}
                     onChange={(e) => setEmailConfig((c) => ({ ...c, smtp_encryption: e.target.value as 'tls' | 'ssl' | 'none' }))}
-                    className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm"
+                    className="w-full px-3 py-2 border border-app-input-border rounded-lg text-sm"
                   >
                     <option value="tls">TLS</option>
                     <option value="ssl">SSL</option>
@@ -529,7 +529,7 @@ export function SystemConfigurationManager() {
                     value={emailConfig?.smtp_username ?? ''}
                     onChange={(e) => setEmailConfig((c) => ({ ...c, smtp_username: e.target.value }))}
                     placeholder="אופציונלי"
-                    className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm"
+                    className="w-full px-3 py-2 border border-app-input-border rounded-lg text-sm"
                   />
                 </div>
                 <div>
@@ -539,7 +539,7 @@ export function SystemConfigurationManager() {
                     value={emailConfig?.smtp_password ?? ''}
                     onChange={(e) => setEmailConfig((c) => ({ ...c, smtp_password: e.target.value }))}
                     placeholder="Gmail: 16 תווים מסיסמת אפליקציה"
-                    className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm"
+                    className="w-full px-3 py-2 border border-app-input-border rounded-lg text-sm"
                   />
                 </div>
                 <div>
@@ -549,7 +549,7 @@ export function SystemConfigurationManager() {
                     value={emailConfig?.from_email ?? ''}
                     onChange={(e) => setEmailConfig((c) => ({ ...c, from_email: e.target.value }))}
                     placeholder="noreply@example.com"
-                    className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm"
+                    className="w-full px-3 py-2 border border-app-input-border rounded-lg text-sm"
                   />
                 </div>
                 <div>
@@ -559,7 +559,7 @@ export function SystemConfigurationManager() {
                     value={emailConfig?.from_name ?? ''}
                     onChange={(e) => setEmailConfig((c) => ({ ...c, from_name: e.target.value }))}
                     placeholder="מערכת ניהול נכסים"
-                    className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm"
+                    className="w-full px-3 py-2 border border-app-input-border rounded-lg text-sm"
                   />
                 </div>
                 <div>
@@ -569,7 +569,7 @@ export function SystemConfigurationManager() {
                     value={emailConfig?.reply_to_email ?? ''}
                     onChange={(e) => setEmailConfig((c) => ({ ...c, reply_to_email: e.target.value }))}
                     placeholder="אופציונלי"
-                    className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm"
+                    className="w-full px-3 py-2 border border-app-input-border rounded-lg text-sm"
                   />
                 </div>
               </div>
@@ -581,7 +581,7 @@ export function SystemConfigurationManager() {
                   type="button"
                   onClick={handleSaveEmailConfig}
                   disabled={emailConfigSaving || !isAdmin}
-                  className="flex items-center gap-2 px-4 py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="flex items-center gap-2 px-4 py-2 bg-app-accent text-white rounded-lg hover:bg-app-accent-hover transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {emailConfigSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
                   שמור הגדרות דוא&quot;ל
@@ -592,7 +592,7 @@ export function SystemConfigurationManager() {
                     value={testEmailTo}
                     onChange={(e) => setTestEmailTo(e.target.value)}
                     placeholder="כתובת לשליחת מייל בדיקה"
-                    className="px-3 py-2 border border-slate-300 rounded-lg text-sm w-56"
+                    className="px-3 py-2 border border-app-input-border rounded-lg text-sm w-56"
                   />
                   <button
                     type="button"
@@ -613,7 +613,7 @@ export function SystemConfigurationManager() {
       {activeSubTab === 'mail-templates' && (
       <div className="bg-white rounded-xl shadow-lg border border-blue-100 p-6 mb-6">
         <div className="flex items-center gap-3 mb-4">
-          <FileText className="h-6 w-6 text-teal-600" />
+          <FileText className="h-6 w-6 text-app-accent" />
           <h2 className="text-xl font-bold text-slate-800">תבניות דוא&quot;ל (נשמרות במערכת)</h2>
         </div>
         <p className="text-sm text-slate-600 mb-4">
@@ -738,7 +738,7 @@ export function SystemConfigurationManager() {
                 checked={uiConfig.validation_rules_enabled}
                 onChange={(e) => setUiConfig((c) => ({ ...c, validation_rules_enabled: e.target.checked }))}
                 disabled={!isAdmin}
-                className="h-4 w-4 rounded border-slate-300 text-teal-600"
+                className="h-4 w-4 rounded border-app-input-border text-app-accent"
               />
               <span className="text-sm text-slate-700">הצג תפריט כללי תקינות</span>
             </label>
@@ -748,7 +748,7 @@ export function SystemConfigurationManager() {
                 checked={uiConfig.validate_inline}
                 onChange={(e) => setUiConfig((c) => ({ ...c, validate_inline: e.target.checked }))}
                 disabled={!isAdmin}
-                className="h-4 w-4 rounded border-slate-300 text-teal-600"
+                className="h-4 w-4 rounded border-app-input-border text-app-accent"
               />
               <span className="text-sm text-slate-700">אימות בזמן אמת (אחרי יציאה מתא)</span>
             </label>
@@ -760,7 +760,7 @@ export function SystemConfigurationManager() {
                 type="button"
                 onClick={handleSaveUiConfig}
                 disabled={uiConfigSaving}
-                className="flex items-center gap-2 px-4 py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700 transition-colors disabled:opacity-50"
+                className="flex items-center gap-2 px-4 py-2 bg-app-accent text-white rounded-lg hover:bg-app-accent-hover transition-colors disabled:opacity-50"
               >
                 {uiConfigSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
                 שמור הגדרות אימות
@@ -771,7 +771,7 @@ export function SystemConfigurationManager() {
 
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center gap-3">
-            <Settings className="h-6 w-6 text-teal-600" />
+            <Settings className="h-6 w-6 text-app-accent" />
             <h1 className="text-2xl font-bold text-slate-800">הגדרות מערכת</h1>
           </div>
           <div className="flex items-center gap-2">
@@ -785,7 +785,7 @@ export function SystemConfigurationManager() {
             {isAdmin && (
               <button
                 onClick={handleAdd}
-                className="flex items-center gap-2 px-3 py-1.5 text-sm bg-teal-600 text-white rounded-lg hover:bg-teal-700 transition-colors"
+                className="flex items-center gap-2 px-3 py-1.5 text-sm bg-app-accent text-white rounded-lg hover:bg-app-accent-hover transition-colors"
               >
                 <Plus className="h-4 w-4" />
                 הוסף הגדרה
@@ -808,7 +808,7 @@ export function SystemConfigurationManager() {
                   value={formData.name}
                   onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                   placeholder="לדוגמה: ui_config, email_config, mail_config"
-                  className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm"
+                  className="w-full px-3 py-2 border border-app-input-border rounded-lg text-sm"
                   disabled={!addingNew}
                 />
                 {!addingNew && (
@@ -822,7 +822,7 @@ export function SystemConfigurationManager() {
                   onChange={(e) => setFormData({ ...formData, value: e.target.value })}
                   placeholder="הזן ערך טקסט או JSON"
                   rows={isJsonValue(formData.value) ? 10 : 4}
-                  className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm font-mono text-sm"
+                  className="w-full px-3 py-2 border border-app-input-border rounded-lg text-sm font-mono text-sm"
                 />
                 <p className="text-xs text-slate-500 mt-1">
                   ניתן להזין ערך טקסט פשוט או JSON (לדוגמה: {"{"}"validation_rules_enabled": true{"}"})
@@ -835,7 +835,7 @@ export function SystemConfigurationManager() {
                   value={formData.description}
                   onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                   placeholder="תיאור קצר של ההגדרה"
-                  className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm"
+                  className="w-full px-3 py-2 border border-app-input-border rounded-lg text-sm"
                 />
               </div>
             </div>
@@ -843,7 +843,7 @@ export function SystemConfigurationManager() {
               <button
                 onClick={handleSave}
                 disabled={saving !== null}
-                className="flex items-center gap-2 px-4 py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                className="flex items-center gap-2 px-4 py-2 bg-app-accent text-white rounded-lg hover:bg-app-accent-hover transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {saving !== null ? (
                   <Loader2 className="h-4 w-4 animate-spin" />

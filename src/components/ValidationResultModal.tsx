@@ -150,7 +150,7 @@ export function ValidationResultModal({
             ? (singleResult?.valid ? 'bg-green-50 border-b border-green-200' : singleResult ? 'bg-red-50 border-b border-red-200' : 'bg-blue-50 border-b border-blue-200')
             : actualContext === 'building'
             ? 'bg-blue-50 border-b border-blue-200'
-            : 'bg-purple-50 border-b border-purple-200'
+            : 'bg-[#f0f0f0] border-b border-slate-200'
         }`}>
           <div className="flex items-center gap-2">
             {actualContext === 'single' && !isLoading && singleResult && (
@@ -170,8 +170,8 @@ export function ValidationResultModal({
               </div>
             )}
             {actualContext === 'import' && (
-              <div className="p-2 rounded-full bg-purple-100">
-                <Download className="h-5 w-5 text-purple-600" />
+              <div className="p-2 rounded-full bg-slate-200">
+                <Download className="h-5 w-5 text-app-accent" />
               </div>
             )}
             <h3 className="text-lg font-bold text-slate-900">
@@ -193,7 +193,7 @@ export function ValidationResultModal({
               <Loader2 className={`h-8 w-8 animate-spin mx-auto mb-4 ${
                 actualContext === 'single' ? 'text-blue-600' :
                 actualContext === 'building' ? 'text-blue-600' :
-                'text-purple-600'
+                'text-app-accent'
               }`} />
               <p className="text-slate-600 mb-4">
                 {config.loadingMessage}
@@ -217,7 +217,7 @@ export function ValidationResultModal({
                       className={`h-2.5 rounded-full transition-all duration-300 ${
                         actualContext === 'single' ? 'bg-blue-600' :
                         actualContext === 'building' ? 'bg-blue-600' :
-                        'bg-purple-600'
+                        'bg-app-accent'
                       }`}
                       style={{ width: `${(progress.current / progress.total) * 100}%` }}
                     ></div>
@@ -406,7 +406,7 @@ export function ValidationResultModal({
                 onClick={handleClose}
                 className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors w-full sm:w-auto ${
                   actualContext === 'import'
-                    ? 'text-white bg-purple-600 hover:bg-purple-700'
+                    ? 'text-white bg-app-accent hover:bg-app-accent-hover'
                     : actualContext === 'building'
                     ? 'text-white bg-blue-600 hover:bg-blue-700'
                     : 'text-slate-700 bg-slate-100 hover:bg-slate-200'

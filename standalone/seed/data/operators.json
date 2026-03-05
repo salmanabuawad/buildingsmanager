@@ -1,0 +1,26 @@
+[
+  {
+    "operator_id": 2,
+    "name": "salman",
+    "mail": "salman.abuawad@gmail.com",
+    "phone": "0526500769",
+    "created_at": "2026-02-19T14:59:41.014679+02:00",
+    "updated_at": "2026-02-19T14:59:41.014679+02:00"
+  },
+  {
+    "operator_id": 3,
+    "name": "salman2",
+    "mail": "sabuawad.work@gmail.com",
+    "phone": "0526500769",
+    "created_at": "2026-02-19T15:00:56.352643+02:00",
+    "updated_at": "2026-02-19T15:00:56.352643+02:00"
+  },
+  {
+    "operator_id": 4,
+    "name": "benny",
+    "mail": "salman.abuawad@gmail.com",
+    "phone": null,
+    "created_at": "2026-02-19T21:10:55.894930+02:00",
+    "updated_at": "2026-02-19T21:10:55.894930+02:00"
+  }
+]

@@ -115,7 +115,7 @@ export function Login({ onLoginSuccess }: LoginProps) {
         </div>
 
         <p className="text-center text-sm text-slate-500 mt-6">
-          מערכת ניהול מבנים © {new Date().getFullYear()}
+          מערכת ניהול מבנים © {new Date().getFullYear()} Kortex Digital
         </p>
       </div>
     </div>

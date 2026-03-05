@@ -1,11 +1,31 @@
-import { supabase } from './supabase';
+import { authSessionLogin, authSessionByTaskToken } from './restClient';
 
 const STORAGE_KEY = 'buildingsmanager_users_table_session';
+const FILE_SESSION_COOKIE = 'file_session';
+const FILE_SESSION_MAX_AGE = 60 * 60 * 24; // 24 hours
 
 export interface UsersTableSession {
   user_id: number;
   user_name: string;
-  user_role: 'admin' | 'user';
+  user_role: 'admin' | 'user' | 'inspector';
+  access_token?: string;
+}
+
+/** Set file_session cookie so backend file endpoints (view-url, download, etc.) accept auth via cookie. */
+export function setFileSessionCookie(session: UsersTableSession): void {
+  if (typeof document === 'undefined') return;
+  const payload = JSON.stringify({
+    user_id: session.user_id,
+    user_name: session.user_name,
+    user_role: session.user_role,
+  });
+  const value = btoa(unescape(encodeURIComponent(payload)));
+  document.cookie = `${FILE_SESSION_COOKIE}=${value}; path=/; max-age=${FILE_SESSION_MAX_AGE}; SameSite=Lax`;
+}
+
+export function clearFileSessionCookie(): void {
+  if (typeof document === 'undefined') return;
+  document.cookie = `${FILE_SESSION_COOKIE}=; path=/; max-age=0`;
 }
 
 export function getSession(): UsersTableSession | null {
@@ -22,16 +42,24 @@ export function getSession(): UsersTableSession | null {
 
 export function setSession(session: UsersTableSession): void {
   sessionStorage.setItem(STORAGE_KEY, JSON.stringify(session));
+  setFileSessionCookie(session);
 }
 
 export function clearSession(): void {
   sessionStorage.removeItem(STORAGE_KEY);
+  clearFileSessionCookie();
 }
 
-/** Pass to RPCs as p_user_id (auth_user_id). Users-table users use uid:user_id. */
-export function getAuthUserIdForRpc(): string | null {
+/** Pass to backend REST payloads as p_user_id (auth_user_id). Users-table users use uid:user_id. */
+export function getAuthUserIdForBackend(): string | null {
   const s = getSession();
   return s ? `uid:${s.user_id}` : null;
+}
+
+/** Access token for Bearer auth on API requests. */
+export function getAccessToken(): string | null {
+  const s = getSession();
+  return s?.access_token ?? null;
 }
 
 function authLoginErrorToHebrew(msg: string): string {
@@ -52,26 +80,23 @@ export async function loginUsersTable(
   password: string
 ): Promise<{ success: true; session: UsersTableSession } | { success: false; error: string }> {
   try {
-    const { data, error } = await supabase.rpc('auth_login', {
-      p_user_name: user_name.trim(),
-      p_password: password,
-    });
+    const { data, error } = await authSessionLogin(user_name.trim(), password);
 
     if (error) {
-      const msg = error.message || 'שגיאה בהתחברות';
-      return { success: false, error: authLoginErrorToHebrew(msg) };
+      return { success: false, error: authLoginErrorToHebrew(error.message) };
     }
 
-    const d = data as { user_id: number; user_name: string; user_role: string } | null;
+    const d = data;
     if (!d?.user_id || !d?.user_name) {
       return { success: false, error: 'שגיאה בהתחברות.' };
     }
 
-    const role = (d.user_role === 'admin' ? 'admin' : 'user') as 'admin' | 'user';
+    const role = (d.user_role === 'admin' ? 'admin' : d.user_role === 'inspector' ? 'inspector' : 'user') as 'admin' | 'user' | 'inspector';
     const session: UsersTableSession = {
       user_id: d.user_id,
       user_name: d.user_name,
       user_role: role,
+      access_token: d.access_token,
     };
     setSession(session);
     return { success: true, session };
@@ -82,7 +107,7 @@ export async function loginUsersTable(
         success: false,
         error:
           'לא ניתן להגיע לשרת.\n' +
-          'בדוק חיבור לאינטרנט, וודא שכתובת Supabase והמפתח בסביבת הבנייה נכונים (וכן שהפרויקט לא מושהה).',
+          'בדוק חיבור לאינטרנט וודא שהשרת (Backend) פועל וכתובת ה-API נכונה.',
       };
     }
     return { success: false, error: authLoginErrorToHebrew(msg) || 'שגיאה בהתחברות.' };
@@ -91,4 +116,35 @@ export async function loginUsersTable(
 
 export function logoutUsersTable(): void {
   clearSession();
+}
+
+/** Login using one-time task access token (from email deep link). No password required. */
+export async function loginByTaskToken(
+  token: string
+): Promise<{ success: true; session: UsersTableSession; taskId: number } | { success: false; error: string }> {
+  try {
+    const { data, error } = await authSessionByTaskToken(token.trim());
+
+    if (error) {
+      return { success: false, error: error.message || 'טוקן לא תקף או שפג תוקפו' };
+    }
+
+    const d = data;
+    if (!d?.user_id || !d?.user_name || d.task_id == null) {
+      return { success: false, error: 'טוקן לא תקף או שפג תוקפו.' };
+    }
+
+    const role = (d.user_role === 'admin' ? 'admin' : d.user_role === 'inspector' ? 'inspector' : 'user') as 'admin' | 'user' | 'inspector';
+    const session: UsersTableSession = {
+      user_id: d.user_id,
+      user_name: d.user_name,
+      user_role: role,
+      access_token: d.access_token,
+    };
+    setSession(session);
+    return { success: true, session, taskId: d.task_id };
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
+    return { success: false, error: msg || 'שגיאה בהתחברות עם הטוקן.' };
+  }
 }

@@ -7,8 +7,13 @@
 
 import { api } from './api';
 
+/** Validation mode: off = no validation; before_save = validate only on save; online = validate as user types/blur */
+export type ValidationMode = 'off' | 'before_save' | 'online';
+
 export interface UIConfig {
   validation_rules_enabled: boolean;
+  /** When to run validation. Default: before_save */
+  validation_mode?: ValidationMode;
 }
 
 export interface EmailConfig {
@@ -56,7 +61,7 @@ class SystemConfigService {
       return config;
     } catch (error) {
       console.error('Error loading UI config:', error);
-      return { validation_rules_enabled: false };
+      return { validation_rules_enabled: false, validation_mode: 'before_save' };
     }
   }
 
@@ -159,11 +164,19 @@ class SystemConfigService {
   }
 
   /**
-   * Check if validation rules are enabled
+   * Check if validation rules are enabled (validation_mode !== 'off')
    */
   async isValidationRulesEnabled(): Promise<boolean> {
     const uiConfig = await this.getUIConfig();
     return uiConfig.validation_rules_enabled;
+  }
+
+  /**
+   * Get validation mode: off | before_save | online
+   */
+  async getValidationMode(): Promise<ValidationMode> {
+    const uiConfig = await this.getUIConfig();
+    return uiConfig.validation_mode ?? 'before_save';
   }
 
   /**

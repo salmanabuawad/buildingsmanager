@@ -32,7 +32,7 @@ Use this checklist to track your deployment progress.
 - [ ] Backend environment variables set
   - [ ] DATABASE_URL
   - [ ] SECRET_KEY
-  - [ ] AZURE_STORAGE_CONNECTION_STRING
+  - [ ] STORAGE_PATH and STORAGE_MAIN_FOLDER (optionally STORAGE_USER/STORAGE_PASSWORD for remote)
   - [ ] ALLOWED_ORIGINS
 - [ ] Frontend environment configured
   - [ ] VITE_API_URL

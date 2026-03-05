@@ -2,20 +2,21 @@ import React, { useEffect, useState, useMemo, useCallback, useRef, useImperative
 import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
 import { Building, AddressList, api } from '../lib/api';
-import { supabase } from '../lib/supabase';
-import { buildingValidators, getAssetTypes } from '../lib/validation';
+import { buildingValidators, getAssetTypes, setLatestExportDate } from '../lib/validation';
 import { AgGridReact } from 'ag-grid-react';
 import { ColDef, ICellEditorParams } from 'ag-grid-community';
 import { Search, AlertCircle, Plus, Loader2, Save, X, Trash2, CheckCircle2, Download, Building2 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { useGridPreferences } from '../lib/useGridPreferences';
 import { useFieldConfig } from '../lib/useFieldConfig';
+import { useFieldConfigVersion } from '../contexts/FieldConfigContext';
 import { processColumnHeader } from '../lib/gridHeaderUtils';
 import { useFillHandle } from '../lib/useFillHandle';
 import { exportToExcel, createExcelBlob } from '../lib/excelExport';
 import { createAndDownloadZip } from '../lib/zipExport';
 import { formatDateToDDMMYYYY } from '../lib/dateUtils';
 import { useUserRole } from '../contexts/UserRoleContext';
+import { useUIConfig } from '../contexts/UIConfigContext';
 import { Toast } from './Toast';
 
 // Validation tooltip icon component that uses fixed positioning to avoid overflow clipping
@@ -485,7 +486,8 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
 }, ref) => {
   const { t } = useTranslation();
   const { isReadOnly } = useUserRole();
-  
+  const { shouldValidateBeforeSave, shouldValidateOnBlur } = useUIConfig();
+
   // State management
   const [buildings, setBuildings] = useState<Building[]>([]);
   const [filteredBuildings, setFilteredBuildings] = useState<Building[]>([]);
@@ -876,6 +878,87 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
       return { valid: true, removedTaxRegions: [], assetCount: 0 };
     }
   }, []);
+
+  // Validate all buildings with changes
+  // Helper function to run validation programmatically (without UI feedback)
+  const runValidationProgrammatically = useCallback(async (): Promise<{ hasErrors: boolean; errorMessage?: string }> => {
+    try {
+      const newValidationErrors = new Map<string | number, Record<string, string>>();
+      const buildingsToValidate: Array<{ building: Building; key: string | number }> = [];
+      
+      // Collect only buildings with dirty changes (or new buildings)
+      for (const building of buildings) {
+        const buildingKey = getBuildingKey(building);
+        
+        // Only validate buildings with changes (or new buildings), except those marked for deletion
+        if (!buildingsToDelete.has(buildingKey) && (dirtyBuildings.has(buildingKey) || newBuildings.has(buildingKey))) {
+          buildingsToValidate.push({ building, key: buildingKey });
+        }
+      }
+      
+      if (buildingsToValidate.length === 0) {
+        return { hasErrors: false };
+      }
+      
+      // Validate each building
+      for (const { building, key } of buildingsToValidate) {
+        const dirtyChanges = dirtyBuildings.get(key) || {};
+        const updatedBuilding = { ...building, ...dirtyChanges };
+        const validation = await buildingValidators.validateAllFields(updatedBuilding);
+        
+        if (!validation.valid) {
+          newValidationErrors.set(key, validation.errors);
+        }
+      }
+
+      // Check invalid tax regions
+      const newInvalidTaxRegions = new Set<number>();
+      for (const { building, key } of buildingsToValidate) {
+        if (buildingsToDelete.has(key)) continue;
+        const dirtyChanges = dirtyBuildings.get(key) || {};
+        const updatedBuilding = { ...building, ...dirtyChanges };
+        if (updatedBuilding.tax_region) {
+          try {
+            const isInvalid = await buildingValidators.checkTaxRegionInvalid(updatedBuilding.tax_region);
+            if (isInvalid && updatedBuilding.building_number && updatedBuilding.building_number > 0) {
+              newInvalidTaxRegions.add(updatedBuilding.building_number);
+            }
+          } catch {
+            // ignore
+          }
+        }
+      }
+
+      // Update validation errors state
+      setValidationErrors(newValidationErrors);
+      setInvalidTaxRegions(newInvalidTaxRegions);
+
+      if (newValidationErrors.size > 0 || newInvalidTaxRegions.size > 0) {
+        const errorMessages: string[] = [];
+        for (const [buildingKey, errors] of newValidationErrors.entries()) {
+          const building = findBuildingByKey(buildingKey);
+          const buildingIdent = building?.building_number || buildingKey;
+          const fieldErrors = Object.entries(errors).map(([field, msg]) => `${field}: ${msg}`).join(', ');
+          errorMessages.push(`מבנה ${buildingIdent}: ${fieldErrors}`);
+        }
+        if (newInvalidTaxRegions.size > 0) {
+          errorMessages.push(`${newInvalidTaxRegions.size} מבנים עם אזור מיסים לא תקין`);
+        }
+        return {
+          hasErrors: true,
+          errorMessage: `נמצאו שגיאות אימות ב-${newValidationErrors.size} מבנים:\n${errorMessages.slice(0, 5).join('\n')}${errorMessages.length > 5 ? `\n...ועוד ${errorMessages.length - 5} מבנים` : ''}`
+        };
+      }
+
+      return { hasErrors: false };
+    } catch (err) {
+      console.error('Error running validation:', err);
+      return {
+        hasErrors: true,
+        errorMessage: `שגיאה בבדיקת תקינות: ${err instanceof Error ? err.message : 'שגיאה לא ידועה'}`
+      };
+    }
+  }, [buildings, dirtyBuildings, buildingsToDelete, newBuildings, getBuildingKey, findBuildingByKey]);
 
   // Handle cell value changes
   const onCellValueChanged = useCallback(async (event: any) => {
@@ -1406,8 +1489,10 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
       }
     }
 
-    // No online validation on edit: user must click "אמת הכל".
-    // We still refresh the grid after updating dirty state below.
+    // When "מתי להריץ אימות" is "אונליין", run validation after each cell edit (on blur)
+    if (shouldValidateOnBlur) {
+      runValidationProgrammatically().catch(() => {});
+    }
 
     // Refresh grid to show dirty state and validation errors
     if (gridRef.current?.api) {
@@ -1432,7 +1517,7 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
         }, 0);
       }
     }
-  }, [newBuildings, isNewBuilding, getBuildingKey, dirtyBuildings, validationErrors, validateTaxRegionRemoval, originalBuildings, buildings, setBuildings, setFilteredBuildings, setDirtyBuildings]);
+  }, [newBuildings, isNewBuilding, getBuildingKey, dirtyBuildings, validationErrors, validateTaxRegionRemoval, originalBuildings, buildings, setBuildings, setFilteredBuildings, setDirtyBuildings, shouldValidateOnBlur, runValidationProgrammatically]);
 
   // Ensure clearing a numeric cell (e.g. shared areas) always triggers dirty when edit stops.
   const onCellEditingStopped = useCallback((event: any) => {
@@ -1621,87 +1706,6 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
       }
     }, 100);
   };
-
-  // Validate all buildings with changes
-  // Helper function to run validation programmatically (without UI feedback)
-  const runValidationProgrammatically = useCallback(async (): Promise<{ hasErrors: boolean; errorMessage?: string }> => {
-    try {
-      const newValidationErrors = new Map<string | number, Record<string, string>>();
-      const buildingsToValidate: Array<{ building: Building; key: string | number }> = [];
-      
-      // Collect only buildings with dirty changes (or new buildings)
-      for (const building of buildings) {
-        const buildingKey = getBuildingKey(building);
-        
-        // Only validate buildings with changes (or new buildings), except those marked for deletion
-        if (!buildingsToDelete.has(buildingKey) && (dirtyBuildings.has(buildingKey) || newBuildings.has(buildingKey))) {
-          buildingsToValidate.push({ building, key: buildingKey });
-        }
-      }
-      
-      if (buildingsToValidate.length === 0) {
-        return { hasErrors: false };
-      }
-      
-      // Validate each building
-      for (const { building, key } of buildingsToValidate) {
-        const dirtyChanges = dirtyBuildings.get(key) || {};
-        const updatedBuilding = { ...building, ...dirtyChanges };
-        const validation = await buildingValidators.validateAllFields(updatedBuilding);
-        
-        if (!validation.valid) {
-          newValidationErrors.set(key, validation.errors);
-        }
-      }
-
-      // Check invalid tax regions
-      const newInvalidTaxRegions = new Set<number>();
-      for (const { building, key } of buildingsToValidate) {
-        if (buildingsToDelete.has(key)) continue;
-        const dirtyChanges = dirtyBuildings.get(key) || {};
-        const updatedBuilding = { ...building, ...dirtyChanges };
-        if (updatedBuilding.tax_region) {
-          try {
-            const isInvalid = await buildingValidators.checkTaxRegionInvalid(updatedBuilding.tax_region);
-            if (isInvalid && updatedBuilding.building_number && updatedBuilding.building_number > 0) {
-              newInvalidTaxRegions.add(updatedBuilding.building_number);
-            }
-          } catch {
-            // ignore
-          }
-        }
-      }
-
-      // Update validation errors state
-      setValidationErrors(newValidationErrors);
-      setInvalidTaxRegions(newInvalidTaxRegions);
-
-      if (newValidationErrors.size > 0 || newInvalidTaxRegions.size > 0) {
-        const errorMessages: string[] = [];
-        for (const [buildingKey, errors] of newValidationErrors.entries()) {
-          const building = findBuildingByKey(buildingKey);
-          const buildingIdent = building?.building_number || buildingKey;
-          const fieldErrors = Object.entries(errors).map(([field, msg]) => `${field}: ${msg}`).join(', ');
-          errorMessages.push(`מבנה ${buildingIdent}: ${fieldErrors}`);
-        }
-        if (newInvalidTaxRegions.size > 0) {
-          errorMessages.push(`${newInvalidTaxRegions.size} מבנים עם אזור מיסים לא תקין`);
-        }
-        return {
-          hasErrors: true,
-          errorMessage: `נמצאו שגיאות אימות ב-${newValidationErrors.size} מבנים:\n${errorMessages.slice(0, 5).join('\n')}${errorMessages.length > 5 ? `\n...ועוד ${errorMessages.length - 5} מבנים` : ''}`
-        };
-      }
-
-      return { hasErrors: false };
-    } catch (err) {
-      console.error('Error running validation:', err);
-      return {
-        hasErrors: true,
-        errorMessage: `שגיאה בבדיקת תקינות: ${err instanceof Error ? err.message : 'שגיאה לא ידועה'}`
-      };
-    }
-  }, [buildings, dirtyBuildings, buildingsToDelete, newBuildings, getBuildingKey, findBuildingByKey]);
 
   // Refresh grid when validation errors change to ensure visual updates
   // Skip refresh during save operations - handleSaveAll handles refresh manually
@@ -1912,10 +1916,10 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
         building.area_for_control != null && building.area_for_control !== 0 ? building.area_for_control : '',
         building.shared_parking_area != null && building.shared_parking_area !== 0 ? building.shared_parking_area : '',
         building.number_of_parking_units != null && building.number_of_parking_units !== 0 ? building.number_of_parking_units : '',
-        building.elevator === 'כן' || building.elevator === true ? 'כן' : '',
-        building.single_double_family === 'כן' || building.single_double_family === true ? 'כן' : '',
-        building.condo === 'כן' || building.condo === true ? 'כן' : '',
-        building.townhouses === 'כן' || building.townhouses === true ? 'כן' : '',
+        building.elevator === true ? 'כן' : '',
+        building.single_double_family === true ? 'כן' : '',
+        building.condo === true ? 'כן' : '',
+        building.townhouses === true ? 'כן' : '',
         getAddressDescription(building.address),
         building.gosh != null ? building.gosh : '',
         building.helka != null ? building.helka : '',
@@ -1977,19 +1981,9 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
     document.body.style.cursor = 'wait';
 
     try {
-      // Call API to export assets and mark them as exported
-      const result = await api.assets.exportToAutomation();
-
-      if (!result.success) {
-        setToast({ message: result.error || 'שגיאה בשליחת נכסים לעירייה', type: 'error' });
-        setTimeout(() => setToast(null), 5000);
-        setExporting(false);
-        setExportProgressMessage('');
-        document.body.style.cursor = '';
-        return;
-      }
-
-      if (result.count === 0) {
+      // Get measured-not-exported assets; do not mark as exported until after successful send
+      const assetsToExport = await api.assets.getMeasuredNotExported();
+      if (!assetsToExport || assetsToExport.length === 0) {
         setToast({ message: 'אין נכסים לשליחה - כל הנכסים כבר נשלחו לעירייה', type: 'info' });
         setTimeout(() => setToast(null), 5000);
         setExporting(false);
@@ -1999,18 +1993,12 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
         return;
       }
 
-      // Fetch the exported assets to export them to Excel
-      // Use RPC function to avoid type mismatch issues with .in() operator
-      // Ensure assetIds are numbers (not strings) for the RPC call
-      const numericAssetIdsForQuery = result.assetIds
-        .map(id => {
-          if (typeof id === 'string') {
-            const parsed = parseInt(id, 10);
-            return isNaN(parsed) ? null : parsed;
-          }
-          return typeof id === 'number' ? id : Number(id);
+      const numericAssetIdsForQuery = assetsToExport
+        .map((asset: any) => {
+          const id = typeof asset.asset_id === 'string' ? parseInt(asset.asset_id, 10) : Number(asset.asset_id);
+          return !isNaN(id) && id > 0 ? id : null;
         })
-        .filter((id): id is number => id !== null && !isNaN(id) && id > 0);
+        .filter((id: number | null): id is number => id !== null);
 
       if (numericAssetIdsForQuery.length === 0) {
         setToast({ message: 'לא נמצאו נכסים לייצוא', type: 'error' });
@@ -2027,7 +2015,7 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
         exportedAssets = await api.assets.getAssetsByIdsBatched(numericAssetIdsForQuery);
       } catch (fetchError: any) {
         console.error('Error fetching exported assets:', fetchError);
-        setToast({ message: 'הנכסים סומנו כייצאו אך לא ניתן היה לייצא אותם לקובץ Excel', type: 'error' });
+        setToast({ message: 'לא ניתן היה לייצא את הנכסים לקובץ Excel', type: 'error' });
         setTimeout(() => setToast(null), 5000);
         setExporting(false);
         setExportProgressMessage('');
@@ -2036,7 +2024,7 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
       }
 
       if (!exportedAssets || exportedAssets.length === 0) {
-        setToast({ message: `סומנו ${result.count} נכסים כייצאו בהצלחה`, type: 'success' });
+        setToast({ message: 'לא נמצאו נכסים לייצוא', type: 'info' });
         setTimeout(() => setToast(null), 5000);
         setExporting(false);
         setExportProgressMessage('');
@@ -2128,8 +2116,7 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
       });
 
       // Get all files for exported assets
-      // Ensure assetIds are numbers (not strings)
-      const numericAssetIdsForFiles = result.assetIds.map(id => typeof id === 'string' ? parseInt(id, 10) : id).filter(id => !isNaN(id));
+      const numericAssetIdsForFiles = numericAssetIdsForQuery;
       const filesByAsset = await api.assets.files.getAllBulk(numericAssetIdsForFiles);
       
       // Create a map of asset_id to asset data for lookup
@@ -2288,7 +2275,7 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
               }
               
               // Download file from storage
-              const { data: fileData, error: downloadError } = await supabase.storage
+              const { data: fileData, error: downloadError } = await api.storage
                 .from('structure-drawings')
                 .download(filePath);
               
@@ -2297,11 +2284,10 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
                 if (downloadError?.message?.includes('Bucket not found') || downloadError?.statusCode === '404') {
                   console.error(
                     'Storage bucket "structure-drawings" not found. ' +
-                    'Please create the bucket in Supabase Dashboard: Storage → New bucket → Name: "structure-drawings". ' +
-                    'See CREATE_STORAGE_BUCKETS.md for detailed instructions.'
+                    'Storage bucket "structure-drawings" not found. Configure backend file storage.'
                   );
                   // Show error to user
-                  setToast({ message: 'Storage bucket "structure-drawings" not found. Please create it in Supabase Dashboard. See CREATE_STORAGE_BUCKETS.md for instructions.', type: 'error' });
+                  setToast({ message: 'Storage bucket "structure-drawings" not found. Configure backend file storage.', type: 'error' });
                   setTimeout(() => setToast(null), 10000);
                   continue;
                 }
@@ -2381,14 +2367,14 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
         ]);
         const opData = [headers, ...opRows];
         const opExcelBlob = createExcelBlob({
-          filename: `נכסים_מפעיל_${operatorId}_${dateStr}.xlsx`,
+          filename: `נכסים_מפעיל_${operatorId}_${dateStr}_${operatorAssets.length}נכסים.xlsx`,
           sheetName: 'נכסים',
           data: opData,
           columnWidths: [{ wch: 15 }, { wch: 15 }, { wch: 20 }, { wch: 20 }, { wch: 12 }, { wch: 12 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 10 }, { wch: 12 }, { wch: 12 }, { wch: 12 }, { wch: 15 }, { wch: 15 }]
         });
         const subj = templateOp ? applyTpl(templateOp.subject, operator.name, operatorAssets.length) : `שליחת נתונים - ${dateStrHe}`;
         const body = templateOp ? applyTpl(templateOp.body, operator.name, operatorAssets.length) : `שלום ${operator.name},\n\nמצורף קובץ הנתונים.\nתאריך: ${dateStrHe}\n\nבברכה,\nמערכת ניהול נכסים`;
-        sendItems.push({ to: operator.email, recipientName: operator.name, subject: subj, body, attachmentFilename: `נכסים_מפעיל_${operator.name}_${dateStr}.xlsx`, attachmentBlob: opExcelBlob });
+        sendItems.push({ to: operator.email, recipientName: operator.name, subject: subj, body, attachmentFilename: `נכסים_מפעיל_${operator.name}_${dateStr}_${operatorAssets.length}נכסים.xlsx`, attachmentBlob: opExcelBlob });
       }
       if (sendItems.length === 0) {
         const fullRows = exportedAssets.map((asset: any) => [
@@ -2401,7 +2387,7 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
           '', '', '', '', '', ''
         ]);
         const fullExcelBlob = createExcelBlob({
-          filename: `נכסים_שליחה_${dateStr}.xlsx`,
+          filename: `נכסים_שליחה_${dateStr}_${exportedAssets.length}נכסים.xlsx`,
           sheetName: 'נכסים',
           data: [headers, ...fullRows],
           columnWidths: [{ wch: 15 }, { wch: 15 }, { wch: 20 }, { wch: 20 }, { wch: 12 }, { wch: 12 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 10 }, { wch: 12 }, { wch: 12 }, { wch: 12 }, { wch: 15 }, { wch: 15 }]
@@ -2410,7 +2396,7 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
           if (!operator?.email || !operator.email.includes('@')) continue;
           const subj = templateOp ? applyTpl(templateOp.subject, operator.name, exportedAssets.length) : `שליחת נתונים - ${dateStrHe}`;
           const body = templateOp ? applyTpl(templateOp.body, operator.name, exportedAssets.length) : `שלום ${operator.name},\n\nמצורף קובץ הנתונים.\nתאריך: ${dateStrHe}\n\nבברכה,\nמערכת ניהול נכסים`;
-          sendItems.push({ to: operator.email, recipientName: operator.name, subject: subj, body, attachmentFilename: `נכסים_שליחה_${dateStr}.xlsx`, attachmentBlob: fullExcelBlob });
+          sendItems.push({ to: operator.email, recipientName: operator.name, subject: subj, body, attachmentFilename: `נכסים_שליחה_${dateStr}_${exportedAssets.length}נכסים.xlsx`, attachmentBlob: fullExcelBlob });
         }
       }
       const managersList = await api.managers.getAll();
@@ -2434,14 +2420,14 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
         ]);
         const mgrData = [headers, ...mgrRows];
         const mgrExcelBlob = createExcelBlob({
-          filename: `נכסים_מנהל_${manager.id}_${dateStr}.xlsx`,
+          filename: `נכסים_מנהל_${manager.id}_${dateStr}_${managerAssets.length}נכסים.xlsx`,
           sheetName: 'נכסים',
           data: mgrData,
           columnWidths: [{ wch: 15 }, { wch: 15 }, { wch: 20 }, { wch: 20 }, { wch: 12 }, { wch: 12 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 10 }, { wch: 12 }, { wch: 12 }, { wch: 12 }, { wch: 15 }, { wch: 15 }]
         });
         const subj = templateMgr ? applyTpl(templateMgr.subject, manager.name, managerAssets.length) : `שליחת נתונים - ${dateStrHe}`;
         const body = templateMgr ? applyTpl(templateMgr.body, manager.name, managerAssets.length) : `שלום ${manager.name},\n\nמצורף קובץ הנתונים.\nתאריך: ${dateStrHe}\n\nבברכה,\nמערכת ניהול נכסים`;
-        sendItems.push({ to: manager.email, recipientName: manager.name, subject: subj, body, attachmentFilename: `נכסים_מנהל_${manager.name}_${dateStr}.xlsx`, attachmentBlob: mgrExcelBlob });
+        sendItems.push({ to: manager.email, recipientName: manager.name, subject: subj, body, attachmentFilename: `נכסים_מנהל_${manager.name}_${dateStr}_${managerAssets.length}נכסים.xlsx`, attachmentBlob: mgrExcelBlob });
       }
       let sentCount = 0;
       if (sendItems.length > 0) {
@@ -2465,13 +2451,22 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
       const { createAndDownloadZip } = await import('../lib/zipExport');
       await createAndDownloadZip(zipFilename, zipFiles);
 
-      let successMessage = `נשלחו ${result.count} נכסים לעירייה בהצלחה. הקובץ הורד.`;
+      // Mark as exported only after successful send so the count updates correctly
+      try {
+        await api.assets.markExportedByIds(numericAssetIdsForQuery);
+        const d = new Date();
+        setLatestExportDate(
+          `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`
+        );
+      } catch (markErr: any) {
+        console.error('[BuildingsList] Error marking assets as exported after send:', markErr);
+      }
+
+      let successMessage = `נשלחו ${numericAssetIdsForQuery.length} נכסים לעירייה בהצלחה. הקובץ הורד.`;
       if (sentCount > 0) successMessage += ` ${sentCount} מיילים נשלחו למפעילים ולמנהלים.`;
       setToast({ message: successMessage, type: 'success' });
       setTimeout(() => setToast(null), 8000);
-      // Refresh the count after export
       await fetchExportToAutomationCount();
-      // Notify App to update "איפוס שליחת נתונים מתאריך" span (cache was set by api.assets.exportToAutomation)
       window.dispatchEvent(new CustomEvent('exportToAutomationSuccess'));
     } catch (error: any) {
       console.error('Error exporting to automation:', error);
@@ -2494,49 +2489,40 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
     setToast(null);
     
     try {
-      // Run validation before saving - MUST pass before proceeding to server
-      const validationResult = await runValidationProgrammatically();
-      if (validationResult.hasErrors) {
-        // Stop save operation - don't submit to server
-        setIsSaving(false);
-        
-        // Show toast error message
-        setToast({ 
-          message: validationResult.errorMessage || 'נמצאו שגיאות אימות. אנא תקן לפני השמירה.', 
-          type: 'error' 
-        });
-        setTimeout(() => setToast(null), 8000);
-        
-        // Force immediate grid refresh to show validation errors
-        // The validationErrors state is set inside runValidationProgrammatically
-        // Use requestAnimationFrame to ensure React has processed the state update
-        requestAnimationFrame(() => {
-          setTimeout(() => {
-            if (gridRef.current?.api) {
-              // Force full grid refresh to show validation errors on rows
-              gridRef.current.api.refreshCells({ force: true });
-              gridRef.current.api.redrawRows();
-              
-              // Scroll to first error row if possible
-              setTimeout(() => {
-                if (gridRef.current?.api && validationErrors.size > 0) {
-                  const firstErrorBuildingKey = Array.from(validationErrors.keys())[0];
-                  gridRef.current.api.forEachNode(node => {
-                    const building = node.data as Building;
-                    if (!building) return;
-                    const buildingKey = getBuildingKey(building);
-                    if (buildingKey === firstErrorBuildingKey || String(buildingKey) === String(firstErrorBuildingKey)) {
-                      node.setSelected(true);
-                      gridRef.current.api.ensureNodeVisible(node, 'top');
-                    }
-                  });
-                }
-              }, 200);
-            }
-          }, 200); // Give React time to update state
-        });
-        
-        return; // Stop here - don't proceed to save
+      // מתי להריץ אימות: when validation_mode is 'off', skip validation before save
+      if (shouldValidateBeforeSave) {
+        const validationResult = await runValidationProgrammatically();
+        if (validationResult.hasErrors) {
+          setIsSaving(false);
+          setToast({
+            message: validationResult.errorMessage || 'נמצאו שגיאות אימות. אנא תקן לפני השמירה.',
+            type: 'error',
+          });
+          setTimeout(() => setToast(null), 8000);
+          requestAnimationFrame(() => {
+            setTimeout(() => {
+              if (gridRef.current?.api) {
+                gridRef.current.api.refreshCells({ force: true });
+                gridRef.current.api.redrawRows();
+                setTimeout(() => {
+                  if (gridRef.current?.api && validationErrors.size > 0) {
+                    const firstErrorBuildingKey = Array.from(validationErrors.keys())[0];
+                    gridRef.current.api.forEachNode(node => {
+                      const building = node.data as Building;
+                      if (!building) return;
+                      const buildingKey = getBuildingKey(building);
+                      if (buildingKey === firstErrorBuildingKey || String(buildingKey) === String(firstErrorBuildingKey)) {
+                        node.setSelected(true);
+                        gridRef.current.api.ensureNodeVisible(node, 'top');
+                      }
+                    });
+                  }
+                }, 200);
+              }
+            }, 200);
+          });
+          return;
+        }
       }
       let savedCount = 0;
       let deletedCount = 0;
@@ -2554,8 +2540,8 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
           }
           // Only delete if it's a number (existing building)
           if (typeof buildingKey === 'number') {
+            // deleteAssetsByBuilding deletes assets (transactional) and the building
             await api.deleteAssetsByBuilding(buildingKey);
-            await api.deleteBuilding(buildingKey);
             deletedCount++;
             successfullyDeleted.add(buildingKey);
           }
@@ -3326,7 +3312,7 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px', height: '100%' }}>
             <input
               type="checkbox"
-              checked={params.value === true || params.value === 'כן'}
+              checked={params.value === true}
               disabled={markedForDeletion}
               onChange={(e) => {
                 const newValue = e.target.checked ? true : false;
@@ -3361,7 +3347,7 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
         if (!building) return null;
         const buildingKey = getBuildingKey(building);
         const markedForDeletion = buildingsToDelete.has(buildingKey);
-        const isChecked = params.value === true || params.value === 'כן';
+        const isChecked = params.value === true;
         return (
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%' }}>
             <input
@@ -3393,7 +3379,7 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
         if (!building) return null;
         const buildingKey = getBuildingKey(building);
         const markedForDeletion = buildingsToDelete.has(buildingKey);
-        const isChecked = params.value === true || params.value === 'כן';
+        const isChecked = params.value === true;
         return (
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%' }}>
             <input
@@ -3425,7 +3411,7 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
         if (!building) return null;
         const buildingKey = getBuildingKey(building);
         const markedForDeletion = buildingsToDelete.has(buildingKey);
-        const isChecked = params.value === 'כן' || params.value === true;
+        const isChecked = params.value === true;
         return (
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%' }}>
             <input
@@ -3433,7 +3419,7 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
               checked={isChecked}
               disabled={markedForDeletion}
               onChange={(e) => {
-                const newValue = e.target.checked ? 'כן' : null;
+                const newValue = e.target.checked;
                 params.node.setDataValue('townhouses', newValue);
                 handleCheckboxChange(building, 'townhouses', newValue);
               }}
@@ -3633,8 +3619,9 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
     });
   }, [onSelectBuilding, handleDeleteBuilding, buildingsToDelete, t, invalidTaxRegions, validationErrors, dirtyBuildings, newBuildings, isNewBuilding, getBuildingKey, handleCheckboxChange, addressList, hasBuildingBusiness, isReadOnly]);
 
-  // Apply field configurations to column definitions
-  const configuredColumnDefs = useFieldConfig(columnDefs, 'buildings-list');
+  // Apply field configurations to column definitions (ref_only pattern: rely on columnDefs prop only)
+  const configVersion = useFieldConfigVersion();
+  const [configuredColumnDefs, fieldConfigLoading] = useFieldConfig(columnDefs, 'buildings-list');
 
   // Handle create building modal
   const handleCreateBuilding = async () => {
@@ -3784,11 +3771,17 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
         </div>
 
         <div className="bg-white rounded-xl shadow-lg hover:shadow-xl transition-shadow duration-200 overflow-hidden border-2 border-blue-400 w-full">
+          {fieldConfigLoading ? (
+            <div className="flex items-center justify-center" style={{ height: 'calc(100vh - 400px)', minHeight: '300px' }}>
+              <Loader2 className="h-8 w-8 animate-spin text-teal-600" />
+            </div>
+          ) : (
           <div className="ag-theme-alpine buildings-list-grid" style={{ height: 'calc(100vh - 400px)', minHeight: '300px', width: '100%', minWidth: '100%', overflowX: 'auto' }}>
             <AgGridReact
+              key={`buildings-grid-${configVersion}`}
               ref={gridRef}
               rowData={sortedBuildings}
-                columnDefs={configuredColumnDefs}
+              columnDefs={configuredColumnDefs}
                 defaultColDef={{
                   resizable: false, // Disabled - use field configurations instead
                 wrapHeaderText: true,
@@ -3810,37 +3803,27 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
               onCellEditingStopped={onCellEditingStopped}
               onCellEditingStarted={onCellEditingStarted}
               onGridReady={async (params) => {
-                // Load saved column state first
                 await gridPreferences.loadColumnState(params.api);
+                // ref_only pattern: only pin actions column, columnDefs prop drives width/order/headerName
                 setTimeout(() => {
                   const columnState = params.api.getColumnState();
                   const actionsCol = columnState.find((col: any) => col.colId === 'actions');
                   if (actionsCol) {
-                    // Preserve the order of all columns, just update actions column properties
-                    const updatedState = columnState.map((col: any) => {
-                      if (col.colId === 'actions') {
-                        return {
-                          ...col,
-                          pinned: 'right',
-                          lockPosition: true,
-                          lockPinned: true
-                        };
-                      }
-                      return col;
-                    });
+                    const updatedState = columnState.map((col: any) => ({
+                      ...col,
+                      pinned: col.colId === 'actions' ? 'right' : col.pinned,
+                      lockPosition: col.colId === 'actions',
+                      lockPinned: col.colId === 'actions',
+                    }));
                     params.api.applyColumnState({
                       state: updatedState,
-                      applyOrder: true, // Preserve column order
+                      applyOrder: true,
                       defaultState: { pinned: null }
                     });
                   }
-                }, 150);
-                setTimeout(() => {
                   const gridElement = document.querySelector('.ag-body-horizontal-scroll-viewport');
-                  if (gridElement) {
-                    gridElement.scrollLeft = 0;
-                  }
-                }, 200);
+                  if (gridElement) gridElement.scrollLeft = 0;
+                }, 150);
               }}
               onFirstDataRendered={async (params) => {
                 setTimeout(() => {
@@ -3934,6 +3917,7 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
               stopEditingWhenCellsLoseFocus={true}
             />
           </div>
+          )}
         </div>
       </div>
 

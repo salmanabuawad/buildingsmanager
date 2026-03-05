@@ -1,0 +1,33 @@
+COPYRIGHT AND RESTRICTIONS ON USE
+=================================
+
+Copyright (c) 2025 Kortex Digital. All rights reserved.
+
+This software and source code are proprietary to Kortex Digital.
+Contact: info@kortexd.com
+
+RESTRICTIONS – REVERSE ENGINEERING AND AI TOOLS
+-----------------------------------------------
+
+You may not:
+
+- Reverse engineer, decompile, disassemble, or otherwise derive source code,
+  structure, algorithms, or logic from this software.
+
+- Use this code or any part of it (including as input or training data) for
+  artificial intelligence, machine learning, or automated analysis systems,
+  including but not limited to:
+  * Large language models (LLMs) or generative AI systems
+  * Code generation, code completion, or coding assistants
+  * Automated code analysis, summarization, or extraction tools
+  * Any system that ingests, trains on, or replicates this code or its behavior
+
+- Scrape, crawl, or programmatically extract this code for use in datasets
+  or tools (including AI training datasets).
+
+- Use automated tools to replicate, mimic, or derive the functionality or
+  design of this software without explicit written permission.
+
+These restrictions apply regardless of how the code is accessed (repository,
+deployment, bundle, or artifact). By accessing or using this software you
+acknowledge and agree to these terms.

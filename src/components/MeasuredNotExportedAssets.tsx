@@ -13,9 +13,9 @@ import { useGridPreferences } from '../lib/useGridPreferences';
 import { useFieldConfig } from '../lib/useFieldConfig';
 import { processColumnHeader } from '../lib/gridHeaderUtils';
 import { useUserRole } from '../contexts/UserRoleContext';
+import { useUIConfig } from '../contexts/UIConfigContext';
 import { Toast } from './Toast';
-import { supabase } from '../lib/supabase';
-import { getAssetTypes } from '../lib/validation';
+import { getAssetTypes, setLatestExportDate } from '../lib/validation';
 import { createExcelBlob } from '../lib/excelExport';
 import { createAndDownloadZip } from '../lib/zipExport';
 import { AssetValidationHandler } from '../lib/assetValidationHandler';
@@ -78,6 +78,7 @@ interface MeasuredNotExportedAssetsProps {
 export const MeasuredNotExportedAssets = ({ onSelectAsset }: MeasuredNotExportedAssetsProps) => {
   const { t } = useTranslation();
   const { isReadOnly } = useUserRole();
+  const { shouldValidateBeforeSave } = useUIConfig();
   const [assets, setAssets] = useState<Asset[]>([]);
   const [buildings, setBuildings] = useState<Map<number, Building>>(new Map());
   const [assetTypes, setAssetTypes] = useState<AssetType[]>([]);
@@ -426,7 +427,7 @@ export const MeasuredNotExportedAssets = ({ onSelectAsset }: MeasuredNotExported
       cellStyle: { textAlign: 'right' },
       cellRenderer: (params: any) => {
         if (!params || !params.data) return null;
-        const isChecked = params.value === true || params.value === 'כן';
+        const isChecked = params.value === true;
         return (
           <div className="flex items-center justify-center h-full">
             <input
@@ -743,7 +744,7 @@ export const MeasuredNotExportedAssets = ({ onSelectAsset }: MeasuredNotExported
   }, [t, assetTypes, getAreaDescriptionForTaxRegion, getAssetTypeTooltip, onSelectAsset, validationErrors]);
   
   // Apply field configurations to column definitions
-  const configuredColumnDefs = useFieldConfig(columnDefs, 'measured-not-exported-assets');
+  const [configuredColumnDefs] = useFieldConfig(columnDefs, 'measured-not-exported-assets');
 
   // Sort assets to show invalid ones first
   const sortedAssets = useMemo(() => {
@@ -794,123 +795,87 @@ export const MeasuredNotExportedAssets = ({ onSelectAsset }: MeasuredNotExported
         return;
       }
 
-      // STEP 2: Validate all assets before export (parallel by building for speed)
-      setExportProgressMessage('מאמת נכסים לפני שליחה...');
-
-      // Group assets by building number for validation
-      const assetsByBuilding = new Map<number, Asset[]>();
-      for (const asset of assetsToExport) {
-        const buildingNumber = asset.building_number;
-        if (!assetsByBuilding.has(buildingNumber)) {
-          assetsByBuilding.set(buildingNumber, []);
+      // When validation is on ("מתי להריץ אימות" !== כבוי), validate all assets before export
+      if (shouldValidateBeforeSave) {
+        setExportProgressMessage('מאמת נכסים לפני שליחה...');
+        const assetsByBuilding = new Map<number, Asset[]>();
+        for (const asset of assetsToExport) {
+          const buildingNumber = asset.building_number;
+          if (!assetsByBuilding.has(buildingNumber)) {
+            assetsByBuilding.set(buildingNumber, []);
+          }
+          assetsByBuilding.get(buildingNumber)!.push(asset);
         }
-        assetsByBuilding.get(buildingNumber)!.push(asset);
-      }
-
-      const buildingEntries = Array.from(assetsByBuilding.entries());
-      const typesForValidation = assetTypes.length > 0 ? assetTypes : await api.assetTypes.getAll();
-
-      // Pre-fetch missing buildings in parallel
-      const missingBuildingNumbers = buildingEntries
-        .map(([bn]) => bn)
-        .filter(bn => !buildings.get(bn));
-      const fetchedBuildings = await Promise.all(
-        missingBuildingNumbers.map(bn => api.buildings.getOne(bn))
-      );
-      const buildingsMap = new Map(buildings);
-      missingBuildingNumbers.forEach((bn, i) => buildingsMap.set(bn, fetchedBuildings[i]));
-
-      const allValidationResults: Array<{ assetId: string; buildingNumber: number; errors: string[] }> = [];
-      const VALIDATION_CONCURRENCY = 8;
-
-      for (let i = 0; i < buildingEntries.length; i += VALIDATION_CONCURRENCY) {
-        const chunk = buildingEntries.slice(i, i + VALIDATION_CONCURRENCY);
-        const batchResults = await Promise.all(
-          chunk.map(([buildingNumber, buildingAssets]) => {
-            const building = buildingsMap.get(buildingNumber)!;
-            return AssetValidationHandler.validateBuildingAssets(buildingAssets, buildingNumber, {
-              mode: 'building',
-              validateOnlyLatest: false,
-              cachedData: { assetTypes: typesForValidation, building },
-              onProgress: (progress) => {
-                setExportProgressMessage(`מאמת נכסים... ${progress.current}/${progress.total}`);
-              }
-            });
-          })
+        const buildingEntries = Array.from(assetsByBuilding.entries());
+        const typesForValidation = assetTypes.length > 0 ? assetTypes : await api.assetTypes.getAll();
+        const missingBuildingNumbers = buildingEntries
+          .map(([bn]) => bn)
+          .filter(bn => !buildings.get(bn));
+        const fetchedBuildings = await Promise.all(
+          missingBuildingNumbers.map(bn => api.buildings.getOne(bn))
         );
-        for (let j = 0; j < chunk.length; j++) {
-          const [buildingNumber] = chunk[j];
-          const batchResult = batchResults[j];
-          for (const result of batchResult.results) {
-            if (!result.valid && result.errors && result.errors.length > 0) {
-              allValidationResults.push({
-                assetId: typeof result.assetId === 'string' ? result.assetId : String(result.assetId),
-                buildingNumber,
-                errors: result.errors
+        const buildingsMap = new Map(buildings);
+        missingBuildingNumbers.forEach((bn, i) => buildingsMap.set(bn, fetchedBuildings[i]));
+        const allValidationResults: Array<{ assetId: string; buildingNumber: number; errors: string[] }> = [];
+        const VALIDATION_CONCURRENCY = 8;
+        for (let i = 0; i < buildingEntries.length; i += VALIDATION_CONCURRENCY) {
+          const chunk = buildingEntries.slice(i, i + VALIDATION_CONCURRENCY);
+          const batchResults = await Promise.all(
+            chunk.map(([buildingNumber, buildingAssets]) => {
+              const building = buildingsMap.get(buildingNumber)!;
+              return AssetValidationHandler.validateBuildingAssets(buildingAssets, buildingNumber, {
+                mode: 'building',
+                validateOnlyLatest: false,
+                cachedData: { assetTypes: typesForValidation, building },
+                onProgress: (progress) => {
+                  setExportProgressMessage(`מאמת נכסים... ${progress.current}/${progress.total}`);
+                }
               });
+            })
+          );
+          for (let j = 0; j < chunk.length; j++) {
+            const [buildingNumber] = chunk[j];
+            const batchResult = batchResults[j];
+            for (const result of batchResult.results) {
+              if (!result.valid && result.errors && result.errors.length > 0) {
+                allValidationResults.push({
+                  assetId: typeof result.assetId === 'string' ? result.assetId : String(result.assetId),
+                  buildingNumber,
+                  errors: result.errors
+                });
+              }
             }
           }
         }
+        if (allValidationResults.length > 0) {
+          const invalidCount = allValidationResults.length;
+          const errorMessages = allValidationResults
+            .slice(0, 5)
+            .map(r => `נכס ${r.assetId} (מבנה ${r.buildingNumber}): ${r.errors.join(', ')}`)
+            .join('\n');
+          const moreErrors = invalidCount > 5 ? `\nועוד ${invalidCount - 5} נכסים עם שגיאות...` : '';
+          setToast({
+            message: `לא ניתן לשלוח נכסים - נמצאו ${invalidCount} נכסים עם שגיאות אימות:\n${errorMessages}${moreErrors}\n\nיש לתקן את השגיאות לפני שליחה.`,
+            type: 'error'
+          });
+          setTimeout(() => setToast(null), 15000);
+          setExporting(false);
+          setExportProgressMessage('');
+          document.body.style.cursor = '';
+          return;
+        }
       }
 
-      // STEP 3: Check if validation passed
-      if (allValidationResults.length > 0) {
-        const invalidCount = allValidationResults.length;
-        const errorMessages = allValidationResults
-          .slice(0, 5) // Show first 5 errors
-          .map(r => `נכס ${r.assetId} (מבנה ${r.buildingNumber}): ${r.errors.join(', ')}`)
-          .join('\n');
-        
-        const moreErrors = invalidCount > 5 ? `\nועוד ${invalidCount - 5} נכסים עם שגיאות...` : '';
-        
-        setToast({ 
-          message: `לא ניתן לשלוח נכסים - נמצאו ${invalidCount} נכסים עם שגיאות אימות:\n${errorMessages}${moreErrors}\n\nיש לתקן את השגיאות לפני שליחה.`, 
-          type: 'error' 
-        });
-        setTimeout(() => setToast(null), 15000);
-        setExporting(false);
-        setExportProgressMessage('');
-        document.body.style.cursor = '';
-        return;
-      }
-
-      // STEP 4: All assets passed validation - proceed with export
+      // Proceed with export (with or without validation depending on "מתי להריץ אימות")
       setExportProgressMessage('מתחיל שליחה...');
       
-      // Call API to export assets and mark them as exported
-      const result = await api.assets.exportToAutomation();
-
-      if (!result.success) {
-        setToast({ message: result.error || 'שגיאה בשליחת נכסים לעירייה', type: 'error' });
-        setTimeout(() => setToast(null), 5000);
-        setExporting(false);
-        setExportProgressMessage('');
-        document.body.style.cursor = '';
-        return;
-      }
-
-      if (result.count === 0) {
-        setToast({ message: 'אין נכסים לשליחה - כל הנכסים כבר נשלחו לעירייה', type: 'info' });
-        setTimeout(() => setToast(null), 5000);
-        setExporting(false);
-        setExportProgressMessage('');
-        document.body.style.cursor = '';
-        setExportToAutomationCount(0);
-        return;
-      }
-
-      // Fetch the exported assets to export them to Excel
-      // Use RPC function to avoid type mismatch issues with .in() operator
-      // Ensure assetIds are numbers (not strings) for the RPC call
-      const numericAssetIdsForQuery = result.assetIds
-        .map(id => {
-          if (typeof id === 'string') {
-            const parsed = parseInt(id, 10);
-            return isNaN(parsed) ? null : parsed;
-          }
-          return typeof id === 'number' ? id : Number(id);
+      // Use asset IDs from the list we already have — do not mark as exported until after successful send
+      const numericAssetIdsForQuery = assetsToExport
+        .map(asset => {
+          const id = typeof asset.asset_id === 'string' ? parseInt(asset.asset_id, 10) : Number(asset.asset_id);
+          return !isNaN(id) && id > 0 ? id : null;
         })
-        .filter((id): id is number => id !== null && !isNaN(id) && id > 0);
+        .filter((id): id is number => id !== null);
 
       if (numericAssetIdsForQuery.length === 0) {
         setToast({ message: 'לא נמצאו נכסים לייצוא', type: 'error' });
@@ -927,14 +892,14 @@ export const MeasuredNotExportedAssets = ({ onSelectAsset }: MeasuredNotExported
         exportedAssets = await api.assets.getAssetsByIdsBatched(numericAssetIdsForQuery, { concurrency: 8 });
       } catch (fetchError: any) {
         console.error('Error fetching exported assets:', fetchError);
-        console.error('Supabase request failed', {
+        console.error('API request failed', {
           message: fetchError?.message,
           details: fetchError?.details,
           hint: fetchError?.hint,
           code: fetchError?.code,
           assetIds: numericAssetIdsForQuery
         });
-        setToast({ message: 'הנכסים סומנו כייצאו אך לא ניתן היה לייצא אותם לקובץ Excel', type: 'error' });
+        setToast({ message: 'לא ניתן היה לייצא את הנכסים לקובץ Excel', type: 'error' });
         setTimeout(() => setToast(null), 5000);
         setExporting(false);
         setExportProgressMessage('');
@@ -943,7 +908,7 @@ export const MeasuredNotExportedAssets = ({ onSelectAsset }: MeasuredNotExported
       }
 
       if (!exportedAssets || exportedAssets.length === 0) {
-        setToast({ message: `סומנו ${result.count} נכסים כייצאו בהצלחה`, type: 'success' });
+        setToast({ message: 'לא נמצאו נכסים לייצוא', type: 'info' });
         setTimeout(() => setToast(null), 5000);
         setExporting(false);
         setExportProgressMessage('');
@@ -1035,8 +1000,7 @@ export const MeasuredNotExportedAssets = ({ onSelectAsset }: MeasuredNotExported
       });
 
       // Get all files for exported assets
-      // Ensure assetIds are numbers (not strings)
-      const numericAssetIdsForFiles = result.assetIds.map(id => typeof id === 'string' ? parseInt(id, 10) : id).filter(id => !isNaN(id));
+      const numericAssetIdsForFiles = numericAssetIdsForQuery;
       const filesByAsset = await api.assets.files.getAllBulk(numericAssetIdsForFiles);
       
       // Create a map of asset_id to asset data for lookup
@@ -1190,7 +1154,7 @@ export const MeasuredNotExportedAssets = ({ onSelectAsset }: MeasuredNotExported
           const results = await Promise.all(
             batch.map(async (task) => {
               try {
-                const { data: fileData, error: downloadError } = await supabase.storage
+                const { data: fileData, error: downloadError } = await api.storage
                   .from('structure-drawings')
                   .download(task.filePath);
                 if (downloadError || !fileData) {
@@ -1211,7 +1175,7 @@ export const MeasuredNotExportedAssets = ({ onSelectAsset }: MeasuredNotExported
             if (r.kind === 'bucket_not_found') {
               if (!bucketNotFoundShown) {
                 bucketNotFoundShown = true;
-                setToast({ message: 'Storage bucket "structure-drawings" not found. Please create it in Supabase Dashboard. See CREATE_STORAGE_BUCKETS.md for instructions.', type: 'error' });
+                setToast({ message: 'Storage bucket "structure-drawings" not found. Configure backend file storage.', type: 'error' });
                 setTimeout(() => setToast(null), 10000);
               }
               continue;
@@ -1284,14 +1248,14 @@ export const MeasuredNotExportedAssets = ({ onSelectAsset }: MeasuredNotExported
         ]);
         const opData = [headers, ...opRows];
         const opExcelBlob = createExcelBlob({
-          filename: `נכסים_מפעיל_${operatorId}_${dateStr}.xlsx`,
+          filename: `נכסים_מפעיל_${operatorId}_${dateStr}_${operatorAssets.length}נכסים.xlsx`,
           sheetName: 'נכסים',
           data: opData,
           columnWidths: [{ wch: 15 }, { wch: 15 }, { wch: 20 }, { wch: 20 }, { wch: 12 }, { wch: 12 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 10 }, { wch: 12 }, { wch: 12 }, { wch: 12 }, { wch: 15 }, { wch: 15 }]
         });
         const subj = templateOp ? applyTpl(templateOp.subject, operator.name, operatorAssets.length) : `שליחת נתונים - ${dateStrHe}`;
         const body = templateOp ? applyTpl(templateOp.body, operator.name, operatorAssets.length) : `שלום ${operator.name},\n\nמצורף קובץ הנתונים.\nתאריך: ${dateStrHe}\n\nבברכה,\nמערכת ניהול נכסים`;
-        sendItems.push({ to: operator.email, recipientName: operator.name, subject: subj, body, attachmentFilename: `נכסים_מפעיל_${operator.name}_${dateStr}.xlsx`, attachmentBlob: opExcelBlob });
+        sendItems.push({ to: operator.email, recipientName: operator.name, subject: subj, body, attachmentFilename: `נכסים_מפעיל_${operator.name}_${dateStr}_${operatorAssets.length}נכסים.xlsx`, attachmentBlob: opExcelBlob });
       }
       if (sendItems.length === 0) {
         const fullRows = assetsToExport.map((asset: any) => [
@@ -1304,7 +1268,7 @@ export const MeasuredNotExportedAssets = ({ onSelectAsset }: MeasuredNotExported
           '', '', '', '', '', ''
         ]);
         const fullExcelBlob = createExcelBlob({
-          filename: `נכסים_שליחה_${dateStr}.xlsx`,
+          filename: `נכסים_שליחה_${dateStr}_${assetsToExport.length}נכסים.xlsx`,
           sheetName: 'נכסים',
           data: [headers, ...fullRows],
           columnWidths: [{ wch: 15 }, { wch: 15 }, { wch: 20 }, { wch: 20 }, { wch: 12 }, { wch: 12 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 10 }, { wch: 12 }, { wch: 12 }, { wch: 12 }, { wch: 15 }, { wch: 15 }]
@@ -1313,7 +1277,7 @@ export const MeasuredNotExportedAssets = ({ onSelectAsset }: MeasuredNotExported
           if (!operator?.email || !operator.email.includes('@')) continue;
           const subj = templateOp ? applyTpl(templateOp.subject, operator.name, assetsToExport.length) : `שליחת נתונים - ${dateStrHe}`;
           const body = templateOp ? applyTpl(templateOp.body, operator.name, assetsToExport.length) : `שלום ${operator.name},\n\nמצורף קובץ הנתונים.\nתאריך: ${dateStrHe}\n\nבברכה,\nמערכת ניהול נכסים`;
-          sendItems.push({ to: operator.email, recipientName: operator.name, subject: subj, body, attachmentFilename: `נכסים_שליחה_${dateStr}.xlsx`, attachmentBlob: fullExcelBlob });
+          sendItems.push({ to: operator.email, recipientName: operator.name, subject: subj, body, attachmentFilename: `נכסים_שליחה_${dateStr}_${assetsToExport.length}נכסים.xlsx`, attachmentBlob: fullExcelBlob });
         }
       }
       const managersList = await api.managers.getAll();
@@ -1337,14 +1301,14 @@ export const MeasuredNotExportedAssets = ({ onSelectAsset }: MeasuredNotExported
         ]);
         const mgrData = [headers, ...mgrRows];
         const mgrExcelBlob = createExcelBlob({
-          filename: `נכסים_מנהל_${manager.id}_${dateStr}.xlsx`,
+          filename: `נכסים_מנהל_${manager.id}_${dateStr}_${managerAssets.length}נכסים.xlsx`,
           sheetName: 'נכסים',
           data: mgrData,
           columnWidths: [{ wch: 15 }, { wch: 15 }, { wch: 20 }, { wch: 20 }, { wch: 12 }, { wch: 12 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 10 }, { wch: 12 }, { wch: 12 }, { wch: 12 }, { wch: 15 }, { wch: 15 }]
         });
         const subj = templateMgr ? applyTpl(templateMgr.subject, manager.name, managerAssets.length) : `שליחת נתונים - ${dateStrHe}`;
         const body = templateMgr ? applyTpl(templateMgr.body, manager.name, managerAssets.length) : `שלום ${manager.name},\n\nמצורף קובץ הנתונים.\nתאריך: ${dateStrHe}\n\nבברכה,\nמערכת ניהול נכסים`;
-        sendItems.push({ to: manager.email, recipientName: manager.name, subject: subj, body, attachmentFilename: `נכסים_מנהל_${manager.name}_${dateStr}.xlsx`, attachmentBlob: mgrExcelBlob });
+        sendItems.push({ to: manager.email, recipientName: manager.name, subject: subj, body, attachmentFilename: `נכסים_מנהל_${manager.name}_${dateStr}_${managerAssets.length}נכסים.xlsx`, attachmentBlob: mgrExcelBlob });
       }
       let sentCount = 0;
       if (sendItems.length > 0) {
@@ -1367,7 +1331,19 @@ export const MeasuredNotExportedAssets = ({ onSelectAsset }: MeasuredNotExported
       setExportProgressMessage('מוריד קובץ ZIP...');
       const { createAndDownloadZip } = await import('../lib/zipExport');
       await createAndDownloadZip(zipFilename, zipFiles);
-      let successMessage = `נשלחו ${result.count} נכסים לעירייה בהצלחה. הקובץ הורד.`;
+
+      // Mark as exported only after successful send so the count updates correctly
+      try {
+        await api.assets.markExportedByIds(numericAssetIdsForQuery);
+        const d = new Date();
+        setLatestExportDate(
+          `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`
+        );
+      } catch (markErr: any) {
+        console.error('[MeasuredNotExportedAssets] Error marking assets as exported after send:', markErr);
+      }
+
+      let successMessage = `נשלחו ${numericAssetIdsForQuery.length} נכסים לעירייה בהצלחה. הקובץ הורד.`;
       if (sentCount > 0) successMessage += ` ${sentCount} מיילים נשלחו למפעילים ולמנהלים.`;
       setToast({ message: successMessage, type: 'success' });
       setTimeout(() => setToast(null), 8000);
@@ -1375,7 +1351,6 @@ export const MeasuredNotExportedAssets = ({ onSelectAsset }: MeasuredNotExported
       await fetchExportToAutomationCount();
       // Refresh the assets list
       await fetchData();
-      // Notify App to update "איפוס שליחת נתונים מתאריך" span (cache was set by api.assets.exportToAutomation)
       window.dispatchEvent(new CustomEvent('exportToAutomationSuccess'));
     } catch (error: any) {
       console.error('Error exporting to automation:', error);
@@ -1386,7 +1361,7 @@ export const MeasuredNotExportedAssets = ({ onSelectAsset }: MeasuredNotExported
       setExportProgressMessage('');
       document.body.style.cursor = '';
     }
-  }, [fetchExportToAutomationCount, fetchData, buildings, assetTypes]);
+  }, [fetchExportToAutomationCount, fetchData, buildings, assetTypes, shouldValidateBeforeSave]);
 
   // Export to Excel
   const handleExportToExcel = useCallback(async () => {
@@ -1426,7 +1401,7 @@ export const MeasuredNotExportedAssets = ({ onSelectAsset }: MeasuredNotExported
           }
           
           if (field === 'penthouse') {
-            return value === true || value === 'כן' ? 'כן' : 'לא';
+            return value === true ? 'כן' : 'לא';
           }
           
           return value != null ? String(value) : '';

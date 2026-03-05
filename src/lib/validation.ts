@@ -1,5 +1,15 @@
-import { api, ValidationRule, AssetType, Building } from './api';
-import { supabase } from './supabase';
+import { api, ValidationRule, AssetType, Building, toBoolean } from './api';
+
+/** Truthy for active/checkbox: boolean true or legacy "כן"/"yes"/"true"/"1". */
+function isTruthy(v: unknown): boolean {
+  return toBoolean(v);
+}
+
+/** Format boolean for Hebrew display (כן/לא/לא מוגדר). */
+function formatBooleanDisplay(v: unknown): string {
+  if (v == null || v === '') return 'לא מוגדר';
+  return isTruthy(v) ? 'כן' : 'לא';
+}
 
 export interface ValidationResult {
   valid: boolean;
@@ -57,9 +67,9 @@ export function setValidationData(data: { buildings: any[]; assetTypes: any[]; a
  */
 export async function refreshAssetTypesCache(): Promise<void> {
   try {
-    const { supabase } = await import('./supabase');
+    const { api } = await import('./apiClient');
     // Explicitly select all fields including business_residence
-    const { data, error } = await supabase
+    const { data, error } = await api
       .from('asset_types')
       .select('id, name, description, tax_region, elevator, single_double_family, penthouse, condo, townhouses, business_residence, min_size, max_size, active, non_accountable_for_total_area, non_accountable_for_distribution, not_accountable_for_statistics, area_description_for_tab, created_at, updated_at')
       .order('name');
@@ -213,7 +223,7 @@ export function getBuildingByNumber(buildingNumber: number | string | null | und
  */
 export function getAssetTypesByName(name: string): any[] {
   const assetTypes = getAssetTypes();
-  return assetTypes.filter(at => at.name === name && (at.active === true || at.active === 'כן'));
+  return assetTypes.filter(at => at.name === name && isTruthy(at.active));
 }
 
 // Memoization cache for getValidTaxRegionsForAssetType
@@ -251,7 +261,7 @@ function getValidTaxRegionsForAssetType(
     );
     
     // Then filter by active status
-    assetTypes = allMatchingByName.filter(at => at.active === true || at.active === 'כן');
+    assetTypes = allMatchingByName.filter(at => isTruthy(at.active));
     
     // Only log warnings for actual issues (not every call)
     if (assetTypes.length === 0 && allMatchingByName.length > 0) {
@@ -308,40 +318,6 @@ export function areValidationRulesLoaded(): boolean {
 export function isValidationDataLoaded(): boolean {
   return dataLoaded;
 }
-
-// Legacy cache for backward compatibility (deprecated - use getValidationRules instead)
-let cachedRules: ValidationRule[] | null = null;
-let cacheTimestamp: number = 0;
-const CACHE_DURATION = 60000;
-
-/**
- * @deprecated Use getValidationRules() instead for synchronous access to in-memory rules
- */
-export async function loadValidationRules(forceRefresh = false): Promise<ValidationRule[]> {
-  // If rules are already in memory, return them immediately
-  if (rulesLoaded && inMemoryRules.length > 0 && !forceRefresh) {
-    return inMemoryRules;
-  }
-
-  const now = Date.now();
-
-  if (!forceRefresh && cachedRules && (now - cacheTimestamp) < CACHE_DURATION) {
-    return cachedRules;
-  }
-
-  try {
-    const rules = await api.validationRules.getEnabled();
-    cachedRules = rules;
-    cacheTimestamp = now;
-    // Also update in-memory rules
-    setValidationRules(rules);
-    return rules;
-  } catch (error) {
-    console.error('Failed to load validation rules:', error);
-    return cachedRules || inMemoryRules || [];
-  }
-}
-
 
 function getRuleValue(rules: ValidationRule[], ruleKey: string, valueType: 'numeric' | 'text'): any {
   const rule = rules.find(r => r.rule_key === ruleKey && r.enabled);
@@ -649,7 +625,7 @@ export async function validateAssetTypeForBuildingTaxRegion(
     if (assetTypes && Array.isArray(assetTypes)) {
       // Filter asset types
       let matchingAssetTypes = assetTypes.filter(at => 
-        at.name === assetTypeName && (at.active === true || at.active === 'כן')
+        at.name === assetTypeName && isTruthy(at.active)
       );
 
       // Apply tax region filtering - ALWAYS check against asset_types table
@@ -823,7 +799,7 @@ export async function validateAssetTypeComplete(
       // Use cached asset types if available, otherwise query database
       if (cachedData?.assetTypes && Array.isArray(cachedData.assetTypes)) {
         let matchingAssetTypes = cachedData.assetTypes.filter(at => 
-          at.name === assetTypeName && (at.active === true || at.active === 'כן')
+          at.name === assetTypeName && isTruthy(at.active)
         );
 
         // Check if asset type has specific valid tax regions from asset_types table
@@ -915,7 +891,7 @@ export async function validateAssetTypeComplete(
     if (cachedData?.assetTypes && Array.isArray(cachedData.assetTypes)) {
       // Filter from cache
       assetTypes = cachedData.assetTypes.filter(at => 
-        at.name === assetTypeName && (at.active === true || at.active === 'כן')
+        at.name === assetTypeName && isTruthy(at.active)
       );
       
       // Apply tax region filtering if taxRegionsToCheck is available
@@ -1148,46 +1124,11 @@ export async function validateAssetTypeComplete(
       // Match asset attribute: penthouse (דירת גג)
       // NOTE: Penthouse validation only applies to main assets, not sub-assets
       // If assetData is not provided, it means we're validating a sub-asset, so skip penthouse check
-      // Only validate if asset type penthouse is explicitly "כן"/"yes"/true (requires penthouse)
-      // If asset type penthouse is NOT "כן"/"yes"/true (including "לא"/"no"/false/null/empty/any other value),
-      // then skip validation - asset can be with or without penthouse
-      if (assetData != null && assetType.penthouse != null) {
-        let requiredValue = '';
-        if (typeof assetType.penthouse === 'boolean') {
-          requiredValue = assetType.penthouse ? 'כן' : '';
-        } else {
-          requiredValue = String(assetType.penthouse).trim();
+      // Only validate if asset type requires penthouse (boolean true or legacy "כן")
+      if (assetData != null && isTruthy(assetType.penthouse)) {
+        if (!isTruthy(assetData.penthouse)) {
+          errors.push('דורש דירת גג, אבל הנכס לא מסומן כדירת גג');
         }
-        
-        // Only validate if the value is explicitly "כן"/"yes" (or boolean true)
-        // If it's anything else (including "לא"/"no"/false/null/empty), skip validation
-        const requiredIsYes = requiredValue === 'כן' || requiredValue.toLowerCase() === 'yes';
-        
-        // Only proceed with validation if asset type explicitly requires penthouse
-        if (requiredIsYes) {
-          const assetPenthouse = assetData?.penthouse;
-          
-          // Normalize asset penthouse value to a boolean-like check
-          // Handle various formats: 'כן', 'yes', true, 'true', null, undefined, empty string
-          let isAssetPenthouse = false;
-          if (assetPenthouse != null && assetPenthouse !== '') {
-            if (typeof assetPenthouse === 'boolean') {
-              isAssetPenthouse = assetPenthouse;
-            } else {
-              const strValue = String(assetPenthouse).trim();
-              // Check for Hebrew 'כן' or English 'yes'/'true' (case-insensitive)
-              isAssetPenthouse = strValue === 'כן' || 
-                                strValue.toLowerCase() === 'yes' || 
-                                strValue.toLowerCase() === 'true';
-            }
-          }
-          
-          // Asset type requires penthouse
-          if (!isAssetPenthouse) {
-            errors.push('דורש דירת גג, אבל הנכס לא מסומן כדירת גג');
-          }
-        }
-        // If requiredIsYes is false, we skip validation entirely - asset can be with or without penthouse
       }
 
       // ============================================
@@ -1201,140 +1142,24 @@ export async function validateAssetTypeComplete(
       // NOTE: Building-level validations only apply to main assets, not sub-assets
       // If assetData is not provided, it means we're validating a sub-asset, so skip building-level checks
       if (assetData != null) {
-        // Step 4a: Match elevator (מעלית)
-        // Only validate if asset type elevator is explicitly "כן"/"yes"/true (requires elevator)
-        // If asset type elevator is NOT "כן"/"yes"/true (including "לא"/"no"/false/null/empty/any other value),
-        // then skip validation - building can be with or without elevator
-        if (assetType.elevator != null) {
-          let requiredValue = '';
-          if (typeof assetType.elevator === 'boolean') {
-            requiredValue = assetType.elevator ? 'כן' : '';
-          } else {
-            requiredValue = String(assetType.elevator).trim();
-          }
-          
-          // Only validate if the value is explicitly "כן"/"yes" (or boolean true)
-          const requiredIsYes = requiredValue === 'כן' || requiredValue.toLowerCase() === 'yes';
-          
-          // Only proceed with validation if asset type explicitly requires elevator
-          if (requiredIsYes) {
-            // Handle boolean or string values for building.elevator
-            let buildingValue = '';
-            if (building.elevator != null) {
-              if (typeof building.elevator === 'boolean') {
-                buildingValue = building.elevator ? 'כן' : 'לא';
-              } else {
-                buildingValue = String(building.elevator).toLowerCase();
-              }
-            }
-
-            if (buildingValue !== 'כן' && buildingValue !== 'yes' && buildingValue !== 'true') {
-              errors.push('דורש מעלית, אבל במבנה אין מעלית');
-            }
-          }
-          // If requiredIsYes is false, we skip validation entirely - building can be with or without elevator
+        // Step 4a: Match elevator (מעלית) - asset type requires elevator → building must have elevator
+        if (isTruthy(assetType.elevator) && !isTruthy(building.elevator)) {
+          errors.push('דורש מעלית, אבל במבנה אין מעלית');
         }
 
         // Step 4b: Match single_double_family (בית פרטי)
-        // Only validate if asset type single_double_family is explicitly "כן"/"yes"/true (requires single/double family)
-        // If asset type single_double_family is NOT "כן"/"yes"/true (including "לא"/"no"/false/null/empty/any other value),
-        // then skip validation - building can be with or without single/double family
-        if (assetType.single_double_family != null) {
-          let requiredValue = '';
-          if (typeof assetType.single_double_family === 'boolean') {
-            requiredValue = assetType.single_double_family ? 'כן' : '';
-          } else {
-            requiredValue = String(assetType.single_double_family).trim();
-          }
-          
-          // Only validate if the value is explicitly "כן"/"yes" (or boolean true)
-          const requiredIsYes = requiredValue === 'כן' || requiredValue.toLowerCase() === 'yes';
-          
-          // Only proceed with validation if asset type explicitly requires single_double_family
-          if (requiredIsYes) {
-            // Handle boolean or string values for building.single_double_family
-            let buildingValue = '';
-            if (building.single_double_family != null) {
-              if (typeof building.single_double_family === 'boolean') {
-                buildingValue = building.single_double_family ? 'כן' : 'לא';
-              } else {
-                buildingValue = String(building.single_double_family).toLowerCase();
-              }
-            }
-
-            if (buildingValue !== 'כן' && buildingValue !== 'yes' && buildingValue !== 'true') {
-              errors.push('דורש משפחה יחידה/דו משפחתי, אבל המבנה לא מסומן ככזה');
-            }
-          }
-          // If requiredIsYes is false, we skip validation entirely - building can be with or without single_double_family
+        if (isTruthy(assetType.single_double_family) && !isTruthy(building.single_double_family)) {
+          errors.push('דורש משפחה יחידה/דו משפחתי, אבל המבנה לא מסומן ככזה');
         }
 
         // Step 4c: Match condo (בית משותף)
-        // Only validate if asset type condo is explicitly "כן"/"yes"/true (requires condo)
-        // If asset type condo is NOT "כן"/"yes"/true (including "לא"/"no"/false/null/empty/any other value),
-        // then skip validation - building can be with or without condo
-        if (assetType.condo != null) {
-          let requiredValue = '';
-          if (typeof assetType.condo === 'boolean') {
-            requiredValue = assetType.condo ? 'כן' : '';
-          } else {
-            requiredValue = String(assetType.condo).trim();
-          }
-          
-          // Only validate if the value is explicitly "כן"/"yes" (or boolean true)
-          const requiredIsYes = requiredValue === 'כן' || requiredValue.toLowerCase() === 'yes';
-          
-          // Only proceed with validation if asset type explicitly requires condo
-          if (requiredIsYes) {
-            // Handle boolean or string values for building.condo
-            let buildingValue = '';
-            if (building.condo != null) {
-              if (typeof building.condo === 'boolean') {
-                buildingValue = building.condo ? 'כן' : 'לא';
-              } else {
-                buildingValue = String(building.condo).toLowerCase();
-              }
-            }
-
-            if (buildingValue !== 'כן' && buildingValue !== 'yes' && buildingValue !== 'true') {
-              errors.push('דורש בית משותף, אבל המבנה לא מסומן ככזה');
-            }
-          }
-          // If requiredIsYes is false, we skip validation entirely - building can be with or without condo
+        if (isTruthy(assetType.condo) && !isTruthy(building.condo)) {
+          errors.push('דורש בית משותף, אבל המבנה לא מסומן ככזה');
         }
 
         // Step 4d: Match townhouses (טוריים)
-        // Only validate if asset type townhouses is explicitly "כן"/"yes"/true (requires townhouses)
-        // If asset type townhouses is NOT "כן"/"yes"/true (including "לא"/"no"/false/null/empty/any other value),
-        // then skip validation - building can be with or without townhouses
-        if (assetType.townhouses != null) {
-          let requiredValue = '';
-          if (typeof assetType.townhouses === 'boolean') {
-            requiredValue = assetType.townhouses ? 'כן' : '';
-          } else {
-            requiredValue = String(assetType.townhouses).trim();
-          }
-          
-          // Only validate if the value is explicitly "כן"/"yes" (or boolean true)
-          const requiredIsYes = requiredValue === 'כן' || requiredValue.toLowerCase() === 'yes';
-          
-          // Only proceed with validation if asset type explicitly requires townhouses
-          if (requiredIsYes) {
-            // Handle boolean or string values for building.townhouses
-            let buildingValue = '';
-            if (building.townhouses != null) {
-              if (typeof building.townhouses === 'boolean') {
-                buildingValue = building.townhouses ? 'כן' : 'לא';
-              } else {
-                buildingValue = String(building.townhouses).toLowerCase();
-              }
-            }
-
-            if (buildingValue !== 'כן' && buildingValue !== 'yes' && buildingValue !== 'true') {
-              errors.push('דורש טוריים, אבל המבנה לא מסומן ככזה');
-            }
-          }
-          // If requiredIsYes is false, we skip validation entirely - building can be with or without townhouses
+        if (isTruthy(assetType.townhouses) && !isTruthy(building.townhouses)) {
+          errors.push('דורש טוריים, אבל המבנה לא מסומן ככזה');
         }
 
       }
@@ -1354,11 +1179,11 @@ export async function validateAssetTypeComplete(
         fields.push(`סוג נכס=${assetType.name || assetTypeName || 'לא מוגדר'}`);
         fields.push(`תיאור=${assetType.description || 'לא מוגדר'}`);
         fields.push(`אזור מיסים=${assetType.tax_region != null ? assetType.tax_region : 'לא מוגדר'}`);
-        fields.push(`מעלית=${assetType.elevator || 'לא מוגדר'}`);
-        fields.push(`בית פרטי חד/דו משפחתי=${assetType.single_double_family || 'לא מוגדר'}`);
-        fields.push(`דירת גג=${assetType.penthouse || 'לא מוגדר'}`);
-        fields.push(`בית משותף=${assetType.condo || 'לא מוגדר'}`);
-        fields.push(`טוריים=${assetType.townhouses || 'לא מוגדר'}`);
+        fields.push(`מעלית=${formatBooleanDisplay(assetType.elevator)}`);
+        fields.push(`בית פרטי חד/דו משפחתי=${formatBooleanDisplay(assetType.single_double_family)}`);
+        fields.push(`דירת גג=${formatBooleanDisplay(assetType.penthouse)}`);
+        fields.push(`בית משותף=${formatBooleanDisplay(assetType.condo)}`);
+        fields.push(`טוריים=${formatBooleanDisplay(assetType.townhouses)}`);
         fields.push(`מינימום=${assetType.min_size != null ? assetType.min_size : 'לא מוגדר'}`);
         fields.push(`מקסימום=${assetType.max_size != null ? assetType.max_size : 'לא מוגדר'}`);
         
@@ -1794,7 +1619,7 @@ export async function validateSubAssetsFor199Or299(
     if (cachedData?.assetTypes && Array.isArray(cachedData.assetTypes)) {
       // Filter from cache
       let matchingAssetTypes = cachedData.assetTypes.filter(at => 
-        validSubAssets.includes(at.name) && (at.active === true || at.active === 'כן')
+        validSubAssets.includes(at.name) && isTruthy(at.active)
       );
 
       // ALWAYS check against asset_types table - use tab's taxRegion, ignore building.tax_region
@@ -1847,7 +1672,7 @@ export async function validateSubAssetsFor199Or299(
       // Use in-memory asset types
       const allAssetTypes = getAssetTypes();
       let matchingAssetTypes = allAssetTypes.filter(at => 
-        validSubAssets.includes(at.name) && (at.active === true || at.active === 'כן')
+        validSubAssets.includes(at.name) && isTruthy(at.active)
       );
 
       // ALWAYS check against asset_types table - use tab's taxRegion, ignore building.tax_region
@@ -2064,9 +1889,9 @@ export const assetValidators = {
     if (!building) {
       // If not found in memory, try querying the database as a fallback
       try {
-        const { supabase } = await import('./supabase');
+        const { api } = await import('./apiClient');
         const buildingNumberNum = typeof buildingNumber === 'string' ? parseInt(buildingNumber, 10) : buildingNumber;
-        const { data, error } = await supabase
+        const { data, error } = await api
           .from('buildings')
           .select('building_number')
           .eq('building_number', buildingNumberNum)

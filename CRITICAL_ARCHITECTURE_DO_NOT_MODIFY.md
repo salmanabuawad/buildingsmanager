@@ -299,8 +299,8 @@ try {
 **The following migration files and functions are CRITICAL and must NOT be modified:**
 
 **Migrations:**
-- `supabase/migrations/add_transactional_save_functions.sql`
-- `supabase/migrations/add_transactional_delete_function.sql`
+- `migrations/add_transactional_save_functions.sql`
+- `migrations/add_transactional_delete_function.sql`
 
 **Functions:**
 - `save_asset_transactional`
@@ -447,7 +447,7 @@ For implementation details and examples, see:
 1. **TRANSACTIONAL_SAVE_GUIDE.md** - API usage guide
 2. **VALIDATION_AND_TRANSACTION_SUMMARY.md** - Technical overview
 3. **TRANSACTIONAL_SAVE_EXAMPLES.md** - Code examples
-4. **Migration:** `supabase/migrations/add_transactional_save_functions.sql`
+4. **Migration:** `migrations/add_transactional_save_functions.sql`
 
 ---
 

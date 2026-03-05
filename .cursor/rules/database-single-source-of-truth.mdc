@@ -1,21 +1,18 @@
 ---
-description: Sync with the live database before any DB-related change; the DB is the single source of truth. Use Supabase MCP to check and apply.
-globs: supabase/migrations/**/*.sql,**/*.sql,src/**/*.ts
+description: Sync with the database before DB-related changes. Local Postgres only.
+globs: migrations/**/*.sql,**/*.sql,src/**/*.ts
 alwaysApply: false
 ---
 
 # Sync with Database Before Change
 
-**Before changing anything that touches the database, confirm the current state against the live database. The live DB is the single source of truth—not migration files or assumptions.**
+**Before changing anything that touches the database, confirm the current state against the database. The DB is the single source of truth—not migration files or assumptions.**
 
-Migration files and code may be out of sync with what is actually deployed. **Always check with the DB using the Supabase MCP** (you have the MCP), then make changes that align with or safely extend that state.
+**Setup:** Local Postgres (see `docs/LOCAL_INSTALL.md`). The app talks to the FastAPI backend, which uses `DATABASE_URL`.
 
 ## Mandatory workflow
 
-1. **Check the live database** using the **Supabase MCP** (preferred) or Supabase SQL Editor / `psql`:
-   - **MCP**: `list_migrations` to see what is applied; `list_tables` for schema; `execute_sql` for custom checks.
-   - Use MCP `apply_migration` to apply new migrations after verifying state.
-   - If not using MCP, query the DB directly to get current state:
+1. **Check the database** using your local DB (e.g. `psql $DATABASE_URL` or `psql` with connection params):
    - Table columns: `SELECT column_name, data_type FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'table_name';`
    - RLS policies: `SELECT policyname, cmd, roles FROM pg_policies WHERE tablename = 'table_name';`
    - Function definition: `SELECT pg_get_functiondef(oid) FROM pg_proc WHERE proname = 'function_name';`
@@ -23,25 +20,18 @@ Migration files and code may be out of sync with what is actually deployed. **Al
 
 2. **Use that result** to decide what to change. Do not assume migrations or code reflect the current DB.
 
-3. **Then** apply migrations (via MCP `apply_migration` with `name` and `query`) or code changes so they match or safely extend the current DB state.
+3. **Then** apply migrations (run the SQL files in order from `migrations/` or use your migration runner) or code changes so they match or safely extend the current DB state.
+
+**Note:** Target architecture has no DB functions or triggers; all logic is in Python. See `docs/PROJECT_STRUCTURE.md` and `.cursor/rules/no-db-functions-triggers.mdc`.
 
 ## When this applies
 
-- Triggers, SQL functions, RPCs
+- Triggers, SQL functions, RPCs (check if any remain to be dropped)
 - Table schema, columns, constraints
 - RLS policies (SELECT/INSERT/UPDATE/DELETE)
 - Any code or migration that depends on DB structure or behavior
 
-## Supabase MCP (use this first)
-
-| Action | MCP tool | Notes |
-|--------|----------|--------|
-| See applied migrations | `list_migrations` | Compare with `supabase/migrations/` before adding new ones |
-| Inspect schema | `list_tables` | Tables and columns in public |
-| Run any SQL | `execute_sql` | Use for columns, functions, policies, triggers (see table below) |
-| Apply a migration | `apply_migration` | Args: `name` (snake_case), `query` (full SQL string) |
-
-## Quick reference (SQL for execute_sql)
+## Quick reference (SQL)
 
 | Check | Query |
 |-------|--------|

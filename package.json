@@ -14,17 +14,12 @@
     "test:e2e:headed": "playwright test --headed",
     "test:e2e:debug": "playwright test --debug",
     "test:e2e:report": "playwright show-report",
-    "deploy": "npm run build && netlify deploy --prod",
-    "deploy:preview": "npm run build && netlify deploy",
-    "db:setup": "node -e \"console.log('Run: ./scripts/setup-db.sh (Mac/Linux) or .\\\\scripts\\\\setup-db.bat (Windows)')\"",
-    "db:backup": "node -e \"console.log('Run: pg_dump -U postgres buildings_manager > backup.sql')\"",
-    "db:restore": "node -e \"console.log('Run: psql -U postgres buildings_manager < backup.sql')\"",
-    "db:sync": "node supabase/scripts/sync-with-db.mjs",
-    "db:apply": "node supabase/scripts/apply-migration-via-api.mjs",
-    "db:push": "node supabase/scripts/push-all-migrations.mjs"
+    "deploy": "npm run build",
+    "db:setup": "node -e \"console.log('Windows: .\\\\scripts\\\\setup_local.ps1 | Linux: ./scripts/setup_local.sh (set PGPASSWORD)')\"",
+    "db:backup": "node -e \"console.log('Run: pg_dump -U postgres buildingsmanager > backup.sql')\"",
+    "db:restore": "node -e \"console.log('Run: psql -U postgres buildingsmanager < backup.sql')\""
   },
   "dependencies": {
-    "@supabase/supabase-js": "^2.80.0",
     "nodemailer": "^6.9.16",
     "ag-grid-community": "^34.3.1",
     "ag-grid-react": "^34.3.1",

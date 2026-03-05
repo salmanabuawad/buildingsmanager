@@ -1,0 +1,17 @@
+---
+description: All APIs must follow the same design pattern. No exceptions.
+globs: backend/app/routers/**/*.py,backend/app/main.py,src/lib/api*.ts
+alwaysApply: false
+---
+
+# API design standards (no exceptions)
+
+When adding or changing API endpoints or frontend API calls, follow **`docs/API_DESIGN_STANDARDS.md`**.
+
+- **REST**: Resource URLs, correct HTTP methods (GET/POST/PUT-PATCH/DELETE). Deletes are `DELETE /api/resource/{id}`; backend performs all related deletes.
+- **Layers**: Router → Service → Transaction. No business logic or SQL in routers.
+- **One call per use case**: Frontend does not chain generic "delete by query" or table endpoints to implement a business flow; backend exposes one purpose-built endpoint (e.g. `DELETE /api/buildings/{building_number}`) that does the full operation.
+- **Errors**: `HTTPException` with appropriate status and `detail`; no raw DB/stack in responses.
+- **Auth**: Use the same auth pattern (e.g. `Depends(get_current_user)`) on all protected routes.
+
+Generic data endpoints (e.g. GET/POST on `/api/data/{table}`) are for read/generic use only; app features use resource-specific endpoints.

@@ -12,6 +12,7 @@ import { useGridPreferences } from '../lib/useGridPreferences';
 import { processColumnHeader } from '../lib/gridHeaderUtils';
 import { exportToExcel } from '../lib/excelExport';
 import { useUserRole } from '../contexts/UserRoleContext';
+import { useUIConfig } from '../contexts/UIConfigContext';
 interface AssetRow {
   id: string;
   building_number: number | null;
@@ -55,6 +56,7 @@ export interface AssetDataEntryRef {
 export const AssetDataEntry = forwardRef<AssetDataEntryRef, {}>((props, ref) => {
   const { t } = useTranslation();
   const { isReadOnly } = useUserRole();
+  const { shouldValidateOnBlur } = useUIConfig();
   const gridRef = useRef<AgGridReact>(null);
 
   // Grid preferences hook for saving/loading column state
@@ -197,6 +199,8 @@ export const AssetDataEntry = forwardRef<AssetDataEntryRef, {}>((props, ref) => 
     updatedRow._isDirty = true;
     updatedRow._validationErrors.clear();
 
+    // When "מתי להריץ אימות" is "אונליין", run validation on cell change
+    if (shouldValidateOnBlur) {
     // Only validate sub-assets if main type is 199 or 299
     const shouldValidateSubAssets = updatedRow.main_asset_type === '199' || updatedRow.main_asset_type === '299';
     const validations = [
@@ -311,6 +315,7 @@ export const AssetDataEntry = forwardRef<AssetDataEntryRef, {}>((props, ref) => 
     } else {
       updatedRow._validationErrors.delete('_row');
     }
+    }
     setRowData(prev => {
       const newData = prev.map(row => {
         if (row.id === updatedRow.id) {
@@ -325,7 +330,7 @@ export const AssetDataEntry = forwardRef<AssetDataEntryRef, {}>((props, ref) => 
         gridRef.current?.api.refreshCells({ force: true });
       }, 0);
     }
-  }, []);
+  }, [shouldValidateOnBlur]);
   const handleSaveAll = async () => {
     setLoading(true);
     setError(null);
@@ -907,7 +912,7 @@ export const AssetDataEntry = forwardRef<AssetDataEntryRef, {}>((props, ref) => 
       headerName: 'דירת גג',
       editable: false,
       cellRenderer: (params: any) => {
-        const isChecked = params.value === true || params.value === 'כן';
+        const isChecked = params.value === true;
         return (
           <div className="flex items-center justify-center h-full">
             <input
@@ -925,12 +930,12 @@ export const AssetDataEntry = forwardRef<AssetDataEntryRef, {}>((props, ref) => 
       valueGetter: (params: any) => {
         const value = params.data?.penthouse;
         // Convert to boolean: true if checked, false otherwise
-        return (value === true || value === 'כן') ? true : false;
+        return value === true;
       },
       valueSetter: (params: any) => {
         // Always set as boolean: true or false
         const newValue = params.newValue;
-        params.data.penthouse = (newValue === true || newValue === 'כן') ? true : false;
+        params.data.penthouse = newValue === true;
         return true;
       },
       cellStyle: (params) => {

@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ValidationRule, api } from '../lib/api';
+import { ValidationRule, api, toBoolean } from '../lib/api';
 import { useValidationRules } from '../contexts/ValidationContext';
 import { Settings, Plus, Save, X, RefreshCw, Download, Upload } from 'lucide-react';
 import * as XLSX from 'xlsx';
@@ -335,10 +335,8 @@ export function ValidationRulesManager() {
           const join_field = getValue('join_field');
           const comparison_operator = getValue('comparison_operator');
 
-          // Parse enabled field - default to true if not specified
-          const enabled = enabledStr === '' || enabledStr === undefined 
-            ? true 
-            : (enabledStr.toLowerCase() === 'כן' || enabledStr.toLowerCase() === 'yes' || enabledStr === '1' || enabledStr === 'true' || enabledStr === '✓');
+          // Parse enabled field to boolean (default true if empty)
+          const enabled = (enabledStr === '' || enabledStr === undefined) ? true : toBoolean(enabledStr);
 
           // Parse value_numeric
           const value_numeric = value_numericStr ? parseInt(value_numericStr) : undefined;

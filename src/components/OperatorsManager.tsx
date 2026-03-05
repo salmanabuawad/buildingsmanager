@@ -303,7 +303,7 @@ export function OperatorsManager() {
     }
   ], [isAdmin, deletedItems, isFieldDirty]);
 
-  const configuredColumnDefs = useFieldConfig(columnDefs, 'operators');
+  const [configuredColumnDefs] = useFieldConfig(columnDefs, 'operators');
 
   const getRowStyle = (params: any) => {
     if (!params.data) return null;

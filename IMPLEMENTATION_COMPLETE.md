@@ -11,7 +11,7 @@
 
 ### 1. Database Functions (Migration Applied)
 
-**File:** `supabase/migrations/20251216103948_add_transactional_save_functions.sql`
+**File:** `migrations/20251216103948_add_transactional_save_functions.sql`
 
 Created two critical database functions:
 
@@ -297,7 +297,7 @@ if (!result.success) {
 ## Files Modified
 
 ### Database
-- ✅ `supabase/migrations/20251216103948_add_transactional_save_functions.sql` (NEW)
+- ✅ `migrations/20251216103948_add_transactional_save_functions.sql` (NEW)
 
 ### Application Code
 - ✅ `src/lib/api.ts` (MODIFIED)

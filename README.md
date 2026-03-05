@@ -13,12 +13,13 @@ A comprehensive real estate asset management application for tracking buildings,
 - 🔍 **Advanced Search** - Search assets by range with comprehensive filters
 - 📱 **Responsive Design** - Works on desktop, tablet, and mobile
 - ⚡ **Real-time Updates** - Live data synchronization with database
-- 🗄️ **PostgreSQL/Supabase** - Supports both local and cloud databases
+- 🗄️ **PostgreSQL** - Local database (full stack runs on your machine)
 
 ## 🏗️ Architecture
 
 - **Frontend**: React 18 + TypeScript + Vite + Tailwind CSS
-- **Database**: PostgreSQL (local) or Supabase (cloud)
+- **Stack**: Frontend (Vite) + FastAPI (Python) + PostgreSQL (all local). **The application is not deployed to Nginx by default**; Nginx is optional for production-like serving (see [nginx/README.md](nginx/README.md)).
+- **API**: Same origin only — all requests go to **`http://<host>/api/...`**. You **must** proxy `/api` to the backend. See [docs/PROXY_API.md](docs/PROXY_API.md). Deploy script applies Nginx config automatically; run `.\nginx\deploy-frontend.ps1` then `cd C:\nginx; .\nginx.exe -s reload`.
 - **Data Grid**: AG Grid React
 - **State Management**: React hooks
 - **Validation**: Database-driven rules engine
@@ -33,22 +34,32 @@ Before running this project, ensure you have:
 
 ## ⚡ Quick Start
 
-### Option 1: Local PostgreSQL (5 minutes)
+### Option 1: Local stack (PostgreSQL + FastAPI + frontend)
 
 **Mac/Linux:**
 ```bash
-# Run automated setup
-./scripts/setup-db.sh
+# Create DB and run migrations (set PGPASSWORD first)
+./scripts/setup_local.sh
 
-# Install dependencies and start
-npm install
-npm run dev
+# Start backend and frontend
+./scripts/start-servers.sh
+# Or: cd backend && uvicorn app.main:app --reload --port 8000 & npm run dev
 ```
 
-**Windows:**
+**Windows (PowerShell):**
+```powershell
+# Create DB and run migrations (set $env:PGPASSWORD first)
+.\scripts\setup_local.ps1
+
+# Start backend and frontend
+.\scripts\start-servers.ps1
+# Or run separately: backend with uvicorn, then npm run dev
+```
+
+**Legacy / manual:**
 ```cmd
 REM Run automated setup
-.\scripts\setup-db.bat
+.\scripts\setup_local.ps1
 
 REM Install dependencies and start
 npm install
@@ -57,25 +68,23 @@ npm run dev
 
 **See [QUICKSTART_LOCAL.md](QUICKSTART_LOCAL.md) for detailed instructions**
 
-### Option 2: Supabase Cloud
+**After backend or api client changes:** Restart backend and rebuild/restart frontend so the app picks up changes. Run `.\scripts\restart-servers.ps1` (Windows) or `./scripts/restart-servers.sh` (Linux) to restart both servers. See [docs/RESTART_SERVERS.md](docs/RESTART_SERVERS.md).
 
-1. Create a `.env` file:
-```env
-VITE_USE_LOCAL_DB=false
-VITE_SUPABASE_URL=your-supabase-project-url
-VITE_SUPABASE_ANON_KEY=your-supabase-anon-key
-```
+### Serving the built app with `http://localhost/api/...`
 
-2. Install and run:
-```bash
-npm install
-npm run dev
-```
+The app uses same-origin API only (`http://localhost/api/...`). To run the **built** app so `/api` works without Nginx:
 
-The application will be available at `http://localhost:5173`
+1. Start the backend: `cd backend && python -m uvicorn app.main:app --host 127.0.0.1 --port 8000`
+2. Build and serve: `npm run build && npm run preview`
+
+Preview runs on port 80 and proxies `/api` to the backend. Open **http://localhost/**.
+
+For production, use Nginx with the `/api` proxy (see [nginx/README.md](nginx/README.md)); run `.\nginx\setup-nginx-config-windows.ps1` then reload Nginx.
 
 ## 📖 Documentation
 
+- **[docs/PROXY_API.md](docs/PROXY_API.md)** — Proxy `/api` to the backend (required when serving the app)
+- **[docs/RESTART_SERVERS.md](docs/RESTART_SERVERS.md)** — Restart backend and frontend after code changes
 - **[QUICKSTART_LOCAL.md](QUICKSTART_LOCAL.md)** - 5-minute local setup guide
 - **[LOCAL_SETUP.md](LOCAL_SETUP.md)** - Detailed local PostgreSQL setup with troubleshooting
 - **[VALIDATION_IMPLEMENTATION.md](VALIDATION_IMPLEMENTATION.md)** - Validation system documentation
@@ -102,7 +111,7 @@ buildings-manager/
 │   ├── lib/
 │   │   ├── api.ts           # API client
 │   │   ├── db.ts            # Database client wrapper
-│   │   ├── supabase.ts      # Supabase configuration
+│   │   ├── apiClient.ts     # FastAPI REST client
 │   │   ├── validation.ts    # Validation engine
 │   │   └── sanitize.ts      # Input sanitization
 │   ├── i18n/
@@ -110,12 +119,12 @@ buildings-manager/
 │   │   └── translations.ts  # Translation strings
 │   ├── App.tsx              # Main app component
 │   └── main.tsx             # Entry point
-├── supabase/
+├── migrations/
 │   ├── migrations/          # Database migrations (150+ files)
 │   └── data/                # Sample CSV data
 ├── scripts/
-│   ├── setup-db.sh          # Mac/Linux setup script
-│   └── setup-db.bat         # Windows setup script
+│   ├── setup_local.sh       # Mac/Linux DB setup
+│   └── setup_local.ps1      # Windows DB setup
 ├── install_fresh_database.sql  # Fresh database installation (RECOMMENDED)
 ├── setup-local-db.sql          # Legacy database setup (deprecated)
 ├── postgrest.conf           # PostgREST configuration
@@ -182,43 +191,17 @@ psql -U postgres buildings_manager < backup.sql
 
 # Import CSV
 psql -U postgres -d buildings_manager
-\copy asset_types FROM 'supabase/data/assettypes.csv' DELIMITER ',' CSV HEADER;
+\copy asset_types FROM 'data/assettypes.csv' DELIMITER ',' CSV HEADER;
 ```
 
 ## 🔧 Configuration
 
 ### Application URL
 
-The application is deployed at: **https://buildingmanager.bolt.host/**
-
 ### Environment Variables
 
-Create a `.env` file in the project root:
-
-**Supabase (Production):**
-```env
-VITE_USE_LOCAL_DB=false
-VITE_SUPABASE_URL=https://bolt-native-database-59857294.supabase.co
-VITE_SUPABASE_ANON_KEY=your-anon-key
-```
-
-**Local PostgreSQL (Development):**
-```env
-VITE_USE_LOCAL_DB=true
-VITE_LOCAL_DB_URL=postgresql://postgres:password@localhost:5432/buildings_manager
-```
-
-### PostgREST (Optional)
-
-For full Supabase client compatibility with local PostgreSQL:
-
-1. Install PostgREST:
-   - Mac: `brew install postgrest`
-   - Linux: Download from [PostgREST releases](https://github.com/PostgREST/postgrest/releases)
-
-2. Run: `postgrest postgrest.conf`
-
-3. Update `.env`: `VITE_LOCAL_DB_URL=http://localhost:3000`
+- **Backend** (`backend/.env`): `DATABASE_URL`, `SECRET_KEY`, etc. (see `backend/.env.local.example`).
+- **Frontend**: API is same origin only: requests go to `http://<host>/api/...`. When serving the built app, use Nginx (or a proxy) so `/api` is proxied to the backend. Do not set `VITE_API_BASE_URL` unless the API is on another origin.
 
 ## 💻 Technologies Used
 
@@ -231,12 +214,10 @@ For full Supabase client compatibility with local PostgreSQL:
 - **i18next** - Internationalization
 - **react-pdf** - PDF viewing
 - **Lucide React** - Icon library
-- **@supabase/supabase-js** - Database client
-
-### Database
-- **PostgreSQL** - Relational database
-- **Supabase** - Backend-as-a-Service (optional)
-- **PostgREST** - REST API layer (optional)
+### Backend & database
+- **FastAPI (Python)** - REST API
+- **PostgreSQL** - Database
+- **Nginx** - Serves frontend and proxies `/api` to FastAPI (optional; dev uses Vite proxy)
 
 ## 🔍 Key Features Explained
 
@@ -284,7 +265,7 @@ psql -U postgres -d buildings_manager
 
 **"database does not exist"**
 - Create database: `createdb -U postgres buildings_manager`
-- Or run setup script: `./scripts/setup-db.sh`
+- Or run setup script: `./scripts/setup_local.sh`
 
 **"Cannot find module 'vite'"**
 - Reinstall dependencies: `rm -rf node_modules package-lock.json && npm install`
@@ -300,31 +281,14 @@ psql -U postgres -d buildings_manager
 3. Verify `.env` configuration
 4. See [LOCAL_SETUP.md](LOCAL_SETUP.md) for detailed troubleshooting
 
-## 🚀 Production Deployment
+## 🚀 Production deployment (local)
 
-### Using Supabase (Recommended)
+Default run is **Vite dev server + FastAPI** (no Nginx). For production-like serving with Nginx (optional):
 
-1. Create a Supabase project at [supabase.com](https://supabase.com)
-2. Apply migrations from `supabase/migrations/` folder
-3. Configure environment variables:
-   ```env
-   VITE_USE_LOCAL_DB=false
-   VITE_SUPABASE_URL=your-project-url
-   VITE_SUPABASE_ANON_KEY=your-anon-key
-   ```
-4. Build and deploy:
-   ```bash
-   npm run build
-   # Deploy dist/ folder to Netlify, Vercel, or any static host
-   ```
-
-### Using Self-Hosted PostgreSQL
-
-1. Set up PostgreSQL on your server
-2. Run `install_fresh_database.sql` to create schema (or use `./scripts/setup-db.sh`)
-3. Configure environment variables with production credentials
-4. Use PostgREST for REST API layer
-5. Deploy with proper CORS and security settings
+1. Set up PostgreSQL and run migrations: `.\scripts\setup_local.ps1` (Windows) or `./scripts/setup_local.sh` (Linux).
+2. Configure `backend/.env` and run FastAPI on port 8000.
+3. *(Optional)* Build and deploy frontend to Nginx: `npm run build` then `.\nginx\deploy-frontend.ps1` (Windows) or `./nginx/deploy-frontend.sh` (Linux). See [nginx/README.md](nginx/README.md).
+4. See [docs/LOCAL_INSTALL.md](docs/LOCAL_INSTALL.md).
 
 ## 📝 Data Model Notes
 
@@ -350,6 +314,6 @@ This project is licensed under the MIT License.
 ## 🙏 Acknowledgments
 
 - Built with React and TypeScript
-- Uses Supabase for cloud database
+- Local stack: Postgres + FastAPI (+ optional Nginx)
 - AG Grid for data grid functionality
 - Tailwind CSS for styling

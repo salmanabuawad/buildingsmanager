@@ -82,7 +82,7 @@ try {
     # Generate INSERT statements
     Write-Host "Generating INSERT statements..." -ForegroundColor Yellow
     
-    $outputPath = Join-Path $scriptPath "..\supabase\migrations\20251201012002_recreate_asset_types_table.sql"
+    $outputPath = Join-Path $scriptPath "..\migrations\20251201012002_recreate_asset_types_table.sql"
     
     $insertSql = "`n-- Insert all asset types from Excel`n"
     $insertSql += "INSERT INTO asset_types ($($dbColumns -join ', ')) VALUES`n"

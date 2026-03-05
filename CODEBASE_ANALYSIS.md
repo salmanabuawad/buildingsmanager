@@ -93,7 +93,7 @@ buildings-manager/
 │   │   └── validation.ts         # Validation engine (2800+ lines)
 │   ├── App.tsx                   # Main app component (1178 lines)
 │   └── main.tsx                  # Entry point
-├── supabase/
+├── migrations/
 │   ├── migrations/               # Database migrations
 │   │   ├── 20250101000000_initial_schema.sql
 │   │   ├── 20250115000000_create_audit_log.sql
@@ -539,7 +539,7 @@ npm run typecheck    # TypeScript type checking
 **Local PostgreSQL:**
 - Scripts: `scripts/setup-db.sh` (Mac/Linux), `scripts/setup-db.bat` (Windows)
 - Schema: `setup-local-db.sql`
-- Migrations: `supabase/migrations/`
+- Migrations: `migrations/`
 
 **Supabase:**
 - Cloud-hosted PostgreSQL

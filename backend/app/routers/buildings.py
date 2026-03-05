@@ -38,7 +38,7 @@ def create_building(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    if current_user.role not in ["admin", "editor"]:
+    if current_user.role not in ["admin", "editor", "inspector"]:
         raise HTTPException(status_code=403, detail="Insufficient permissions")
 
     existing = db.query(Building).filter(Building.building_id == building.building_id).first()
@@ -62,7 +62,7 @@ def update_building(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    if current_user.role not in ["admin", "editor"]:
+    if current_user.role not in ["admin", "editor", "inspector"]:
         raise HTTPException(status_code=403, detail="Insufficient permissions")
 
     db_building = db.query(Building).filter(Building.building_id == building_id).first()

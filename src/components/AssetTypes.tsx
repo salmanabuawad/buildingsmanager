@@ -1,6 +1,11 @@
 import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
-import { AssetType, api } from '../lib/api';
+import { AssetType, api, toBoolean } from '../lib/api';
+
+function toBooleanFromInput(v: unknown): boolean | undefined {
+  if (v == null || String(v).trim() === '') return undefined;
+  return toBoolean(v);
+}
 import { assetTypeValidators, inputValidators } from '../lib/validation';
 import { Plus, Tag, Upload, Save, X, Loader2, Download, Trash2, ArrowUpDown, ArrowUp, ArrowDown, Filter, FileText } from 'lucide-react';
 import * as XLSX from 'xlsx';
@@ -973,11 +978,11 @@ export function AssetTypes() {
 
           // Property characteristics - compact inline format
           const characteristics: string[] = [];
-          if (at.elevator === true || at.elevator === 'כן') characteristics.push('מעלית');
-          if (at.single_double_family === true || at.single_double_family === 'כן') characteristics.push('בית פרטי');
-          if (at.penthouse === true || at.penthouse === 'כן') characteristics.push('דירת גג');
-          if (at.condo === true || at.condo === 'כן') characteristics.push('בית משותף');
-          if (at.townhouses === true || at.townhouses === 'כן') characteristics.push('טוריים');
+          if (at.elevator === true) characteristics.push('מעלית');
+          if (at.single_double_family === true) characteristics.push('בית פרטי');
+          if (at.penthouse === true) characteristics.push('דירת גג');
+          if (at.condo === true) characteristics.push('בית משותף');
+          if (at.townhouses === true) characteristics.push('טוריים');
 
           if (characteristics.length > 0) {
             sections.push(`מאפיינים: ${characteristics.join(' • ')}`);
@@ -1040,7 +1045,7 @@ export function AssetTypes() {
   }, [t, getCurrentValue, isFieldDirty, handleDelete, deletedAssetTypes, assetTypes, dirtyAssetTypes, handleCellChange, gridRef]);
 
   // Apply field configurations from database
-  const configuredColumnDefs = useFieldConfig(columnDefs, 'asset-types');
+  const [configuredColumnDefs] = useFieldConfig(columnDefs, 'asset-types');
 
 
   async function downloadTemplate(format: 'excel' | 'csv' = 'excel') {
@@ -1399,15 +1404,15 @@ export function AssetTypes() {
             description: description || undefined,
             tax_region: tax_region ? parseInt(tax_region) : undefined,
             area_description_for_tab: area_description_for_tab || undefined,
-            elevator: elevator || undefined,
-            single_double_family: single_double_family || undefined,
-            penthouse: penthouse || undefined,
-            condo: condo || undefined,
-            townhouses: townhouses || undefined,
+            elevator: toBooleanFromInput(elevator),
+            single_double_family: toBooleanFromInput(single_double_family),
+            penthouse: toBooleanFromInput(penthouse),
+            condo: toBooleanFromInput(condo),
+            townhouses: toBooleanFromInput(townhouses),
             business_residence: validBusinessResidence,
-            non_accountable_for_total_area: non_accountable_for_total_area && (non_accountable_for_total_area.toLowerCase() === 'כן' || non_accountable_for_total_area.toLowerCase() === 'yes' || non_accountable_for_total_area === '1' || non_accountable_for_total_area === 'true') ? true : (non_accountable_for_total_area && (non_accountable_for_total_area.toLowerCase() === 'לא' || non_accountable_for_total_area.toLowerCase() === 'no' || non_accountable_for_total_area === '0' || non_accountable_for_total_area === 'false') ? false : undefined),
-            non_accountable_for_distribution: non_accountable_for_distribution && (non_accountable_for_distribution.toLowerCase() === 'כן' || non_accountable_for_distribution.toLowerCase() === 'yes' || non_accountable_for_distribution === '1' || non_accountable_for_distribution === 'true') ? true : (non_accountable_for_distribution && (non_accountable_for_distribution.toLowerCase() === 'לא' || non_accountable_for_distribution.toLowerCase() === 'no' || non_accountable_for_distribution === '0' || non_accountable_for_distribution === 'false') ? false : undefined),
-            not_accountable_for_statistics: not_accountable_for_statistics && (not_accountable_for_statistics.toLowerCase() === 'כן' || not_accountable_for_statistics.toLowerCase() === 'yes' || not_accountable_for_statistics === '1' || not_accountable_for_statistics === 'true') ? true : (not_accountable_for_statistics && (not_accountable_for_statistics.toLowerCase() === 'לא' || not_accountable_for_statistics.toLowerCase() === 'no' || not_accountable_for_statistics === '0' || not_accountable_for_statistics === 'false') ? false : undefined),
+            non_accountable_for_total_area: toBooleanFromInput(non_accountable_for_total_area),
+            non_accountable_for_distribution: toBooleanFromInput(non_accountable_for_distribution),
+            not_accountable_for_statistics: toBooleanFromInput(not_accountable_for_statistics),
             min_size: min_size ? parseFloat(min_size) : undefined,
             max_size: max_size ? parseFloat(max_size) : undefined,
           };

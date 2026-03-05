@@ -1,9 +1,9 @@
 """
 Email Router
-Handles email sending (test and send).
+Handles email sending (test and send). Sends are performed synchronously.
 """
 
-from fastapi import APIRouter, HTTPException, Depends
+from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, EmailStr
 from typing import List, Optional
 import smtplib
@@ -97,17 +97,26 @@ def send_email_with_smtp(
         # Add body
         msg.attach(MIMEText(body, 'plain', 'utf-8'))
 
-        # Add attachments
+        # Add attachments (Excel and other types per ref: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet for .xlsx)
         if attachments:
             for attachment in attachments:
-                part = MIMEBase('application', 'octet-stream')
+                filename = attachment.filename or "attachment"
+                # Use content type from attachment; default to Excel for .xlsx/.xls so clients open as spreadsheet (ref: emailService contentType)
+                content_type = attachment.contentType or "application/octet-stream"
+                if content_type == "application/octet-stream" and filename.lower().endswith((".xlsx", ".xls")):
+                    content_type = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" if filename.lower().endswith(".xlsx") else "application/vnd.ms-excel"
+                main_type, sub_type = content_type.split("/", 1) if "/" in content_type else ("application", "octet-stream")
+                part = MIMEBase(main_type, sub_type)
                 # Decode base64 content
                 attachment_data = base64.b64decode(attachment.content)
                 part.set_payload(attachment_data)
                 encoders.encode_base64(part)
+                # Content-Type is already set by MIMEBase(main_type, sub_type) so clients recognize Excel/zip etc.
+                # Filename: use RFC 2231 via tuple so all clients get correct name (ASCII and Hebrew/non-ASCII)
                 part.add_header(
-                    'Content-Disposition',
-                    f'attachment; filename= {attachment.filename}'
+                    "Content-Disposition",
+                    "attachment",
+                    filename=("utf-8", "", filename),
                 )
                 msg.attach(part)
 
@@ -144,16 +153,12 @@ def send_email_with_smtp(
 @router.post("/send", response_model=SendEmailResponse)
 async def send_email(request: SendEmailRequest):
     """
-    Send email with attachments
-    
-    Requires email configuration and recipient list.
+    Send email immediately via SMTP.
     """
     try:
-        # Validate email addresses
         if not request.to or len(request.to) == 0:
             raise HTTPException(status_code=400, detail="No recipients specified")
 
-        # Send email
         success = send_email_with_smtp(
             config=request.email_config,
             to=request.to,
@@ -161,30 +166,24 @@ async def send_email(request: SendEmailRequest):
             body=request.body,
             attachments=request.attachments,
             cc=request.cc,
-            bcc=request.bcc
+            bcc=request.bcc,
         )
-
         if success:
             return SendEmailResponse(
                 success=True,
-                message=f"Email sent successfully to {len(request.to)} recipient(s)"
+                message=f"Email sent successfully to {len(request.to)} recipient(s)",
             )
-        else:
-            raise HTTPException(status_code=500, detail="Failed to send email")
-
+        raise HTTPException(status_code=500, detail="Failed to send email")
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(
-            status_code=500,
-            detail=f"Error sending email: {str(e)}"
-        )
+        raise HTTPException(status_code=500, detail=f"Error sending email: {str(e)}")
 
 
 @router.post("/test", response_model=SendEmailResponse)
 async def send_test_email(request: TestEmailRequest):
     """
-    Send a test email to verify SMTP configuration.
+    Send a test email immediately to verify SMTP configuration.
     """
     try:
         if not request.test_to or "@" not in request.test_to:
@@ -205,9 +204,6 @@ async def send_test_email(request: TestEmailRequest):
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(
-            status_code=500,
-            detail=f"Error sending test email: {str(e)}",
-        )
+        raise HTTPException(status_code=500, detail=f"Error sending test email: {str(e)}")
 
 

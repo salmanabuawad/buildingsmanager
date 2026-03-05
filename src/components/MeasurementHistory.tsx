@@ -2,7 +2,6 @@ import { useState, useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { AssetMeasurement, api } from '../lib/api';
 import { Plus, Edit2, Trash2, Calendar, Save, X, Upload, FileText, Eye } from 'lucide-react';
-import { supabase } from '../lib/supabase';
 import { PDFViewer } from './PDFViewer';
 import { compressFile } from '../lib/fileCompression';
 
@@ -141,7 +140,7 @@ export function MeasurementHistory({ assetId }: MeasurementHistoryProps) {
         uploadOptions.contentType = fileToUpload.type;
       }
 
-      const { error: uploadError } = await supabase.storage
+      const { error: uploadError } = await api.storage
         .from('dwg-files')
         .upload(filePath, fileToUpload, uploadOptions);
 
@@ -150,14 +149,13 @@ export function MeasurementHistory({ assetId }: MeasurementHistoryProps) {
         if (uploadError.message?.includes('Bucket not found') || uploadError.statusCode === '404') {
           throw new Error(
             'Storage bucket "dwg-files" not found. ' +
-            'Please create the bucket in Supabase Dashboard: Storage → New bucket → Name: "dwg-files". ' +
-            'See CREATE_STORAGE_BUCKETS.md for detailed instructions.'
+            'Storage bucket "dwg-files" not found. Configure backend file storage.'
           );
         }
         throw uploadError;
       }
 
-      const { data: { publicUrl } } = supabase.storage
+      const { data: { publicUrl } } = api.storage
         .from('dwg-files')
         .getPublicUrl(filePath);
 
@@ -197,7 +195,7 @@ export function MeasurementHistory({ assetId }: MeasurementHistoryProps) {
 
       const filePath = fileUrl.split('/dwg-files/')[1];
       if (filePath) {
-        await supabase.storage.from('dwg-files').remove([filePath]);
+        await api.storage.from('dwg-files').remove([filePath]);
       }
 
       if (measurementId === 'new') {

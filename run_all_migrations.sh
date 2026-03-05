@@ -4,7 +4,7 @@
 
 set -e  # Exit on error
 
-MIGRATIONS_DIR="supabase/migrations"
+MIGRATIONS_DIR="migrations"
 DB_URL="${1:-postgresql://postgres:postgres@localhost:5432/postgres}"
 
 echo "Running all migrations from $MIGRATIONS_DIR"

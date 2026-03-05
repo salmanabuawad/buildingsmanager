@@ -81,10 +81,10 @@ const result = await api.assets.saveTransactional(assetData);
 - `src/lib/validation.ts` - Validation rules and logic
 
 ### Database
-- `supabase/migrations/20251216103948_add_transactional_save_functions.sql`
+- `migrations/20251216103948_add_transactional_save_functions.sql`
   - `save_asset_transactional()` function
   - `save_assets_bulk_transactional()` function
-- `supabase/migrations/add_transactional_delete_function.sql`
+- `migrations/add_transactional_delete_function.sql`
   - `delete_asset_transactional()` function
 
 ### Documentation

@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
 import { Upload, FileText, Download, AlertCircle, CheckCircle, Loader2, X, Save, CheckCircle2, Trash2, RotateCcw, MessageSquare } from 'lucide-react';
 import { api, Asset, AssetType, Building, AddressList } from '../lib/api';
+import { buildingsUpdateTotalArea } from '../lib/restClient';
 import { AssetValidationHandler } from '../lib/assetValidationHandler';
 import { ValidationResultModal, BatchValidationResults, ValidationProgress } from './ValidationResultModal';
 import { useValidationRules } from '../contexts/ValidationContext';
@@ -452,11 +453,7 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
         }
         if (headerMap['penthouse'] !== undefined) {
           const penthouseValue = (values[headerMap['penthouse']] || '').trim();
-          if (penthouseValue === 'כן' || penthouseValue.toLowerCase() === 'yes' || penthouseValue === '1' || penthouseValue.toLowerCase() === 'true') {
-            asset.penthouse = true;
-          } else {
-            asset.penthouse = false;
-          }
+          asset.penthouse = (penthouseValue === 'כן' || penthouseValue.toLowerCase() === 'yes' || penthouseValue === '1' || penthouseValue.toLowerCase() === 'true');
         }
         if (headerMap['apartment_number'] !== undefined) {
           asset.apartment_number = values[headerMap['apartment_number']] || undefined;
@@ -1184,7 +1181,7 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
         setAllAssets(allAssets);
       }
 
-      const { supabase } = await import('../lib/supabase');
+      const { api } = await import('../lib/apiClient');
 
       // Filter assets that passed validation (no validation errors)
       const validatedSkeletonAssets = importedAssets.filter(asset => {
@@ -1477,7 +1474,7 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
       
       
       // Bulk insert skeleton assets - only unique ones
-      const { data: insertedAssets, error: insertError } = await supabase
+      const { data: insertedAssets, error: insertError } = await api
         .from('assets')
         .insert(finalUniqueAssets)
         .select();
@@ -1499,9 +1496,7 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
         // Update total area for each affected building
         for (const buildingNum of affectedBuildingNumbers) {
           try {
-            await supabase.rpc('update_building_total_area', {
-              p_building_number: buildingNum
-            });
+            await buildingsUpdateTotalArea(buildingNum);
           } catch (areaError) {
             console.warn(`Failed to update building total area for building ${buildingNum} after skeleton import:`, areaError);
             // Don't fail the operation if area update fails
@@ -1510,7 +1505,7 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
       }
 
       if (insertError) {
-        console.error('Supabase insert error:', insertError);
+        console.error('API insert error:', insertError);
         // Check for ON CONFLICT error (constraint mismatch) first
         if (insertError.message?.includes('ON CONFLICT') || insertError.message?.includes('onConflict') || insertError.message?.includes('no unique or exclusion constraint')) {
           errors.push(`שגיאה: בעיה במבנה מסד הנתונים - אילוץ ייחודי לא תואם. אנא פנה למנהל המערכת. פרטים: ${insertError.message}`);
@@ -1523,7 +1518,7 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
           if (assetIdsToCheck.length > 0) {
             try {
               // Get existing assets with their building numbers
-              const { data: existingAssets, error: checkError } = await supabase
+              const { data: existingAssets, error: checkError } = await api
                 .from('assets')
                 .select('asset_id, building_number')
                 .in('asset_id', assetIdsToCheck);
@@ -1985,24 +1980,20 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
           exported_to_automation: importFromAutomation ? true : false
         };
 
-        if (asset.penthouse === 'כן' || asset.penthouse === true) {
-          assetData.penthouse = true;
-        } else {
-          assetData.penthouse = false;
-        }
+        assetData.penthouse = asset.penthouse === true;
 
         return assetData;
       });
 
-      // Use bulk insert via Supabase
-      const { supabase } = await import('../lib/supabase');
+      // Use bulk insert via API
+      const { api } = await import('../lib/apiClient');
       
       // Check which assets already exist and their building numbers (for both save and save as new)
       const assetIds = assetsToInsert.map(a => a.asset_id).filter(id => id != null);
       
       if (assetIds.length > 0) {
         // Check which assets already exist with their building numbers (bulk query)
-        const { data: existingAssets, error: checkError } = await supabase
+        const { data: existingAssets, error: checkError } = await api
           .from('assets')
           .select('asset_id, building_number')
           .in('asset_id', assetIds);
@@ -2065,7 +2056,7 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
           // For assets in the same building, delete existing ones (triggers will copy to history)
           // This applies to both "save" and "save as new"
           if (assetsInSameBuilding.length > 0) {
-            const { error: deleteError } = await supabase
+            const { error: deleteError } = await api
               .from('assets')
               .delete()
               .in('asset_id', assetsInSameBuilding);
@@ -2196,7 +2187,7 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
 
       // Perform bulk insert
       let insertedAssetsResult: any[] | null = null;
-      const { data: insertedAssets, error: bulkError } = await supabase
+      const { data: insertedAssets, error: bulkError } = await api
         .from('assets')
         .insert(sanitizedAssets)
         .select();
@@ -2217,7 +2208,7 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
           
           if (assetIdsToCheck.length > 0) {
             // Get existing assets with their building numbers
-            const { data: existingAssets, error: checkError } = await supabase
+            const { data: existingAssets, error: checkError } = await api
               .from('assets')
               .select('asset_id, building_number')
               .in('asset_id', assetIdsToCheck);
@@ -2293,7 +2284,7 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
                 const assetIdsToUpdate = assetsInSameBuilding;
                 
                 if (assetIdsToUpdate.length > 0) {
-                  const { error: deleteError } = await supabase
+                  const { error: deleteError } = await api
                     .from('assets')
                     .delete()
                     .in('asset_id', assetIdsToUpdate);
@@ -2304,7 +2295,7 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
                 }
                 
                 // Insert all assets (both new and updated)
-                const { data: newInserted, error: newError } = await supabase
+                const { data: newInserted, error: newError } = await api
                   .from('assets')
                   .insert(assetsToInsertFiltered)
                   .select();
@@ -2330,9 +2321,7 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
                   // Update total area for each affected building
                   for (const buildingNum of affectedBuildingNumbers) {
                     try {
-                      await supabase.rpc('update_building_total_area', {
-                        p_building_number: buildingNum
-                      });
+                      await buildingsUpdateTotalArea(buildingNum);
                     } catch (areaError) {
                       console.warn(`Failed to update building total area for building ${buildingNum} after import:`, areaError);
                       // Don't fail the operation if area update fails
@@ -2354,7 +2343,7 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
           const buildingNumbers = [...new Set(assetsToInsert.map(a => a.building_number).filter(b => b != null))];
           
           if (buildingNumbers.length > 0) {
-            const { data: existingBuildings, error: buildingCheckError } = await supabase
+            const { data: existingBuildings, error: buildingCheckError } = await api
               .from('buildings')
               .select('building_number')
               .in('building_number', buildingNumbers);
@@ -2398,9 +2387,7 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
         // Update total area for each affected building
         for (const buildingNum of affectedBuildingNumbers) {
           try {
-            await supabase.rpc('update_building_total_area', {
-              p_building_number: buildingNum
-            });
+            await buildingsUpdateTotalArea(buildingNum);
           } catch (areaError) {
             console.warn(`Failed to update building total area for building ${buildingNum} after import:`, areaError);
             // Don't fail the operation if area update fails
@@ -2942,7 +2929,7 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
       headerName: 'דירת גג',
       editable: false,
       cellRenderer: (params: any) => {
-        const isChecked = params.value === true || params.value === 'כן';
+        const isChecked = params.value === true;
         return (
           <div className="flex items-center justify-center h-full">
             <input
@@ -2960,12 +2947,12 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
       valueGetter: (params: any) => {
         const value = params.data?.penthouse;
         // Convert to boolean: true if checked, false otherwise
-        return (value === true || value === 'כן') ? true : false;
+        return value === true;
       },
       valueSetter: (params: any) => {
         // Always set as boolean: true or false
         const newValue = params.newValue;
-        params.data.penthouse = (newValue === true || newValue === 'כן') ? true : false;
+        params.data.penthouse = newValue === true;
         return true;
       },
       cellStyle: (params) => {
@@ -3295,7 +3282,7 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
   }, [t, assetTypes, handleDeleteRow, mode]);
 
   // Apply field configurations from database
-  const configuredColumnDefs = useFieldConfig(columnDefs, 'assets-file-import');
+  const [configuredColumnDefs] = useFieldConfig(columnDefs, 'assets-file-import');
 
   const getRowStyle = (params: any) => {
     const row = params.data as ImportAssetRow;
@@ -4384,7 +4371,7 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
                     <input
                       type="checkbox"
                       id="elevator"
-                      checked={buildingCreateData.elevator === true || buildingCreateData.elevator === 'כן'}
+                      checked={buildingCreateData.elevator === true}
                       onChange={(e) => setBuildingCreateData(prev => ({ ...prev, elevator: e.target.checked ? true : false }))}
                       className="w-4 h-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500"
                       disabled={isCreatingBuilding}
@@ -4398,7 +4385,7 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
                     <input
                       type="checkbox"
                       id="single_double_family"
-                      checked={buildingCreateData.single_double_family === true || buildingCreateData.single_double_family === 'כן'}
+                      checked={buildingCreateData.single_double_family === true}
                       onChange={(e) => setBuildingCreateData(prev => ({ ...prev, single_double_family: e.target.checked ? true : false }))}
                       className="w-4 h-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500"
                       disabled={isCreatingBuilding}
@@ -4412,7 +4399,7 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
                     <input
                       type="checkbox"
                       id="condo"
-                      checked={buildingCreateData.condo === true || buildingCreateData.condo === 'כן'}
+                      checked={buildingCreateData.condo === true}
                       onChange={(e) => setBuildingCreateData(prev => ({ ...prev, condo: e.target.checked ? true : false }))}
                       className="w-4 h-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500"
                       disabled={isCreatingBuilding}
@@ -4426,7 +4413,7 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
                     <input
                       type="checkbox"
                       id="townhouses"
-                      checked={buildingCreateData.townhouses === true || buildingCreateData.townhouses === 'כן'}
+                      checked={buildingCreateData.townhouses === true}
                       onChange={(e) => setBuildingCreateData(prev => ({ ...prev, townhouses: e.target.checked ? true : false }))}
                       className="w-4 h-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500"
                       disabled={isCreatingBuilding}

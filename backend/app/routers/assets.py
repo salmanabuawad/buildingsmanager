@@ -42,7 +42,7 @@ def create_asset(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    if current_user.role not in ["admin", "editor"]:
+    if current_user.role not in ["admin", "editor", "inspector"]:
         raise HTTPException(status_code=403, detail="Insufficient permissions")
 
     existing = db.query(Asset).filter(Asset.asset_id == asset.asset_id).first()
@@ -67,7 +67,7 @@ def update_asset(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    if current_user.role not in ["admin", "editor"]:
+    if current_user.role not in ["admin", "editor", "inspector"]:
         raise HTTPException(status_code=403, detail="Insufficient permissions")
 
     db_asset = db.query(Asset).filter(Asset.asset_id == asset_id).first()
@@ -107,7 +107,7 @@ def bulk_create_or_update_assets(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    if current_user.role not in ["admin", "editor"]:
+    if current_user.role not in ["admin", "editor", "inspector"]:
         raise HTTPException(status_code=403, detail="Insufficient permissions")
 
     result_assets = []

@@ -1,3 +1,9 @@
+/**
+ * Copyright (c) 2025 Kortex Digital. All rights reserved. Proprietary.
+ * Contact: info@kortexd.com
+ * NO REVERSE ENGINEERING. Use by AI/ML tools (e.g. LLMs, code assistants,
+ * training data, or automated analysis) is prohibited. See COPYRIGHT.
+ */
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { BuildingsList, BuildingsListRef } from './components/BuildingsList';
 import { AssetsList, AssetsListRef } from './components/AssetsList';
@@ -18,17 +24,23 @@ import { OperatorsManager } from './components/OperatorsManager';
 import { ManagersManager } from './components/ManagersManager';
 import { MeasuredNotExportedAssets } from './components/MeasuredNotExportedAssets';
 import { MeasurementProgressDashboard } from './components/MeasurementProgressDashboard';
-import { X, Settings, Building, Home, Tag, Search, Plus, Building2, Upload, ChevronDown, ChevronLeft, Trash2, Database, CheckCircle2, AlertCircle, Loader2, Menu, MapPin, Edit, Square, Save, FileText, RefreshCw, Download, LogOut, Users, UserCog, BarChart3, Mail } from 'lucide-react';
+import { X, Settings, Building, Home, Tag, Search, Plus, Building2, Upload, ChevronDown, ChevronLeft, Trash2, Database, CheckCircle2, AlertCircle, Loader2, Menu, MapPin, Edit, Square, Save, FileText, RefreshCw, Download, LogOut, Users, UserCog, BarChart3, Mail, ClipboardList, HelpCircle } from 'lucide-react';
 import { api, AssetType } from './lib/api';
-import { getSession, logoutUsersTable } from './lib/usersTableAuth';
+import { getSession, logoutUsersTable, loginByTaskToken } from './lib/usersTableAuth';
 import { assetValidators, validateEntity, getAssetTypes, getLatestExportDate as getCachedLatestExportDate } from './lib/validation';
 import { usePreferences } from './contexts/PreferencesContext';
 import { useUserRole } from './contexts/UserRoleContext';
+import { useUIConfig } from './contexts/UIConfigContext';
+import { useHelp } from './contexts/HelpContext';
 import { Login } from './components/Login';
+import { HelpModal } from './components/HelpModal';
+import { MobileTasksAndUpload } from './components/MobileTasksAndUpload';
+import { InspectionTasksManager } from './components/InspectionTasksManager';
+import { useIsMobile } from './hooks/useIsMobile';
 
 interface Tab {
   id: string;
-  type: 'buildings' | 'assets' | 'admin' | 'asset-types' | 'asset-search' | 'validation-rules' | 'building-list-import' | 'assets-file-import' | 'assets-skeleton-import' | 'asset-details' | 'transfer-areas' | 'address-list' | 'field-config' | 'asset-data-entry' | 'audit-log' | 'user-management' | 'system-configuration' | 'operators' | 'managers' | 'measured-not-exported-assets' | 'measurement-progress-dashboard';
+  type: 'buildings' | 'assets' | 'admin' | 'asset-types' | 'asset-search' | 'validation-rules' | 'building-list-import' | 'assets-file-import' | 'assets-skeleton-import' | 'asset-details' | 'transfer-areas' | 'address-list' | 'field-config' | 'asset-data-entry' | 'audit-log' | 'user-management' | 'system-configuration' | 'operators' | 'managers' | 'measured-not-exported-assets' | 'measurement-progress-dashboard' | 'mobile-tasks-upload' | 'inspection-tasks';
   buildingNumber?: number;
   label: string;
   refreshKey?: number;
@@ -43,19 +55,32 @@ interface Tab {
 
 function App() {
   const { preferences, setEditMode } = usePreferences();
-  const { isLoading: roleLoading, isReadOnly, isAdmin, refreshRole } = useUserRole();
+  const { isLoading: roleLoading, isReadOnly, isAdmin, isInspector, userRole, refreshRole } = useUserRole();
+  const roleLabel = userRole === 'admin' ? 'מנהל' : userRole === 'inspector' ? 'פקח' : 'משתמש';
   const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
   const [checkingAuth, setCheckingAuth] = useState(true);
   
-  const [tabs, setTabs] = useState<Tab[]>([
-    { id: 'measurement-progress-dashboard', type: 'measurement-progress-dashboard', label: 'התקדמות פעילות מדידות', refreshKey: Date.now() },
-    { id: 'buildings', type: 'buildings', label: 'מבנים', refreshKey: Date.now() }
-  ]);
-  const [activeTabId, setActiveTabId] = useState('measurement-progress-dashboard');
+  const [tabs, setTabs] = useState<Tab[]>(() => {
+    const s = getSession();
+    if (s?.user_role === 'inspector') {
+      return [{ id: 'inspection-tasks', type: 'inspection-tasks', label: 'משימות ביקורת', refreshKey: Date.now() }];
+    }
+    return [
+      { id: 'measurement-progress-dashboard', type: 'measurement-progress-dashboard', label: 'התקדמות פעילות מדידות', refreshKey: Date.now() },
+      { id: 'inspection-tasks', type: 'inspection-tasks', label: 'משימות ביקורת', refreshKey: Date.now() },
+      { id: 'buildings', type: 'buildings', label: 'מבנים', refreshKey: Date.now() },
+    ];
+  });
+  const [activeTabId, setActiveTabId] = useState(() => {
+    const s = getSession();
+    return s?.user_role === 'inspector' ? 'inspection-tasks' : 'measurement-progress-dashboard';
+  });
   const [showCreateBuildingModal, setShowCreateBuildingModal] = useState(false);
   const [buildingsMenuOpen, setBuildingsMenuOpen] = useState(false);
   const [assetsMenuOpen, setAssetsMenuOpen] = useState(false);
   const [adminMenuOpen, setAdminMenuOpen] = useState(false);
+  const [systemConfigSubmenuOpen, setSystemConfigSubmenuOpen] = useState(false);
+  const [managerActionsSubmenuOpen, setManagerActionsSubmenuOpen] = useState(false);
   const [showBatchValidationModal, setShowBatchValidationModal] = useState(false);
   const [batchValidationModalClosing, setBatchValidationModalClosing] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -71,8 +96,12 @@ function App() {
     invalid: number;
     errors: Array<{ assetId: string; buildingNumber: number; errors: string[] }>;
   } | null>(null);
-  const [validationRulesEnabled, setValidationRulesEnabled] = useState<boolean>(false);
-  
+  const { validation_rules_enabled: validationRulesEnabled, loadUIConfig } = useUIConfig();
+  const { setContextFromTabType, openHelp } = useHelp();
+  const isMobile = useIsMobile();
+  const mobileDefaultAppliedRef = useRef(false);
+  const inspectorDefaultAppliedRef = useRef(false);
+
   // Refs to child components for checking dirty state
   const buildingsListRef = useRef<BuildingsListRef | null>(null);
   const assetsListRef = useRef<AssetsListRef | null>(null);
@@ -91,29 +120,114 @@ function App() {
   const [resetExportLoading, setResetExportLoading] = useState(false);
   const [latestExportDate, setLatestExportDate] = useState<string | null>(null);
   
-  // Check authentication (users-table session only)
+  // Check authentication (users-table session only) + handle one-time task token from email link
   useEffect(() => {
-    setIsAuthenticated(!!getSession());
-    setCheckingAuth(false);
-  }, []);
+    (async () => {
+      const hash = window.location.hash || '';
+      const tokenMatch = hash.match(/[?&]token=([^&]+)/);
+      const token = tokenMatch ? decodeURIComponent(tokenMatch[1]) : new URLSearchParams(window.location.search).get('token');
 
-  // Load UI configuration
-  useEffect(() => {
-    const loadUIConfig = async () => {
-      try {
-        const uiConfig = await api.systemConfiguration.getUIConfig();
-        setValidationRulesEnabled(uiConfig.validation_rules_enabled);
-      } catch (error) {
-        console.error('Error loading UI config:', error);
-        // Default to false if error
-        setValidationRulesEnabled(false);
+      if (token && !getSession()) {
+        const result = await loginByTaskToken(token);
+        if (result.success) {
+          setIsAuthenticated(true);
+          await refreshRole();
+          const cleanHash = result.taskId ? `#inspection-tasks/${result.taskId}` : '#inspection-tasks';
+          window.history.replaceState(null, '', window.location.pathname + (window.location.search || '') + cleanHash);
+          setTabs((prev) => {
+            const has = prev.some((t) => t.type === 'inspection-tasks');
+            if (!has) return [...prev, { id: 'inspection-tasks', type: 'inspection-tasks', label: 'משימות ביקורת', refreshKey: Date.now() }];
+            return prev;
+          });
+          setActiveTabId('inspection-tasks');
+          setCheckingAuth(false);
+          return;
+        }
       }
-    };
-    
+
+      setIsAuthenticated(!!getSession());
+      setCheckingAuth(false);
+    })();
+  }, [refreshRole]);
+
+  // Inspector: only inspection-tasks tab; hide other pages
+  useEffect(() => {
+    if (!roleLoading && isAuthenticated && isInspector) {
+      setTabs((prev) => {
+        const inspectionOnly = prev.filter((t) => t.type === 'inspection-tasks');
+        return inspectionOnly.length > 0 ? inspectionOnly : [{ id: 'inspection-tasks', type: 'inspection-tasks', label: 'משימות ביקורת', refreshKey: Date.now() }];
+      });
+      setActiveTabId('inspection-tasks');
+    }
+  }, [roleLoading, isAuthenticated, isInspector]);
+
+  // Deep link: switch to inspection-tasks tab when hash is #inspection-tasks or #inspection-tasks/123
+  useEffect(() => {
+    if (!isAuthenticated) return;
+    const hash = window.location.hash || '';
+    if (hash.includes('?token=')) {
+      const cleanHash = hash.split('?')[0] || '#inspection-tasks';
+      window.history.replaceState(null, '', window.location.pathname + (window.location.search || '') + cleanHash);
+    }
+    if (hash.match(/#inspection-tasks\/\d+/) || hash === '#inspection-tasks') {
+      setTabs((prev) => {
+        const has = prev.some((t) => t.type === 'inspection-tasks');
+        if (!has) return [...prev, { id: 'inspection-tasks', type: 'inspection-tasks', label: 'משימות ביקורת', refreshKey: Date.now() }];
+        return prev;
+      });
+      setActiveTabId('inspection-tasks');
+    }
+  }, [isAuthenticated]);
+
+  // Load UI configuration (מתי להריץ אימות: off | before_save | online)
+  useEffect(() => {
     if (isAuthenticated) {
       loadUIConfig();
     }
-  }, [isAuthenticated]);
+  }, [isAuthenticated, loadUIConfig]);
+
+  // F1 key opens help modal
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'F1') {
+        e.preventDefault();
+        openHelp();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [openHelp]);
+
+  // Sync help context when active tab changes (or general when not authenticated)
+  useEffect(() => {
+    if (!isAuthenticated) {
+      setContextFromTabType('general');
+      return;
+    }
+    const activeTab = tabs.find(t => t.id === activeTabId);
+    setContextFromTabType(activeTab?.type ?? 'general');
+  }, [isAuthenticated, activeTabId, tabs, setContextFromTabType]);
+
+  // On mobile: when user first opens app (or just logged in), focus on task list + upload
+  useEffect(() => {
+    if (!isAuthenticated || !isMobile || mobileDefaultAppliedRef.current) return;
+    mobileDefaultAppliedRef.current = true;
+    setTabs([
+      { id: 'mobile-tasks-upload', type: 'mobile-tasks-upload', label: 'משימות והעלאות', refreshKey: Date.now() },
+      { id: 'buildings', type: 'buildings', label: 'מבנים', refreshKey: Date.now() }
+    ]);
+    setActiveTabId('mobile-tasks-upload');
+  }, [isAuthenticated, isMobile]);
+
+  // Inspector: only inspection-tasks tab (aligned with ref_only)
+  useEffect(() => {
+    if (!isAuthenticated || !isInspector || inspectorDefaultAppliedRef.current || roleLoading) return;
+    inspectorDefaultAppliedRef.current = true;
+    setTabs([
+      { id: 'inspection-tasks', type: 'inspection-tasks', label: 'משימות ביקורת', refreshKey: Date.now() }
+    ]);
+    setActiveTabId('inspection-tasks');
+  }, [isAuthenticated, isInspector, roleLoading]);
 
   const handleLoginSuccess = async () => {
     setIsAuthenticated(true);
@@ -377,6 +491,9 @@ function App() {
         return transferAreasRef.current?.hasUnsavedChanges() || false;
       case 'asset-data-entry':
         return assetDataEntryRef.current?.hasUnsavedChanges() || false;
+      case 'mobile-tasks-upload':
+      case 'inspection-tasks':
+        return false;
       default:
         return false;
     }
@@ -913,6 +1030,12 @@ function App() {
     openTab(newTab);
   }
 
+  function openInspectionTasks() {
+    const id = 'inspection-tasks-panel';
+    const newTab: Tab = { id, type: 'inspection-tasks', label: 'משימות ביקורת', refreshKey: Date.now() };
+    openTab(newTab);
+  }
+
   async function exportSchemaToCSV() {
     try {
       const data = await api.schema.getTablesFieldsTypes();
@@ -1066,6 +1189,21 @@ function App() {
 
     // Remove all other building-list-import tabs, then add new one
     openTab(newTab);
+  }
+
+  function openMobileTasksUpload() {
+    handleNavigation(() => {
+      const id = 'mobile-tasks-upload';
+      const existing = tabs.find(t => t.id === id);
+      if (existing) {
+        setActiveTabId(id);
+        setSidebarOpen(false);
+        return;
+      }
+      const newTab: Tab = { id, type: 'mobile-tasks-upload', label: 'משימות והעלאות', refreshKey: Date.now() };
+      openTab(newTab);
+      setSidebarOpen(false);
+    });
   }
 
   function openAssetsFileImport() {
@@ -1376,9 +1514,56 @@ function App() {
           </button>
         )}
         <div className="p-2 border-b border-purple-100 bg-gradient-to-br from-purple-100 via-indigo-50 to-white">
-          <h2 className="text-xs font-semibold bg-gradient-to-r from-purple-700 to-indigo-700 bg-clip-text text-transparent">תפריט ראשי</h2>
+          <div className="flex items-center justify-between">
+            <h2 className="text-xs font-semibold bg-gradient-to-r from-purple-700 to-indigo-700 bg-clip-text text-transparent">תפריט ראשי</h2>
+            <button
+              onClick={() => openHelp()}
+              className="p-1.5 rounded-lg hover:bg-purple-100 text-purple-600 hover:text-purple-800"
+              title="עזרה (F1)"
+              aria-label="עזרה"
+            >
+              <HelpCircle className="h-4 w-4" />
+            </button>
+          </div>
+          {!roleLoading && userRole && (
+            <span className={`inline-block mt-1.5 px-2 py-0.5 rounded text-xs font-medium ${
+              userRole === 'admin' ? 'bg-pink-100 text-pink-800' :
+              userRole === 'inspector' ? 'bg-indigo-100 text-indigo-800' :
+              'bg-slate-100 text-slate-700'
+            }`}>
+              {roleLabel}
+            </span>
+          )}
         </div>
         <nav className="flex-1 p-3 space-y-2">
+          {isInspector && (
+            <div>
+              <button
+                onClick={openInspectionTasks}
+                className="w-full flex items-center justify-between px-4 py-2.5 text-right bg-indigo-100 hover:bg-indigo-200 active:bg-indigo-300 rounded-md transition-all duration-200 shadow-sm border border-indigo-200 hover:shadow-md hover:border-indigo-300 group"
+              >
+                <div className="flex items-center gap-2">
+                  <span className="font-medium text-sm text-slate-800 group-hover:text-indigo-900">משימות ביקורת</span>
+                  <ClipboardList className="h-4 w-4 text-indigo-700 group-hover:text-indigo-800" />
+                </div>
+              </button>
+            </div>
+          )}
+          {!isInspector && isMobile && (
+            <div>
+              <button
+                onClick={openMobileTasksUpload}
+                className="w-full flex items-center justify-between px-4 py-2.5 text-right bg-indigo-50 hover:bg-indigo-100 active:bg-indigo-200 rounded-md transition-all duration-200 shadow-sm border border-indigo-100 hover:shadow-md hover:border-indigo-300 group"
+              >
+                <div className="flex items-center gap-2">
+                  <span className="font-medium text-sm text-slate-700 group-hover:text-indigo-900">משימות והעלאות</span>
+                  <ClipboardList className="h-4 w-4 text-indigo-600 group-hover:text-indigo-700" />
+                </div>
+              </button>
+            </div>
+          )}
+          {!isInspector && (
+          <>
           <div>
             <button
               onClick={() => setBuildingsMenuOpen(!buildingsMenuOpen)}
@@ -1526,13 +1711,49 @@ function App() {
             </button>
             {adminMenuOpen && (
               <div className="mr-2 mt-2 space-y-1.5">
-                <button
-                  onClick={openAssetTypes}
-                  className="w-full flex items-center gap-2 px-3 py-2 text-right bg-pink-50/50 hover:bg-pink-100 rounded-lg transition-all text-xs shadow-sm hover:shadow"
-                >
-                  <span className="font-medium text-slate-700">סוגי נכסים</span>
-                  <Tag className="h-3.5 w-3.5 text-pink-600" />
-                </button>
+                {isAdmin && (
+                  <div>
+                    <button
+                      onClick={() => setManagerActionsSubmenuOpen(!managerActionsSubmenuOpen)}
+                      className="w-full flex items-center justify-between px-3 py-2 text-right bg-pink-50/50 hover:bg-pink-100 rounded-lg transition-all text-xs shadow-sm hover:shadow"
+                    >
+                      <div className="flex items-center gap-2">
+                        <span className="font-medium text-slate-700">פעולות מנהל</span>
+                        <UserCog className="h-3.5 w-3.5 text-pink-600" />
+                      </div>
+                      {managerActionsSubmenuOpen ? (
+                        <ChevronDown className="h-3.5 w-3.5 text-slate-500" />
+                      ) : (
+                        <ChevronLeft className="h-3.5 w-3.5 text-slate-500" />
+                      )}
+                    </button>
+                    {managerActionsSubmenuOpen && (
+                      <div className="mr-2 mt-1.5 space-y-1 border-r-2 border-pink-200 pr-2">
+                        <button
+                          onClick={openInspectionTasks}
+                          className="w-full flex items-center gap-2 px-3 py-2 text-right bg-pink-50/80 hover:bg-pink-100 rounded-lg transition-all text-xs"
+                        >
+                          <span className="text-slate-700">משימות ביקורת</span>
+                          <ClipboardList className="h-3 w-3 text-pink-500" />
+                        </button>
+                        <button
+                          onClick={openResetExportModal}
+                          disabled={resetExportLoading}
+                          className="w-full flex items-center gap-2 px-3 py-2 text-right bg-pink-50/80 hover:bg-pink-100 rounded-lg transition-all text-xs disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          <span className="text-slate-700">
+                            איפוס שליחת נתונים מתאריך{displayLatestExportDate ? ` ${displayLatestExportDate}` : ''}
+                          </span>
+                          {resetExportLoading ? (
+                            <Loader2 className="h-3 w-3 text-pink-500 animate-spin" />
+                          ) : (
+                            <RefreshCw className="h-3 w-3 text-pink-500" />
+                          )}
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                )}
                 {isAdmin && validationRulesEnabled && (
                   <button
                     onClick={openValidationRules}
@@ -1543,91 +1764,93 @@ function App() {
                   </button>
                 )}
                 {isAdmin && (
-                  <button
-                    onClick={openFieldConfig}
-                    className="w-full flex items-center gap-2 px-3 py-2 text-right bg-pink-50/50 hover:bg-pink-100 rounded-lg transition-all text-xs shadow-sm hover:shadow"
-                  >
-                    <span className="font-medium text-slate-700">הגדרות שדות</span>
-                    <Settings className="h-3.5 w-3.5 text-pink-600" />
-                  </button>
-                )}
-                {isAdmin && (
-                  <button
-                    onClick={openAddressList}
-                    className="w-full flex items-center gap-2 px-3 py-2 text-right bg-pink-50/50 hover:bg-pink-100 rounded-lg transition-all text-xs shadow-sm hover:shadow"
-                  >
-                    <span className="font-medium text-slate-700">רשימת כתובות</span>
-                    <MapPin className="h-3.5 w-3.5 text-pink-600" />
-                  </button>
-                )}
-                {false && (
-                <button
-                  onClick={openAuditLog}
-                  className="w-full flex items-center gap-2 px-3 py-2 text-right bg-pink-50/50 hover:bg-pink-100 rounded-lg transition-all text-xs shadow-sm hover:shadow"
-                >
-                  <span className="font-medium text-slate-700">יומן ביקורת</span>
-                  <FileText className="h-3.5 w-3.5 text-pink-600" />
-                </button>
-                )}
-                {isAdmin && (
-                  <button
-                    onClick={openUserManagement}
-                    className="w-full flex items-center gap-2 px-3 py-2 text-right bg-pink-50/50 hover:bg-pink-100 rounded-lg transition-all text-xs shadow-sm hover:shadow"
-                  >
-                    <span className="font-medium text-slate-700">ניהול משתמשים</span>
-                    <Users className="h-3.5 w-3.5 text-pink-600" />
-                  </button>
-                )}
-                {isAdmin && (
-                  <button
-                    onClick={openSystemConfiguration}
-                    className="w-full flex items-center gap-2 px-3 py-2 text-right bg-pink-50/50 hover:bg-pink-100 rounded-lg transition-all text-xs shadow-sm hover:shadow"
-                  >
-                    <span className="font-medium text-slate-700">הגדרות מערכת</span>
-                    <Settings className="h-3.5 w-3.5 text-pink-600" />
-                  </button>
-                )}
-                {isAdmin && (
-                  <button
-                    onClick={openOperators}
-                    className="w-full flex items-center gap-2 px-3 py-2 text-right bg-pink-50/50 hover:bg-pink-100 rounded-lg transition-all text-xs shadow-sm hover:shadow"
-                  >
-                    <span className="font-medium text-slate-700">מפעילים</span>
-                    <Users className="h-3.5 w-3.5 text-pink-600" />
-                  </button>
-                )}
-                {isAdmin && (
-                  <button
-                    onClick={openManagers}
-                    className="w-full flex items-center gap-2 px-3 py-2 text-right bg-pink-50/50 hover:bg-pink-100 rounded-lg transition-all text-xs shadow-sm hover:shadow"
-                  >
-                    <span className="font-medium text-slate-700">מנהלים</span>
-                    <UserCog className="h-3.5 w-3.5 text-pink-600" />
-                  </button>
-                )}
-                {isAdmin && (
-                  <button
-                    onClick={openResetExportModal}
-                    disabled={resetExportLoading}
-                    className="w-full flex items-center gap-2 px-3 py-2 text-right bg-pink-50/50 hover:bg-pink-100 rounded-lg transition-all text-xs shadow-sm hover:shadow disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    <span className="font-medium text-slate-700">
-                      איפוס שליחת נתונים מתאריך{displayLatestExportDate ? ` ${displayLatestExportDate}` : ''}
-                    </span>
-                    {resetExportLoading ? (
-                      <Loader2 className="h-3.5 w-3.5 text-pink-600 animate-spin" />
-                    ) : (
-                      <RefreshCw className="h-3.5 w-3.5 text-pink-600" />
+                  <div>
+                    <button
+                      onClick={() => setSystemConfigSubmenuOpen(!systemConfigSubmenuOpen)}
+                      className="w-full flex items-center justify-between px-3 py-2 text-right bg-pink-50/50 hover:bg-pink-100 rounded-lg transition-all text-xs shadow-sm hover:shadow"
+                    >
+                      <div className="flex items-center gap-2">
+                        <span className="font-medium text-slate-700">הגדרות מערכת</span>
+                        <Settings className="h-3.5 w-3.5 text-pink-600" />
+                      </div>
+                      {systemConfigSubmenuOpen ? (
+                        <ChevronDown className="h-3.5 w-3.5 text-slate-500" />
+                      ) : (
+                        <ChevronLeft className="h-3.5 w-3.5 text-slate-500" />
+                      )}
+                    </button>
+                    {systemConfigSubmenuOpen && (
+                      <div className="mr-2 mt-1.5 space-y-1 border-r-2 border-pink-200 pr-2">
+                        <button
+                          onClick={openSystemConfiguration}
+                          className="w-full flex items-center gap-2 px-3 py-2 text-right bg-pink-50/80 hover:bg-pink-100 rounded-lg transition-all text-xs"
+                        >
+                          <span className="text-slate-700">הגדרות כלליות</span>
+                          <Settings className="h-3 w-3 text-pink-500" />
+                        </button>
+                        <button
+                          onClick={openAssetTypes}
+                          className="w-full flex items-center gap-2 px-3 py-2 text-right bg-pink-50/80 hover:bg-pink-100 rounded-lg transition-all text-xs"
+                        >
+                          <span className="text-slate-700">סוגי נכסים</span>
+                          <Tag className="h-3 w-3 text-pink-500" />
+                        </button>
+                        <button
+                          onClick={openAddressList}
+                          className="w-full flex items-center gap-2 px-3 py-2 text-right bg-pink-50/80 hover:bg-pink-100 rounded-lg transition-all text-xs"
+                        >
+                          <span className="text-slate-700">רשימת כתובות</span>
+                          <MapPin className="h-3 w-3 text-pink-500" />
+                        </button>
+                        <button
+                          onClick={openFieldConfig}
+                          className="w-full flex items-center gap-2 px-3 py-2 text-right bg-pink-50/80 hover:bg-pink-100 rounded-lg transition-all text-xs"
+                        >
+                          <span className="text-slate-700">הגדרות שדות</span>
+                          <Settings className="h-3 w-3 text-pink-500" />
+                        </button>
+                        <button
+                          onClick={openOperators}
+                          className="w-full flex items-center gap-2 px-3 py-2 text-right bg-pink-50/80 hover:bg-pink-100 rounded-lg transition-all text-xs"
+                        >
+                          <span className="text-slate-700">מפעילים</span>
+                          <Users className="h-3 w-3 text-pink-500" />
+                        </button>
+                        <button
+                          onClick={openManagers}
+                          className="w-full flex items-center gap-2 px-3 py-2 text-right bg-pink-50/80 hover:bg-pink-100 rounded-lg transition-all text-xs"
+                        >
+                          <span className="text-slate-700">מנהלים</span>
+                          <UserCog className="h-3 w-3 text-pink-500" />
+                        </button>
+                        <button
+                          onClick={openUserManagement}
+                          className="w-full flex items-center gap-2 px-3 py-2 text-right bg-pink-50/80 hover:bg-pink-100 rounded-lg transition-all text-xs"
+                        >
+                          <span className="text-slate-700">ניהול משתמשים</span>
+                          <Users className="h-3 w-3 text-pink-500" />
+                        </button>
+                      </div>
                     )}
-                  </button>
+                  </div>
                 )}
               </div>
             )}
           </div>
+          </>
+          )}
         </nav>
         
-        {/* Logout button at bottom of sidebar */}
-        <div className="p-3 border-t border-purple-200">
+        {/* Help and Logout at bottom of sidebar */}
+        <div className="p-3 border-t border-purple-200 space-y-2">
+          <button
+            onClick={() => openHelp('manual')}
+            className="w-full flex items-center gap-2 px-4 py-2 text-right bg-slate-50 hover:bg-slate-100 rounded-md transition-all text-sm text-slate-600 hover:text-slate-800"
+            title="מדריך משתמש (F1 למענה מותאם למסך)"
+          >
+            <HelpCircle className="h-4 w-4" />
+            <span>עזרה</span>
+          </button>
           <button
             onClick={handleLogout}
             className="w-full flex items-center gap-2 px-4 py-2.5 text-right bg-red-50 hover:bg-red-100 active:bg-red-200 rounded-md transition-all duration-200 shadow-sm border border-red-200 hover:shadow-md hover:border-red-300 group"
@@ -1635,6 +1858,7 @@ function App() {
             <span className="font-medium text-sm text-red-700 group-hover:text-red-900">התנתק</span>
             <LogOut className="h-4 w-4 text-red-600 group-hover:text-red-700" />
           </button>
+          <p className="text-center text-xs text-slate-400 pt-1">Kortex Digital</p>
         </div>
         
       </div>
@@ -1696,6 +1920,10 @@ function App() {
                       <Settings className="h-4 w-4 text-purple-700" />
                     ) : tab.type === 'buildings' ? (
                       <img src="/buildings.png" alt="Buildings" className="h-4 w-4" />
+                    ) : tab.type === 'mobile-tasks-upload' ? (
+                      <ClipboardList className="h-4 w-4 text-purple-700" />
+                    ) : tab.type === 'inspection-tasks' ? (
+                      <ClipboardList className="h-4 w-4 text-purple-700" />
                     ) : (
                       <Building className="h-4 w-4 text-purple-700" />
                     )}
@@ -1836,11 +2064,17 @@ function App() {
                 onSelectAsset={handleSelectAsset}
               />
             )}
-            {activeTab?.type === 'measurement-progress-dashboard' && (
-              <MeasurementProgressDashboard 
+{activeTab?.type === 'measurement-progress-dashboard' && (
+              <MeasurementProgressDashboard
                 onOpenBuildingsList={openBuildingsList}
                 onOpenMeasuredNotExportedAssets={openMeasuredNotExportedAssets}
               />
+            )}
+            {activeTab?.type === 'mobile-tasks-upload' && (
+              <MobileTasksAndUpload />
+            )}
+            {activeTab?.type === 'inspection-tasks' && (
+              <InspectionTasksManager key={activeTab.refreshKey} />
             )}
           </div>
         </div>
@@ -2099,6 +2333,8 @@ function App() {
           </div>
         </div>
       )}
+
+      <HelpModal />
     </div>
   );
 }

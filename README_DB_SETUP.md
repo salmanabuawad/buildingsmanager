@@ -58,7 +58,7 @@ If you're working with an existing database that uses migrations:
 ### `init_db.sql`
 - Complete consolidated database schema
 - Includes all tables, indexes, constraints, triggers, and functions
-- Based on `supabase/migrations/20260101000000_consolidated_initial_schema.sql`
+- Based on `migrations/20260101000000_consolidated_initial_schema.sql`
 - Safe to run on a fresh database
 
 ### `seed/seed.sql`

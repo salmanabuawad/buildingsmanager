@@ -12,7 +12,6 @@ import { AgGridReact } from 'ag-grid-react';
 import { ColDef, CellClassParams } from 'ag-grid-community';
 import { assetValidators, validateAll, inputValidators } from '../lib/validation';
 import { AssetValidationHandler } from '../lib/assetValidationHandler';
-import { supabase } from '../lib/supabase';
 import { ValidationResultModal, SingleAssetValidationResult, ValidationProgress } from './ValidationResultModal';
 import { RowEditModal } from './RowEditModal';
 import { AuditLog, Building as BuildingType } from '../lib/api';
@@ -24,6 +23,7 @@ import { useGridPreferences } from '../lib/useGridPreferences';
 import { processColumnHeader } from '../lib/gridHeaderUtils';
 import { useFieldConfig } from '../lib/useFieldConfig';
 import { exportToExcel } from '../lib/excelExport';
+import { useUIConfig } from '../contexts/UIConfigContext';
 
 interface AssetDetailsProps {
   assetId?: number;
@@ -42,6 +42,7 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
   const { t } = useTranslation();
   const { preferences, setEditMode } = usePreferences();
   const { validationRules } = useValidationRules(); // Get validation rules from context
+  const { shouldValidateOnBlur } = useUIConfig();
   const editMode = preferences.editMode;
   const [asset, setAsset] = useState<Asset | null>(null);
   const [allMeasurements, setAllMeasurements] = useState<Asset[]>([]);
@@ -362,7 +363,7 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
                        atTaxRegionNum != null && 
                        !isNaN(atTaxRegionNum) && 
                        atTaxRegionNum === assetTaxRegionNum &&
-                       (at.active === true || at.active === 'כן');
+                       (at.active === true);
               });
               
               if (!matchingAssetTypeForTaxRegion) {
@@ -373,7 +374,7 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
                   const atTaxRegionNum = at.tax_region != null 
                     ? (typeof at.tax_region === 'string' ? parseInt(at.tax_region, 10) : at.tax_region)
                     : null;
-                  if (atNameStr === newAssetTypeName && atTaxRegionNum != null && !isNaN(atTaxRegionNum) && (at.active === true || at.active === 'כן')) {
+                  if (atNameStr === newAssetTypeName && atTaxRegionNum != null && !isNaN(atTaxRegionNum) && (at.active === true)) {
                     validTaxRegions.add(atTaxRegionNum);
                   }
                 });
@@ -504,86 +505,63 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
         }
       }
 
-      // Debounce expensive database validations (800ms delay for better performance)
-      // This prevents validation from running on every keystroke
-      const timer = setTimeout(async () => {
-        try {
-          // Prepare cached data for validation (all data is already in memory)
-          const cachedData = {
-            assetTypes: assetTypes || [],
-            building: building
-          };
-
-          // Use the same validation as the validate button - AssetValidationHandler.validateSingleAsset
-          // This ensures consistent validation behavior across all components
-          const result = await AssetValidationHandler.validateSingleAsset(updatedAsset, {
-            taxRegion: validationTaxRegion, // Use validationTaxRegion from tab - same as AssetsList
-            cachedData: cachedData
-          });
-
-          // Add discount validation errors
-          const discountErrors = validateDiscountDates(updatedAsset);
-          const allErrors = [...(result.errors || []), ...discountErrors];
-
-          // Recalculate actualValid from results - same as handleValidateLatestRow
-          // This ensures consistency: an asset is only valid if valid=true AND no errors
-          const actualValid = result.valid && allErrors.length === 0;
-
-          // Update validationErrors state to reflect validation results
-          if (actualValid) {
-            // Validation passed - clear errors for this asset
-            setValidationErrors(prev => {
-              const newMap = new Map(prev);
-              newMap.delete(assetId);
-              return newMap;
+      // When "מתי להריץ אימות" is "אונליין", run debounced validation on cell change
+      if (shouldValidateOnBlur) {
+        const timer = setTimeout(async () => {
+          try {
+            const cachedData = {
+              assetTypes: assetTypes || [],
+              building: building
+            };
+            const result = await AssetValidationHandler.validateSingleAsset(updatedAsset, {
+              taxRegion: validationTaxRegion,
+              cachedData: cachedData
             });
-            // Refresh the grid cells to clear validation styling
-            // Also refresh the actions column to update invalid icon
-            event.api.refreshCells({ 
-              rowNodes: [node], 
-              columns: ['actions', 'structure_drawing_url'],
-              force: true 
-            });
-            // Also refresh all cells for styling updates
-            event.api.refreshCells({ rowNodes: [node], force: true });
-          } else if (allErrors.length > 0) {
-            // Validation failed - set errors for this asset
-            setValidationErrors(prev => {
-              const newMap = new Map(prev);
-              const errorMap = new Map<string, string>();
-              allErrors.forEach((error, index) => {
-                // Use a generic field name or index if we can't determine the field
-                errorMap.set(`error_${index}`, error);
+            const discountErrors = validateDiscountDates(updatedAsset);
+            const allErrors = [...(result.errors || []), ...discountErrors];
+            const actualValid = result.valid && allErrors.length === 0;
+
+            if (actualValid) {
+              setValidationErrors(prev => {
+                const newMap = new Map(prev);
+                newMap.delete(assetId);
+                return newMap;
               });
-              newMap.set(assetId, errorMap);
-              return newMap;
-            });
-            // Refresh the grid cells to show validation styling
-            // Also refresh the actions column to update invalid icon
-            event.api.refreshCells({ 
-              rowNodes: [node], 
-              columns: ['actions', 'structure_drawing_url'],
-              force: true 
-            });
-            // Also refresh all cells for styling updates
-            event.api.refreshCells({ rowNodes: [node], force: true });
+              event.api.refreshCells({ rowNodes: [node], columns: ['actions', 'structure_drawing_url'], force: true });
+              event.api.refreshCells({ rowNodes: [node], force: true });
+            } else if (allErrors.length > 0) {
+              setValidationErrors(prev => {
+                const newMap = new Map(prev);
+                const errorMap = new Map<string, string>();
+                allErrors.forEach((error, index) => errorMap.set(`error_${index}`, error));
+                newMap.set(assetId, errorMap);
+                return newMap;
+              });
+              event.api.refreshCells({ rowNodes: [node], columns: ['actions', 'structure_drawing_url'], force: true });
+              event.api.refreshCells({ rowNodes: [node], force: true });
+            }
+          } catch (error) {
+            console.error('Error in debounced validation:', error);
+          } finally {
+            validationTimerRef.current.delete(String(assetId));
           }
-        } catch (error) {
-          console.error('Error in debounced validation:', error);
-        } finally {
-          // Clean up timer reference
-          validationTimerRef.current.delete(String(assetId));
-        }
-      }, 500); // 500ms debounce delay
-
-      validationTimerRef.current.set(String(assetId), timer);
+        }, 500);
+        validationTimerRef.current.set(String(assetId), timer);
+      } else {
+        validationTimerRef.current.delete(String(assetId));
+        setValidationErrors(prev => {
+          const newMap = new Map(prev);
+          newMap.delete(assetId);
+          return newMap;
+        });
+      }
 
     } catch (error) {
       console.error('Error tracking change:', error);
       setError('Failed to track change');
       setTimeout(() => setError(null), 3000);
     }
-  }, [validationTaxRegion, assetTypes, building, validateDiscountDates]);
+  }, [validationTaxRegion, assetTypes, building, validateDiscountDates, shouldValidateOnBlur]);
 
   const onCellEditingStopped = useCallback((event: any) => {
     const { data, column, colDef } = event;
@@ -1536,7 +1514,7 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
       const filePath = `${assetId}/${sanitizedName}`;
 
       // Step 3: Upload with simulated progress tracking
-      // Simulate upload progress (Supabase doesn't provide real-time progress)
+      // Simulate upload progress (backend does not provide real-time progress)
       const progressInterval = setInterval(() => {
         setUploadProgress((prev) => {
           if (!prev || prev.assetId !== assetId) return prev;
@@ -1553,7 +1531,7 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
         uploadOptions.contentType = compressedFile.type;
       }
 
-      const { error: uploadError } = await supabase.storage
+      const { error: uploadError } = await api.storage
         .from('structure-drawings')
         .upload(filePath, compressedFile, uploadOptions);
 
@@ -1564,8 +1542,7 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
         if (uploadError.message?.includes('Bucket not found') || uploadError.statusCode === '404') {
           throw new Error(
             'Storage bucket "structure-drawings" not found. ' +
-            'Please create the bucket in Supabase Dashboard: Storage → New bucket → Name: "structure-drawings". ' +
-            'See CREATE_STORAGE_BUCKETS.md for detailed instructions.'
+            'Storage bucket "structure-drawings" not found. Configure backend file storage.'
           );
         }
         throw uploadError;
@@ -1574,7 +1551,7 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
       setUploadProgress({ assetId, progress: 90, fileName: file.name });
 
       // Step 4: Get public URL
-      const { data: { publicUrl } } = supabase.storage
+      const { data: { publicUrl } } = api.storage
         .from('structure-drawings')
         .getPublicUrl(filePath);
 
@@ -2603,7 +2580,7 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
       hide: false, // Always show penthouse checkbox for residence assets
       editable: false,
       cellRenderer: (params: any) => {
-        const isChecked = params.value === true || params.value === 'כן';
+        const isChecked = params.value === true;
         const isEditable = params.data.is_latest === true && editMode === 'inline';
         return (
           <div className="flex items-center justify-center h-full">
@@ -2666,12 +2643,12 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
       valueGetter: (params: any) => {
         const value = params.data?.penthouse;
         // Convert to boolean: true if checked, false otherwise
-        return (value === true || value === 'כן') ? true : false;
+        return value === true;
       },
       valueSetter: (params: any) => {
         // Always set as boolean: true or false
         const newValue = params.newValue;
-        params.data.penthouse = (newValue === true || newValue === 'כן') ? true : false;
+        params.data.penthouse = newValue === true;
         return true;
       },
       cellStyle: (params) => {
@@ -3087,7 +3064,7 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
   }, [t, assetTypes, editMode, isFieldEditable, getCellStyle, structureDrawingCellRenderer, actionsCellRenderer, asset, isBusinessAsset, isBusinessContext, operators]);
 
   // Apply field configurations to column definitions for main grid
-  const configuredColumnDefs = useFieldConfig(columnDefs, 'asset-details-main');
+  const [configuredColumnDefs] = useFieldConfig(columnDefs, 'asset-details-main');
 
   // Column definitions for history grid - no validation
   const historyColumnDefs: ColDef<Asset>[] = useMemo(() => {
@@ -3104,7 +3081,7 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
   }, [columnDefs, historyActionsCellRenderer]);
 
   // Apply field configurations to column definitions for history grid
-  const configuredHistoryColumnDefs = useFieldConfig(historyColumnDefs, 'asset-details-history');
+  const [configuredHistoryColumnDefs] = useFieldConfig(historyColumnDefs, 'asset-details-history');
 
   useEffect(() => {
     api.operators.getAll().then(setOperators).catch(() => setOperators([]));

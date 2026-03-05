@@ -220,7 +220,7 @@ Hint: Ensure validation is performed before calling this function
 
 ## Migration Applied
 
-**File:** `supabase/migrations/add_transactional_save_functions.sql`
+**File:** `migrations/add_transactional_save_functions.sql`
 
 - Created `save_asset_transactional()` function
 - Created `save_assets_bulk_transactional()` function

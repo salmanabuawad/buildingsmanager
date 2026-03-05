@@ -1,0 +1,10 @@
+import paramiko
+c = paramiko.SSHClient()
+c.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+c.connect('185.229.226.37', username='asset_flow', password='KortexDigital1342#')
+o = c.exec_command('tail -100 ~/deploy.log')[1].read().decode()
+print(o.encode('ascii', errors='replace').decode())
+print("---")
+r = c.exec_command('curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1/')[1].read().decode()
+print("HTTP status:", r)
+c.close()

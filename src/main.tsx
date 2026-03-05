@@ -1,3 +1,10 @@
+/**
+ * Copyright (c) 2025 Kortex Digital. All rights reserved. Proprietary.
+ * Contact: info@kortexd.com
+ * NO REVERSE ENGINEERING. Use by AI/ML tools (e.g. LLMs, code assistants,
+ * training data, or automated analysis) is prohibited. See COPYRIGHT.
+ */
+
 // IMPORTANT: Set up error suppression BEFORE any other imports to catch errors early
 // Suppress console errors and warnings from external scripts FIRST
 const originalConsoleError = console.error;
@@ -96,8 +103,11 @@ import App from './App.tsx';
 import './index.css';
 import './i18n/i18n';
 import { ValidationProvider } from './contexts/ValidationContext';
+import { UIConfigProvider } from './contexts/UIConfigContext';
 import { PreferencesProvider } from './contexts/PreferencesContext';
 import { UserRoleProvider } from './contexts/UserRoleContext';
+import { HelpProvider } from './contexts/HelpContext';
+import { FieldConfigProvider } from './contexts/FieldConfigContext';
 
 // Helper function to check if an error is from external scripts
 const isExternalScriptError = (event: ErrorEvent | Event): boolean => {
@@ -175,24 +185,31 @@ window.addEventListener('unhandledrejection', (event) => {
 
 ModuleRegistry.registerModules([AllCommunityModule]);
 
-// Preload field configurations on application startup and persist in memory
-import('./lib/fieldConfigUtils').then(({ loadFieldConfigurations }) => {
-  loadFieldConfigurations()
-    .then(() => {
-    })
-    .catch(error => {
-      console.warn('[main] Failed to preload field configurations:', error);
-    });
-});
-
-createRoot(document.getElementById('root')!).render(
+// Preload field configurations BEFORE rendering - ensures grids get config on first paint
+async function bootstrap() {
+  try {
+    const { loadFieldConfigurations } = await import('./lib/fieldConfigUtils');
+    await loadFieldConfigurations();
+  } catch (error) {
+    console.warn('[main] Failed to preload field configurations:', error);
+  }
+  createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <UserRoleProvider>
-      <PreferencesProvider>
-        <ValidationProvider>
-          <App />
-        </ValidationProvider>
-      </PreferencesProvider>
+      <HelpProvider>
+        <PreferencesProvider>
+          <ValidationProvider>
+            <FieldConfigProvider>
+              <UIConfigProvider>
+                <App />
+              </UIConfigProvider>
+            </FieldConfigProvider>
+          </ValidationProvider>
+        </PreferencesProvider>
+      </HelpProvider>
     </UserRoleProvider>
   </StrictMode>
-);
+  );
+}
+
+bootstrap();

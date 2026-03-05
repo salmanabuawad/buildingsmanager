@@ -3,7 +3,6 @@ import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
 import { Asset, Building, AssetType, api } from '../lib/api';
 import { assetValidators, validateAll, inputValidators } from '../lib/validation';
-import { supabase } from '../lib/supabase';
 import { AgGridReact } from 'ag-grid-react';
 import { ColDef } from 'ag-grid-community';
 import { Building as BuildingIcon, Loader2, Save, X, AlertCircle, Copy, CheckCircle2, Download, Plus, MessageSquare } from 'lucide-react';
@@ -13,6 +12,7 @@ import { useGridPreferences } from '../lib/useGridPreferences';
 import { processColumnHeader } from '../lib/gridHeaderUtils';
 import { exportToExcel } from '../lib/excelExport';
 import { useFieldConfig } from '../lib/useFieldConfig';
+import { useUIConfig } from '../contexts/UIConfigContext';
 
 interface TransferAreasProps {
   buildingNumber: number;
@@ -29,6 +29,7 @@ export interface TransferAreasRef {
 
 export const TransferAreas = forwardRef<TransferAreasRef, TransferAreasProps>(({ buildingNumber, taxRegion, selectedAssetIds, onCloseTab, onOpenAssetsTab, onCloseAllTabsExceptEssential }, ref) => {
   const { t } = useTranslation();
+  const { shouldValidateOnBlur } = useUIConfig();
   const [assets, setAssets] = useState<Asset[]>([]);
   const [building, setBuilding] = useState<Building | null>(null);
   const [assetTypes, setAssetTypes] = useState<AssetType[]>([]);
@@ -264,7 +265,7 @@ export const TransferAreas = forwardRef<TransferAreasRef, TransferAreasProps>(({
         if (assetIdNumbers.length > 0) {
           try {
             // Batch fetch all assets at once using 'in' filter
-            const { data, error } = await supabase
+            const { data, error } = await api
               .from('assets')
               .select('*')
               .in('asset_id', assetIdNumbers);
@@ -603,42 +604,44 @@ export const TransferAreas = forwardRef<TransferAreasRef, TransferAreasProps>(({
       setDirtyAssets(updatedDirtyAssets);
       setAssets(updatedAssets);
 
-      // Wait for state updates to complete
-      await new Promise(resolve => setTimeout(resolve, 0));
+      // When "מתי להריץ אימות" is "אונליין", run validation on each cell change
+      if (shouldValidateOnBlur) {
+        // Wait for state updates to complete
+        await new Promise(resolve => setTimeout(resolve, 0));
 
-      // Validate all assets with the updated state
-      const newValidationErrors = await validateAllAssets(updatedAssets, updatedDirtyAssets, initialTotalArea);
-      
-      // Update validation errors for all assets
-      setValidationErrors(newValidationErrors);
+        // Validate all assets with the updated state
+        const newValidationErrors = await validateAllAssets(updatedAssets, updatedDirtyAssets, initialTotalArea);
+        
+        // Update validation errors for all assets
+        setValidationErrors(newValidationErrors);
 
-      // Show toast if there are validation errors
-      if (newValidationErrors.size > 0) {
-        const firstError = Array.from(newValidationErrors.values())[0];
-        setToast({ message: firstError, type: 'error' });
-        setTimeout(() => setToast(null), 5000);
-      }
+        // Show toast if there are validation errors
+        if (newValidationErrors.size > 0) {
+          const firstError = Array.from(newValidationErrors.values())[0];
+          setToast({ message: firstError, type: 'error' });
+          setTimeout(() => setToast(null), 5000);
+        }
 
-      // Refresh all cells to update styling and invalid icons
-      if (event.api) {
-        setTimeout(() => {
-          // Refresh all rows to update validation icons and styling
-          const rowNodes: any[] = [];
-          event.api.forEachNode((node) => {
-            rowNodes.push(node);
-          });
-          if (rowNodes.length > 0) {
-            // Refresh actions column for all rows to update invalid icons
-            event.api.refreshCells({ rowNodes: rowNodes, columns: ['actions'], force: true });
-            // Refresh all cells in all rows to update validation styling
-            event.api.refreshCells({ rowNodes: rowNodes, force: true });
-          }
-        }, 0);
+        // Refresh all cells to update styling and invalid icons
+        if (event.api) {
+          setTimeout(() => {
+            const rowNodes: any[] = [];
+            event.api.forEachNode((node) => {
+              rowNodes.push(node);
+            });
+            if (rowNodes.length > 0) {
+              event.api.refreshCells({ rowNodes: rowNodes, columns: ['actions'], force: true });
+              event.api.refreshCells({ rowNodes: rowNodes, force: true });
+            }
+          }, 0);
+        }
+      } else {
+        setValidationErrors(new Map());
       }
     } catch (err) {
       console.error('[TransferAreas] Validation error:', err);
     }
-  }, [assets, dirtyAssets, taxRegion, initialTotalArea, validateAllAssets]);
+  }, [assets, dirtyAssets, taxRegion, initialTotalArea, validateAllAssets, shouldValidateOnBlur]);
 
   // Ensure clearing a cell (e.g. numeric → 0) always triggers dirty when edit stops.
   const onCellEditingStopped = useCallback((event: any) => {
@@ -1320,7 +1323,7 @@ export const TransferAreas = forwardRef<TransferAreasRef, TransferAreasProps>(({
     }
 
     try {
-      const { data: existingAsset, error: existingErr } = await supabase
+      const { data: existingAsset, error: existingErr } = await api
         .from('assets')
         .select('asset_id')
         .eq('asset_id', assetIdNum)
@@ -2075,7 +2078,7 @@ export const TransferAreas = forwardRef<TransferAreasRef, TransferAreasProps>(({
   }, [t, validationErrors, getCellStyle]);
 
   // Apply field configurations from database
-  const configuredColumnDefs = useFieldConfig(columnDefs, 'transfer-areas');
+  const [configuredColumnDefs] = useFieldConfig(columnDefs, 'transfer-areas');
 
   if (loading) {
     return (

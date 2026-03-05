@@ -31,7 +31,7 @@
 -- This includes all tables, functions, indexes, and RLS policies up to 2026-01-01
 -- ============================================================================
 
-\i supabase/migrations/20260101000000_consolidated_initial_schema.sql
+\i migrations/20260101000000_consolidated_initial_schema.sql
 
 -- ============================================================================
 -- STEP 2: Add large transactional functions
@@ -39,16 +39,16 @@
 -- They are loaded from specific migration files as mentioned in the schema
 -- ============================================================================
 
-\i supabase/migrations/20251218000000_remove_backend_validation_checks.sql
-\i supabase/migrations/20251219000000_add_building_update_function.sql
-\i supabase/migrations/20251229000000_prevent_distribution_flag_when_shared_area_zero.sql
+\i migrations/20251218000000_remove_backend_validation_checks.sql
+\i migrations/20251219000000_add_building_update_function.sql
+\i migrations/20251229000000_prevent_distribution_flag_when_shared_area_zero.sql
 
 -- ============================================================================
 -- STEP 3: Apply any migrations that came after the consolidated schema
 -- ============================================================================
 
-\i supabase/migrations/20260102000000_update_building_total_area_with_shared.sql
-\i supabase/migrations/20260102000001_recalculate_total_area_on_shared_area_change.sql
+\i migrations/20260102000000_update_building_total_area_with_shared.sql
+\i migrations/20260102000001_recalculate_total_area_on_shared_area_change.sql
 
 -- ============================================================================
 -- VERIFICATION QUERIES (Optional - run these to verify installation)

@@ -122,8 +122,8 @@ VITE_LOCAL_DB_URL=http://localhost:3000
 ```bash
 psql -U postgres -d buildings_manager
 
-\copy asset_types FROM 'supabase/data/assettypes.csv' DELIMITER ',' CSV HEADER;
-\copy assets FROM 'supabase/data/asset.csv' DELIMITER ',' CSV HEADER;
+\copy asset_types FROM 'data/assettypes.csv' DELIMITER ',' CSV HEADER;
+\copy assets FROM 'data/asset.csv' DELIMITER ',' CSV HEADER;
 ```
 
 ## 🔄 Switching Between Local and Supabase

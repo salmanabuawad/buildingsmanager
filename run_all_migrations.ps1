@@ -8,7 +8,7 @@ param(
 
 $ErrorActionPreference = "Stop"
 
-$migrationsDir = "supabase\migrations"
+$migrationsDir = "migrations"
 
 if (-not (Test-Path $migrationsDir)) {
     Write-Host "Error: Migrations directory not found: $migrationsDir" -ForegroundColor Red

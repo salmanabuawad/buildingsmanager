@@ -1,0 +1,20 @@
+[
+  {
+    "id": "a2ce6541-558b-458d-94bc-ad15fabd9da8",
+    "rule_key": "asset_building_number_exists",
+    "rule_type": "foreign_key",
+    "field_name": "building_number",
+    "entity_type": "asset",
+    "value_numeric": null,
+    "value_text": null,
+    "enabled": true,
+    "error_message": "מספר מבנה לא קיים במערכת. יש ליצור את המבנה תחילה",
+    "description": "Building number must exist in buildings table",
+    "compare_table": "buildings",
+    "compare_field": "building_number",
+    "join_field": "building_number",
+    "comparison_operator": null,
+    "created_at": "2026-02-23T14:21:02.642146+02:00",
+    "updated_at": "2026-03-01T00:29:59.206025+02:00"
+  }
+]

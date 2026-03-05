@@ -1,72 +1,34 @@
-# AssetFlow Deployment Script (PowerShell)
-# This script helps deploy your application to Netlify
+# Optional: build frontend and deploy to Nginx. Application is NOT deployed by default (use npm run dev + backend).
+# Stack: Frontend (Vite) + FastAPI + Postgres; Nginx is optional for production-like serving.
+# Run from repo root: .\deploy.ps1
 
 $ErrorActionPreference = "Stop"
 
-Write-Host "🚀 AssetFlow Deployment Script" -ForegroundColor Cyan
+Write-Host "Optional: build + deploy to Nginx (app is not deployed by default)" -ForegroundColor Cyan
 Write-Host "================================" -ForegroundColor Cyan
 Write-Host ""
 
-# Check if build exists
+# Build frontend
 if (-Not (Test-Path "dist")) {
-    Write-Host "❌ No build found. Running production build..." -ForegroundColor Yellow
-    npm run build
-    Write-Host "✅ Build completed" -ForegroundColor Green
-    Write-Host ""
+    Write-Host "Building frontend..." -ForegroundColor Yellow
+} else {
+    Write-Host "Rebuilding frontend..." -ForegroundColor Yellow
 }
+npm run build
+if ($LASTEXITCODE -ne 0) { exit 1 }
+Write-Host "Build completed." -ForegroundColor Green
+Write-Host ""
 
-# Check if netlify CLI is installed
-$netlifyExists = Get-Command netlify -ErrorAction SilentlyContinue
-if (-Not $netlifyExists) {
-    Write-Host "⚠️  Netlify CLI not found." -ForegroundColor Yellow
-    Write-Host "Install it with: npm install -g netlify-cli"
-    Write-Host ""
-    $install = Read-Host "Install Netlify CLI now? (y/n)"
-    if ($install -eq "y" -or $install -eq "Y") {
-        npm install -g netlify-cli
-        Write-Host "✅ Netlify CLI installed" -ForegroundColor Green
-    }
-    else {
-        Write-Host "❌ Cannot proceed without Netlify CLI. Exiting." -ForegroundColor Red
-        exit 1
-    }
+Write-Host "Deploy to Nginx:" -ForegroundColor Cyan
+Write-Host "  .\nginx\deploy-frontend.ps1" -ForegroundColor White
+Write-Host ""
+Write-Host "Optional: set custom web root:" -ForegroundColor Gray
+Write-Host "  `$env:WEB_ROOT = 'C:\nginx\html\buildingsmanager'; .\nginx\deploy-frontend.ps1" -ForegroundColor Gray
+Write-Host ""
+$run = Read-Host "Run nginx deploy now? (y/n)"
+if ($run -eq "y" -or $run -eq "Y") {
+    & (Join-Path $PSScriptRoot "nginx\deploy-frontend.ps1")
 }
-
 Write-Host ""
-Write-Host "Choose deployment option:"
-Write-Host "1) Deploy to production"
-Write-Host "2) Deploy preview (test before production)"
-Write-Host "3) Login to Netlify"
-Write-Host ""
-$choice = Read-Host "Enter choice (1-3)"
-
-switch ($choice) {
-    "1" {
-        Write-Host ""
-        Write-Host "🚀 Deploying to production..." -ForegroundColor Cyan
-        netlify deploy --prod
-        Write-Host ""
-        Write-Host "✅ Deployment complete!" -ForegroundColor Green
-        Write-Host "Your site is live at: https://buildingmanager.bolt.host/"
-    }
-    "2" {
-        Write-Host ""
-        Write-Host "🔍 Creating preview deployment..." -ForegroundColor Cyan
-        netlify deploy
-        Write-Host ""
-        Write-Host "✅ Preview deployment complete!" -ForegroundColor Green
-        Write-Host "Check the URL above to test your changes."
-    }
-    "3" {
-        Write-Host ""
-        Write-Host "🔐 Opening Netlify login..." -ForegroundColor Cyan
-        netlify login
-    }
-    default {
-        Write-Host "❌ Invalid choice. Exiting." -ForegroundColor Red
-        exit 1
-    }
-}
-
-Write-Host ""
-Write-Host "📚 For more deployment options, see: DEPLOYMENT_GUIDE.md"
+Write-Host "Ensure backend is running: cd backend; python -m uvicorn app.main:app --host 127.0.0.1 --port 8000" -ForegroundColor Gray
+Write-Host "Then open http://localhost/ (Nginx) or use npm run dev for dev server." -ForegroundColor Gray

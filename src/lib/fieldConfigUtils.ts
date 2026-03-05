@@ -1,46 +1,35 @@
-import { FieldConfiguration, api } from './api';
+import { FieldConfiguration } from './api';
+import { getApiBaseUrl } from './appConfig';
 
 // Cache for field configurations - key format: "grid_name:field_name"
 let fieldConfigCache: Map<string, FieldConfiguration> | null = null;
 let fieldConfigCachePromise: Promise<Map<string, FieldConfiguration>> | null = null;
 let isCacheLoaded = false;
 
-/**
- * Create a composite key from grid_name and field_name
- */
 function createConfigKey(gridName: string, fieldName: string): string {
   return `${gridName}:${fieldName}`;
 }
 
 /**
- * Load all field configurations from the database and cache them in memory
- * This should be called at app startup to persist configs in memory
- * @param gridName Optional grid name to filter configurations (but still loads all to cache)
+ * Load all field configurations from the database and cache them in memory.
+ * Uses direct fetch to /api/data/field_configurations (avoids api layer / circular deps).
  */
 export async function loadFieldConfigurations(gridName?: string): Promise<Map<string, FieldConfiguration>> {
-  // If cache is already loaded, return filtered results from cache
   if (isCacheLoaded && fieldConfigCache) {
-    if (!gridName) {
-      return Promise.resolve(fieldConfigCache);
-    }
-    
-    // Filter from cache by grid_name
+    if (!gridName) return Promise.resolve(fieldConfigCache);
     const filtered = new Map<string, FieldConfiguration>();
     fieldConfigCache.forEach((config, key) => {
       if (config.grid_name === gridName) {
         filtered.set(key, config);
-        // Also set by field_name for backward compatibility
         filtered.set(config.field_name, config);
       }
     });
     return filtered;
   }
 
-  // Return cached promise if already loading
   if (fieldConfigCachePromise) {
     const allConfigs = await fieldConfigCachePromise;
     if (gridName) {
-      // Filter from loaded configs
       const filtered = new Map<string, FieldConfiguration>();
       allConfigs.forEach((config, key) => {
         if (config.grid_name === gridName) {
@@ -53,26 +42,25 @@ export async function loadFieldConfigurations(gridName?: string): Promise<Map<st
     return allConfigs;
   }
 
-  // Load all configurations from database
   fieldConfigCachePromise = (async () => {
     try {
-      // Always load all configurations (no filter) to populate cache
-      const configs = await api.fieldConfigurations.getAll();
+      const base = getApiBaseUrl() || '';
+      const url = `${base}/api/data/field_configurations?select=*&limit=5000&offset=0`;
+      const res = await fetch(url, { credentials: 'include' });
+      if (!res.ok) throw new Error(`field_configurations fetch failed: ${res.status} ${res.statusText}`);
+      const raw = await res.json();
+      const configs = Array.isArray(raw) ? (raw as FieldConfiguration[]) : [];
+      if (process.env.NODE_ENV === 'development' && configs.length > 0) {
+        console.log('[fieldConfigUtils] Loaded', configs.length, 'field configs, sample:', configs[0]?.grid_name, configs[0]?.field_name, configs[0]?.hebrew_name);
+      }
       const configMap = new Map<string, FieldConfiguration>();
-      
       for (const config of configs) {
         const key = createConfigKey(config.grid_name, config.field_name);
         configMap.set(key, config);
-        // Also set by field_name only for backward compatibility
         configMap.set(config.field_name, config);
       }
-      
-      // Store in cache and mark as loaded
       fieldConfigCache = configMap;
       isCacheLoaded = true;
-      
-      
-      // If gridName was requested, filter from cache
       if (gridName) {
         const filtered = new Map<string, FieldConfiguration>();
         configMap.forEach((config, key) => {
@@ -83,14 +71,12 @@ export async function loadFieldConfigurations(gridName?: string): Promise<Map<st
         });
         return filtered;
       }
-      
       return configMap;
     } catch (error) {
-      console.error('Error loading field configurations:', error);
-      // Return empty map on error
-      const emptyMap = new Map();
+      console.error('[fieldConfigUtils] Error loading field configurations:', error);
+      const emptyMap = new Map<string, FieldConfiguration>();
       fieldConfigCache = emptyMap;
-      isCacheLoaded = true; // Mark as loaded even if empty to prevent retries
+      isCacheLoaded = true;
       return emptyMap;
     } finally {
       fieldConfigCachePromise = null;

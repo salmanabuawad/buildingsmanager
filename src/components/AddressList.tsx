@@ -537,7 +537,7 @@ export function AddressListComponent() {
           // Log the full error structure for debugging
           console.error(`Import error at row ${i + 1}:`, error);
           
-          // Extract detailed error information from Supabase errors
+          // Extract detailed error information from API errors
           let errorMsg = 'Unknown error';
           
           if (error instanceof Error) {
@@ -548,7 +548,7 @@ export function AddressListComponent() {
             errorMsg = error;
           }
           
-          // Add additional error details if available (Supabase error structure)
+          // Add additional error details if available (API error structure)
           const errorDetails: string[] = [];
           if (error?.code) {
             errorDetails.push(`קוד: ${error.code}`);

@@ -26,12 +26,12 @@ Target: run the app on your own VM with **Nginx** + **Python (FastAPI)** and **m
               ▼                    ▼                    ▼
      Managed PostgreSQL      Azure Blob / GCP       (optional: same
      (same schema,            Storage (300 GB)        VM for frontend
-      migrations applied)                             or Netlify)
+      migrations applied)                             or other host)
 ```
 
 - **Nginx**: Serves the React static build and proxies `/api/*` to FastAPI.
 - **Python (FastAPI)**: Single backend; talks to PostgreSQL and to Blob/Cloud Storage. Replaces all Supabase client usage.
-- **PostgreSQL**: Managed (Azure Database for PostgreSQL or GCP Cloud SQL). Use your existing `supabase/migrations/*.sql`; no Supabase service.
+- **PostgreSQL**: Managed (Azure Database for PostgreSQL or GCP Cloud SQL). Use your existing `migrations/*.sql`; no Supabase service.
 - **Storage**: Keep using Azure Blob (or switch to GCP Cloud Storage); all file access via FastAPI (upload/download or signed URLs).
 
 ---
@@ -61,7 +61,7 @@ Target: run the app on your own VM with **Nginx** + **Python (FastAPI)** and **m
 
 ### 1. Backend (FastAPI)
 
-- [ ] **Database**: Point `DATABASE_URL` to managed PostgreSQL (Azure or GCP). Apply all migrations from `supabase/migrations/`.
+- [ ] **Database**: Point `DATABASE_URL` to managed PostgreSQL (Azure or GCP). Apply all migrations from `migrations/`.
 - [ ] **Auth**: Use one source of truth. Either:
   - Make FastAPI login use the same `auth_login` logic (and `users` table) as today, and return JWT with `user_id`, `user_name`, `user_role`; or
   - Migrate users into the backend’s `User` table and retire `auth_login` RPC.
@@ -74,14 +74,14 @@ Target: run the app on your own VM with **Nginx** + **Python (FastAPI)** and **m
 - [ ] **Auth**: Replace `loginUsersTable()` (Supabase RPC) with `POST /api/auth/login`; store JWT (e.g. in memory or `sessionStorage`); send `Authorization: Bearer <token>` on every API request. Use `GET /api/auth/me` for current user.
 - [ ] **API layer**: Replace every `supabase.rpc(...)` and `supabase.from(...)` with calls to your FastAPI backend (e.g. `fetch(API_BASE + '/api/...', { headers: { Authorization: 'Bearer ' + token } })` or a small API client).
 - [ ] **Files**: Replace `supabase.storage` upload/download with backend endpoints (e.g. upload via `POST /api/files/upload/{asset_id}`, download via `GET /api/files/download/{file_id}` or URL returned by backend). Update any logic that checks for `.supabase.co/storage/` to use your backend URL or blob URL pattern.
-- [ ] **Env**: Remove `VITE_SUPABASE_URL` / `VITE_SUPABASE_ANON_KEY`. Add something like `VITE_API_BASE_URL` (e.g. `https://your-domain/api` or relative `/api` when same origin).
+- [ ] **Env**: Remove `VITE_SUPABASE_URL` / `VITE_SUPABASE_ANON_KEY`. API uses same origin by default (`/api` on current host). Set `VITE_API_BASE_URL` only if the API is on a different origin.
 
 ### 3. Deployment (Nginx + Python)
 
 - [ ] **Build**: `npm run build` → static files in `dist/` (or similar).
 - [ ] **Nginx**: Serve `dist/` at `/`; proxy ` /api` to FastAPI (e.g. `http://127.0.0.1:8000`). Prefer HTTPS (e.g. Let’s Encrypt).
 - [ ] **Process**: Run FastAPI with gunicorn/uvicorn (e.g. behind systemd or supervisor) so Nginx can proxy to it.
-- [ ] **Config**: Set `DATABASE_URL`, `AZURE_STORAGE_*` (or GCP equivalent), `SECRET_KEY`, `ALLOWED_ORIGINS` (your frontend origin), etc. in env or `.env` on the VM.
+- [ ] **Config**: Set `DATABASE_URL`, `STORAGE_PATH`, `STORAGE_MAIN_FOLDER` (and optionally `STORAGE_USER`/`STORAGE_PASSWORD` for remote), `SECRET_KEY`, `ALLOWED_ORIGINS` (your frontend origin), etc. in env or `.env` on the VM.
 
 ---
 

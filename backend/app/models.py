@@ -58,8 +58,8 @@ class AssetType(Base):
 class Asset(Base):
     __tablename__ = "assets"
 
-    id = Column(Integer, primary_key=True, autoincrement=True)
-    asset_id = Column(String(50), unique=True, index=True, nullable=False)
+    # DB schema: asset_id bigint PRIMARY KEY (no id column)
+    asset_id = Column(BigInteger, primary_key=True, autoincrement=False)
     building_id = Column(Integer, ForeignKey("buildings.id"), nullable=False)
     asset_type_id = Column(Integer, ForeignKey("asset_types.id"))
 
@@ -100,7 +100,7 @@ class AssetFile(Base):
     __tablename__ = "asset_files"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
-    asset_id = Column(Integer, ForeignKey("assets.id"), nullable=False)
+    asset_id = Column(BigInteger, ForeignKey("assets.asset_id"), nullable=False)
     file_name = Column(String(255), nullable=False)
     file_path = Column(String(500), nullable=False)
     file_type = Column(String(50))

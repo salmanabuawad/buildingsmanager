@@ -1,0 +1,18 @@
+[Unit]
+Description=AssetFlow FastAPI Backend
+After=network.target postgresql.service
+
+[Service]
+Type=simple
+# Replace REPO_ROOT and DEPLOY_USER with actual values when installing
+# Or use: sed -e "s|REPO_ROOT|/path/to/repo|g" -e "s|DEPLOY_USER|asset_flow|g" assetflow-backend.service
+User=DEPLOY_USER
+Group=DEPLOY_USER
+WorkingDirectory=REPO_ROOT/backend
+Environment="PATH=REPO_ROOT/backend/venv/bin"
+ExecStart=REPO_ROOT/backend/venv/bin/gunicorn app.main:app -w 4 -k uvicorn.workers.UvicornWorker -b 127.0.0.1:8000
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

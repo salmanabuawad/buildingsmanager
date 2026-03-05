@@ -3,7 +3,7 @@ $ErrorActionPreference = "Stop"
 
 $scriptPath = Split-Path -Parent $MyInvocation.MyCommand.Path
 $excelPath = (Join-Path $scriptPath "..\public\asset_types.xlsx") | Resolve-Path
-$outputPath = Join-Path $scriptPath "..\supabase\migrations\20251201012002_recreate_asset_types_table.sql"
+$outputPath = Join-Path $scriptPath "..\migrations\20251201012002_recreate_asset_types_table.sql"
 
 Write-Host "Excel path: $excelPath" -ForegroundColor Cyan
 Write-Host "Output path: $outputPath" -ForegroundColor Cyan

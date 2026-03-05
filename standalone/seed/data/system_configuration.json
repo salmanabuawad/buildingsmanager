@@ -1,0 +1,52 @@
+[
+  {
+    "id": 1,
+    "name": "ui_config",
+    "value": "{\"validation_rules_enabled\": false}",
+    "description": "UI feature visibility settings",
+    "created_at": "2026-02-09T18:20:31.543316+02:00",
+    "updated_at": "2026-03-01T00:29:59.244692+02:00",
+    "created_by": null,
+    "updated_by": "admin"
+  },
+  {
+    "id": 2,
+    "name": "email_config",
+    "value": "{\"smtp_host\":\"smtp.gmail.com\",\"smtp_port\":587,\"smtp_encryption\":\"tls\",\"smtp_username\":\"profile.group.system@gmail.com\",\"smtp_password\":\"iqgqkyfsxdklidsp\",\"from_email\":\"profile.group.system@gmail.com\",\"from_name\":\"\"}",
+    "description": "הגדרות SMTP לשליחת דוא\"ל",
+    "created_at": "2026-02-19T08:00:06.669031+02:00",
+    "updated_at": "2026-03-01T00:29:59.308581+02:00",
+    "created_by": "migration",
+    "updated_by": "migration"
+  },
+  {
+    "id": 7,
+    "name": "email_template_operator",
+    "value": "{\"subject\":\"שליחת נתונים לעירייה - {{date}}\",\"body\":\"שלום {{name}},\\n\\nמצורפים קבצי הנתונים שלך ({{assetCount}} נכסים).\\n\\nתאריך שליחה: {{date}}\\n\\nבברכה,\\nמערכת ניהול נכסים\"}",
+    "description": "תבנית אימייל למפעיל. משתנים דינמיים: {{name}} {{date}} {{assetCount}}",
+    "created_at": "2026-02-20T10:55:45.189216+02:00",
+    "updated_at": "2026-03-01T00:29:59.343961+02:00",
+    "created_by": "migration",
+    "updated_by": "migration"
+  },
+  {
+    "id": 8,
+    "name": "email_template_manager",
+    "value": "{\"subject\":\"שליחת נתונים לעירייה - {{date}}\",\"body\":\"שלום {{name}},\\n\\nמצורפים רשימת הנכסים לפי אזורי המס שלך שנשלחו לעירייה ({{assetCount}} נכסים).\\n\\nתאריך שליחה: {{date}}\\n\\nבברכה,\\nמערכת ניהול נכסים\"}",
+    "description": "תבנית אימייל למנהל. משתנים דינמיים: {{name}} {{date}} {{assetCount}}",
+    "created_at": "2026-02-20T10:55:45.189216+02:00",
+    "updated_at": "2026-03-01T00:29:59.343961+02:00",
+    "created_by": "migration",
+    "updated_by": "migration"
+  },
+  {
+    "id": 15,
+    "name": "email_template_inspection_task",
+    "value": "{\"subject\":\"משימת ביקורת {{action}}: {{taskTitle}}\",\"body\":\"שלום {{inspectorName}},\\n\\nמשימת ביקורת {{action}}.\\nכותרת: {{taskTitle}}\\nמזהה משימה: #{{taskId}}\\n\\nלפתיחת המשימה ישירות (ללא צורך בהתחברות): {{taskLink}}\\n\\nהקישור הוא חד-פעמי ותקף ל־7 ימים.\\n\\nבברכה,\\nמערכת ניהול נכסים\"}",
+    "description": "תבנית אימייל למשימות ביקורת (הקצאה/החזרה). משתנים: {{inspectorName}} {{taskTitle}} {{taskId}} {{taskLink}} {{action}}",
+    "created_at": "2026-03-01T00:29:59.496730+02:00",
+    "updated_at": "2026-03-01T00:29:59.496730+02:00",
+    "created_by": "migration",
+    "updated_by": "migration"
+  }
+]

@@ -1,0 +1,31 @@
+---
+description: Database has no functions or triggers; all logic in Python transactions.
+globs: migrations/**/*.sql,backend/app/**/*.py
+alwaysApply: false
+---
+
+# No DB Functions or Triggers
+
+**Principle:** Postgres holds **schema only** (tables, columns, indexes, constraints). All business logic and multi-step operations run in **Python transactions**.
+
+## Migrations
+
+- **Allowed:** `CREATE TABLE`, `ALTER TABLE`, `CREATE INDEX`, `ADD COLUMN`, constraints, comments.
+- **Not allowed:** `CREATE FUNCTION`, `CREATE OR REPLACE FUNCTION`, `CREATE TRIGGER`.
+
+## Backend (Python)
+
+- Use `execute_sql()` (from `app.db_rpc`) for all DB access.
+- Use `transaction()` / `execute_in_transaction()` for multi-step work.
+- Implement logic in `app/transactions/` (e.g. `save_assets_bulk.py`, `building_assets.py`, `audit.py`).
+- **Do not** call Postgres functions via RPC; implement equivalent logic in Python.
+
+## If You Need New Behavior
+
+1. Add/modify Python code in `app/transactions/` or `app/services/`.
+2. Add a migration only if schema changes (new table, column, index).
+3. Never add `CREATE FUNCTION` or `CREATE TRIGGER` to migrations.
+
+## Reference
+
+See `docs/PROJECT_STRUCTURE.md` for full architecture.

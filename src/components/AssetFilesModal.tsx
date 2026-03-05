@@ -2,7 +2,9 @@ import { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { X, Trash2, Eye, FileText, Image as ImageIcon, File, AlertTriangle } from 'lucide-react';
 import { api, AssetFile } from '../lib/api';
+import { getApiBaseUrl } from '../lib/appConfig';
 import { FileViewer } from './FileViewer';
+import { PdfThumbnail } from './PdfThumbnail';
 
 interface AssetFilesModalProps {
   isOpen: boolean;
@@ -39,7 +41,10 @@ export function AssetFilesModal({ isOpen, onClose, assetId, measurementDate, onF
     setLoading(true);
     try {
       const assetFiles = await api.assets.files.getAll(assetId, measurementDate);
-      setFiles(assetFiles);
+      const byName = [...(assetFiles || [])].sort((a, b) =>
+        getDisplayFileName(a).localeCompare(getDisplayFileName(b), undefined, { numeric: true })
+      );
+      setFiles(byName);
     } catch (error) {
       console.error('Error fetching files:', error);
     } finally {
@@ -137,11 +142,63 @@ export function AssetFilesModal({ isOpen, onClose, assetId, measurementDate, onF
     setCurrentViewingIndex(0);
   };
 
-  const getFileIcon = (fileType?: string) => {
-    if (!fileType) return <FileText className="h-8 w-8" />;
-    if (fileType.startsWith('image/')) return <ImageIcon className="h-8 w-8" />;
+  /** URL to load the file (for FileViewer). Use file_url when it's a full URL; else build from file_path or file_url as storage path. */
+  const getFileViewUrl = (file: AssetFile): string => {
+    const url = file.file_url?.trim();
+    if (url && (url.startsWith('http') || url.startsWith('/'))) {
+      return url;
+    }
+    const path = file.file_path?.trim() || (url && !url.startsWith('http') ? url : '');
+    if (path) {
+      const base = getApiBaseUrl();
+      return `${base ? base : ''}/api/files/download?path=${encodeURIComponent(path)}`;
+    }
+    return url || '';
+  };
+
+  /** Like ref_only: use file_name from record; only when missing use basename of file_path or file_url. */
+  const getDisplayFileName = (file: AssetFile): string => {
+    const name = file.file_name?.trim();
+    if (name) return name;
+    const path = file.file_path?.trim();
+    if (path) {
+      const base = path.replace(/\\/g, '/').split('/').pop()?.split('?')[0]?.trim();
+      if (base) return base;
+    }
+    const url = file.file_url || '';
+    const fromPath = url.match(/[?&]path=([^&]+)/)?.[1];
+    const decodedPath = fromPath ? decodeURIComponent(fromPath) : url.replace(/\\/g, '/');
+    const base = decodedPath.split('/').pop()?.split('?')[0]?.trim();
+    return base || 'קובץ';
+  };
+
+  /** Like ref_only: use file_type from record; derive from filename when missing. */
+  const getFileIcon = (file: AssetFile) => {
+    const fileType = file.file_type;
+    if (fileType?.startsWith('image/')) return <ImageIcon className="h-8 w-8" />;
+    if (fileType?.startsWith('video/')) return <File className="h-8 w-8" />;
     if (fileType === 'application/pdf') return <FileText className="h-8 w-8" />;
+    const name = getDisplayFileName(file).toLowerCase();
+    if (name.endsWith('.pdf')) return <FileText className="h-8 w-8" />;
+    if (name.match(/\.(png|jpe?g|gif|webp|svg)$/)) return <ImageIcon className="h-8 w-8" />;
+    if (name.match(/\.(mp4|webm|mov)$/)) return <File className="h-8 w-8" />;
     return <File className="h-8 w-8" />;
+  };
+
+  const isImageFile = (file: AssetFile) => {
+    const t = (file.file_type ?? '').toLowerCase();
+    const n = getDisplayFileName(file).toLowerCase();
+    return t.startsWith('image/') || /\.(png|jpe?g|gif|webp|svg|bmp)$/.test(n);
+  };
+  const isVideoFile = (file: AssetFile) => {
+    const t = (file.file_type ?? '').toLowerCase();
+    const n = getDisplayFileName(file).toLowerCase();
+    return t.startsWith('video/') || /\.(mp4|webm|mov|avi)$/.test(n);
+  };
+  const isPdfFile = (file: AssetFile) => {
+    const t = (file.file_type ?? '').toLowerCase();
+    const n = getDisplayFileName(file).toLowerCase();
+    return t === 'application/pdf' || n.endsWith('.pdf');
   };
 
   const formatFileSize = (bytes?: number) => {
@@ -226,18 +283,18 @@ export function AssetFilesModal({ isOpen, onClose, assetId, measurementDate, onF
                 </div>
 
                 {/* Files Grid */}
-                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-3">
                   {files.map((file) => (
                     <div
                       key={file.id}
-                      className={`border-2 rounded-lg p-4 cursor-pointer transition-all hover:shadow-lg ${
+                      className={`border-2 rounded-lg p-2 cursor-pointer transition-all hover:shadow-lg ${
                         selectedFiles.has(file.id)
                           ? 'border-blue-500 bg-blue-50'
                           : 'border-gray-200 hover:border-gray-300'
                       }`}
                       onClick={() => handleViewFile(file)}
                     >
-                      <div className="flex items-start gap-2 mb-2">
+                      <div className="flex items-start gap-1.5 mb-1">
                         <input
                           type="checkbox"
                           checked={selectedFiles.has(file.id)}
@@ -249,11 +306,30 @@ export function AssetFilesModal({ isOpen, onClose, assetId, measurementDate, onF
                           className="w-4 h-4 text-blue-600 rounded focus:ring-2 focus:ring-blue-500 mt-1"
                         />
                         <div className="flex-1">
-                          <div className="flex items-center justify-center mb-2 text-gray-600">
-                            {getFileIcon(file.file_type)}
+                          <div className="flex items-center justify-center mb-1.5 text-gray-600 w-24 h-24 rounded-lg overflow-hidden bg-slate-100 flex-shrink-0 relative">
+                            {(isImageFile(file) || isVideoFile(file) || isPdfFile(file)) ? (
+                              <button
+                                type="button"
+                                className="w-full h-full border-0 p-0 cursor-pointer focus:ring-2 focus:ring-blue-500 focus:ring-offset-1 rounded-lg overflow-hidden block"
+                                onClick={(e) => { e.stopPropagation(); handleViewFile(file); }}
+                              >
+                                {isVideoFile(file) ? (
+                                  <video src={getFileViewUrl(file)} className="w-full h-full object-cover pointer-events-none" preload="metadata" playsInline />
+                                ) : isPdfFile(file) ? (
+                                  <PdfThumbnail src={getFileViewUrl(file)} alt="" className="w-full h-full rounded-lg" width={96} height={96} />
+                                ) : (
+                                  <>
+                                    <span className="absolute inset-0 flex items-center justify-center bg-slate-100"><ImageIcon className="h-8 w-8 text-gray-400" /></span>
+                                    <img src={getFileViewUrl(file)} alt="" className="relative w-full h-full object-cover" loading="lazy" onLoad={(e) => { (e.target as HTMLImageElement).style.visibility = 'visible'; }} onError={(e) => { (e.target as HTMLImageElement).style.visibility = 'hidden'; }} style={{ visibility: 'hidden' }} />
+                                  </>
+                                )}
+                              </button>
+                            ) : (
+                              getFileIcon(file)
+                            )}
                           </div>
-                          <div className="text-xs font-medium text-gray-800 truncate" title={file.file_name || 'ללא שם'}>
-                            {file.file_name || 'ללא שם קובץ'}
+                          <div className="text-xs font-medium text-gray-800 truncate" title={getDisplayFileName(file)}>
+                            {getDisplayFileName(file)}
                           </div>
                           {file.file_size && (
                             <div className="text-xs text-gray-500 mt-1">
@@ -267,13 +343,13 @@ export function AssetFilesModal({ isOpen, onClose, assetId, measurementDate, onF
                           )}
                         </div>
                       </div>
-                      <div className="flex items-center justify-center mt-2">
+                      <div className="flex items-center justify-center mt-1">
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
                             handleViewFile(file);
                           }}
-                          className="flex items-center gap-1 px-2 py-1 text-xs bg-green-600 hover:bg-green-700 text-white rounded transition-colors"
+                          className="flex items-center gap-1 px-2 py-0.5 text-xs bg-green-600 hover:bg-green-700 text-white rounded transition-colors"
                         >
                           <Eye className="h-3 w-3" />
                           צפה
@@ -301,7 +377,7 @@ export function AssetFilesModal({ isOpen, onClose, assetId, measurementDate, onF
           >
             <div className="flex items-center justify-between p-4 border-b border-gray-200">
               <div className="flex items-center gap-4">
-                <h3 className="text-lg font-semibold text-slate-800">{viewingFile.file_name || 'קובץ'}</h3>
+                <h3 className="text-lg font-semibold text-slate-800">{getDisplayFileName(viewingFile)}</h3>
                 {viewingAllFiles.length > 1 && (
                   <span className="text-sm text-gray-600">
                     {currentViewingIndex + 1} / {viewingAllFiles.length}
@@ -338,9 +414,9 @@ export function AssetFilesModal({ isOpen, onClose, assetId, measurementDate, onF
             </div>
             <div className="flex-1 overflow-auto p-4">
               <FileViewer
-                key={`${viewingFile.id}-${viewingFile.file_url}`}
-                fileUrl={viewingFile.file_url}
-                fileName={viewingFile.file_name || `file-${viewingFile.id}`}
+                key={`${viewingFile.id}-${getFileViewUrl(viewingFile)}`}
+                fileUrl={getFileViewUrl(viewingFile)}
+                fileName={getDisplayFileName(viewingFile)}
               />
             </div>
           </div>

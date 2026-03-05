@@ -11,7 +11,7 @@
   2. asset_types - Asset type definitions (with use_shared_area field)
   3. validation_rules - Dynamic validation rules
   4. buildings - Building information (with distribution flags defaulting to false)
-  5. assets - Asset records (with area_from_distribution, comment, exported_to_automation)
+  5. assets - Asset records (with business_distribution_area, comment, exported_to_automation)
   6. assets_history - Historical asset measurements
   7. field_configurations - Field width/padding configurations
   8. users - Application users
@@ -267,7 +267,7 @@ COMMENT ON COLUMN buildings.need_residence_distribution IS 'Flag indicating if r
 COMMENT ON COLUMN buildings.need_business_distribution IS 'Flag indicating if business shared area needs to be distributed to assets (true = needs distribution, false = already distributed/not applicable). Defaults to false.';
 
 -- ============================================================================
--- 5. ASSETS TABLE (with area_from_distribution, comment, exported_to_automation)
+-- 5. ASSETS TABLE (with business_distribution_area, comment, exported_to_automation)
 -- ============================================================================
 
 CREATE TABLE IF NOT EXISTS assets (
@@ -303,7 +303,7 @@ CREATE TABLE IF NOT EXISTS assets (
   discount_date_from text,
   discount_date_to text,
   is_new_measurement boolean DEFAULT false,
-  area_from_distribution numeric,
+  business_distribution_area numeric,
   exported_to_automation boolean DEFAULT false,
   data_from_automation boolean DEFAULT false,
   comment text,
@@ -344,7 +344,7 @@ CREATE POLICY "Public can delete assets"
   USING (true);
 
 COMMENT ON TABLE assets IS 'Asset records with all measurements and metadata';
-COMMENT ON COLUMN assets.area_from_distribution IS 'Area allocated from shared area distribution (business distribution only)';
+COMMENT ON COLUMN assets.business_distribution_area IS 'Area allocated from shared area distribution (business or residence, depending on asset type)';
 COMMENT ON COLUMN assets.exported_to_automation IS 'Flag indicating if asset has been exported to automation system. Set to false when asset is updated.';
 COMMENT ON COLUMN assets.data_from_automation IS 'Indicates if asset row originated from the automation system (full import). If asset is edited in this app later, it is set to false.';
 COMMENT ON COLUMN assets.comment IS 'Optional comment/note for the asset';
@@ -385,7 +385,7 @@ CREATE TABLE IF NOT EXISTS assets_history (
   discount_date_from text,
   discount_date_to text,
   action_id bigint,
-  area_from_distribution numeric,
+  business_distribution_area numeric,
   exported_to_automation boolean DEFAULT false,
   export_to_automation_at text,
   comment text,
@@ -983,8 +983,8 @@ CREATE TRIGGER trigger_auto_set_distribution_flags_on_change
 -- 5. update_buildings_bulk_with_distribution_flags - Updates buildings with distribution flag management
 --
 -- These functions are too large to include here and should be loaded from:
--- supabase/migrations/20251218000000_remove_backend_validation_checks.sql
--- supabase/migrations/20251219000000_add_building_update_function.sql
--- supabase/migrations/20251229000000_prevent_distribution_flag_when_shared_area_zero.sql
+-- migrations/20251218000000_remove_backend_validation_checks.sql
+-- migrations/20251219000000_add_building_update_function.sql
+-- migrations/20251229000000_prevent_distribution_flag_when_shared_area_zero.sql
 -- ============================================================================
 

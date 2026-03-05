@@ -3,7 +3,7 @@
 ## ✅ Created Files
 
 1. **`init_db.sql`** - Complete initial database schema
-   - Copied from `supabase/migrations/20260101000000_consolidated_initial_schema.sql`
+   - Copied from `migrations/20260101000000_consolidated_initial_schema.sql`
    - Contains all tables, indexes, constraints, triggers, and functions
    - Ready to run on a fresh database
 
@@ -53,7 +53,7 @@
      - `business_distribution_area` column (currently shows `area_from_distribution`)
      - `apartment_number`, `storage_number`, `apartment_floor`, `storage_floor` columns
      - `note` column in buildings table
-   - Check recent migrations in `supabase/migrations/` for latest schema changes
+   - Check recent migrations in `migrations/` for latest schema changes
 
 2. **Seed Data:**
    - Uses `business_distribution_area` (correct)

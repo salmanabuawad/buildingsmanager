@@ -43,8 +43,10 @@ DATABASE_URL=postgresql://username:password@localhost:5432/assetflow
 SECRET_KEY=your-secret-key-here
 ALGORITHM=HS256
 ACCESS_TOKEN_EXPIRE_MINUTES=30
-AZURE_STORAGE_CONNECTION_STRING=your-azure-storage-connection-string
-AZURE_STORAGE_CONTAINER_NAME=assetflow-files
+STORAGE_PATH=./storage
+STORAGE_MAIN_FOLDER=assetflow-files
+STORAGE_USER=
+STORAGE_PASSWORD=
 ALLOWED_ORIGINS=http://localhost:5173
 ENVIRONMENT=development
 ```
@@ -192,8 +194,10 @@ chmod +x deploy-to-azure.sh
 | SECRET_KEY | JWT secret key | Required |
 | ALGORITHM | JWT algorithm | HS256 |
 | ACCESS_TOKEN_EXPIRE_MINUTES | Token expiration time | 30 |
-| AZURE_STORAGE_CONNECTION_STRING | Azure Blob Storage connection | Required |
-| AZURE_STORAGE_CONTAINER_NAME | Storage container name | assetflow-files |
+| STORAGE_PATH | Root path for file storage (e.g. ./storage or /var/app/storage) | ./storage |
+| STORAGE_MAIN_FOLDER | Folder name under path | assetflow-files |
+| STORAGE_USER | Optional; for remote storage (not used when path is localhost/local) | - |
+| STORAGE_PASSWORD | Optional; for remote storage | - |
 | ALLOWED_ORIGINS | CORS allowed origins (comma-separated) | http://localhost:5173 |
 | ENVIRONMENT | Environment name | development |
 

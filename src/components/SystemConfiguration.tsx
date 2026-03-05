@@ -5,6 +5,7 @@ import { Loader2, Settings, Save, RefreshCw, Plus, X, Trash2, AlertCircle, Edit2
 import { Toast } from './Toast';
 import { emailService } from '../lib/emailService';
 import type { EmailConfig } from '../lib/emailService';
+import type { ValidationMode } from '../lib/systemConfigService';
 
 export function SystemConfigurationManager() {
   const { isAdmin } = useUserRole();
@@ -36,8 +37,35 @@ export function SystemConfigurationManager() {
   const [emailTemplateSaving, setEmailTemplateSaving] = useState<'operator' | 'manager' | null>(null);
   const [showTemplateView, setShowTemplateView] = useState<'operator' | 'manager' | null>(null);
 
+  const [validationMode, setValidationMode] = useState<ValidationMode>('before_save');
+  const [validationConfigLoading, setValidationConfigLoading] = useState(true);
+  const [validationConfigSaving, setValidationConfigSaving] = useState(false);
+  const [showValidationSection, setShowValidationSection] = useState(true);
+
+  const [fileStoragePath, setFileStoragePath] = useState('./storage');
+  const [fileStorageFolder, setFileStorageFolder] = useState('assetflow-files');
+  const [fileStorageLoading, setFileStorageLoading] = useState(true);
+  const [fileStorageSaving, setFileStorageSaving] = useState(false);
+  const [showFileStorageSection, setShowFileStorageSection] = useState(true);
+
   useEffect(() => {
     fetchConfigurations();
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      setValidationConfigLoading(true);
+      try {
+        const uiConfig = await api.systemConfiguration.getUIConfig();
+        if (!cancelled) setValidationMode(uiConfig.validation_mode ?? 'before_save');
+      } catch {
+        if (!cancelled) setValidationMode('before_save');
+      } finally {
+        if (!cancelled) setValidationConfigLoading(false);
+      }
+    })();
+    return () => { cancelled = true; };
   }, []);
 
   useEffect(() => {
@@ -89,6 +117,28 @@ export function SystemConfigurationManager() {
         }
       } finally {
         if (!cancelled) setEmailTemplatesLoading(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      setFileStorageLoading(true);
+      try {
+        const config = await api.systemConfiguration.getFileStorageConfig();
+        if (!cancelled) {
+          setFileStoragePath(config.storage_path);
+          setFileStorageFolder(config.storage_main_folder);
+        }
+      } catch {
+        if (!cancelled) {
+          setFileStoragePath('./storage');
+          setFileStorageFolder('assetflow-files');
+        }
+      } finally {
+        if (!cancelled) setFileStorageLoading(false);
       }
     })();
     return () => { cancelled = true; };
@@ -379,6 +429,175 @@ export function SystemConfigurationManager() {
         />
       )}
 
+      {/* Validation mode */}
+      <div className="bg-white rounded-xl shadow-lg border border-blue-100 p-6 mb-6">
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-3">
+            <AlertCircle className="h-6 w-6 text-teal-600" />
+            <h2 className="text-xl font-bold text-slate-800">אימות (Validation)</h2>
+          </div>
+          <button
+            type="button"
+            onClick={() => setShowValidationSection((v) => !v)}
+            className="text-sm text-slate-600 hover:text-slate-800"
+          >
+            {showValidationSection ? 'הסתר' : 'הצג'}
+          </button>
+        </div>
+        {showValidationSection && (
+          <>
+            {validationConfigLoading ? (
+              <div className="flex items-center gap-2 text-slate-600 py-4">
+                <Loader2 className="h-5 w-5 animate-spin" />
+                טוען...
+              </div>
+            ) : (
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-2">מתי להריץ אימות</label>
+                  <select
+                    value={validationMode}
+                    onChange={(e) => setValidationMode(e.target.value as ValidationMode)}
+                    className="w-full max-w-md px-3 py-2 border border-slate-300 rounded-lg text-sm bg-white"
+                  >
+                    <option value="off">כבוי (Off) – ללא אימות</option>
+                    <option value="before_save">לפני שמירה (Before save) – אימות בלחיצת שמירה</option>
+                    <option value="online">אונליין (Online) – אימות בזמן הקלדה / מעבר שדה</option>
+                  </select>
+                  <p className="mt-1 text-xs text-slate-500">
+                    Off = no validation. Before save = validate when saving. Online = validate as you type.
+                  </p>
+                </div>
+                {isAdmin && (
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      setValidationConfigSaving(true);
+                      setToast(null);
+                      try {
+                        const existing = await api.systemConfiguration.getByName('ui_config');
+                        let merged: Record<string, unknown> = {};
+                        if (existing?.value) {
+                          try {
+                            merged = JSON.parse(existing.value);
+                          } catch {
+                            /* ignore */
+                          }
+                        }
+                        merged.validation_rules_enabled = validationMode !== 'off';
+                        merged.validation_mode = validationMode;
+                        await api.systemConfiguration.upsert(
+                          'ui_config',
+                          JSON.stringify(merged),
+                          existing?.description || 'UI config (validation mode, etc.)'
+                        );
+                        setToast({ message: 'הגדרות האימות נשמרו. רענן את הדף כדי להחיל.', type: 'success' });
+                      } catch (err) {
+                        const msg = (err as { message?: string })?.message ?? (err instanceof Error ? err.message : 'שגיאה בשמירת הגדרות אימות');
+                        setToast({
+                          message: msg,
+                          type: 'error',
+                        });
+                      } finally {
+                        setValidationConfigSaving(false);
+                      }
+                    }}
+                    disabled={validationConfigSaving}
+                    className="flex items-center gap-2 px-4 py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700 disabled:opacity-50"
+                  >
+                    {validationConfigSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+                    שמור הגדרות אימות
+                  </button>
+                )}
+              </div>
+            )}
+          </>
+        )}
+      </div>
+
+      {/* File storage location */}
+      <div className="bg-white rounded-xl shadow-lg border border-blue-100 p-6 mb-6">
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-3">
+            <Settings className="h-6 w-6 text-teal-600" />
+            <h2 className="text-xl font-bold text-slate-800">מיקום אחסון קבצים (File storage)</h2>
+          </div>
+          <button
+            type="button"
+            onClick={() => setShowFileStorageSection((v) => !v)}
+            className="text-sm text-slate-600 hover:text-slate-800"
+          >
+            {showFileStorageSection ? 'הסתר' : 'הצג'}
+          </button>
+        </div>
+        {showFileStorageSection && (
+          <>
+            {fileStorageLoading ? (
+              <div className="flex items-center gap-2 text-slate-600 py-4">
+                <Loader2 className="h-5 w-5 animate-spin" />
+                טוען...
+              </div>
+            ) : (
+              <div className="space-y-4">
+                <p className="text-sm text-slate-600">
+                  הנתיב והתיקייה שבהם נשמרים קבצים (העלאות, תכניות). אם ריק – השירות משתמש בהגדרות ברירת המחדל מהשרת.
+                </p>
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">נתיב אחסון (Storage path) *</label>
+                  <input
+                    type="text"
+                    value={fileStoragePath}
+                    onChange={(e) => setFileStoragePath(e.target.value)}
+                    placeholder="./storage"
+                    className="w-full max-w-md px-3 py-2 border border-slate-300 rounded-lg text-sm bg-white"
+                  />
+                  <p className="mt-1 text-xs text-slate-500">למשל: ./storage או /var/app/storage</p>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">תיקייה ראשית (Main folder) *</label>
+                  <input
+                    type="text"
+                    value={fileStorageFolder}
+                    onChange={(e) => setFileStorageFolder(e.target.value)}
+                    placeholder="assetflow-files"
+                    className="w-full max-w-md px-3 py-2 border border-slate-300 rounded-lg text-sm bg-white"
+                  />
+                  <p className="mt-1 text-xs text-slate-500">שם התיקייה תחת הנתיב (למשל: assetflow-files)</p>
+                </div>
+                {isAdmin && (
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      setFileStorageSaving(true);
+                      setToast(null);
+                      try {
+                        await api.systemConfiguration.upsertFileStorageConfig(
+                          fileStoragePath.trim() || './storage',
+                          fileStorageFolder.trim() || 'assetflow-files'
+                        );
+                        setToast({ message: 'מיקום אחסון הקבצים נשמר בהצלחה', type: 'success' });
+                      } catch (err) {
+                        setToast({
+                          message: err instanceof Error ? err.message : 'שגיאה בשמירת מיקום אחסון',
+                          type: 'error',
+                        });
+                      } finally {
+                        setFileStorageSaving(false);
+                      }
+                    }}
+                    disabled={fileStorageSaving}
+                    className="flex items-center gap-2 px-4 py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700 disabled:opacity-50"
+                  >
+                    {fileStorageSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+                    שמור מיקום אחסון
+                  </button>
+                )}
+              </div>
+            )}
+          </>
+        )}
+      </div>
+
       {/* Email (SMTP) settings */}
       <div className="bg-white rounded-xl shadow-lg border border-blue-100 p-6 mb-6">
         <div className="flex items-center justify-between mb-4">
@@ -403,11 +622,7 @@ export function SystemConfigurationManager() {
               </div>
             ) : (
               <>
-                <div className="mb-4 space-y-3 p-3 bg-slate-50 rounded-lg border border-slate-200 hidden" aria-hidden="true">
-                  <p className="text-sm font-medium text-slate-700">תלוי ב-Supabase Auth</p>
-                  <p className="text-sm text-slate-600">שליחת דוא&quot;ל מהאפליקציה דורשת התחברות עם Supabase Auth (ה-JWT נשלח ל-API). אם משתמשים רק בהתחברות מותאמת, יש ליצור גם סשן Supabase כדי ששליחת המייל תעבוד.</p>
-                  <p className="text-sm text-slate-600">כדי ש-Supabase ישלח מיילי אימות (אישור הרשמה, איפוס סיסמה) דרך Gmail: ב-Dashboard → Authentication → SMTP הגדר את אותו Gmail (smtp.gmail.com, פורט 587, סיסמת אפליקציה).</p>
-                  <hr className="border-slate-200" />
+                <div className="mb-4 space-y-3 p-3 bg-slate-50 rounded-lg border border-slate-200">
                   <p className="text-sm text-slate-600">לחיבור Gmail: השתמש בסיסמת אפליקציה (לא סיסמת החשבון). ליצירה: חשבון Google → אבטחה → סיסמאות אפליקציה.</p>
                   <button
                     type="button"

@@ -1,0 +1,1677 @@
+{
+  "tables": {
+    "address_list": [
+      {
+        "column_name": "street_code",
+        "data_type": "integer",
+        "is_nullable": "NO",
+        "column_default": null
+      },
+      {
+        "column_name": "street_description",
+        "data_type": "text",
+        "is_nullable": "NO",
+        "column_default": null
+      },
+      {
+        "column_name": "created_at",
+        "data_type": "timestamp with time zone",
+        "is_nullable": "YES",
+        "column_default": "now()"
+      },
+      {
+        "column_name": "updated_at",
+        "data_type": "timestamp with time zone",
+        "is_nullable": "YES",
+        "column_default": "now()"
+      },
+      {
+        "column_name": "id",
+        "data_type": "integer",
+        "is_nullable": "NO",
+        "column_default": "nextval('address_list_id_seq'::regclass)"
+      }
+    ],
+    "asset_files": [
+      {
+        "column_name": "id",
+        "data_type": "bigint",
+        "is_nullable": "NO",
+        "column_default": "nextval('asset_files_id_seq'::regclass)"
+      },
+      {
+        "column_name": "asset_id",
+        "data_type": "bigint",
+        "is_nullable": "NO",
+        "column_default": null
+      },
+      {
+        "column_name": "file_url",
+        "data_type": "text",
+        "is_nullable": "NO",
+        "column_default": null
+      },
+      {
+        "column_name": "file_name",
+        "data_type": "text",
+        "is_nullable": "YES",
+        "column_default": null
+      },
+      {
+        "column_name": "file_size",
+        "data_type": "bigint",
+        "is_nullable": "YES",
+        "column_default": null
+      },
+      {
+        "column_name": "file_type",
+        "data_type": "text",
+        "is_nullable": "YES",
+        "column_default": null
+      },
+      {
+        "column_name": "uploaded_at",
+        "data_type": "timestamp with time zone",
+        "is_nullable": "YES",
+        "column_default": "now()"
+      },
+      {
+        "column_name": "uploaded_by",
+        "data_type": "text",
+        "is_nullable": "YES",
+        "column_default": null
+      },
+      {
+        "column_name": "measurement_date",
+        "data_type": "text",
+        "is_nullable": "YES",
+        "column_default": null
+      }
+    ],
+    "asset_types": [
+      {
+        "column_name": "id",
+        "data_type": "integer",
+        "is_nullable": "NO",
+        "column_default": "nextval('asset_types_id_seq'::regclass)"
+      },
+      {
+        "column_name": "name",
+        "data_type": "text",
+        "is_nullable": "NO",
+        "column_default": null
+      },
+      {
+        "column_name": "description",
+        "data_type": "text",
+        "is_nullable": "YES",
+        "column_default": null
+      },
+      {
+        "column_name": "tax_region",
+        "data_type": "integer",
+        "is_nullable": "YES",
+        "column_default": null
+      },
+      {
+        "column_name": "elevator",
+        "data_type": "boolean",
+        "is_nullable": "NO",
+        "column_default": "false"
+      },
+      {
+        "column_name": "single_double_family",
+        "data_type": "boolean",
+        "is_nullable": "NO",
+        "column_default": "false"
+      },
+      {
+        "column_name": "penthouse",
+        "data_type": "boolean",
+        "is_nullable": "NO",
+        "column_default": "false"
+      },
+      {
+        "column_name": "condo",
+        "data_type": "boolean",
+        "is_nullable": "NO",
+        "column_default": "false"
+      },
+      {
+        "column_name": "townhouses",
+        "data_type": "boolean",
+        "is_nullable": "NO",
+        "column_default": "false"
+      },
+      {
+        "column_name": "business_residence",
+        "data_type": "text",
+        "is_nullable": "YES",
+        "column_default": null
+      },
+      {
+        "column_name": "min_size",
+        "data_type": "numeric",
+        "is_nullable": "YES",
+        "column_default": null
+      },
+      {
+        "column_name": "max_size",
+        "data_type": "numeric",
+        "is_nullable": "YES",
+        "column_default": null
+      },
+      {
+        "column_name": "non_accountable_for_total_area",
+        "data_type": "boolean",
+        "is_nullable": "NO",
+        "column_default": "false"
+      },
+      {
+        "column_name": "non_accountable_for_distribution",
+        "data_type": "boolean",
+        "is_nullable": "NO",
+        "column_default": "false"
+      },
+      {
+        "column_name": "not_accountable_for_statistics",
+        "data_type": "boolean",
+        "is_nullable": "NO",
+        "column_default": "false"
+      },
+      {
+        "column_name": "use_shared_area",
+        "data_type": "boolean",
+        "is_nullable": "YES",
+        "column_default": null
+      },
+      {
+        "column_name": "area_description_for_tab",
+        "data_type": "text",
+        "is_nullable": "YES",
+        "column_default": null
+      },
+      {
+        "column_name": "created_at",
+        "data_type": "timestamp with time zone",
+        "is_nullable": "YES",
+        "column_default": "now()"
+      },
+      {
+        "column_name": "updated_at",
+        "data_type": "timestamp with time zone",
+        "is_nullable": "YES",
+        "column_default": "now()"
+      },
+      {
+        "column_name": "active",
+        "data_type": "boolean",
+        "is_nullable": "NO",
+        "column_default": "true"
+      },
+      {
+        "column_name": "use_for_parking_shared_area",
+        "data_type": "boolean",
+        "is_nullable": "YES",
+        "column_default": "false"
+      }
+    ],
+    "assets": [
+      {
+        "column_name": "building_number",
+        "data_type": "bigint",
+        "is_nullable": "NO",
+        "column_default": null
+      },
+      {
+        "column_name": "payer_id",
+        "data_type": "text",
+        "is_nullable": "YES",
+        "column_default": null
+      },
+      {
+        "column_name": "asset_id",
+        "data_type": "bigint",
+        "is_nullable": "NO",
+        "column_default": null
+      },
+      {
+        "column_name": "measurement_date",
+        "data_type": "text",
+        "is_nullable": "NO",
+        "column_default": "'01/01/1900'::text"
+      },
+      {
+        "column_name": "main_asset_type",
+        "data_type": "text",
+        "is_nullable": "YES",
+        "column_default": null
+      },
+      {
+        "column_name": "asset_size",
+        "data_type": "numeric",
+        "is_nullable": "YES",
+        "column_default": null
+      },
+      {
+        "column_name": "sub_asset_type_1",
+        "data_type": "text",
+        "is_nullable": "YES",
+        "column_default": null
+      },
+      {
+        "column_name": "sub_asset_size_1",
+        "data_type": "numeric",
+        "is_nullable": "YES",
+        "column_default": null
+      },
+      {
+        "column_name": "sub_asset_type_2",
+        "data_type": "text",
+        "is_nullable": "YES",
+        "column_default": null
+      },
+      {
+        "column_name": "sub_asset_size_2",
+        "data_type": "numeric",
+        "is_nullable": "YES",
+        "column_default": null
+      },
+      {
+        "column_name": "sub_asset_type_3",
+        "data_type": "text",
+        "is_nullable": "YES",
+        "column_default": null
+      },
+      {
+        "column_name": "sub_asset_size_3",
+        "data_type": "numeric",
+        "is_nullable": "YES",
+        "column_default": null
+      },
+      {
+        "column_name": "sub_asset_type_4",
+        "data_type": "text",
+        "is_nullable": "YES",
+        "column_default": null
+      },
+      {
+        "column_name": "sub_asset_size_4",
+        "data_type": "numeric",
+        "is_nullable": "YES",
+        "column_default": null
+      },
+      {
+        "column_name": "sub_asset_type_5",
+        "data_type": "text",
+        "is_nullable": "YES",
+        "column_default": null
+      },
+      {
+        "column_name": "sub_asset_size_5",
+        "data_type": "numeric",
+        "is_nullable": "YES",
+        "column_default": null
+      },
+      {
+        "column_name": "sub_asset_type_6",
+        "data_type": "text",
+        "is_nullable": "YES",
+        "column_default": null
+      },
+      {
+        "column_name": "sub_asset_size_6",
+        "data_type": "numeric",
+        "is_nullable": "YES",
+        "column_default": null
+      },
+      {
+        "column_name": "structure_drawing_url",
+        "data_type": "text",
+        "is_nullable": "YES",
+        "column_default": null
+      },
+      {
+        "column_name": "created_at",
+        "data_type": "timestamp with time zone",
+        "is_nullable": "YES",
+        "column_default": "now()"
+      },
+      {
+        "column_name": "updated_at",
+        "data_type": "timestamp with time zone",
+        "is_nullable": "YES",
+        "column_default": "now()"
+      },
+      {
+        "column_name": "elevator",
+        "data_type": "boolean",
+        "is_nullable": "YES",
+        "column_default": null
+      },
+      {
+        "column_name": "single_double_family",
+        "data_type": "boolean",
+        "is_nullable": "YES",
+        "column_default": null
+      },
+      {
+        "column_name": "condo",
+        "data_type": "boolean",
+        "is_nullable": "YES",
+        "column_default": null
+      },
+      {
+        "column_name": "townhouses",
+        "data_type": "boolean",
+        "is_nullable": "YES",
+        "column_default": null
+      },
+      {
+        "column_name": "penthouse",
+        "data_type": "boolean",
+        "is_nullable": "YES",
+        "column_default": null
+      },
+      {
+        "column_name": "tax_region",
+        "data_type": "integer",
+        "is_nullable": "YES",
+        "column_default": null
+      },
+      {
+        "column_name": "discount_type",
+        "data_type": "text",
+        "is_nullable": "YES",
+        "column_default": null
+      },
+      {
+        "column_name": "discount_date_from",
+        "data_type": "text",
+        "is_nullable": "YES",
+        "column_default": null
+      },
+      {
+        "column_name": "discount_date_to",
+        "data_type": "text",
+        "is_nullable": "YES",
+        "column_default": null
+      },
+      {
+        "column_name": "is_new_measurement",
+        "data_type": "boolean",
+        "is_nullable": "NO",
+        "column_default": "false"
+      },
+      {
+        "column_name": "area_from_distribution",
+        "data_type": "numeric",
+        "is_nullable": "YES",
+        "column_default": null
+      },
+      {
+        "column_name": "exported_to_automation",
+        "data_type": "boolean",
+        "is_nullable": "NO",
+        "column_default": "false"
+      },
+      {
+        "column_name": "data_from_automation",
+        "data_type": "boolean",
+        "is_nullable": "NO",
+        "column_default": "false"
+      },
+      {
+        "column_name": "comment",
+        "data_type": "text",
+        "is_nullable": "YES",
+        "column_default": null
+      },
+      {
+        "column_name": "business_total_area",
+        "data_type": "numeric",
+        "is_nullable": "YES",
+        "column_default": "0"
+      },
+      {
+        "column_name": "export_to_automation_at",
+        "data_type": "text",
+        "is_nullable": "YES",
+        "column_default": null
+      },
+      {
+        "column_name": "apartment_number",
+        "data_type": "text",
+        "is_nullable": "YES",
+        "column_default": null
+      },
+      {
+        "column_name": "apartment_floor",
+        "data_type": "text",
+        "is_nullable": "YES",
+        "column_default": null
+      },
+      {
+        "column_name": "storage_number",
+        "data_type": "text",
+        "is_nullable": "YES",
+        "column_default": null
+      },
+      {
+        "column_name": "storage_floor",
+        "data_type": "text",
+        "is_nullable": "YES",
+        "column_default": null
+      },
+      {
+        "column_name": "operator_id",
+        "data_type": "bigint",
+        "is_nullable": "YES",
+        "column_default": null
+      },
+      {
+        "column_name": "number_of_parking_units",
+        "data_type": "integer",
+        "is_nullable": "YES",
+        "column_default": null
+      },
+      {
+        "column_name": "use_nature",
+        "data_type": "text",
+        "is_nullable": "YES",
+        "column_default": null
+      },
+      {
+        "column_name": "shared_parking_area",
+        "data_type": "numeric",
+        "is_nullable": "YES",
+        "column_default": null
+      }
+    ],
+    "assets_history": [
+      {
+        "column_name": "id",
+        "data_type": "bigint",
+        "is_nullable": "NO",
+        "column_default": "nextval('assets_history_id_seq'::regclass)"
+      },
+      {
+        "column_name": "asset_id",
+        "data_type": "bigint",
+        "is_nullable": "NO",
+        "column_default": null
+      },
+      {
+        "column_name": "building_number",
+        "data_type": "bigint",
+        "is_nullable": "NO",
+        "column_default": null
+      },
+      {
+        "column_name": "payer_id",
+        "data_type": "text",
+        "is_nullable": "YES",
+        "column_default": null
+      },
+      {
+        "column_name": "measurement_date",
+        "data_type": "text",
+        "is_nullable": "NO",
+        "column_default": null
+      },
+      {
+        "column_name": "main_asset_type",
+        "data_type": "text",
+        "is_nullable": "YES",
+        "column_default": null
+      },
+      {
+        "column_name": "asset_size",
+        "data_type": "numeric",
+        "is_nullable": "YES",
+        "column_default": null
+      },
+      {
+        "column_name": "sub_asset_type_1",
+        "data_type": "text",
+        "is_nullable": "YES",
+        "column_default": null
+      },
+      {
+        "column_name": "sub_asset_size_1",
+        "data_type": "numeric",
+        "is_nullable": "YES",
+        "column_default": null
+      },
+      {
+        "column_name": "sub_asset_type_2",
+        "data_type": "text",
+        "is_nullable": "YES",
+        "column_default": null
+      },
+      {
+        "column_name": "sub_asset_size_2",
+        "data_type": "numeric",
+        "is_nullable": "YES",
+        "column_default": null
+      },
+      {
+        "column_name": "sub_asset_type_3",
+        "data_type": "text",
+        "is_nullable": "YES",
+        "column_default": null
+      },
+      {
+        "column_name": "sub_asset_size_3",
+        "data_type": "numeric",
+        "is_nullable": "YES",
+        "column_default": null
+      },
+      {
+        "column_name": "sub_asset_type_4",
+        "data_type": "text",
+        "is_nullable": "YES",
+        "column_default": null
+      },
+      {
+        "column_name": "sub_asset_size_4",
+        "data_type": "numeric",
+        "is_nullable": "YES",
+        "column_default": null
+      },
+      {
+        "column_name": "sub_asset_type_5",
+        "data_type": "text",
+        "is_nullable": "YES",
+        "column_default": null
+      },
+      {
+        "column_name": "sub_asset_size_5",
+        "data_type": "numeric",
+        "is_nullable": "YES",
+        "column_default": null
+      },
+      {
+        "column_name": "sub_asset_type_6",
+        "data_type": "text",
+        "is_nullable": "YES",
+        "column_default": null
+      },
+      {
+        "column_name": "sub_asset_size_6",
+        "data_type": "numeric",
+        "is_nullable": "YES",
+        "column_default": null
+      },
+      {
+        "column_name": "structure_drawing_url",
+        "data_type": "text",
+        "is_nullable": "YES",
+        "column_default": null
+      },
+      {
+        "column_name": "elevator",
+        "data_type": "boolean",
+        "is_nullable": "YES",
+        "column_default": null
+      },
+      {
+        "column_name": "single_double_family",
+        "data_type": "boolean",
+        "is_nullable": "YES",
+        "column_default": null
+      },
+      {
+        "column_name": "condo",
+        "data_type": "boolean",
+        "is_nullable": "YES",
+        "column_default": null
+      },
+      {
+        "column_name": "townhouses",
+        "data_type": "boolean",
+        "is_nullable": "YES",
+        "column_default": null
+      },
+      {
+        "column_name": "penthouse",
+        "data_type": "boolean",
+        "is_nullable": "YES",
+        "column_default": null
+      },
+      {
+        "column_name": "tax_region",
+        "data_type": "integer",
+        "is_nullable": "YES",
+        "column_default": null
+      },
+      {
+        "column_name": "discount_type",
+        "data_type": "text",
+        "is_nullable": "YES",
+        "column_default": null
+      },
+      {
+        "column_name": "discount_date_from",
+        "data_type": "text",
+        "is_nullable": "YES",
+        "column_default": null
+      },
+      {
+        "column_name": "discount_date_to",
+        "data_type": "text",
+        "is_nullable": "YES",
+        "column_default": null
+      },
+      {
+        "column_name": "action_id",
+        "data_type": "bigint",
+        "is_nullable": "YES",
+        "column_default": null
+      },
+      {
+        "column_name": "area_from_distribution",
+        "data_type": "numeric",
+        "is_nullable": "YES",
+        "column_default": null
+      },
+      {
+        "column_name": "exported_to_automation",
+        "data_type": "boolean",
+        "is_nullable": "NO",
+        "column_default": "false"
+      },
+      {
+        "column_name": "export_to_automation_at",
+        "data_type": "text",
+        "is_nullable": "YES",
+        "column_default": null
+      },
+      {
+        "column_name": "comment",
+        "data_type": "text",
+        "is_nullable": "YES",
+        "column_default": null
+      },
+      {
+        "column_name": "created_at",
+        "data_type": "timestamp with time zone",
+        "is_nullable": "YES",
+        "column_default": "now()"
+      },
+      {
+        "column_name": "business_total_area",
+        "data_type": "numeric",
+        "is_nullable": "YES",
+        "column_default": "0"
+      },
+      {
+        "column_name": "data_from_automation",
+        "data_type": "boolean",
+        "is_nullable": "NO",
+        "column_default": "false"
+      },
+      {
+        "column_name": "updated_at",
+        "data_type": "timestamp with time zone",
+        "is_nullable": "YES",
+        "column_default": null
+      },
+      {
+        "column_name": "apartment_number",
+        "data_type": "text",
+        "is_nullable": "YES",
+        "column_default": null
+      },
+      {
+        "column_name": "apartment_floor",
+        "data_type": "text",
+        "is_nullable": "YES",
+        "column_default": null
+      },
+      {
+        "column_name": "storage_number",
+        "data_type": "text",
+        "is_nullable": "YES",
+        "column_default": null
+      },
+      {
+        "column_name": "storage_floor",
+        "data_type": "text",
+        "is_nullable": "YES",
+        "column_default": null
+      },
+      {
+        "column_name": "number_of_parking_units",
+        "data_type": "integer",
+        "is_nullable": "YES",
+        "column_default": null
+      },
+      {
+        "column_name": "use_nature",
+        "data_type": "text",
+        "is_nullable": "YES",
+        "column_default": null
+      },
+      {
+        "column_name": "shared_parking_area",
+        "data_type": "numeric",
+        "is_nullable": "YES",
+        "column_default": null
+      }
+    ],
+    "audit": [
+      {
+        "column_name": "id",
+        "data_type": "bigint",
+        "is_nullable": "NO",
+        "column_default": "nextval('audit_id_seq'::regclass)"
+      },
+      {
+        "column_name": "user_id",
+        "data_type": "bigint",
+        "is_nullable": "YES",
+        "column_default": null
+      },
+      {
+        "column_name": "action_type",
+        "data_type": "USER-DEFINED",
+        "is_nullable": "NO",
+        "column_default": null
+      },
+      {
+        "column_name": "entity_type",
+        "data_type": "text",
+        "is_nullable": "NO",
+        "column_default": null
+      },
+      {
+        "column_name": "entity_id",
+        "data_type": "text",
+        "is_nullable": "YES",
+        "column_default": null
+      },
+      {
+        "column_name": "before_data",
+        "data_type": "jsonb",
+        "is_nullable": "YES",
+        "column_default": null
+      },
+      {
+        "column_name": "after_data",
+        "data_type": "jsonb",
+        "is_nullable": "YES",
+        "column_default": null
+      },
+      {
+        "column_name": "description",
+        "data_type": "text",
+        "is_nullable": "YES",
+        "column_default": null
+      },
+      {
+        "column_name": "building_number",
+        "data_type": "bigint",
+        "is_nullable": "YES",
+        "column_default": null
+      },
+      {
+        "column_name": "overload_ratio",
+        "data_type": "numeric",
+        "is_nullable": "YES",
+        "column_default": null
+      },
+      {
+        "column_name": "shared_area_size",
+        "data_type": "numeric",
+        "is_nullable": "YES",
+        "column_default": null
+      },
+      {
+        "column_name": "created_at",
+        "data_type": "timestamp with time zone",
+        "is_nullable": "YES",
+        "column_default": "now()"
+      }
+    ],
+    "buildings": [
+      {
+        "column_name": "building_number",
+        "data_type": "bigint",
+        "is_nullable": "NO",
+        "column_default": null
+      },
+      {
+        "column_name": "total_building_area",
+        "data_type": "numeric",
+        "is_nullable": "YES",
+        "column_default": "0"
+      },
+      {
+        "column_name": "tax_region",
+        "data_type": "text",
+        "is_nullable": "YES",
+        "column_default": null
+      },
+      {
+        "column_name": "elevator",
+        "data_type": "boolean",
+        "is_nullable": "NO",
+        "column_default": "false"
+      },
+      {
+        "column_name": "single_double_family",
+        "data_type": "boolean",
+        "is_nullable": "NO",
+        "column_default": "false"
+      },
+      {
+        "column_name": "condo",
+        "data_type": "boolean",
+        "is_nullable": "NO",
+        "column_default": "false"
+      },
+      {
+        "column_name": "townhouses",
+        "data_type": "boolean",
+        "is_nullable": "NO",
+        "column_default": "false"
+      },
+      {
+        "column_name": "residence_shared_area",
+        "data_type": "numeric",
+        "is_nullable": "YES",
+        "column_default": "0"
+      },
+      {
+        "column_name": "business_shared_area",
+        "data_type": "numeric",
+        "is_nullable": "YES",
+        "column_default": null
+      },
+      {
+        "column_name": "area_for_control",
+        "data_type": "numeric",
+        "is_nullable": "YES",
+        "column_default": null
+      },
+      {
+        "column_name": "building_number_in_street",
+        "data_type": "bigint",
+        "is_nullable": "YES",
+        "column_default": null
+      },
+      {
+        "column_name": "gosh",
+        "data_type": "bigint",
+        "is_nullable": "YES",
+        "column_default": null
+      },
+      {
+        "column_name": "helka",
+        "data_type": "bigint",
+        "is_nullable": "YES",
+        "column_default": null
+      },
+      {
+        "column_name": "overload_ratio",
+        "data_type": "numeric",
+        "is_nullable": "YES",
+        "column_default": null
+      },
+      {
+        "column_name": "need_residence_distribution",
+        "data_type": "boolean",
+        "is_nullable": "YES",
+        "column_default": "false"
+      },
+      {
+        "column_name": "need_business_distribution",
+        "data_type": "boolean",
+        "is_nullable": "YES",
+        "column_default": "false"
+      },
+      {
+        "column_name": "action_id",
+        "data_type": "bigint",
+        "is_nullable": "YES",
+        "column_default": null
+      },
+      {
+        "column_name": "created_at",
+        "data_type": "timestamp with time zone",
+        "is_nullable": "YES",
+        "column_default": "now()"
+      },
+      {
+        "column_name": "address",
+        "data_type": "integer",
+        "is_nullable": "YES",
+        "column_default": null
+      },
+      {
+        "column_name": "note",
+        "data_type": "text",
+        "is_nullable": "YES",
+        "column_default": null
+      },
+      {
+        "column_name": "net_area",
+        "data_type": "numeric",
+        "is_nullable": "YES",
+        "column_default": null
+      },
+      {
+        "column_name": "asset_count",
+        "data_type": "integer",
+        "is_nullable": "YES",
+        "column_default": null
+      },
+      {
+        "column_name": "shared_parking_area",
+        "data_type": "numeric",
+        "is_nullable": "YES",
+        "column_default": null
+      },
+      {
+        "column_name": "number_of_parking_units",
+        "data_type": "integer",
+        "is_nullable": "YES",
+        "column_default": null
+      }
+    ],
+    "field_configurations": [
+      {
+        "column_name": "id",
+        "data_type": "integer",
+        "is_nullable": "NO",
+        "column_default": "nextval('field_configurations_id_seq'::regclass)"
+      },
+      {
+        "column_name": "grid_name",
+        "data_type": "text",
+        "is_nullable": "NO",
+        "column_default": null
+      },
+      {
+        "column_name": "field_name",
+        "data_type": "text",
+        "is_nullable": "NO",
+        "column_default": null
+      },
+      {
+        "column_name": "width_chars",
+        "data_type": "integer",
+        "is_nullable": "YES",
+        "column_default": null
+      },
+      {
+        "column_name": "padding",
+        "data_type": "integer",
+        "is_nullable": "YES",
+        "column_default": null
+      },
+      {
+        "column_name": "hebrew_name",
+        "data_type": "text",
+        "is_nullable": "YES",
+        "column_default": null
+      },
+      {
+        "column_name": "pinned",
+        "data_type": "boolean",
+        "is_nullable": "YES",
+        "column_default": "false"
+      },
+      {
+        "column_name": "pin_side",
+        "data_type": "text",
+        "is_nullable": "YES",
+        "column_default": null
+      },
+      {
+        "column_name": "visible",
+        "data_type": "boolean",
+        "is_nullable": "YES",
+        "column_default": "true"
+      },
+      {
+        "column_name": "column_order",
+        "data_type": "integer",
+        "is_nullable": "YES",
+        "column_default": null
+      },
+      {
+        "column_name": "created_at",
+        "data_type": "timestamp with time zone",
+        "is_nullable": "YES",
+        "column_default": "now()"
+      },
+      {
+        "column_name": "updated_at",
+        "data_type": "timestamp with time zone",
+        "is_nullable": "YES",
+        "column_default": "now()"
+      }
+    ],
+    "managers": [
+      {
+        "column_name": "manager_id",
+        "data_type": "bigint",
+        "is_nullable": "NO",
+        "column_default": "nextval('managers_manager_id_seq'::regclass)"
+      },
+      {
+        "column_name": "name",
+        "data_type": "text",
+        "is_nullable": "NO",
+        "column_default": null
+      },
+      {
+        "column_name": "tax_regions",
+        "data_type": "text",
+        "is_nullable": "NO",
+        "column_default": "''::text"
+      },
+      {
+        "column_name": "mail",
+        "data_type": "text",
+        "is_nullable": "NO",
+        "column_default": null
+      },
+      {
+        "column_name": "phone",
+        "data_type": "text",
+        "is_nullable": "YES",
+        "column_default": null
+      },
+      {
+        "column_name": "created_at",
+        "data_type": "timestamp with time zone",
+        "is_nullable": "YES",
+        "column_default": "now()"
+      },
+      {
+        "column_name": "updated_at",
+        "data_type": "timestamp with time zone",
+        "is_nullable": "YES",
+        "column_default": "now()"
+      }
+    ],
+    "operators": [
+      {
+        "column_name": "operator_id",
+        "data_type": "bigint",
+        "is_nullable": "NO",
+        "column_default": "nextval('operators_operator_id_seq'::regclass)"
+      },
+      {
+        "column_name": "name",
+        "data_type": "text",
+        "is_nullable": "NO",
+        "column_default": null
+      },
+      {
+        "column_name": "mail",
+        "data_type": "text",
+        "is_nullable": "NO",
+        "column_default": null
+      },
+      {
+        "column_name": "phone",
+        "data_type": "text",
+        "is_nullable": "YES",
+        "column_default": null
+      },
+      {
+        "column_name": "created_at",
+        "data_type": "timestamp with time zone",
+        "is_nullable": "YES",
+        "column_default": "now()"
+      },
+      {
+        "column_name": "updated_at",
+        "data_type": "timestamp with time zone",
+        "is_nullable": "YES",
+        "column_default": "now()"
+      }
+    ],
+    "system_configuration": [
+      {
+        "column_name": "id",
+        "data_type": "bigint",
+        "is_nullable": "NO",
+        "column_default": "nextval('system_configuration_id_seq'::regclass)"
+      },
+      {
+        "column_name": "name",
+        "data_type": "text",
+        "is_nullable": "NO",
+        "column_default": null
+      },
+      {
+        "column_name": "value",
+        "data_type": "text",
+        "is_nullable": "NO",
+        "column_default": null
+      },
+      {
+        "column_name": "description",
+        "data_type": "text",
+        "is_nullable": "YES",
+        "column_default": null
+      },
+      {
+        "column_name": "created_at",
+        "data_type": "timestamp with time zone",
+        "is_nullable": "YES",
+        "column_default": "now()"
+      },
+      {
+        "column_name": "updated_at",
+        "data_type": "timestamp with time zone",
+        "is_nullable": "YES",
+        "column_default": "now()"
+      },
+      {
+        "column_name": "created_by",
+        "data_type": "text",
+        "is_nullable": "YES",
+        "column_default": null
+      },
+      {
+        "column_name": "updated_by",
+        "data_type": "text",
+        "is_nullable": "YES",
+        "column_default": null
+      }
+    ],
+    "users": [
+      {
+        "column_name": "user_id",
+        "data_type": "bigint",
+        "is_nullable": "NO",
+        "column_default": "nextval('users_user_id_seq'::regclass)"
+      },
+      {
+        "column_name": "auth_user_id",
+        "data_type": "text",
+        "is_nullable": "YES",
+        "column_default": null
+      },
+      {
+        "column_name": "user_name",
+        "data_type": "text",
+        "is_nullable": "NO",
+        "column_default": null
+      },
+      {
+        "column_name": "user_email",
+        "data_type": "text",
+        "is_nullable": "YES",
+        "column_default": null
+      },
+      {
+        "column_name": "active",
+        "data_type": "boolean",
+        "is_nullable": "NO",
+        "column_default": "true"
+      },
+      {
+        "column_name": "created_at",
+        "data_type": "timestamp with time zone",
+        "is_nullable": "NO",
+        "column_default": "now()"
+      },
+      {
+        "column_name": "updated_at",
+        "data_type": "timestamp with time zone",
+        "is_nullable": "NO",
+        "column_default": "now()"
+      },
+      {
+        "column_name": "user_role",
+        "data_type": "text",
+        "is_nullable": "NO",
+        "column_default": "'user'::text"
+      },
+      {
+        "column_name": "password_hash",
+        "data_type": "text",
+        "is_nullable": "YES",
+        "column_default": null
+      }
+    ],
+    "validation_rules": [
+      {
+        "column_name": "id",
+        "data_type": "uuid",
+        "is_nullable": "NO",
+        "column_default": "gen_random_uuid()"
+      },
+      {
+        "column_name": "rule_key",
+        "data_type": "text",
+        "is_nullable": "NO",
+        "column_default": null
+      },
+      {
+        "column_name": "rule_type",
+        "data_type": "text",
+        "is_nullable": "NO",
+        "column_default": null
+      },
+      {
+        "column_name": "field_name",
+        "data_type": "text",
+        "is_nullable": "NO",
+        "column_default": null
+      },
+      {
+        "column_name": "entity_type",
+        "data_type": "text",
+        "is_nullable": "NO",
+        "column_default": null
+      },
+      {
+        "column_name": "value_numeric",
+        "data_type": "integer",
+        "is_nullable": "YES",
+        "column_default": null
+      },
+      {
+        "column_name": "value_text",
+        "data_type": "text",
+        "is_nullable": "YES",
+        "column_default": null
+      },
+      {
+        "column_name": "enabled",
+        "data_type": "boolean",
+        "is_nullable": "YES",
+        "column_default": "true"
+      },
+      {
+        "column_name": "error_message",
+        "data_type": "text",
+        "is_nullable": "YES",
+        "column_default": null
+      },
+      {
+        "column_name": "description",
+        "data_type": "text",
+        "is_nullable": "YES",
+        "column_default": null
+      },
+      {
+        "column_name": "compare_table",
+        "data_type": "text",
+        "is_nullable": "YES",
+        "column_default": null
+      },
+      {
+        "column_name": "compare_field",
+        "data_type": "text",
+        "is_nullable": "YES",
+        "column_default": null
+      },
+      {
+        "column_name": "join_field",
+        "data_type": "text",
+        "is_nullable": "YES",
+        "column_default": null
+      },
+      {
+        "column_name": "comparison_operator",
+        "data_type": "text",
+        "is_nullable": "YES",
+        "column_default": null
+      },
+      {
+        "column_name": "created_at",
+        "data_type": "timestamp with time zone",
+        "is_nullable": "YES",
+        "column_default": "now()"
+      },
+      {
+        "column_name": "updated_at",
+        "data_type": "timestamp with time zone",
+        "is_nullable": "YES",
+        "column_default": "now()"
+      }
+    ]
+  },
+  "functions": [
+    {
+      "name": "armor",
+      "args": "bytea",
+      "definition": "CREATE OR REPLACE FUNCTION public.armor(bytea)\n RETURNS text\n LANGUAGE c\n IMMUTABLE PARALLEL SAFE STRICT\nAS '$libdir/pgcrypto', $function$pg_armor$function$\n"
+    },
+    {
+      "name": "armor",
+      "args": "bytea, text[], text[]",
+      "definition": "CREATE OR REPLACE FUNCTION public.armor(bytea, text[], text[])\n RETURNS text\n LANGUAGE c\n IMMUTABLE PARALLEL SAFE STRICT\nAS '$libdir/pgcrypto', $function$pg_armor$function$\n"
+    },
+    {
+      "name": "auth_login",
+      "args": "p_password text, p_user_name text",
+      "definition": "CREATE OR REPLACE FUNCTION public.auth_login(p_password text, p_user_name text)\n RETURNS jsonb\n LANGUAGE plpgsql\n SECURITY DEFINER\nAS $function$\nDECLARE\n  v_user_id BIGINT;\n  v_user_name TEXT;\n  v_user_role TEXT;\n  v_hash TEXT;\nBEGIN\n  IF p_user_name IS NULL OR trim(p_user_name) = '' OR p_password IS NULL OR length(p_password) < 6 THEN\n    RAISE EXCEPTION 'auth_login: user_name and password (min 6 chars) required';\n  END IF;\n\n  SELECT user_id, user_name, user_role, password_hash\n    INTO v_user_id, v_user_name, v_user_role, v_hash\n  FROM users\n  WHERE user_name = trim(p_user_name)\n    AND active = true\n  LIMIT 1;\n\n  IF v_user_id IS NULL THEN\n    RAISE EXCEPTION 'auth_login: invalid credentials';\n  END IF;\n\n  IF v_hash IS NULL THEN\n    RAISE EXCEPTION 'auth_login: user has no password set';\n  END IF;\n\n  IF v_hash <> crypt(p_password, v_hash) THEN\n    RAISE EXCEPTION 'auth_login: invalid credentials';\n  END IF;\n\n  RETURN jsonb_build_object(\n    'user_id', v_user_id,\n    'user_name', v_user_name,\n    'user_role', COALESCE(v_user_role, 'user')\n  );\nEND;\n$function$\n"
+    },
+    {
+      "name": "bulk_transfer_areas_with_audit",
+      "args": "p_old_assets jsonb, p_new_assets jsonb, p_action_type audit_action_type, p_user_id text, p_before_data jsonb, p_after_data jsonb, p_description text",
+      "definition": "CREATE OR REPLACE FUNCTION public.bulk_transfer_areas_with_audit(p_old_assets jsonb, p_new_assets jsonb, p_action_type audit_action_type DEFAULT 'transfer_area'::audit_action_type, p_user_id text DEFAULT NULL::text, p_before_data jsonb DEFAULT NULL::jsonb, p_after_data jsonb DEFAULT NULL::jsonb, p_description text DEFAULT NULL::text)\n RETURNS jsonb\n LANGUAGE plpgsql\n SECURITY DEFINER\nAS $function$\nDECLARE\nv_audit_id bigint;\nv_asset jsonb;\nv_asset_id bigint;\nv_building_number bigint;\nv_affected_asset_ids bigint[] := ARRAY[]::bigint[];\nv_result jsonb;\nBEGIN\nSELECT log_audit_entry(\np_action_type,\n'bulk_asset',\nNULL::text,\np_user_id,\np_before_data,\np_after_data,\np_description\n) INTO v_audit_id;\n\nFOR v_asset IN SELECT * FROM jsonb_array_elements(p_old_assets)\nLOOP\nv_asset_id := (v_asset->>'asset_id')::bigint;\nv_building_number := (v_asset->>'building_number')::bigint;\n\nINSERT INTO assets_history (\nbuilding_number, payer_id, asset_id, measurement_date,\nmain_asset_type, asset_size,\nsub_asset_type_1, sub_asset_size_1,\nsub_asset_type_2, sub_asset_size_2,\nsub_asset_type_3, sub_asset_size_3,\nsub_asset_type_4, sub_asset_size_4,\nsub_asset_type_5, sub_asset_size_5,\nsub_asset_type_6, sub_asset_size_6,\nstructure_drawing_url, elevator, single_double_family,\ncondo, townhouses, penthouse, tax_region,\nfloor, discount_type, discount_date_from, discount_date_to,\ncreated_at, history_created_at, business_distribution_area, exported_to_automation\n)\nSELECT\nbuilding_number, payer_id, asset_id, measurement_date,\nmain_asset_type, asset_size,\nsub_asset_type_1, sub_asset_size_1,\nsub_asset_type_2, sub_asset_size_2,\nsub_asset_type_3, sub_asset_size_3,\nsub_asset_type_4, sub_asset_size_4,\nsub_asset_type_5, sub_asset_size_5,\nsub_asset_type_6, sub_asset_size_6,\nstructure_drawing_url, elevator, single_double_family,\ncondo, townhouses, penthouse, tax_region,\nfloor, discount_type, discount_date_from, discount_date_to,\ncreated_at, now(), business_distribution_area, exported_to_automation\nFROM assets\nWHERE ..."
+    },
+    {
+      "name": "bulk_update_assets_with_audit",
+      "args": "p_assets jsonb, p_action_type audit_action_type, p_user_id text, p_before_data jsonb, p_after_data jsonb, p_description text",
+      "definition": "CREATE OR REPLACE FUNCTION public.bulk_update_assets_with_audit(p_assets jsonb, p_action_type audit_action_type, p_user_id text DEFAULT NULL::text, p_before_data jsonb DEFAULT NULL::jsonb, p_after_data jsonb DEFAULT NULL::jsonb, p_description text DEFAULT NULL::text)\n RETURNS jsonb\n LANGUAGE plpgsql\n SECURITY DEFINER\nAS $function$\nDECLARE\nv_audit_id bigint;\nv_asset jsonb;\nv_asset_id bigint;\nv_building_number bigint;\nv_affected_asset_ids bigint[] := ARRAY[]::bigint[];\nv_result jsonb;\nv_before_assets jsonb[] := ARRAY[]::jsonb[];\nv_after_assets jsonb[] := ARRAY[]::jsonb[];\nv_before_data_collected jsonb;\nv_after_data_collected jsonb;\nv_asset_data jsonb;\nv_building_data jsonb;\nv_first_building_number bigint;\nBEGIN\nSELECT (elem->>'building_number')::bigint INTO v_first_building_number\nFROM jsonb_array_elements(p_assets) AS elem\nLIMIT 1;\n\nIF p_before_data IS NULL OR p_before_data = 'null'::jsonb OR p_before_data = '{}'::jsonb THEN\nIF v_first_building_number IS NOT NULL THEN\nSELECT to_jsonb(b.*) INTO v_building_data\nFROM buildings b\nWHERE b.building_number = v_first_building_number;\nEND IF;\n\nFOR v_asset IN SELECT * FROM jsonb_array_elements(p_assets)\nLOOP\nv_asset_id := (v_asset->>'asset_id')::bigint;\nSELECT to_jsonb(a.*) INTO v_asset_data\nFROM assets a\nWHERE a.asset_id = v_asset_id;\n\nIF v_asset_data IS NOT NULL THEN\nv_before_assets := array_append(v_before_assets, v_asset_data);\nEND IF;\nEND LOOP;\n\nSELECT jsonb_agg(elem) INTO v_before_data_collected\nFROM unnest(v_before_assets) AS elem;\n\nv_before_data_collected := jsonb_build_object(\n'assets', COALESCE(v_before_data_collected, '[]'::jsonb),\n'building', COALESCE(v_building_data, 'null'::jsonb)\n);\nELSE\nv_before_data_collected := p_before_data;\nEND IF;\n\nSELECT log_audit_entry(\np_action_type,\n'bulk_asset',\nNULL::text,\np_user_id,\nv_before_data_collected,\nNULL::jsonb,\np_description\n) INTO v_audit_id;\n\nFOR v_asset IN SELECT * FROM jsonb_array_elements(p_assets)\nLOOP\nv_asset_id := (v_asset->>'asset_id')::bigint;\nv_building_number :=..."
+    },
+    {
+      "name": "calculate_asset_business_total_area",
+      "args": "p_asset_size numeric, p_area_from_distribution numeric, p_main_asset_type text",
+      "definition": "CREATE OR REPLACE FUNCTION public.calculate_asset_business_total_area(p_asset_size numeric, p_area_from_distribution numeric, p_main_asset_type text)\n RETURNS numeric\n LANGUAGE plpgsql\n IMMUTABLE\nAS $function$\nDECLARE\n  v_is_business BOOLEAN := false;\nBEGIN\n  IF p_main_asset_type IS NOT NULL THEN\n    SELECT EXISTS (\n      SELECT 1\n      FROM asset_types at\n      WHERE at.name = p_main_asset_type\n        AND COALESCE(at.active, false) = true\n        AND at.business_residence = 'עסקים'\n    ) INTO v_is_business;\n  END IF;\n\n  IF v_is_business THEN\n    RETURN COALESCE(p_asset_size, 0) + COALESCE(p_area_from_distribution, 0);\n  ELSE\n    RETURN 0;\n  END IF;\nEND;\n$function$\n"
+    },
+    {
+      "name": "copy_asset_to_history_before_update",
+      "args": "p_asset_id bigint",
+      "definition": "CREATE OR REPLACE FUNCTION public.copy_asset_to_history_before_update(p_asset_id bigint)\n RETURNS void\n LANGUAGE plpgsql\nAS $function$\nDECLARE\n  v_asset RECORD;\nBEGIN\n  SELECT * INTO v_asset\n  FROM assets\n  WHERE asset_id = p_asset_id;\n  \n  IF FOUND THEN\n    INSERT INTO assets_history (\n      asset_id, building_number, payer_id, measurement_date, main_asset_type, asset_size,\n      sub_asset_type_1, sub_asset_size_1, sub_asset_type_2, sub_asset_size_2,\n      sub_asset_type_3, sub_asset_size_3, sub_asset_type_4, sub_asset_size_4,\n      sub_asset_type_5, sub_asset_size_5, sub_asset_type_6, sub_asset_size_6,\n      structure_drawing_url, elevator, single_double_family, condo, townhouses, penthouse,\n      tax_region, floor, discount_type, discount_date_from, discount_date_to,\n      area_from_distribution, exported_to_automation, export_to_automation_at, data_from_automation, comment\n    )\n    VALUES (\n      v_asset.asset_id, v_asset.building_number, v_asset.payer_id, v_asset.measurement_date,\n      v_asset.main_asset_type, v_asset.asset_size,\n      v_asset.sub_asset_type_1, v_asset.sub_asset_size_1,\n      v_asset.sub_asset_type_2, v_asset.sub_asset_size_2,\n      v_asset.sub_asset_type_3, v_asset.sub_asset_size_3,\n      v_asset.sub_asset_type_4, v_asset.sub_asset_size_4,\n      v_asset.sub_asset_type_5, v_asset.sub_asset_size_5,\n      v_asset.sub_asset_type_6, v_asset.sub_asset_size_6,\n      v_asset.structure_drawing_url, v_asset.elevator, v_asset.single_double_family,\n      v_asset.condo, v_asset.townhouses, v_asset.penthouse,\n      v_asset.tax_region, v_asset.floor, v_asset.discount_type,\n      v_asset.discount_date_from, v_asset.discount_date_to,\n      v_asset.area_from_distribution, v_asset.exported_to_automation, v_asset.export_to_automation_at,\n      v_asset.data_from_automation, v_asset.comment\n    );\n  END IF;\nEND;\n$function$\n"
+    },
+    {
+      "name": "crypt",
+      "args": "text, text",
+      "definition": "CREATE OR REPLACE FUNCTION public.crypt(text, text)\n RETURNS text\n LANGUAGE c\n IMMUTABLE PARALLEL SAFE STRICT\nAS '$libdir/pgcrypto', $function$pg_crypt$function$\n"
+    },
+    {
+      "name": "dearmor",
+      "args": "text",
+      "definition": "CREATE OR REPLACE FUNCTION public.dearmor(text)\n RETURNS bytea\n LANGUAGE c\n IMMUTABLE PARALLEL SAFE STRICT\nAS '$libdir/pgcrypto', $function$pg_dearmor$function$\n"
+    },
+    {
+      "name": "decrypt",
+      "args": "bytea, bytea, text",
+      "definition": "CREATE OR REPLACE FUNCTION public.decrypt(bytea, bytea, text)\n RETURNS bytea\n LANGUAGE c\n IMMUTABLE PARALLEL SAFE STRICT\nAS '$libdir/pgcrypto', $function$pg_decrypt$function$\n"
+    },
+    {
+      "name": "decrypt_iv",
+      "args": "bytea, bytea, bytea, text",
+      "definition": "CREATE OR REPLACE FUNCTION public.decrypt_iv(bytea, bytea, bytea, text)\n RETURNS bytea\n LANGUAGE c\n IMMUTABLE PARALLEL SAFE STRICT\nAS '$libdir/pgcrypto', $function$pg_decrypt_iv$function$\n"
+    },
+    {
+      "name": "digest",
+      "args": "bytea, text",
+      "definition": "CREATE OR REPLACE FUNCTION public.digest(bytea, text)\n RETURNS bytea\n LANGUAGE c\n IMMUTABLE PARALLEL SAFE STRICT\nAS '$libdir/pgcrypto', $function$pg_digest$function$\n"
+    },
+    {
+      "name": "digest",
+      "args": "text, text",
+      "definition": "CREATE OR REPLACE FUNCTION public.digest(text, text)\n RETURNS bytea\n LANGUAGE c\n IMMUTABLE PARALLEL SAFE STRICT\nAS '$libdir/pgcrypto', $function$pg_digest$function$\n"
+    },
+    {
+      "name": "encrypt",
+      "args": "bytea, bytea, text",
+      "definition": "CREATE OR REPLACE FUNCTION public.encrypt(bytea, bytea, text)\n RETURNS bytea\n LANGUAGE c\n IMMUTABLE PARALLEL SAFE STRICT\nAS '$libdir/pgcrypto', $function$pg_encrypt$function$\n"
+    },
+    {
+      "name": "encrypt_iv",
+      "args": "bytea, bytea, bytea, text",
+      "definition": "CREATE OR REPLACE FUNCTION public.encrypt_iv(bytea, bytea, bytea, text)\n RETURNS bytea\n LANGUAGE c\n IMMUTABLE PARALLEL SAFE STRICT\nAS '$libdir/pgcrypto', $function$pg_encrypt_iv$function$\n"
+    },
+    {
+      "name": "extract_boolean_from_jsonb",
+      "args": "p_value jsonb, p_default boolean",
+      "definition": "CREATE OR REPLACE FUNCTION public.extract_boolean_from_jsonb(p_value jsonb, p_default boolean DEFAULT false)\n RETURNS boolean\n LANGUAGE plpgsql\n IMMUTABLE\nAS $function$\nDECLARE\n  v_text TEXT;\nBEGIN\n  IF p_value IS NULL OR p_value = 'null'::jsonb THEN\n    RETURN p_default;\n  END IF;\n\n  IF jsonb_typeof(p_value) = 'boolean' THEN\n    RETURN (p_value)::text::boolean;\n  END IF;\n\n  IF jsonb_typeof(p_value) = 'string' THEN\n    v_text := TRIM(BOTH '\"' FROM (p_value)::text);\n    RETURN CASE\n      WHEN v_text = 'כן' OR LOWER(v_text) IN ('yes', 'true', '1', 't') THEN true\n      WHEN v_text = 'לא' OR LOWER(v_text) IN ('no', 'false', '0', 'f', '') THEN false\n      ELSE p_default\n    END;\n  END IF;\n\n  RETURN p_default;\nEND;\n$function$\n"
+    },
+    {
+      "name": "fips_mode",
+      "args": "",
+      "definition": "CREATE OR REPLACE FUNCTION public.fips_mode()\n RETURNS boolean\n LANGUAGE c\n PARALLEL SAFE STRICT\nAS '$libdir/pgcrypto', $function$pg_check_fipsmode$function$\n"
+    },
+    {
+      "name": "gen_random_bytes",
+      "args": "integer",
+      "definition": "CREATE OR REPLACE FUNCTION public.gen_random_bytes(integer)\n RETURNS bytea\n LANGUAGE c\n PARALLEL SAFE STRICT\nAS '$libdir/pgcrypto', $function$pg_random_bytes$function$\n"
+    },
+    {
+      "name": "gen_random_uuid",
+      "args": "",
+      "definition": "CREATE OR REPLACE FUNCTION public.gen_random_uuid()\n RETURNS uuid\n LANGUAGE c\n PARALLEL SAFE\nAS '$libdir/pgcrypto', $function$pg_random_uuid$function$\n"
+    },
+    {
+      "name": "gen_salt",
+      "args": "text, integer",
+      "definition": "CREATE OR REPLACE FUNCTION public.gen_salt(text, integer)\n RETURNS text\n LANGUAGE c\n PARALLEL SAFE STRICT\nAS '$libdir/pgcrypto', $function$pg_gen_salt_rounds$function$\n"
+    },
+    {
+      "name": "gen_salt",
+      "args": "text",
+      "definition": "CREATE OR REPLACE FUNCTION public.gen_salt(text)\n RETURNS text\n LANGUAGE c\n PARALLEL SAFE STRICT\nAS '$libdir/pgcrypto', $function$pg_gen_salt$function$\n"
+    },
+    {
+      "name": "get_active_email_configuration",
+      "args": "",
+      "definition": "CREATE OR REPLACE FUNCTION public.get_active_email_configuration()\n RETURNS TABLE(id bigint, name text, description text, smtp_host text, smtp_port integer, smtp_encryption text, smtp_username text, smtp_password text, from_email text, from_name text, reply_to_email text, max_retries integer, timeout_seconds integer)\n LANGUAGE plpgsql\n SECURITY DEFINER\nAS $function$\nBEGIN\n  RETURN QUERY\n  SELECT \n    sc.id,\n    sc.name,\n    sc.description,\n    sc.smtp_host,\n    sc.smtp_port,\n    sc.smtp_encryption,\n    sc.smtp_username,\n    sc.smtp_password,\n    sc.from_email,\n    sc.from_name,\n    sc.reply_to_email,\n    sc.max_retries,\n    sc.timeout_seconds\n  FROM system_configuration sc\n  WHERE sc.config_type = 'email'\n    AND sc.is_active = true\n  ORDER BY sc.created_at DESC\n  LIMIT 1;\nEND;\n$function$\n"
+    },
+    {
+      "name": "get_config_value",
+      "args": "p_name text",
+      "definition": "CREATE OR REPLACE FUNCTION public.get_config_value(p_name text)\n RETURNS text\n LANGUAGE plpgsql\n SECURITY DEFINER\nAS $function$\nDECLARE\n  v_value TEXT;\nBEGIN\n  SELECT value INTO v_value\n  FROM system_configuration\n  WHERE name = p_name\n  LIMIT 1;\n  \n  RETURN v_value;\nEND;\n$function$\n"
+    },
+    {
+      "name": "get_configuration_by_type",
+      "args": "p_config_type text",
+      "definition": "CREATE OR REPLACE FUNCTION public.get_configuration_by_type(p_config_type text)\n RETURNS TABLE(id bigint, config_type text, name text, description text, config_data jsonb, is_active boolean, created_at timestamp with time zone, updated_at timestamp with time zone)\n LANGUAGE plpgsql\n SECURITY DEFINER\nAS $function$\nBEGIN\n  RETURN QUERY\n  SELECT \n    sc.id,\n    sc.config_type,\n    sc.name,\n    sc.description,\n    sc.config_data,\n    sc.is_active,\n    sc.created_at,\n    sc.updated_at\n  FROM system_configuration sc\n  WHERE sc.config_type = p_config_type\n    AND sc.is_active = true\n  ORDER BY sc.created_at DESC;\nEND;\n$function$\n"
+    },
+    {
+      "name": "get_or_create_user_from_auth",
+      "args": "",
+      "definition": "CREATE OR REPLACE FUNCTION public.get_or_create_user_from_auth()\n RETURNS bigint\n LANGUAGE plpgsql\n SECURITY DEFINER\nAS $function$\nDECLARE\n  v_user_id bigint;\n  v_auth_user_id text;\nBEGIN\n  -- Try to get current user from auth context (Supabase)\n  v_auth_user_id := current_setting('request.jwt.claim.sub', true);\n  \n  IF v_auth_user_id IS NOT NULL THEN\n    -- First try to find existing user\n    SELECT user_id INTO v_user_id\n    FROM users\n    WHERE auth_user_id = v_auth_user_id;\n    \n    -- Only insert if not found (no UPDATE to avoid recursion)\n    IF v_user_id IS NULL THEN\n      BEGIN\n        INSERT INTO users (auth_user_id, user_name, user_email)\n        VALUES (v_auth_user_id, v_auth_user_id, NULL)\n        ON CONFLICT (auth_user_id) DO NOTHING\n        RETURNING user_id INTO v_user_id;\n        \n        -- If ON CONFLICT happened, fetch the existing user_id\n        IF v_user_id IS NULL THEN\n          SELECT user_id INTO v_user_id\n          FROM users\n          WHERE auth_user_id = v_auth_user_id;\n        END IF;\n      EXCEPTION\n        WHEN OTHERS THEN\n          -- If insert fails, try to get existing user one more time\n          SELECT user_id INTO v_user_id\n          FROM users\n          WHERE auth_user_id = v_auth_user_id;\n      END;\n    END IF;\n  END IF;\n  \n  -- If still no user, use default\n  IF v_user_id IS NULL THEN\n    SELECT user_id INTO v_user_id\n    FROM users\n    WHERE user_name = 'default' AND auth_user_id IS NULL\n    LIMIT 1;\n  END IF;\n  \n  RETURN v_user_id;\nEND;\n$function$\n"
+    },
+    {
+      "name": "hmac",
+      "args": "bytea, bytea, text",
+      "definition": "CREATE OR REPLACE FUNCTION public.hmac(bytea, bytea, text)\n RETURNS bytea\n LANGUAGE c\n IMMUTABLE PARALLEL SAFE STRICT\nAS '$libdir/pgcrypto', $function$pg_hmac$function$\n"
+    },
+    {
+      "name": "hmac",
+      "args": "text, text, text",
+      "definition": "CREATE OR REPLACE FUNCTION public.hmac(text, text, text)\n RETURNS bytea\n LANGUAGE c\n IMMUTABLE PARALLEL SAFE STRICT\nAS '$libdir/pgcrypto', $function$pg_hmac$function$\n"
+    },
+    {
+      "name": "pgp_armor_headers",
+      "args": "text, OUT key text, OUT value text",
+      "definition": "CREATE OR REPLACE FUNCTION public.pgp_armor_headers(text, OUT key text, OUT value text)\n RETURNS SETOF record\n LANGUAGE c\n IMMUTABLE PARALLEL SAFE STRICT\nAS '$libdir/pgcrypto', $function$pgp_armor_headers$function$\n"
+    },
+    {
+      "name": "pgp_key_id",
+      "args": "bytea",
+      "definition": "CREATE OR REPLACE FUNCTION public.pgp_key_id(bytea)\n RETURNS text\n LANGUAGE c\n IMMUTABLE PARALLEL SAFE STRICT\nAS '$libdir/pgcrypto', $function$pgp_key_id_w$function$\n"
+    },
+    {
+      "name": "pgp_pub_decrypt",
+      "args": "bytea, bytea",
+      "definition": "CREATE OR REPLACE FUNCTION public.pgp_pub_decrypt(bytea, bytea)\n RETURNS text\n LANGUAGE c\n IMMUTABLE PARALLEL SAFE STRICT\nAS '$libdir/pgcrypto', $function$pgp_pub_decrypt_text$function$\n"
+    },
+    {
+      "name": "pgp_pub_decrypt",
+      "args": "bytea, bytea, text, text",
+      "definition": "CREATE OR REPLACE FUNCTION public.pgp_pub_decrypt(bytea, bytea, text, text)\n RETURNS text\n LANGUAGE c\n IMMUTABLE PARALLEL SAFE STRICT\nAS '$libdir/pgcrypto', $function$pgp_pub_decrypt_text$function$\n"
+    },
+    {
+      "name": "pgp_pub_decrypt",
+      "args": "bytea, bytea, text",
+      "definition": "CREATE OR REPLACE FUNCTION public.pgp_pub_decrypt(bytea, bytea, text)\n RETURNS text\n LANGUAGE c\n IMMUTABLE PARALLEL SAFE STRICT\nAS '$libdir/pgcrypto', $function$pgp_pub_decrypt_text$function$\n"
+    },
+    {
+      "name": "pgp_pub_decrypt_bytea",
+      "args": "bytea, bytea, text, text",
+      "definition": "CREATE OR REPLACE FUNCTION public.pgp_pub_decrypt_bytea(bytea, bytea, text, text)\n RETURNS bytea\n LANGUAGE c\n IMMUTABLE PARALLEL SAFE STRICT\nAS '$libdir/pgcrypto', $function$pgp_pub_decrypt_bytea$function$\n"
+    },
+    {
+      "name": "pgp_pub_decrypt_bytea",
+      "args": "bytea, bytea",
+      "definition": "CREATE OR REPLACE FUNCTION public.pgp_pub_decrypt_bytea(bytea, bytea)\n RETURNS bytea\n LANGUAGE c\n IMMUTABLE PARALLEL SAFE STRICT\nAS '$libdir/pgcrypto', $function$pgp_pub_decrypt_bytea$function$\n"
+    },
+    {
+      "name": "pgp_pub_decrypt_bytea",
+      "args": "bytea, bytea, text",
+      "definition": "CREATE OR REPLACE FUNCTION public.pgp_pub_decrypt_bytea(bytea, bytea, text)\n RETURNS bytea\n LANGUAGE c\n IMMUTABLE PARALLEL SAFE STRICT\nAS '$libdir/pgcrypto', $function$pgp_pub_decrypt_bytea$function$\n"
+    },
+    {
+      "name": "pgp_pub_encrypt",
+      "args": "text, bytea",
+      "definition": "CREATE OR REPLACE FUNCTION public.pgp_pub_encrypt(text, bytea)\n RETURNS bytea\n LANGUAGE c\n PARALLEL SAFE STRICT\nAS '$libdir/pgcrypto', $function$pgp_pub_encrypt_text$function$\n"
+    },
+    {
+      "name": "pgp_pub_encrypt",
+      "args": "text, bytea, text",
+      "definition": "CREATE OR REPLACE FUNCTION public.pgp_pub_encrypt(text, bytea, text)\n RETURNS bytea\n LANGUAGE c\n PARALLEL SAFE STRICT\nAS '$libdir/pgcrypto', $function$pgp_pub_encrypt_text$function$\n"
+    },
+    {
+      "name": "pgp_pub_encrypt_bytea",
+      "args": "bytea, bytea",
+      "definition": "CREATE OR REPLACE FUNCTION public.pgp_pub_encrypt_bytea(bytea, bytea)\n RETURNS bytea\n LANGUAGE c\n PARALLEL SAFE STRICT\nAS '$libdir/pgcrypto', $function$pgp_pub_encrypt_bytea$function$\n"
+    },
+    {
+      "name": "pgp_pub_encrypt_bytea",
+      "args": "bytea, bytea, text",
+      "definition": "CREATE OR REPLACE FUNCTION public.pgp_pub_encrypt_bytea(bytea, bytea, text)\n RETURNS bytea\n LANGUAGE c\n PARALLEL SAFE STRICT\nAS '$libdir/pgcrypto', $function$pgp_pub_encrypt_bytea$function$\n"
+    },
+    {
+      "name": "pgp_sym_decrypt",
+      "args": "bytea, text, text",
+      "definition": "CREATE OR REPLACE FUNCTION public.pgp_sym_decrypt(bytea, text, text)\n RETURNS text\n LANGUAGE c\n IMMUTABLE PARALLEL SAFE STRICT\nAS '$libdir/pgcrypto', $function$pgp_sym_decrypt_text$function$\n"
+    },
+    {
+      "name": "pgp_sym_decrypt",
+      "args": "bytea, text",
+      "definition": "CREATE OR REPLACE FUNCTION public.pgp_sym_decrypt(bytea, text)\n RETURNS text\n LANGUAGE c\n IMMUTABLE PARALLEL SAFE STRICT\nAS '$libdir/pgcrypto', $function$pgp_sym_decrypt_text$function$\n"
+    },
+    {
+      "name": "pgp_sym_decrypt_bytea",
+      "args": "bytea, text",
+      "definition": "CREATE OR REPLACE FUNCTION public.pgp_sym_decrypt_bytea(bytea, text)\n RETURNS bytea\n LANGUAGE c\n IMMUTABLE PARALLEL SAFE STRICT\nAS '$libdir/pgcrypto', $function$pgp_sym_decrypt_bytea$function$\n"
+    },
+    {
+      "name": "pgp_sym_decrypt_bytea",
+      "args": "bytea, text, text",
+      "definition": "CREATE OR REPLACE FUNCTION public.pgp_sym_decrypt_bytea(bytea, text, text)\n RETURNS bytea\n LANGUAGE c\n IMMUTABLE PARALLEL SAFE STRICT\nAS '$libdir/pgcrypto', $function$pgp_sym_decrypt_bytea$function$\n"
+    },
+    {
+      "name": "pgp_sym_encrypt",
+      "args": "text, text",
+      "definition": "CREATE OR REPLACE FUNCTION public.pgp_sym_encrypt(text, text)\n RETURNS bytea\n LANGUAGE c\n PARALLEL SAFE STRICT\nAS '$libdir/pgcrypto', $function$pgp_sym_encrypt_text$function$\n"
+    },
+    {
+      "name": "pgp_sym_encrypt",
+      "args": "text, text, text",
+      "definition": "CREATE OR REPLACE FUNCTION public.pgp_sym_encrypt(text, text, text)\n RETURNS bytea\n LANGUAGE c\n PARALLEL SAFE STRICT\nAS '$libdir/pgcrypto', $function$pgp_sym_encrypt_text$function$\n"
+    },
+    {
+      "name": "pgp_sym_encrypt_bytea",
+      "args": "bytea, text",
+      "definition": "CREATE OR REPLACE FUNCTION public.pgp_sym_encrypt_bytea(bytea, text)\n RETURNS bytea\n LANGUAGE c\n PARALLEL SAFE STRICT\nAS '$libdir/pgcrypto', $function$pgp_sym_encrypt_bytea$function$\n"
+    },
+    {
+      "name": "pgp_sym_encrypt_bytea",
+      "args": "bytea, text, text",
+      "definition": "CREATE OR REPLACE FUNCTION public.pgp_sym_encrypt_bytea(bytea, text, text)\n RETURNS bytea\n LANGUAGE c\n PARALLEL SAFE STRICT\nAS '$libdir/pgcrypto', $function$pgp_sym_encrypt_bytea$function$\n"
+    },
+    {
+      "name": "save_assets_bulk_transactional",
+      "args": "p_assets_data jsonb[], p_validation_passed boolean, p_validation_errors text, p_action_type text, p_user_id text, p_before_data jsonb, p_after_data jsonb, p_description text, p_is_business_context boolean",
+      "definition": "CREATE OR REPLACE FUNCTION public.save_assets_bulk_transactional(p_assets_data jsonb[], p_validation_passed boolean, p_validation_errors text DEFAULT NULL::text, p_action_type text DEFAULT 'manual_update'::text, p_user_id text DEFAULT NULL::text, p_before_data jsonb DEFAULT NULL::jsonb, p_after_data jsonb DEFAULT NULL::jsonb, p_description text DEFAULT NULL::text, p_is_business_context boolean DEFAULT NULL::boolean)\n RETURNS jsonb\n LANGUAGE plpgsql\n SECURITY DEFINER\nAS $function$\nDECLARE\nv_asset_data JSONB;\nv_asset_id BIGINT;\nv_building_number BIGINT;\nv_existing_asset RECORD;\nv_old_main_asset_type TEXT;\nv_new_main_asset_type TEXT;\nv_affected_asset_ids BIGINT[] := ARRAY[]::BIGINT[];\nv_affected_buildings BIGINT[] := ARRAY[]::BIGINT[];\nv_count INTEGER := 0;\nv_result JSONB;\nv_user_id_fk BIGINT;\nv_default_user_id BIGINT := 1;\nv_building_num_for_flag BIGINT;\nv_distribution_type TEXT;\nv_asset_type_name TEXT;\nv_business_residence TEXT;\nv_business_dist_area NUMERIC;\nv_old_asset_size NUMERIC;\nv_new_asset_size NUMERIC;\nv_asset_old_values RECORD;\nv_before_data_collected JSONB := NULL;\nv_after_data_collected JSONB := NULL;\nv_before_assets JSONB[] := ARRAY[]::JSONB[];\nv_after_assets JSONB[] := ARRAY[]::JSONB[];\nv_building_data JSONB := NULL;\nv_first_building_number BIGINT := NULL;\nv_asset_record RECORD;\nv_asset_jsonb JSONB;\nv_entity_asset_ids BIGINT[];\nv_overload_ratio NUMERIC := NULL;\nv_type_changed BOOLEAN := FALSE;\nv_size_changed BOOLEAN := FALSE;\nv_tax_region_changed BOOLEAN := FALSE;\nv_asset_found BOOLEAN := FALSE;\nv_old_tax_region INTEGER;\nv_new_tax_region INTEGER;\nv_old_business_residence TEXT;\nv_new_business_residence TEXT;\nv_business_to_residence BOOLEAN := FALSE;\nv_building_record RECORD;\nv_shared_area_size NUMERIC := NULL;\nv_audit_distribution_type TEXT := NULL;\nv_audit_id BIGINT := NULL;\nv_entity_id TEXT;\nBEGIN\n-- Get or create user\nIF p_user_id IS NOT NULL THEN\nSELECT user_id INTO v_user_id_fk\nFROM users\nWHERE auth_user_id = p_user_id;\n\nIF v_user_id_fk IS NULL THEN\nI..."
+    },
+    {
+      "name": "set_distribution_flags_for_asset_type_change",
+      "args": "p_building_number bigint, p_old_main_asset_type text, p_new_main_asset_type text",
+      "definition": "CREATE OR REPLACE FUNCTION public.set_distribution_flags_for_asset_type_change(p_building_number bigint, p_old_main_asset_type text, p_new_main_asset_type text)\n RETURNS TABLE(business_flag_set boolean, residence_flag_set boolean)\n LANGUAGE plpgsql\n SECURITY DEFINER\nAS $function$\nDECLARE\n  v_old_type_data RECORD;\n  v_new_type_data RECORD;\n  v_old_is_non_accountable BOOLEAN;\n  v_new_is_non_accountable BOOLEAN;\n  v_business_residence TEXT;\n  v_business_flag_set BOOLEAN := FALSE;\n  v_residence_flag_set BOOLEAN := FALSE;\n  v_building_record buildings;\nBEGIN\n  -- Skip if no building_number\n  IF p_building_number IS NULL THEN\n    RETURN QUERY SELECT v_business_flag_set, v_residence_flag_set;\n    RETURN;\n  END IF;\n\n  -- Exit early if type didn't change\n  IF p_old_main_asset_type = p_new_main_asset_type \n     OR p_old_main_asset_type IS NOT DISTINCT FROM p_new_main_asset_type THEN\n    RETURN QUERY SELECT v_business_flag_set, v_residence_flag_set;\n    RETURN;\n  END IF;\n\n  -- Get current building shared area values\n  SELECT * INTO v_building_record FROM buildings WHERE building_number = p_building_number;\n\n  -- Lookup old asset type data\n  IF p_old_main_asset_type IS NOT NULL THEN\n    SELECT business_residence, non_accountable_for_distribution\n    INTO v_old_type_data\n    FROM asset_types\n    WHERE name = p_old_main_asset_type;\n\n    v_old_is_non_accountable := COALESCE(v_old_type_data.non_accountable_for_distribution, FALSE);\n  ELSE\n    v_old_is_non_accountable := FALSE;\n  END IF;\n\n  -- Lookup new asset type data\n  IF p_new_main_asset_type IS NOT NULL THEN\n    SELECT business_residence, non_accountable_for_distribution\n    INTO v_new_type_data\n    FROM asset_types\n    WHERE name = p_new_main_asset_type;\n\n    v_new_is_non_accountable := COALESCE(v_new_type_data.non_accountable_for_distribution, FALSE);\n  ELSE\n    v_new_is_non_accountable := FALSE;\n  END IF;\n\n  -- Only set flags if changing to/from non_accountable type\n  IF v_old_is_non_accountable OR v_new_is_non_accountable T..."
+    },
+    {
+      "name": "update_asset_type_with_distribution_reset",
+      "args": "p_id bigint, p_updates jsonb",
+      "definition": "CREATE OR REPLACE FUNCTION public.update_asset_type_with_distribution_reset(p_id bigint, p_updates jsonb)\n RETURNS jsonb\n LANGUAGE plpgsql\n SECURITY DEFINER\nAS $function$\nDECLARE\n  v_before_data jsonb;\n  v_after_data jsonb;\n  v_asset_type_name text;\n  v_old_non_accountable_for_distribution boolean;\n  v_new_non_accountable_for_distribution boolean;\n  v_affected_buildings bigint[];\n  v_building_number bigint;\n  v_business_residence text;\nBEGIN\n  SELECT row_to_json(at.*)::jsonb INTO v_before_data\n  FROM asset_types at\n  WHERE at.id = p_id;\n\n  IF v_before_data IS NULL THEN\n    RAISE EXCEPTION 'Asset type with id % not found', p_id;\n  END IF;\n\n  v_asset_type_name := v_before_data->>'name';\n  v_old_non_accountable_for_distribution := COALESCE((v_before_data->>'non_accountable_for_distribution')::boolean, false);\n\n  IF p_updates ? 'non_accountable_for_distribution' THEN\n    v_new_non_accountable_for_distribution := extract_boolean_from_jsonb(p_updates->'non_accountable_for_distribution', false);\n\n    UPDATE asset_types\n    SET\n      name = COALESCE((p_updates->>'name')::text, name),\n      description = COALESCE((p_updates->>'description')::text, description),\n      tax_region = CASE WHEN p_updates ? 'tax_region' THEN (p_updates->>'tax_region')::integer ELSE tax_region END,\n      elevator = CASE WHEN p_updates ? 'elevator' THEN extract_boolean_from_jsonb(p_updates->'elevator', false) ELSE elevator END,\n      single_double_family = CASE WHEN p_updates ? 'single_double_family' THEN extract_boolean_from_jsonb(p_updates->'single_double_family', false) ELSE single_double_family END,\n      penthouse = CASE WHEN p_updates ? 'penthouse' THEN extract_boolean_from_jsonb(p_updates->'penthouse', false) ELSE penthouse END,\n      condo = CASE WHEN p_updates ? 'condo' THEN extract_boolean_from_jsonb(p_updates->'condo', false) ELSE condo END,\n      townhouses = CASE WHEN p_updates ? 'townhouses' THEN extract_boolean_from_jsonb(p_updates->'townhouses', false) ELSE townhouses END,\n      busi..."
+    },
+    {
+      "name": "update_asset_types_bulk_with_distribution_reset",
+      "args": "p_asset_types_data jsonb[]",
+      "definition": "CREATE OR REPLACE FUNCTION public.update_asset_types_bulk_with_distribution_reset(p_asset_types_data jsonb[])\n RETURNS jsonb\n LANGUAGE plpgsql\n SECURITY DEFINER\nAS $function$\nDECLARE\n  v_item JSONB;\n  v_id BIGINT;\n  v_updates JSONB;\n  v_single_result JSONB;\n  v_results JSONB[] := ARRAY[]::JSONB[];\n  v_affected_buildings BIGINT[] := ARRAY[]::BIGINT[];\n  v_single_affected BIGINT[];\n  v_count INTEGER := 0;\nBEGIN\n  FOREACH v_item IN ARRAY p_asset_types_data\n  LOOP\n    v_id := (v_item->>'id')::BIGINT;\n    v_updates := v_item->'updates';\n\n    IF v_id IS NULL THEN\n      RAISE EXCEPTION 'Asset type id is required for all updates';\n    END IF;\n\n    IF v_updates IS NULL OR v_updates = '{}'::jsonb THEN\n      CONTINUE;\n    END IF;\n\n    -- Reuse the existing transactional function per asset type\n    -- This function was fixed in migration 20260127000000_consolidated_boolean_fields_fix to support boolean fields\n    v_single_result := update_asset_type_with_distribution_reset(v_id, v_updates);\n    v_results := array_append(v_results, v_single_result);\n    v_count := v_count + 1;\n\n    -- Aggregate affected buildings across all updates\n    v_single_affected := ARRAY(\n      SELECT jsonb_array_elements_text(COALESCE(v_single_result->'affected_buildings', '[]'::jsonb))::BIGINT\n    );\n\n    IF v_single_affected IS NOT NULL AND array_length(v_single_affected, 1) > 0 THEN\n      SELECT ARRAY(\n        SELECT DISTINCT unnest(v_affected_buildings || v_single_affected)\n      )\n      INTO v_affected_buildings;\n    END IF;\n  END LOOP;\n\n  RETURN jsonb_build_object(\n    'success', true,\n    'count', v_count,\n    'affected_buildings', COALESCE(v_affected_buildings, ARRAY[]::BIGINT[]),\n    'results', v_results,\n    'message', format('Successfully updated %s asset type(s)', v_count)\n  );\nEXCEPTION\n  WHEN OTHERS THEN\n    RAISE EXCEPTION 'Bulk asset type update failed and rolled back: %', SQLERRM\n      USING HINT = 'All changes have been rolled back. No partial data was saved.';\nEND;\n$function$\n"
+    },
+    {
+      "name": "update_building_total_area",
+      "args": "p_building_number bigint",
+      "definition": "CREATE OR REPLACE FUNCTION public.update_building_total_area(p_building_number bigint)\n RETURNS void\n LANGUAGE plpgsql\n SECURITY DEFINER\nAS $function$\nDECLARE\n  v_asset_sum NUMERIC := 0;\n  v_asset_count INTEGER := 0;\n  v_residence_shared_area NUMERIC := 0;\n  v_business_shared_area NUMERIC := 0;\n  v_shared_parking_area NUMERIC := 0;\nBEGIN\n  SELECT COALESCE(SUM(a.asset_size), 0) INTO v_asset_sum\n  FROM (\n    SELECT DISTINCT ON (asset_id)\n      asset_id,\n      asset_size,\n      main_asset_type\n    FROM assets\n    WHERE building_number = p_building_number\n    ORDER BY asset_id, updated_at DESC\n  ) a\n  WHERE (\n    a.main_asset_type IS NULL\n    OR EXISTS (\n      SELECT 1\n      FROM asset_types at\n      WHERE at.name = a.main_asset_type\n        AND COALESCE(at.active, false) = true\n        AND (at.non_accountable_for_total_area IS NULL OR at.non_accountable_for_total_area = false)\n    )\n  );\n\n  SELECT COUNT(*)::INTEGER INTO v_asset_count\n  FROM (\n    SELECT DISTINCT ON (asset_id) asset_id\n    FROM assets\n    WHERE building_number = p_building_number\n    ORDER BY asset_id, updated_at DESC\n  ) x;\n\n  SELECT COALESCE(residence_shared_area, 0), COALESCE(business_shared_area, 0), COALESCE(shared_parking_area, 0)\n  INTO v_residence_shared_area, v_business_shared_area, v_shared_parking_area\n  FROM buildings\n  WHERE building_number = p_building_number;\n\n  UPDATE buildings\n  SET total_building_area = v_asset_sum + v_residence_shared_area + v_business_shared_area + v_shared_parking_area,\n      net_area = v_asset_sum,\n      asset_count = v_asset_count\n  WHERE building_number = p_building_number;\nEND;\n$function$\n"
+    },
+    {
+      "name": "update_buildings_bulk_with_distribution_flags",
+      "args": "p_buildings_data jsonb[]",
+      "definition": "CREATE OR REPLACE FUNCTION public.update_buildings_bulk_with_distribution_flags(p_buildings_data jsonb[])\n RETURNS jsonb\n LANGUAGE plpgsql\n SECURITY DEFINER\nAS $function$\nDECLARE\n  v_building_data JSONB;\n  v_building_number BIGINT;\n  v_updates JSONB;\n  v_old_building RECORD;\n  v_old_residence_area NUMERIC;\n  v_old_business_area NUMERIC;\n  v_new_residence_area NUMERIC;\n  v_new_business_area NUMERIC;\n  v_old_shared_parking_area NUMERIC;\n  v_old_number_of_parking_units INTEGER;\n  v_new_shared_parking_area NUMERIC;\n  v_new_number_of_parking_units INTEGER;\n  v_final_updates JSONB;\n  v_affected_buildings BIGINT[] := ARRAY[]::BIGINT[];\n  v_count INTEGER := 0;\n  v_result JSONB;\n  v_updated_buildings JSONB[] := ARRAY[]::JSONB[];\nBEGIN\n  FOREACH v_building_data IN ARRAY p_buildings_data\n  LOOP\n    v_building_number := (v_building_data->>'building_number')::BIGINT;\n    v_updates := v_building_data->'updates';\n\n    IF v_building_number IS NULL THEN\n      RAISE EXCEPTION 'Building number is required for all building updates';\n    END IF;\n\n    IF v_updates IS NULL OR v_updates = '{}'::jsonb THEN\n      CONTINUE;\n    END IF;\n\n    SELECT * INTO v_old_building\n    FROM buildings\n    WHERE building_number = v_building_number;\n\n    IF NOT FOUND THEN\n      RAISE WARNING 'Building % not found, skipping', v_building_number;\n      CONTINUE;\n    END IF;\n\n    v_old_residence_area := v_old_building.residence_shared_area;\n    v_old_business_area := v_old_building.business_shared_area;\n    v_old_shared_parking_area := v_old_building.shared_parking_area;\n    v_old_number_of_parking_units := v_old_building.number_of_parking_units;\n\n    IF v_updates ? 'residence_shared_area' THEN\n      v_new_residence_area := (v_updates->>'residence_shared_area')::NUMERIC;\n    ELSE\n      v_new_residence_area := v_old_residence_area;\n    END IF;\n\n    IF v_updates ? 'business_shared_area' THEN\n      v_new_business_area := (v_updates->>'business_shared_area')::NUMERIC;\n    ELSE\n      v_new_business_area := v_old_busi..."
+    },
+    {
+      "name": "users_create_internal",
+      "args": "p_user_name text, p_user_email text, p_password text, p_user_role text",
+      "definition": "CREATE OR REPLACE FUNCTION public.users_create_internal(p_user_name text, p_user_email text, p_password text, p_user_role text DEFAULT 'user'::text)\n RETURNS jsonb\n LANGUAGE plpgsql\n SECURITY DEFINER\nAS $function$\nDECLARE\n  v_user_id BIGINT;\n  v_auth_id TEXT;\nBEGIN\n  IF p_user_name IS NULL OR trim(p_user_name) = '' THEN\n    RAISE EXCEPTION 'users_create_internal: user_name required';\n  END IF;\n  IF p_password IS NULL OR length(p_password) < 6 THEN\n    RAISE EXCEPTION 'users_create_internal: password min 6 chars required';\n  END IF;\n  IF p_user_role IS NULL OR p_user_role NOT IN ('admin', 'user') THEN\n    p_user_role := 'user';\n  END IF;\n\n  INSERT INTO users (user_name, user_email, user_role, password_hash, active)\n  VALUES (\n    trim(p_user_name),\n    NULLIF(trim(p_user_email), ''),\n    p_user_role,\n    crypt(p_password, gen_salt('bf')),\n    true\n  )\n  RETURNING user_id INTO v_user_id;\n\n  v_auth_id := 'uid:' || v_user_id;\n  UPDATE users SET auth_user_id = v_auth_id WHERE user_id = v_user_id;\n\n  RETURN jsonb_build_object('user_id', v_user_id, 'auth_user_id', v_auth_id);\nEND;\n$function$\n"
+    },
+    {
+      "name": "users_ensure_defaults",
+      "args": "",
+      "definition": "CREATE OR REPLACE FUNCTION public.users_ensure_defaults()\n RETURNS jsonb\n LANGUAGE plpgsql\n SECURITY DEFINER\nAS $function$\nDECLARE\n  v_id BIGINT;\nBEGIN\n  INSERT INTO users (user_name, user_email, user_role, password_hash, active)\n  SELECT 'admin', 'admin@buildingsmanager.local', 'admin', crypt('admin123', gen_salt('bf')), true\n  WHERE NOT EXISTS (SELECT 1 FROM users WHERE user_name = 'admin')\n  RETURNING user_id INTO v_id;\n  IF v_id IS NOT NULL THEN\n    UPDATE users SET auth_user_id = 'uid:' || v_id WHERE user_id = v_id;\n  END IF;\n\n  INSERT INTO users (user_name, user_email, user_role, password_hash, active)\n  SELECT 'user', 'user@buildingsmanager.local', 'user', crypt('user123', gen_salt('bf')), true\n  WHERE NOT EXISTS (SELECT 1 FROM users WHERE user_name = 'user')\n  RETURNING user_id INTO v_id;\n  IF v_id IS NOT NULL THEN\n    UPDATE users SET auth_user_id = 'uid:' || v_id WHERE user_id = v_id;\n  END IF;\n\n  UPDATE users SET auth_user_id = 'uid:' || user_id\n  WHERE auth_user_id IS NULL AND user_name IN ('admin', 'user');\n\n  RETURN jsonb_build_object('success', true);\nEND;\n$function$\n"
+    },
+    {
+      "name": "users_set_password",
+      "args": "p_user_id bigint, p_new_password text",
+      "definition": "CREATE OR REPLACE FUNCTION public.users_set_password(p_user_id bigint, p_new_password text)\n RETURNS void\n LANGUAGE plpgsql\n SECURITY DEFINER\nAS $function$\nBEGIN\n  IF p_user_id IS NULL OR p_new_password IS NULL OR length(p_new_password) < 6 THEN\n    RAISE EXCEPTION 'users_set_password: user_id and new password (min 6 chars) required';\n  END IF;\n\n  UPDATE users\n  SET password_hash = crypt(p_new_password, gen_salt('bf')),\n      updated_at = now()\n  WHERE user_id = p_user_id;\n\n  IF NOT FOUND THEN\n    RAISE EXCEPTION 'users_set_password: user not found';\n  END IF;\nEND;\n$function$\n"
+    },
+    {
+      "name": "uuid_generate_v1",
+      "args": "",
+      "definition": "CREATE OR REPLACE FUNCTION public.uuid_generate_v1()\n RETURNS uuid\n LANGUAGE c\n PARALLEL SAFE STRICT\nAS '$libdir/uuid-ossp', $function$uuid_generate_v1$function$\n"
+    },
+    {
+      "name": "uuid_generate_v1mc",
+      "args": "",
+      "definition": "CREATE OR REPLACE FUNCTION public.uuid_generate_v1mc()\n RETURNS uuid\n LANGUAGE c\n PARALLEL SAFE STRICT\nAS '$libdir/uuid-ossp', $function$uuid_generate_v1mc$function$\n"
+    },
+    {
+      "name": "uuid_generate_v3",
+      "args": "namespace uuid, name text",
+      "definition": "CREATE OR REPLACE FUNCTION public.uuid_generate_v3(namespace uuid, name text)\n RETURNS uuid\n LANGUAGE c\n IMMUTABLE PARALLEL SAFE STRICT\nAS '$libdir/uuid-ossp', $function$uuid_generate_v3$function$\n"
+    },
+    {
+      "name": "uuid_generate_v4",
+      "args": "",
+      "definition": "CREATE OR REPLACE FUNCTION public.uuid_generate_v4()\n RETURNS uuid\n LANGUAGE c\n PARALLEL SAFE STRICT\nAS '$libdir/uuid-ossp', $function$uuid_generate_v4$function$\n"
+    },
+    {
+      "name": "uuid_generate_v5",
+      "args": "namespace uuid, name text",
+      "definition": "CREATE OR REPLACE FUNCTION public.uuid_generate_v5(namespace uuid, name text)\n RETURNS uuid\n LANGUAGE c\n IMMUTABLE PARALLEL SAFE STRICT\nAS '$libdir/uuid-ossp', $function$uuid_generate_v5$function$\n"
+    },
+    {
+      "name": "uuid_nil",
+      "args": "",
+      "definition": "CREATE OR REPLACE FUNCTION public.uuid_nil()\n RETURNS uuid\n LANGUAGE c\n IMMUTABLE PARALLEL SAFE STRICT\nAS '$libdir/uuid-ossp', $function$uuid_nil$function$\n"
+    },
+    {
+      "name": "uuid_ns_dns",
+      "args": "",
+      "definition": "CREATE OR REPLACE FUNCTION public.uuid_ns_dns()\n RETURNS uuid\n LANGUAGE c\n IMMUTABLE PARALLEL SAFE STRICT\nAS '$libdir/uuid-ossp', $function$uuid_ns_dns$function$\n"
+    },
+    {
+      "name": "uuid_ns_oid",
+      "args": "",
+      "definition": "CREATE OR REPLACE FUNCTION public.uuid_ns_oid()\n RETURNS uuid\n LANGUAGE c\n IMMUTABLE PARALLEL SAFE STRICT\nAS '$libdir/uuid-ossp', $function$uuid_ns_oid$function$\n"
+    },
+    {
+      "name": "uuid_ns_url",
+      "args": "",
+      "definition": "CREATE OR REPLACE FUNCTION public.uuid_ns_url()\n RETURNS uuid\n LANGUAGE c\n IMMUTABLE PARALLEL SAFE STRICT\nAS '$libdir/uuid-ossp', $function$uuid_ns_url$function$\n"
+    },
+    {
+      "name": "uuid_ns_x500",
+      "args": "",
+      "definition": "CREATE OR REPLACE FUNCTION public.uuid_ns_x500()\n RETURNS uuid\n LANGUAGE c\n IMMUTABLE PARALLEL SAFE STRICT\nAS '$libdir/uuid-ossp', $function$uuid_ns_x500$function$\n"
+    }
+  ],
+  "triggers": []
+}

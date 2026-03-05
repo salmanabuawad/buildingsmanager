@@ -1,8 +1,8 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Search, Home, Building as BuildingIcon } from 'lucide-react';
-import { supabase } from '../lib/supabase';
 import { Asset } from '../lib/api';
+import { assetsSearchByRange } from '../lib/restClient';
 
 interface SearchResult extends Asset {
 }
@@ -28,13 +28,12 @@ export function AssetSearch({ onSelectAsset }: AssetSearchProps) {
     setHasSearched(true);
 
     try {
-      const { data, error } = await supabase
-        .rpc('search_assets_by_range', {
+      const { data, error } = await assetsSearchByRange({
           from_id: parseInt(fromNumber),
           to_id: parseInt(toNumber)
         });
 
-      if (error) throw error;
+      if (error) throw new Error(error.message);
 
       setResults(data || []);
     } catch (error) {

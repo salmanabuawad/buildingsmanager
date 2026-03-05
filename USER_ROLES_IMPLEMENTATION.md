@@ -8,7 +8,7 @@ This document describes the role-based access control (RBAC) system implemented 
 ## Implementation Details
 
 ### 1. Database Migration
-**File**: `supabase/migrations/20260113000002_add_user_role.sql`
+**File**: `migrations/20260113000002_add_user_role.sql`
 
 - Adds `user_role` column to `users` table
 - Default value: `'user'` (read-only)

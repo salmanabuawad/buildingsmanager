@@ -1,0 +1,6 @@
+-- Add 'cancelled' status to inspection_tasks (admin can cancel a task).
+ALTER TABLE inspection_tasks DROP CONSTRAINT IF EXISTS inspection_tasks_status_check;
+ALTER TABLE inspection_tasks ADD CONSTRAINT inspection_tasks_status_check
+  CHECK (status IN ('open', 'in_inspector_handling', 'pending_manager_approval', 'closed', 'cancelled'));
+
+COMMENT ON COLUMN inspection_tasks.status IS 'open | in_inspector_handling | pending_manager_approval | closed | cancelled';

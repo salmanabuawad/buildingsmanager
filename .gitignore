@@ -22,6 +22,11 @@ dist-ssr
 *.sw?
 .env
 
+# Backend lite queue (SQLite)
+backend/queue_lite.db
+backend/queue_lite.db-wal
+backend/queue_lite.db-shm
+
 # Playwright
 playwright-report/
 test-results/

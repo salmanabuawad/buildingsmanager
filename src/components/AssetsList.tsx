@@ -13,7 +13,6 @@ import { DistributionHistoryModal } from './DistributionHistoryModal';
 import { TransferHistoryModal } from './TransferHistoryModal';
 import { ChangeTaxRegionModal } from './ChangeTaxRegionModal';
 import { useValidationRules } from '../contexts/ValidationContext';
-import { supabase } from '../lib/supabase';
 import { compressFile } from '../lib/fileCompression';
 import { formatDateToDDMMYYYY } from '../lib/dateUtils';
 import { getAssetTypes, setLatestExportDate } from '../lib/validation';
@@ -22,9 +21,11 @@ import { createAndDownloadZip } from '../lib/zipExport';
 import { numericValueParser, numericValueParserInt } from '../lib/numberUtils';
 import { useGridPreferences } from '../lib/useGridPreferences';
 import { useFieldConfig } from '../lib/useFieldConfig';
+import { useFieldConfigVersion } from '../contexts/FieldConfigContext';
 import { processColumnHeader } from '../lib/gridHeaderUtils';
 import { exportToExcel } from '../lib/excelExport';
 import { useUserRole } from '../contexts/UserRoleContext';
+import { useUIConfig } from '../contexts/UIConfigContext';
 import { Toast } from './Toast';
 import { FileViewer } from './FileViewer';
 import { AssetFilesModal } from './AssetFilesModal';
@@ -316,6 +317,7 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
   const { t } = useTranslation();
   const { validationRules } = useValidationRules(); // Get validation rules from context
   const { isReadOnly } = useUserRole();
+  const { shouldValidateBeforeSave, shouldValidateOnBlur } = useUIConfig();
   const [assets, setAssets] = useState<Asset[]>([]);
   const [building, setBuilding] = useState<Building | null>(null);
   const [assetTypes, setAssetTypes] = useState<AssetType[]>([]);
@@ -342,7 +344,6 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
     'assets-list',
     'default'
   );
-
 
   const [showBatchValidationModal, setShowBatchValidationModal] = useState(false);
   const [batchValidationLoading, setBatchValidationLoading] = useState(false);
@@ -602,61 +603,15 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
     hasUnsavedChanges: () => totalChanges > 0
   }), [totalChanges]);
   
-  // Fetch export to automation count for current building
+  // Fetch export to automation count for current building (uses same backend logic as mark_exported)
   const fetchExportToAutomationCount = useCallback(async () => {
     if (!buildingNumber) {
       setExportToAutomationCount(0);
       return;
     }
-    
     try {
-      // Count assets in this building that match export condition:
-      // - measurement_date IS NOT NULL
-      // - exported_to_automation IS NULL OR false
-      // - data_from_automation IS NULL OR false
-      // Use the same query pattern as getMeasuredNotExported
-      const { data, error } = await supabase
-        .from('assets')
-        .select('asset_id')
-        .eq('building_number', buildingNumber)
-        .not('measurement_date', 'is', null)
-        .or('exported_to_automation.is.null,exported_to_automation.eq.false');
-      
-      if (error) {
-        console.error('[AssetsList] Error fetching export to automation count:', error);
-        setExportToAutomationCount(0);
-        return;
-      }
-      
-      // Filter by data_from_automation in JavaScript (Supabase .or() doesn't work well with multiple conditions)
-      const filtered = (data || []).filter(asset => {
-        // Check data_from_automation: should be null or false
-        // Since we don't have the full asset data, we need to fetch it or use a different approach
-        // For now, count all assets that match the first conditions
-        // The actual export will filter by data_from_automation
-        return true;
-      });
-      
-      // Actually, we need to check data_from_automation too
-      // Let's fetch the full data to filter properly
-      const { data: fullData, error: fullError } = await supabase
-        .from('assets')
-        .select('asset_id, data_from_automation')
-        .eq('building_number', buildingNumber)
-        .not('measurement_date', 'is', null)
-        .or('exported_to_automation.is.null,exported_to_automation.eq.false');
-      
-      if (fullError) {
-        console.error('[AssetsList] Error fetching export to automation count:', fullError);
-        setExportToAutomationCount(0);
-        return;
-      }
-      
-      const count = (fullData || []).filter(asset => 
-        !asset.data_from_automation || asset.data_from_automation === false
-      ).length;
-      
-      setExportToAutomationCount(count);
+      const list = await api.assets.getMeasuredNotExported(buildingNumber);
+      setExportToAutomationCount(list?.length ?? 0);
     } catch (err) {
       console.error('[AssetsList] Error fetching export to automation count:', err);
       setExportToAutomationCount(0);
@@ -677,30 +632,8 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
     document.body.style.cursor = 'wait';
 
     try {
-      // STEP 1: Get assets in this building that match export condition
-      // Use the same query pattern as getMeasuredNotExported
-      const { data: assetsToExport, error: fetchAssetsError } = await supabase
-        .from('assets')
-        .select('*')
-        .eq('building_number', buildingNumber)
-        .not('measurement_date', 'is', null)
-        .or('exported_to_automation.is.null,exported_to_automation.eq.false');
-      
-      // Filter by data_from_automation in JavaScript (Supabase .or() doesn't work well with multiple conditions)
-      const filteredAssets = (assetsToExport || []).filter(asset => 
-        !asset.data_from_automation || asset.data_from_automation === false
-      );
-      
-      if (fetchAssetsError) {
-        console.error('[AssetsList] Error fetching assets to export:', fetchAssetsError);
-        setToast({ message: 'שגיאה בטעינת נכסים לשליחה', type: 'error' });
-        setTimeout(() => setToast(null), 5000);
-        setExporting(false);
-        setExportProgressMessage('');
-        document.body.style.cursor = '';
-        return;
-      }
-      
+      // STEP 1: Get assets in this building that match export condition (same backend logic as mark_exported)
+      const filteredAssets = await api.assets.getMeasuredNotExported(buildingNumber);
       if (!filteredAssets || filteredAssets.length === 0) {
         setToast({ message: 'אין נכסים לשליחה - כל הנכסים כבר נשלחו לעירייה', type: 'info' });
         setTimeout(() => setToast(null), 5000);
@@ -710,72 +643,60 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
         return;
       }
 
-      // STEP 2: Validate all assets before export
-      setToast({ message: 'מאמת נכסים לפני שליחה...', type: 'info' });
-      
-      // Prepare cached data for validation
-      const cachedData = {
-        assetTypes: assetTypes.length > 0 ? assetTypes : await api.assetTypes.getAll(),
-        building: building
-      };
-
-      // Validate assets for this building
-      const batchResult = await AssetValidationHandler.validateBuildingAssets(
-        filteredAssets as Asset[],
-        buildingNumber,
-        {
-          mode: 'building',
-          validateOnlyLatest: false,
-          cachedData: cachedData,
-          taxRegion: validationTaxRegion,
-          onProgress: (progress) => {
-            setToast({ 
-              message: `מאמת נכסים... ${progress.current}/${progress.total} - ${progress.currentAsset}`, 
-              type: 'info' 
-            });
+      // When validation is on ("מתי להריץ אימות" !== כבוי), validate all assets before export
+      if (shouldValidateBeforeSave) {
+        setToast({ message: 'מאמת נכסים לפני שליחה...', type: 'info' });
+        const cachedData = {
+          assetTypes: assetTypes.length > 0 ? assetTypes : await api.assetTypes.getAll(),
+          building: building
+        };
+        const batchResult = await AssetValidationHandler.validateBuildingAssets(
+          filteredAssets as Asset[],
+          buildingNumber,
+          {
+            mode: 'building',
+            validateOnlyLatest: false,
+            cachedData: cachedData,
+            taxRegion: validationTaxRegion,
+            onProgress: (progress) => {
+              setToast({
+                message: `מאמת נכסים... ${progress.current}/${progress.total} - ${progress.currentAsset}`,
+                type: 'info'
+              });
+            }
+          }
+        );
+        const allValidationResults: Array<{ assetId: string; buildingNumber: number; errors: string[] }> = [];
+        for (const result of batchResult.results) {
+          if (!result.valid && result.errors && result.errors.length > 0) {
+            const assetId = typeof result.assetId === 'string' ? result.assetId : String(result.assetId);
+            allValidationResults.push({ assetId, buildingNumber, errors: result.errors });
           }
         }
-      );
-
-      // Collect validation errors
-      const allValidationResults: Array<{ assetId: string; buildingNumber: number; errors: string[] }> = [];
-      for (const result of batchResult.results) {
-        if (!result.valid && result.errors && result.errors.length > 0) {
-          const assetId = typeof result.assetId === 'string' 
-            ? result.assetId 
-            : String(result.assetId);
-          
-          allValidationResults.push({
-            assetId: assetId,
-            buildingNumber: buildingNumber,
-            errors: result.errors
+        if (allValidationResults.length > 0) {
+          const invalidCount = allValidationResults.length;
+          const errorMessages = allValidationResults
+            .slice(0, 5)
+            .map(r => `נכס ${r.assetId}: ${r.errors.join(', ')}`)
+            .join('\n');
+          const moreErrors = invalidCount > 5 ? `\nועוד ${invalidCount - 5} נכסים עם שגיאות...` : '';
+          setToast({
+            message: `לא ניתן לשלוח נכסים - נמצאו ${invalidCount} נכסים עם שגיאות אימות:\n${errorMessages}${moreErrors}\n\nיש לתקן את השגיאות לפני שליחה.`,
+            type: 'error'
           });
+          setTimeout(() => setToast(null), 15000);
+          setExporting(false);
+          document.body.style.cursor = '';
+          return;
         }
       }
 
-      // STEP 3: Check if validation passed
-      if (allValidationResults.length > 0) {
-        const invalidCount = allValidationResults.length;
-        const errorMessages = allValidationResults
-          .slice(0, 5)
-          .map(r => `נכס ${r.assetId}: ${r.errors.join(', ')}`)
-          .join('\n');
-        
-        const moreErrors = invalidCount > 5 ? `\nועוד ${invalidCount - 5} נכסים עם שגיאות...` : '';
-        
-        setToast({ 
-          message: `לא ניתן לשלוח נכסים - נמצאו ${invalidCount} נכסים עם שגיאות אימות:\n${errorMessages}${moreErrors}\n\nיש לתקן את השגיאות לפני שליחה.`, 
-          type: 'error' 
-        });
-        setTimeout(() => setToast(null), 15000);
-        setExporting(false);
-        document.body.style.cursor = '';
-        return;
-      }
-
-      // STEP 4: All assets passed validation - proceed with export
+      // Proceed with export (with or without validation depending on "מתי להריץ אימות")
       setExportProgressMessage('מתחיל שליחה...');
-      setToast({ message: 'כל הנכסים עברו אימות בהצלחה. מתחיל שליחה...', type: 'success' });
+      setToast({
+        message: shouldValidateBeforeSave ? 'כל הנכסים עברו אימות בהצלחה. מתחיל שליחה...' : 'מתחיל שליחה...',
+        type: 'success'
+      });
       
       // Get asset IDs from filtered assets (only assets in current building/tax region)
       const assetIdsToMark = filteredAssets
@@ -795,44 +716,11 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
         return;
       }
 
-      // Mark only the filtered assets as exported (not all assets in the system)
-      const exportDate = new Date();
-      const day = String(exportDate.getDate()).padStart(2, '0');
-      const month = String(exportDate.getMonth() + 1).padStart(2, '0');
-      const year = exportDate.getFullYear();
-      const exportDateStr = `${day}/${month}/${year}`;
-
-      // Update each asset individually to avoid type mismatch issues with .in() operator
-      const updatePromises = assetIdsToMark.map(async (assetId) => {
-        const { error } = await supabase
-          .from('assets')
-          .update({ 
-            exported_to_automation: true,
-            export_to_automation_at: exportDateStr
-          })
-          .eq('asset_id', assetId);
-        return error;
-      });
-      
-      const updateErrors = await Promise.all(updatePromises);
-      const updateError = updateErrors.find(err => err !== null);
-
-      if (updateError) {
-        console.error('[AssetsList] Error marking assets as exported:', updateError);
-        setToast({ message: 'שגיאה בסימון נכסים כייצאו', type: 'error' });
-        setTimeout(() => setToast(null), 5000);
-        setExporting(false);
-        setExportProgressMessage('');
-        document.body.style.cursor = '';
-        return;
-      }
-
-      // Update latest export date cache
-      setLatestExportDate(exportDateStr);
+      // Do not mark as exported here — mark only after successful send (see below)
 
       // Fetch the exported assets to export them to Excel
-      // Use RPC function to avoid type mismatch issues with .in() operator
-      // Ensure assetIds are numbers (not strings) for the RPC call
+      // Use REST assets/by-ids to avoid type mismatch issues with .in() operator
+      // Ensure assetIds are numbers (not strings) for the REST call
       const numericAssetIdsForQuery = assetIdsToMark;
 
       if (numericAssetIdsForQuery.length === 0) {
@@ -1190,7 +1078,7 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
               }
               
               // Download file from storage
-              const { data: fileData, error: downloadError } = await supabase.storage
+              const { data: fileData, error: downloadError } = await api.storage
                 .from('structure-drawings')
                 .download(filePath);
               
@@ -1199,11 +1087,10 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
                 if (downloadError?.message?.includes('Bucket not found') || downloadError?.statusCode === '404') {
                   console.error(
                     'Storage bucket "structure-drawings" not found. ' +
-                    'Please create the bucket in Supabase Dashboard: Storage → New bucket → Name: "structure-drawings". ' +
-                    'See CREATE_STORAGE_BUCKETS.md for detailed instructions.'
+                    'Storage bucket "structure-drawings" not found. Configure backend file storage.'
                   );
                   // Show error to user
-                  setToast({ message: 'Storage bucket "structure-drawings" not found. Please create it in Supabase Dashboard. See CREATE_STORAGE_BUCKETS.md for instructions.', type: 'error' });
+                  setToast({ message: 'Storage bucket "structure-drawings" not found. Configure backend file storage.', type: 'error' });
                   setTimeout(() => setToast(null), 10000);
                   continue;
                 }
@@ -1283,14 +1170,14 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
         ]);
         const opData = [headers, ...opRows];
         const opExcelBlob = createExcelBlob({
-          filename: `נכסים_מפעיל_${operatorId}_${dateStr}.xlsx`,
+          filename: `נכסים_מפעיל_${operatorId}_${dateStr}_${operatorAssets.length}נכסים.xlsx`,
           sheetName: 'נכסים',
           data: opData,
           columnWidths: [{ wch: 15 }, { wch: 15 }, { wch: 20 }, { wch: 20 }, { wch: 12 }, { wch: 12 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 10 }, { wch: 12 }, { wch: 12 }, { wch: 12 }, { wch: 15 }, { wch: 15 }]
         });
         const subj = templateOp ? applyTpl(templateOp.subject, operator.name, operatorAssets.length) : `שליחת נתונים - ${dateStrHe}`;
         const body = templateOp ? applyTpl(templateOp.body, operator.name, operatorAssets.length) : `שלום ${operator.name},\n\nמצורף קובץ הנתונים.\nתאריך: ${dateStrHe}\n\nבברכה,\nמערכת ניהול נכסים`;
-        sendItems.push({ to: operator.email, recipientName: operator.name, subject: subj, body, attachmentFilename: `נכסים_מפעיל_${operator.name}_${dateStr}.xlsx`, attachmentBlob: opExcelBlob });
+        sendItems.push({ to: operator.email, recipientName: operator.name, subject: subj, body, attachmentFilename: `נכסים_מפעיל_${operator.name}_${dateStr}_${operatorAssets.length}נכסים.xlsx`, attachmentBlob: opExcelBlob });
       }
       if (sendItems.length === 0) {
         const fullRows = assetsForExcel.map((asset: any) => [
@@ -1303,7 +1190,7 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
           '', '', '', '', '', ''
         ]);
         const fullExcelBlob = createExcelBlob({
-          filename: `נכסים_שליחה_${dateStr}.xlsx`,
+          filename: `נכסים_שליחה_${dateStr}_${assetsForExcel.length}נכסים.xlsx`,
           sheetName: 'נכסים',
           data: [headers, ...fullRows],
           columnWidths: [{ wch: 15 }, { wch: 15 }, { wch: 20 }, { wch: 20 }, { wch: 12 }, { wch: 12 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 10 }, { wch: 12 }, { wch: 12 }, { wch: 12 }, { wch: 15 }, { wch: 15 }]
@@ -1312,7 +1199,7 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
           if (!operator?.email || !operator.email.includes('@')) continue;
           const subj = templateOp ? applyTpl(templateOp.subject, operator.name, assetsForExcel.length) : `שליחת נתונים - ${dateStrHe}`;
           const body = templateOp ? applyTpl(templateOp.body, operator.name, assetsForExcel.length) : `שלום ${operator.name},\n\nמצורף קובץ הנתונים.\nתאריך: ${dateStrHe}\n\nבברכה,\nמערכת ניהול נכסים`;
-          sendItems.push({ to: operator.email, recipientName: operator.name, subject: subj, body, attachmentFilename: `נכסים_שליחה_${dateStr}.xlsx`, attachmentBlob: fullExcelBlob });
+          sendItems.push({ to: operator.email, recipientName: operator.name, subject: subj, body, attachmentFilename: `נכסים_שליחה_${dateStr}_${assetsForExcel.length}נכסים.xlsx`, attachmentBlob: fullExcelBlob });
         }
       }
       const managersList = await api.managers.getAll();
@@ -1336,14 +1223,14 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
         ]);
         const mgrData = [headers, ...mgrRows];
         const mgrExcelBlob = createExcelBlob({
-          filename: `נכסים_מנהל_${manager.id}_${dateStr}.xlsx`,
+          filename: `נכסים_מנהל_${manager.id}_${dateStr}_${managerAssets.length}נכסים.xlsx`,
           sheetName: 'נכסים',
           data: mgrData,
           columnWidths: [{ wch: 15 }, { wch: 15 }, { wch: 20 }, { wch: 20 }, { wch: 12 }, { wch: 12 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 10 }, { wch: 12 }, { wch: 12 }, { wch: 12 }, { wch: 15 }, { wch: 15 }]
         });
         const subj = templateMgr ? applyTpl(templateMgr.subject, manager.name, managerAssets.length) : `שליחת נתונים - ${dateStrHe}`;
         const body = templateMgr ? applyTpl(templateMgr.body, manager.name, managerAssets.length) : `שלום ${manager.name},\n\nמצורף קובץ הנתונים.\nתאריך: ${dateStrHe}\n\nבברכה,\nמערכת ניהול נכסים`;
-        sendItems.push({ to: manager.email, recipientName: manager.name, subject: subj, body, attachmentFilename: `נכסים_מנהל_${manager.name}_${dateStr}.xlsx`, attachmentBlob: mgrExcelBlob });
+        sendItems.push({ to: manager.email, recipientName: manager.name, subject: subj, body, attachmentFilename: `נכסים_מנהל_${manager.name}_${dateStr}_${managerAssets.length}נכסים.xlsx`, attachmentBlob: mgrExcelBlob });
       }
       let sentCount = 0;
       if (sendItems.length > 0) {
@@ -1366,6 +1253,18 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
       setExportProgressMessage('מוריד קובץ ZIP...');
       const { createAndDownloadZip } = await import('../lib/zipExport');
       await createAndDownloadZip(zipFilename, zipFiles);
+
+      // Mark as exported only after successful send so the count updates correctly
+      try {
+        await api.assets.markExportedByIds(assetIdsToMark);
+        const d = new Date();
+        setLatestExportDate(
+          `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`
+        );
+      } catch (markErr: any) {
+        console.error('[AssetsList] Error marking assets as exported after send:', markErr);
+      }
+
       let successMessage = `נשלחו ${assetIdsToMark.length} נכסים לעירייה בהצלחה. הקובץ הורד.`;
       if (sentCount > 0) successMessage += ` ${sentCount} מיילים נשלחו למפעילים ולמנהלים.`;
       setToast({ message: successMessage, type: 'success' });
@@ -1390,7 +1289,7 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
       setExportProgressMessage('');
       document.body.style.cursor = '';
     }
-  }, [buildingNumber, building, assetTypes, validationTaxRegion, fetchExportToAutomationCount, fetchData]);
+  }, [buildingNumber, building, assetTypes, validationTaxRegion, shouldValidateBeforeSave, fetchExportToAutomationCount, fetchData]);
 
   useEffect(() => {
     fetchData();
@@ -2190,8 +2089,12 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
         setIsValidatedForSave(false);
         setValidationErrors(new Map());
       });
+      // When "מתי להריץ אימות" is "אונליין", run validation after cell edit (on blur)
+      if (shouldValidateOnBlur) {
+        setTimeout(() => runValidationProgrammatically().catch(() => {}), 0);
+      }
     }
-  }, [newAssets, originalAssets]);
+  }, [newAssets, originalAssets, shouldValidateOnBlur]);
 
   // Helper function to run validation programmatically (without modal)
   async function runValidationProgrammatically(): Promise<{ hasErrors: boolean; errorMessage?: string }> {
@@ -2647,8 +2550,11 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
     setToast(null);
 
     try {
-      // Run validation before saving - MUST pass before proceeding to server
-      const validationResult = await runValidationProgrammatically();
+      // Run validation before saving when "מתי להריץ אימות" is before_save (or online)
+      let validationResult = { hasErrors: false as boolean, errorMessage: '' as string };
+      if (shouldValidateBeforeSave) {
+        validationResult = await runValidationProgrammatically();
+      }
       if (validationResult.hasErrors) {
         // Stop save operation - don't submit to server
         setIsSaving(false);
@@ -4710,7 +4616,7 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
         uploadOptions.contentType = compressedFile.type;
       }
 
-      const { error: uploadError } = await supabase.storage
+      const { error: uploadError } = await api.storage
         .from('structure-drawings')
         .upload(filePath, compressedFile, uploadOptions);
 
@@ -4721,8 +4627,7 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
         if (uploadError.message?.includes('Bucket not found') || uploadError.statusCode === '404') {
           throw new Error(
             'Storage bucket "structure-drawings" not found. ' +
-            'Please create the bucket in Supabase Dashboard: Storage → New bucket → Name: "structure-drawings". ' +
-            'See CREATE_STORAGE_BUCKETS.md for detailed instructions.'
+            'Storage bucket "structure-drawings" not found. Configure backend file storage.'
           );
         }
         throw uploadError;
@@ -4731,7 +4636,7 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
       setUploadProgress({ assetId, progress: 90, fileName: file.name });
 
       // Step 4: Get public URL
-      const { data: { publicUrl } } = supabase.storage
+      const { data: { publicUrl } } = api.storage
         .from('structure-drawings')
         .getPublicUrl(filePath);
 
@@ -4982,7 +4887,7 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
     const currentValue = dirtyChanges && 'penthouse' in dirtyChanges 
       ? dirtyChanges.penthouse 
       : params.data?.penthouse;
-    const isChecked = currentValue === true || currentValue === 'כן';
+    const isChecked = currentValue === true;
     
     // Always show checkbox for both new and existing assets
     return (
@@ -5957,8 +5862,9 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
     });
   }, [t, onSelectAsset, buildingNumber, assetTypes, newAssets, dirtyAssets, building, taxRegion, selectedAssets, deletedAssets, validationErrors, getCellStyle, isResidentTaxRegion, isMultiTaxRegion, isFieldEditable, penthouseCellRenderer, assetsWithFiles, sourceAssetId, applySourceValues, operators]);
 
-  // Apply field configurations to column definitions (must be after columnDefs is defined)
-  const configuredColumnDefs = useFieldConfig(columnDefs, 'assets-list');
+  // Apply field configurations to column definitions (ref_only pattern: rely on columnDefs prop only)
+  const configVersion = useFieldConfigVersion();
+  const [configuredColumnDefs, fieldConfigLoading] = useFieldConfig(columnDefs, 'assets-list');
 
   // Check if all visible assets are residential assets (מגורים)
   // Sort assets to put errored rows first
@@ -6378,7 +6284,7 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
               if (!shouldShowButtons) return null;
               
               // Check if building is private (single_double_family)
-              const isPrivateBuilding = building?.single_double_family === 'כן' || building?.single_double_family === 'yes';
+              const isPrivateBuilding = Boolean(building?.single_double_family);
               
               // Check if tax region is "multi" (multiple tax regions - when taxRegion is not set or building has multiple)
               const isMultiTaxRegion = !taxRegion || (building?.tax_region && building.tax_region.includes(','));
@@ -6506,8 +6412,14 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
         {/* Tab Content */}
         {activeTab === 'assets' && (
           <div className="bg-white rounded-b-xl shadow-lg hover:shadow-xl transition-shadow duration-200 overflow-hidden border-2 border-blue-400 w-full">
+            {fieldConfigLoading ? (
+              <div className="flex items-center justify-center" style={{ height: '60vh' }}>
+                <Loader2 className="h-8 w-8 animate-spin text-teal-600" />
+              </div>
+            ) : (
             <div className="ag-theme-alpine" style={{ height: '60vh', width: '100%', minWidth: '100%', overflowX: 'auto' }}>
               <AgGridReact
+            key={`assets-grid-${configVersion}`}
             ref={gridRef}
             rowData={sortedAssets}
             columnDefs={configuredColumnDefs}
@@ -6549,14 +6461,26 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
             onCellEditingStopped={onCellEditingStopped}
             onCellEditingStarted={onCellEditingStarted}
             onGridReady={async (params) => {
-              // Load saved column state first
               await gridPreferences.loadColumnState(params.api);
-              // Ensure all columns are visible and grid calculates proper width
-              params.api.refreshCells({ force: false });
-              // Scroll to left on grid ready using AG Grid API
+              // ref_only pattern: only pin actions column, columnDefs prop drives width/order/headerName
               setTimeout(() => {
+                const columnState = params.api.getColumnState();
+                const actionsCol = columnState.find((col: any) => col.colId === 'actions');
+                if (actionsCol) {
+                  const updatedState = columnState.map((col: any) => ({
+                    ...col,
+                    pinned: col.colId === 'actions' ? 'right' : col.pinned,
+                    lockPosition: col.colId === 'actions',
+                    lockPinned: col.colId === 'actions',
+                  }));
+                  params.api.applyColumnState({
+                    state: updatedState,
+                    applyOrder: true,
+                    defaultState: { pinned: null }
+                  });
+                }
                 params.api.ensureColumnVisible('asset_id', 'start');
-              }, 100);
+              }, 150);
             }}
             onFirstDataRendered={async (params) => {
               // Scroll to left after data render using AG Grid API
@@ -6609,6 +6533,7 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
             enterNavigatesVerticallyAfterEdit={true}
           />
             </div>
+            )}
           </div>
         )}
         

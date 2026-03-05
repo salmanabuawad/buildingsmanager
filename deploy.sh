@@ -1,73 +1,29 @@
-#!/bin/bash
-
-# AssetFlow Deployment Script
-# This script helps deploy your application to Netlify
+#!/usr/bin/env bash
+# Optional: build frontend and deploy to Nginx. Application is NOT deployed by default (use npm run dev + backend).
+# Stack: Frontend (Vite) + FastAPI + Postgres; Nginx is optional for production-like serving.
+# Run from repo root: ./deploy.sh
 
 set -e
 
-echo "🚀 AssetFlow Deployment Script"
-echo "================================"
+echo "Optional: build + deploy to Nginx (app is not deployed by default)"
+echo "=================================================================="
 echo ""
 
-# Check if build exists
-if [ ! -d "dist" ]; then
-  echo "❌ No build found. Running production build..."
-  npm run build
-  echo "✅ Build completed"
-  echo ""
-fi
+echo "Building frontend..."
+npm run build
+echo "Build completed."
+echo ""
 
-# Check if netlify CLI is installed
-if ! command -v netlify &> /dev/null; then
-  echo "⚠️  Netlify CLI not found."
-  echo "Install it with: npm install -g netlify-cli"
-  echo ""
-  read -p "Install Netlify CLI now? (y/n) " -n 1 -r
-  echo ""
-  if [[ $REPLY =~ ^[Yy]$ ]]; then
-    npm install -g netlify-cli
-    echo "✅ Netlify CLI installed"
-  else
-    echo "❌ Cannot proceed without Netlify CLI. Exiting."
-    exit 1
-  fi
+echo "Deploy to Nginx: ./nginx/deploy-frontend.sh"
+echo "Optional: WEB_ROOT=/var/www/buildingsmanager ./nginx/deploy-frontend.sh"
+echo ""
+
+read -p "Run nginx deploy now? (y/n) " -n 1 -r
+echo ""
+if [[ $REPLY =~ ^[Yy]$ ]]; then
+  ./nginx/deploy-frontend.sh
 fi
 
 echo ""
-echo "Choose deployment option:"
-echo "1) Deploy to production"
-echo "2) Deploy preview (test before production)"
-echo "3) Login to Netlify"
-echo ""
-read -p "Enter choice (1-3): " choice
-
-case $choice in
-  1)
-    echo ""
-    echo "🚀 Deploying to production..."
-    netlify deploy --prod
-    echo ""
-    echo "✅ Deployment complete!"
-    echo "Your site is live at: https://buildingmanager.bolt.host/"
-    ;;
-  2)
-    echo ""
-    echo "🔍 Creating preview deployment..."
-    netlify deploy
-    echo ""
-    echo "✅ Preview deployment complete!"
-    echo "Check the URL above to test your changes."
-    ;;
-  3)
-    echo ""
-    echo "🔐 Opening Netlify login..."
-    netlify login
-    ;;
-  *)
-    echo "❌ Invalid choice. Exiting."
-    exit 1
-    ;;
-esac
-
-echo ""
-echo "📚 For more deployment options, see: DEPLOYMENT_GUIDE.md"
+echo "Ensure backend is running: cd backend && python -m uvicorn app.main:app --host 127.0.0.1 --port 8000"
+echo "Then open http://localhost/ (Nginx) or use npm run dev for dev server."

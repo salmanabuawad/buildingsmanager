@@ -177,8 +177,8 @@ To import CSV data:
 
 ```bash
 # From psql
-\copy asset_types FROM '/path/to/supabase/data/assettypes.csv' DELIMITER ',' CSV HEADER;
-\copy assets FROM '/path/to/supabase/data/asset.csv' DELIMITER ',' CSV HEADER;
+\copy asset_types FROM '/path/to/data/assettypes.csv' DELIMITER ',' CSV HEADER;
+\copy assets FROM '/path/to/data/asset.csv' DELIMITER ',' CSV HEADER;
 ```
 
 ## Switching Between Local and Supabase

@@ -39,7 +39,7 @@ This guide explains how to set up a fresh database installation for the Building
 
 The `install_fresh_database.sql` script combines:
 
-1. **Consolidated Initial Schema** (`supabase/migrations/20260101000000_consolidated_initial_schema.sql`)
+1. **Consolidated Initial Schema** (`migrations/20260101000000_consolidated_initial_schema.sql`)
    - All database tables
    - All indexes and constraints
    - All functions and triggers
@@ -72,7 +72,7 @@ The `install_fresh_database.sql` script combines:
 
 ```
 install_fresh_database.sql          ← Use this for fresh installs
-supabase/migrations/
+migrations/
   ├── 20260101000000_consolidated_initial_schema.sql  ← Base schema
   └── [other migrations...]                           ← Applied if needed
 scripts/
@@ -124,7 +124,7 @@ ORDER BY ordinal_position;
 - **Cause**: Using SQL client that doesn't support psql meta-commands
 - **Solution**: 
   - Use `psql` command line tool
-  - Or manually copy contents of `supabase/migrations/20260101000000_consolidated_initial_schema.sql`
+  - Or manually copy contents of `migrations/20260101000000_consolidated_initial_schema.sql`
 
 ### Script fails partway through
 - **Cause**: Migration conflict or database state issue
@@ -142,7 +142,7 @@ ORDER BY ordinal_position;
 ✅ Use individual migration files in order:
 ```bash
 # Run migrations in chronological order
-for file in supabase/migrations/*.sql; do
+for file in migrations/*.sql; do
   psql -U postgres -d buildings_manager -f "$file"
 done
 ```

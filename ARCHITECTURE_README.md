@@ -8,6 +8,12 @@ If you're about to modify asset save logic, validation, or database operations:
 
 ---
 
+## Project Structure
+
+**[docs/PROJECT_STRUCTURE.md](docs/PROJECT_STRUCTURE.md)** – React + FastAPI + Nginx + Postgres; DB repo in Python; no DB functions or triggers; all logic in Python transactions.
+
+---
+
 ## Documentation Structure
 
 ### Level 1: Critical Constraints (MUST READ)
@@ -102,7 +108,7 @@ If you're about to modify asset save logic, validation, or database operations:
 - `src/lib/validation.ts` - Validation rules and logic
 
 ### Database Layer
-- `supabase/migrations/20251216103948_add_transactional_save_functions.sql`
+- `migrations/20251216103948_add_transactional_save_functions.sql`
   - `save_asset_transactional()` - Single asset save function
   - `save_assets_bulk_transactional()` - Bulk asset save function
 

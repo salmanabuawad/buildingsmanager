@@ -1,6 +1,5 @@
 import { useEffect, useState, useMemo, useRef, useCallback } from 'react';
 import { AuditLog, Asset, Building, api } from '../lib/api';
-import { supabase } from '../lib/supabase';
 import { AgGridReact } from 'ag-grid-react';
 import { ColDef } from 'ag-grid-community';
 import { X, Loader2 } from 'lucide-react';
@@ -53,7 +52,7 @@ export function AuditDetailsModal({ isOpen, onClose, actionId }: AuditDetailsMod
       setAuditLog(audit);
       
       // Load all assets with the same action_id
-      const { data, error: assetsError } = await supabase
+      const { data, error: assetsError } = await api
         .from('assets')
         .select('*')
         .eq('action_id', actionId);
@@ -61,7 +60,7 @@ export function AuditDetailsModal({ isOpen, onClose, actionId }: AuditDetailsMod
       if (assetsError) throw assetsError;
       
       // Also check assets_history
-      const { data: historyData, error: historyError } = await supabase
+      const { data: historyData, error: historyError } = await api
         .from('assets_history')
         .select('*')
         .eq('action_id', actionId);

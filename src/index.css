@@ -731,7 +731,6 @@ input[type="submit"]:disabled {
   .text-app-icon {
     @apply text-app-accent;
   }
-}
 
   /* Icon-dominant action button - icon on top, small text below (reference: no background) */
   .btn-action {

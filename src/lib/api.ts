@@ -710,7 +710,11 @@ export function sanitizeAssetInput(input: any): any {
     payer_id: preConverted.payer_id != null && preConverted.payer_id !== '' ? sanitizeText(preConverted.payer_id) : undefined,
     asset_id: preConverted.asset_id != null ? sanitizeInteger(preConverted.asset_id) : undefined,
     measurement_date: measurementDate, // Always include measurement_date
-    main_asset_type: ('main_asset_type' in preConverted) ? (preConverted.main_asset_type != null && preConverted.main_asset_type !== '' ? sanitizeText(preConverted.main_asset_type) : null) : undefined,
+    // For updates (asset_id present), always include main_asset_type so DB receives it (JSON omits undefined).
+    // Ensures type-change detection in save_assets_bulk_transactional works from Assets List.
+    main_asset_type: (preConverted.asset_id != null || 'main_asset_type' in preConverted)
+      ? (preConverted.main_asset_type != null && preConverted.main_asset_type !== '' ? sanitizeText(preConverted.main_asset_type) : null)
+      : undefined,
     asset_size: ('asset_size' in preConverted) ? sanitizeNumber(preConverted.asset_size ?? 0) : undefined,
     tax_region: preConverted.tax_region != null ? sanitizeInteger(preConverted.tax_region) : undefined,
     sub_asset_type_1: ('sub_asset_type_1' in preConverted) ? (preConverted.sub_asset_type_1 != null && preConverted.sub_asset_type_1 !== '' ? sanitizeText(preConverted.sub_asset_type_1) : null) : undefined,
@@ -1131,6 +1135,28 @@ export async function validateAndSaveBulkAssets(
     return sanitizeAssetInput(rest);
   });
 
+  // Resolve isBusinessContext: use provided value, or derive from assets' main_asset_type when undefined
+  // This ensures distribution flags are set correctly when saving from Asset List (which may pass undefined in edge cases)
+  let resolvedIsBusinessContext: boolean | null = isBusinessContext !== undefined ? isBusinessContext : null;
+  if (resolvedIsBusinessContext === null && cachedValidationData.assetTypes?.length) {
+    const assetTypes = cachedValidationData.assetTypes as Array<{ name: string | number; business_residence?: string }>;
+    const mainTypes = preparedAssetsData
+      .map(a => a.main_asset_type != null ? String(a.main_asset_type).trim() : null)
+      .filter(Boolean) as string[];
+    const businessCount = mainTypes.filter(mt => {
+      const at = assetTypes.find(t => String(t.name).trim() === mt || String(t.name) === mt);
+      return at?.business_residence === 'עסקים';
+    }).length;
+    const residenceCount = mainTypes.filter(mt => {
+      const at = assetTypes.find(t => String(t.name).trim() === mt || String(t.name) === mt);
+      return at?.business_residence === 'מגורים';
+    }).length;
+    if (businessCount > 0 && residenceCount === 0) resolvedIsBusinessContext = true;
+    else if (residenceCount > 0 && businessCount === 0) resolvedIsBusinessContext = false;
+  }
+
+  const isDistributionAction = actionType === 'business_distribution' || actionType === 'residence_distribution';
+
   // STEP 3: Call transactional bulk save function (rejects if any validation failed)
   try {
     const { data, error } = await supabase.rpc('save_assets_bulk_transactional', {
@@ -1142,7 +1168,8 @@ export async function validateAndSaveBulkAssets(
       p_before_data: beforeData || null,
       p_after_data: afterData || null,
       p_description: description || null,
-      p_is_business_context: isBusinessContext !== undefined ? isBusinessContext : null
+      p_is_business_context: resolvedIsBusinessContext,
+      p_set_distribution_flags_on_type_or_size_change: !isDistributionAction
     });
 
     if (error) {

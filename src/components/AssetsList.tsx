@@ -2928,13 +2928,11 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
             assetsToSave.push(assetData);
           } else {
             // For updates, send full asset data merged with changes to ensure all fields (including sub_asset_type fields) are present
-            // Note: is_new_measurement should only be set for explicit "save as new measurement" operations,
-            // not for distribution saves. Distribution saves update assets in place without creating history.
-            assetsToSave.push({
-              ...updatedData,
-              asset_id: assetId,
-              building_number: buildingNumberValue
-            });
+            // CRITICAL: Explicitly include main_asset_type and asset_size when changed - DB needs them for distribution flag logic
+            const payload: any = { ...updatedData, asset_id: assetId, building_number: buildingNumberValue };
+            if (changes.main_asset_type !== undefined) payload.main_asset_type = changes.main_asset_type;
+            if (changes.asset_size !== undefined) payload.asset_size = changes.asset_size;
+            assetsToSave.push(payload);
           }
         } catch (err) {
           const asset = assets.find(a => String(a.id) === String(assetId));

@@ -710,12 +710,12 @@ export function sanitizeAssetInput(input: any): any {
     payer_id: preConverted.payer_id != null && preConverted.payer_id !== '' ? sanitizeText(preConverted.payer_id) : undefined,
     asset_id: preConverted.asset_id != null ? sanitizeInteger(preConverted.asset_id) : undefined,
     measurement_date: measurementDate, // Always include measurement_date
-    // For updates (asset_id present), always include main_asset_type so DB receives it (JSON omits undefined).
-    // Ensures type-change detection in save_assets_bulk_transactional works from Assets List.
+    // For updates (asset_id present), always include main_asset_type and asset_size so DB receives them (JSON omits undefined).
+    // Ensures type/size-change detection in save_assets_bulk_transactional works from Assets List.
     main_asset_type: (preConverted.asset_id != null || 'main_asset_type' in preConverted)
       ? (preConverted.main_asset_type != null && preConverted.main_asset_type !== '' ? sanitizeText(preConverted.main_asset_type) : null)
       : undefined,
-    asset_size: ('asset_size' in preConverted) ? sanitizeNumber(preConverted.asset_size ?? 0) : undefined,
+    asset_size: (preConverted.asset_id != null || 'asset_size' in preConverted) ? sanitizeNumber(preConverted.asset_size ?? 0) : undefined,
     tax_region: preConverted.tax_region != null ? sanitizeInteger(preConverted.tax_region) : undefined,
     sub_asset_type_1: ('sub_asset_type_1' in preConverted) ? (preConverted.sub_asset_type_1 != null && preConverted.sub_asset_type_1 !== '' ? sanitizeText(preConverted.sub_asset_type_1) : null) : undefined,
     sub_asset_size_1: ('sub_asset_size_1' in preConverted) ? sanitizeNumber(preConverted.sub_asset_size_1 ?? 0) : undefined,

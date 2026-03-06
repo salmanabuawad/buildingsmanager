@@ -2827,6 +2827,7 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
       // Collect ALL assets to save in a single bulk operation
       // This ensures all distribution-related assets are saved together in one transaction
       const assetsToSave: any[] = [];
+      const typeChangesForFlags: Array<{ building_number: number; oldType: string | null; newType: string | null }> = [];
 
       // Detect if this is a distribution save by checking for distribution-related changes
       let isDistributionSave = false;
@@ -2933,6 +2934,22 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
             if (changes.main_asset_type !== undefined) payload.main_asset_type = changes.main_asset_type;
             if (changes.asset_size !== undefined) payload.asset_size = changes.asset_size;
             assetsToSave.push(payload);
+            // Track type changes that cross accountable↔non_accountable boundary (only those need flag update)
+            if (changes.main_asset_type !== undefined) {
+              const oldType = asset.main_asset_type != null ? String(asset.main_asset_type).trim() : null;
+              const newType = changes.main_asset_type != null ? String(changes.main_asset_type).trim() : null;
+              if (oldType !== newType && buildingNumberValue && assetTypes?.length) {
+                const oldNonAcc = isAssetTypeNotAccountableForDistribution(oldType);
+                const newNonAcc = isAssetTypeNotAccountableForDistribution(newType);
+                if (oldNonAcc !== newNonAcc) {
+                  typeChangesForFlags.push({
+                    building_number: Number(buildingNumberValue),
+                    oldType: oldType || null,
+                    newType: newType || null
+                  });
+                }
+              }
+            }
           }
         } catch (err) {
           const asset = assets.find(a => String(a.id) === String(assetId));
@@ -2969,10 +2986,10 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
         // Computed overload_ratio for business distribution (percentage) - used in afterData and success handler
         let computedOverloadRatioForSave: number | null = null;
 
-        // Determine tab context (business or residence) for passing to API.
-        // When multi-tax (no single taxRegion), pass undefined so API derives from assets' main_asset_type -
-        // otherwise we may set the wrong distribution flag (e.g. need_business when asset is residence).
-        const isBusinessContext = isMultiTaxRegion ? undefined : !isResidentTaxRegion;
+        // Always pass undefined so API derives isBusinessContext from the assets being saved.
+        // Tab-based (!isResidentTaxRegion) can be wrong when asset type differs from tab (e.g. residence asset on business tab).
+        // Deriving from main_asset_type ensures the correct distribution flag is set.
+        const isBusinessContext = undefined;
 
         if (isDistributionSave && distributionType && building) {
           if (distributionType === 'business' && building?.business_shared_area != null) {
@@ -3030,8 +3047,19 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
             }
           }
           
-          // Note: Distribution flags for asset type changes are now set in the database transaction
-          // via the set_distribution_flags_for_asset_type_change function, which ensures atomicity
+          // Explicit fallback: call set_distribution_flags_for_asset_type_change when DB bulk save
+          // didn't set flags. Ensures distribution flags are set from Assets List (same as Asset Details).
+          if (!isDistributionSave && typeChangesForFlags.length > 0) {
+            await Promise.all(
+              typeChangesForFlags.map(({ building_number, oldType, newType }) =>
+                supabase.rpc('set_distribution_flags_for_asset_type_change', {
+                  p_building_number: building_number,
+                  p_old_main_asset_type: oldType,
+                  p_new_main_asset_type: newType
+                })
+              )
+            );
+          }
           
           // Note: Distribution flags are automatically cleared by the database function save_assets_bulk_transactional
           // when action_type is 'business_distribution' or 'residence_distribution'

@@ -2969,8 +2969,10 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
         // Computed overload_ratio for business distribution (percentage) - used in afterData and success handler
         let computedOverloadRatioForSave: number | null = null;
 
-        // Determine tab context (business or residence) for passing to API
-        const isBusinessContext = !isResidentTaxRegion;
+        // Determine tab context (business or residence) for passing to API.
+        // When multi-tax (no single taxRegion), pass undefined so API derives from assets' main_asset_type -
+        // otherwise we may set the wrong distribution flag (e.g. need_business when asset is residence).
+        const isBusinessContext = isMultiTaxRegion ? undefined : !isResidentTaxRegion;
 
         if (isDistributionSave && distributionType && building) {
           if (distributionType === 'business' && building?.business_shared_area != null) {

@@ -710,8 +710,8 @@ export function sanitizeAssetInput(input: any): any {
     payer_id: preConverted.payer_id != null && preConverted.payer_id !== '' ? sanitizeText(preConverted.payer_id) : undefined,
     asset_id: preConverted.asset_id != null ? sanitizeInteger(preConverted.asset_id) : undefined,
     measurement_date: measurementDate, // Always include measurement_date
-    // For updates (asset_id present), always include main_asset_type and asset_size so DB receives them (JSON omits undefined).
-    // Ensures type/size-change detection in save_assets_bulk_transactional works from Assets List.
+    // For updates (asset_id present), always include main_asset_type - use null not undefined so JSON keeps the key.
+    // JSON.stringify omits undefined; DB needs the key for type-change detection.
     main_asset_type: (preConverted.asset_id != null || 'main_asset_type' in preConverted)
       ? (preConverted.main_asset_type != null && preConverted.main_asset_type !== '' ? sanitizeText(preConverted.main_asset_type) : null)
       : undefined,
@@ -1130,8 +1130,20 @@ export async function validateAndSaveBulkAssets(
     });
 
   // STEP 2: Build DB payload like import (sanitizeAssetInput only)
+  // CRITICAL: Ensure main_asset_type (and asset_size) are never undefined for updates - JSON.stringify
+  // omits undefined, so the DB would not receive the key and would treat it as "no change".
   const assetsForDatabase = preparedAssetsData.map(asset => {
     const { id, ...rest } = asset as any;
+    const assetId = rest.asset_id != null ? Number(rest.asset_id) : null;
+    const existingForFallback = assetId != null && !isNaN(assetId) ? existingAssetsMap.get(assetId) : null;
+    if (existingForFallback) {
+      if (rest.main_asset_type === undefined || !('main_asset_type' in rest)) {
+        rest.main_asset_type = rest.main_asset_type ?? existingForFallback.main_asset_type ?? null;
+      }
+      if (rest.asset_size === undefined || !('asset_size' in rest)) {
+        rest.asset_size = rest.asset_size ?? existingForFallback.asset_size ?? 0;
+      }
+    }
     return sanitizeAssetInput(rest);
   });
 

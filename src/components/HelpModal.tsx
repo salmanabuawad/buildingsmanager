@@ -19,28 +19,28 @@ export function HelpModal() {
       }}
     >
       <div
-        className="bg-white rounded-xl shadow-2xl w-full max-w-2xl max-h-[85vh] flex flex-col border border-theme-card-border"
+        className="bg-white rounded-xl shadow-2xl w-full max-w-2xl max-h-[85vh] flex flex-col"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="flex items-center justify-between p-4 border-b border-theme-card-border shrink-0 bg-theme-highlight/30">
-          <h2 className="text-xl font-bold text-theme-text-primary">{entry.title}</h2>
+        <div className="flex items-center justify-between p-4 border-b border-slate-200 shrink-0">
+          <h2 className="text-xl font-bold text-slate-800">{entry.title}</h2>
           <button
             type="button"
             onClick={closeHelp}
-            className="p-2 rounded-lg hover:bg-theme-table-header text-theme-text-muted hover:text-theme-text-primary transition-colors"
+            className="p-2 rounded-lg hover:bg-slate-100 text-slate-600 hover:text-slate-800"
             aria-label="סגור"
           >
             <X className="h-5 w-5" />
           </button>
         </div>
         <div className="p-4 overflow-y-auto prose prose-slate max-w-none">
-          <div className="text-theme-text-primary whitespace-pre-wrap leading-relaxed">{entry.content}</div>
+          <div className="text-slate-700 whitespace-pre-wrap leading-relaxed">{entry.content}</div>
         </div>
-        <div className="p-4 border-t border-theme-card-border text-sm text-theme-text-muted shrink-0 flex items-center justify-between gap-4 flex-wrap bg-theme-content">
+        <div className="p-4 border-t border-slate-200 text-sm text-slate-500 shrink-0 flex items-center justify-between gap-4 flex-wrap">
           <span>💡 לחץ F1 בכל מסך להצגת עזרה מותאמת להקשר</span>
           <div className="flex items-center gap-3">
-            <kbd className="px-2 py-1 bg-theme-table-header rounded border border-theme-card-border font-mono text-xs text-theme-text-primary">F1</kbd>
-            <span className="text-theme-text-muted text-xs">Kortex Digital</span>
+            <kbd className="px-2 py-1 bg-slate-100 rounded border border-slate-300 font-mono text-xs">F1</kbd>
+            <span className="text-slate-400 text-xs">© Kortex Digital</span>
           </div>
         </div>
       </div>

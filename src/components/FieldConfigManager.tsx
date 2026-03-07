@@ -681,7 +681,7 @@ export function FieldConfigManager() {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="text-center">
-          <RefreshCw className="h-12 w-12 text-teal-600 animate-spin mx-auto" />
+          <RefreshCw className="h-12 w-12 text-theme-tab-active animate-spin mx-auto" />
           <p className="mt-4 text-slate-700 font-medium">טוען הגדרות שדות...</p>
         </div>
       </div>
@@ -699,13 +699,13 @@ export function FieldConfigManager() {
         />
       )}
 
-      <div className="bg-white rounded-xl shadow-lg border border-blue-100 p-6">
+      <div className="bg-white rounded-xl shadow-lg border border-theme-card-border p-6">
         <div className="flex items-center justify-between mb-6">
           <h1 className="text-2xl font-bold text-slate-800">ניהול הגדרות שדות</h1>
           <div className="flex items-center gap-2">
             <button
               onClick={handleExportToExcel}
-              className="flex items-center gap-1.5 px-3 py-1.5 text-sm bg-teal-500 hover:bg-teal-600 active:bg-teal-700 text-white rounded-md transition-all duration-200 shadow-sm hover:shadow-md font-medium"
+              className="flex items-center gap-1.5 px-3 py-1.5 text-sm bg-theme-tab-active hover:bg-theme-tab-active-hover active:bg-theme-tab-active-active text-white rounded-md transition-all duration-200 shadow-sm hover:shadow-md font-medium"
               title="ייצא ל-Excel"
             >
               <Download className="h-4 w-4" />
@@ -769,7 +769,7 @@ export function FieldConfigManager() {
             <button
               onClick={handleSaveAll}
               disabled={saving || totalChanges === 0}
-              className="flex items-center gap-1.5 px-3 py-1.5 text-sm bg-teal-500 hover:bg-teal-600 active:bg-teal-700 disabled:bg-gray-400  text-white rounded-md transition-all duration-200 shadow-sm hover:shadow-md disabled:shadow-none font-medium"
+              className="flex items-center gap-1.5 px-3 py-1.5 text-sm bg-theme-tab-active hover:bg-theme-tab-active-hover active:bg-theme-tab-active-active disabled:bg-gray-400  text-white rounded-md transition-all duration-200 shadow-sm hover:shadow-md disabled:shadow-none font-medium"
             >
               {saving ? (
                 <RefreshCw className="h-4 w-4 animate-spin" />
@@ -785,7 +785,7 @@ export function FieldConfigManager() {
           הגדר רוחב ותפיחה לכל שדה במערכת. כל הטבלאות ישתמשו בהגדרות אלה.
         </p>
 
-        <div className="bg-white rounded-xl shadow-lg hover:shadow-xl transition-shadow duration-200 overflow-hidden border-2 border-blue-400 w-full">
+        <div className="bg-white rounded-xl shadow-lg hover:shadow-xl transition-shadow duration-200 overflow-hidden border-2 border-theme-action-accent w-full">
           <div className="ag-theme-alpine" style={{ height: '60vh', width: '100%', minWidth: '100%', overflowX: 'auto' }}>
             <AgGridReact<FieldConfiguration>
             ref={gridRef}

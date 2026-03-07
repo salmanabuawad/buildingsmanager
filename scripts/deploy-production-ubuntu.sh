@@ -76,7 +76,8 @@ cd "$REPO_ROOT"
 export PGHOST=localhost
 export DATABASE_URL
 psql "$DATABASE_URL" -f "$REPO_ROOT/standalone/00_extensions_and_roles.sql"
-"$REPO_ROOT/standalone/apply_migrations.sh"
+chmod +x "$REPO_ROOT/standalone/apply_migrations.sh" 2>/dev/null || true
+bash "$REPO_ROOT/standalone/apply_migrations.sh"
 psql "$DATABASE_URL" -f "$REPO_ROOT/standalone/post_migration_standalone.sql"
 
 # --- 4. Backend setup ---
@@ -85,6 +86,8 @@ cd "$REPO_ROOT/backend"
 python3 -m venv venv 2>/dev/null || true
 source venv/bin/activate
 pip install -r requirements.txt -q
+# Fix bcrypt for passlib compatibility (login fails with newer bcrypt)
+pip install 'bcrypt==4.0.1' -q
 
 # Create .env for production
 mkdir -p "$REPO_ROOT/backend/storage"
@@ -139,6 +142,23 @@ sudo ln -sf /etc/nginx/sites-available/${APP_NAME} /etc/nginx/sites-enabled/
 sudo rm -f /etc/nginx/sites-enabled/default 2>/dev/null || true
 sudo nginx -t && sudo systemctl reload nginx
 
+# --- 7b. Enable HTTPS if certs missing (post-deploy fix) ---
+if [ ! -f /etc/letsencrypt/live/wavelync.com/fullchain.pem ]; then
+  echo "Obtaining SSL certificates (wavelync.com)..."
+  sudo apt-get install -y certbot python3-certbot-nginx 2>/dev/null || true
+  if sudo certbot --nginx -d wavelync.com -d www.wavelync.com --non-interactive --agree-tos --register-unsafely-without-email --expand 2>/dev/null; then
+    echo "HTTPS enabled."
+    ORIGINS="http://localhost,http://127.0.0.1,http://185.229.226.37,https://185.229.226.37,https://wavelync.com,https://www.wavelync.com,http://wavelync.com,http://www.wavelync.com"
+    sudo sed -i "s|ALLOWED_ORIGINS=.*|ALLOWED_ORIGINS=$ORIGINS|" "$REPO_ROOT/backend/.env"
+    # Use production HTTPS config (redirect 80->443)
+    sudo cp "$REPO_ROOT/nginx/nginx-production-https.conf" /etc/nginx/sites-available/${APP_NAME}
+    sudo sed -i "s|root /var/www/buildingsmanager|root $WEB_ROOT|g" /etc/nginx/sites-available/${APP_NAME}
+    sudo nginx -t && sudo systemctl reload nginx
+  else
+    echo "Certbot skipped (DNS may not point to this server). Use scripts/enable_https_wavelync.py when ready."
+  fi
+fi
+
 # --- 8. Systemd service for backend ---
 echo "[7/7] Installing systemd service..."
 sudo tee /etc/systemd/system/assetflow-backend.service > /dev/null << EOF
@@ -183,3 +203,4 @@ echo ""
 echo "  Backend logs:  sudo journalctl -u assetflow-backend -f"
 echo "  Restart:       sudo systemctl restart assetflow-backend"
 echo ""
+

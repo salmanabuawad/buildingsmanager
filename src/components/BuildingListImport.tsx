@@ -251,12 +251,14 @@ export function BuildingListImport() {
 
   return (
     <div className="max-w-4xl mx-auto px-4 py-8">
-      <div className="mb-8 bg-gradient-to-r from-blue-600 to-teal-600 rounded-xl shadow-lg p-6">
+      <div className="mb-8 page-header rounded-xl px-4 py-3">
         <div className="flex items-center gap-3">
-          <Upload className="w-10 h-10 text-white bg-white/20 rounded-lg p-2" />
+          <div className="page-header-icon shrink-0">
+            <Upload className="w-6 h-6" />
+          </div>
           <div>
-            <h1 className="text-3xl font-bold text-white">ייבוא מבנים מקובץ File</h1>
-            <p className="text-blue-50 mt-1">העלה קובץ File כדי לייבא מבנים במרוכז</p>
+            <h1 className="page-header-title text-xl sm:text-2xl font-bold">ייבוא מבנים מקובץ File</h1>
+            <p className="text-white/90 text-sm mt-1">העלה קובץ File כדי לייבא מבנים במרוכז</p>
           </div>
         </div>
       </div>
@@ -271,7 +273,7 @@ export function BuildingListImport() {
         </div>
       )}
 
-      <div className="bg-white rounded-xl shadow-lg border border-blue-100 p-8">
+      <div className="bg-white rounded-xl shadow-lg border border-theme-card-border p-8">
         <div className="mb-8">
           <h2 className="text-xl font-bold text-slate-900 mb-4 flex items-center gap-2">
             <FileText className="h-6 w-6 text-blue-600" />
@@ -313,10 +315,10 @@ export function BuildingListImport() {
           </div>
         </div>
 
-        <div className="space-y-4">
+        <div className="action-bar space-y-2">
           <button
             onClick={downloadTemplate}
-            className="w-full flex items-center justify-center gap-3 px-6 py-4 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-lg hover:from-blue-700 hover:to-indigo-700 transition-all shadow-md hover:shadow-lg"
+            className="w-full btn btn-action btn-primary flex justify-center"
           >
             <Download className="h-5 w-5" />
             <span className="font-semibold">הורד קובץ דוגמה</span>
@@ -332,7 +334,7 @@ export function BuildingListImport() {
           <button
             onClick={() => fileInputRef.current?.click()}
             disabled={isImporting}
-            className="w-full flex items-center justify-center gap-3 px-6 py-4 bg-gradient-to-r from-teal-600 to-blue-600 text-white rounded-lg hover:from-teal-700 hover:to-blue-700 transition-all shadow-md hover:shadow-lg disabled:opacity-50 "
+            className="w-full btn btn-action btn-primary flex justify-center disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {isImporting ? (
               <Loader2 className="h-5 w-5 animate-spin" />
@@ -345,7 +347,7 @@ export function BuildingListImport() {
           </button>
         </div>
 
-        <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+        <div className="mt-6 p-4 bg-theme-highlight border border-theme-card-border rounded-lg">
           <p className="text-sm text-blue-900">
             <strong>טיפ:</strong> לאחר הייבוא, חזור לרשימת המבנים כדי לראות את המבנים החדשים
           </p>

@@ -4624,7 +4624,7 @@ export const api = {
       
       if (error) throw error;
     },
-    getUIConfig: async (): Promise<{ validation_rules_enabled: boolean; validation_mode?: 'off' | 'before_save' | 'online' }> => {
+    getUIConfig: async (): Promise<{ validation_rules_enabled: boolean; validation_mode?: 'off' | 'before_save' | 'online'; theme_id?: 'ocean' | 'mist' }> => {
       const config = await api.systemConfiguration.getByName('ui_config');
       if (config && config.value) {
         try {
@@ -4633,15 +4633,18 @@ export const api = {
             ? configData.validation_mode
             : 'before_save';
           const enabled = configData.validation_rules_enabled ?? (mode !== 'off');
+          const tid = configData.theme_id;
+          const themeId = (tid === 'mist' || tid === 'minimal') ? 'mist' : 'ocean';
           return {
             validation_rules_enabled: enabled,
             validation_mode: mode,
+            theme_id: themeId,
           };
         } catch {
-          return { validation_rules_enabled: false, validation_mode: 'before_save' };
+          return { validation_rules_enabled: false, validation_mode: 'before_save', theme_id: 'ocean' };
         }
       }
-      return { validation_rules_enabled: false, validation_mode: 'before_save' };
+      return { validation_rules_enabled: false, validation_mode: 'before_save', theme_id: 'ocean' };
     },
     getEmailConfig: async (): Promise<any> => {
       const config = await api.systemConfiguration.getByName('email_config');

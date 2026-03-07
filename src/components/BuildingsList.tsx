@@ -3667,7 +3667,7 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="text-center">
-          <Loader2 className="h-12 w-12 text-teal-600 animate-spin mx-auto" />
+          <Loader2 className="h-12 w-12 text-theme-tab-active animate-spin mx-auto" />
           <p className="mt-4 text-slate-700 font-medium">{t('loadingBuildings')}</p>
         </div>
       </div>
@@ -3680,103 +3680,102 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
       {exporting && (
         <div className="fixed inset-0 bg-black bg-opacity-50 z-[9999] flex items-center justify-center" style={{ cursor: 'wait' }}>
           <div className="bg-white rounded-lg p-6 shadow-xl flex flex-col items-center gap-4 min-w-[280px]">
-            <Loader2 className="h-12 w-12 text-teal-600 animate-spin" />
+            <Loader2 className="h-12 w-12 text-theme-tab-active animate-spin" />
             <p className="text-slate-700 font-medium text-lg">שולח נתונים לעירייה</p>
             <p className="text-slate-600 text-sm text-center">{exportProgressMessage || 'מתחיל...'}</p>
           </div>
         </div>
       )}
-      <div className="w-full px-2 sm:px-4 md:px-6 py-2 sm:py-4">
-        <div className="mb-4 bg-gradient-to-r from-teal-600 to-blue-600 rounded-xl shadow-lg p-4">
-          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-3">
-            <img src="/buildings.png" alt="Buildings" className="w-8 h-8 bg-white rounded-lg p-1.5 shadow-sm" />
-            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-4">
-              <h1 className="text-lg sm:text-xl md:text-2xl font-bold text-white">{t('propertyListings')}</h1>
-              <span className="text-xs sm:text-sm text-teal-50 bg-white/20 px-2 sm:px-3 py-1 rounded-lg font-semibold">
-                <span className="font-semibold">סה"כ מבנים:</span> {filteredBuildings.length}
-              </span>
+      <div className="w-full px-2 sm:px-4 md:px-6 py-1.5 sm:py-2">
+        <div className="page-header mb-1.5 rounded-md px-2 py-1.5">
+          <div className="relative flex items-center gap-1.5 flex-wrap">
+            <div className="page-header-icon shrink-0">
+              <img src="/buildings.png" alt="Buildings" className="w-4 h-4" />
             </div>
+            <h1 className="page-header-title text-sm sm:text-base font-bold">{t('propertyListings')}</h1>
+            <span className="page-header-badge">סה"כ מבנים: {filteredBuildings.length}</span>
           </div>
         </div>
 
-        <div className="mb-4">
-          <div className="relative w-full sm:max-w-xs">
+        <div className="mb-1.5 flex flex-wrap items-center gap-2 sm:gap-3">
+          <div className="relative w-full sm:w-auto sm:min-w-[10rem] sm:max-w-[11rem]">
             <input
               type="text"
               value={buildingFilter}
               onChange={(e) => setBuildingFilter(e.target.value)}
               placeholder={t('searchByBuildingNumber')}
-              className="w-full px-4 py-2.5 pr-10 border-2 border-slate-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 text-right text-sm shadow-sm hover:shadow-md hover:border-slate-400 transition-all duration-200"
+              className="w-full px-2.5 py-1.5 pr-8 border border-app-input-border rounded-md focus:ring-2 focus:ring-app-accent focus:border-app-accent text-right text-sm bg-white"
             />
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-slate-400" />
+            <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 h-3.5 w-3.5 text-slate-400" />
           </div>
-        </div>
-
-        <div className="mb-4 flex flex-col sm:flex-row justify-between gap-2 sm:gap-3">
-          <div className="flex gap-2">
-            {!isReadOnly && (
-              <button
-                type="button"
-                onClick={addEmptyBuildingRow}
-                className="flex items-center gap-1.5 px-3 py-1.5 text-sm bg-emerald-500 hover:bg-emerald-600 active:bg-emerald-700 text-white rounded-md transition-all duration-200 shadow-sm hover:shadow-md font-medium"
-              >
-                <Plus className="h-4 w-4" />
-                הוסף מבנה
-              </button>
-            )}
-            <button
-              type="button"
-              onClick={handleValidateAll}
-              className="flex items-center gap-1.5 px-3 py-1.5 text-sm bg-cyan-500 hover:bg-cyan-600 active:bg-cyan-700 text-white rounded-md transition-all duration-200 shadow-sm hover:shadow-md font-medium"
-            >
-              <CheckCircle2 className="h-4 w-4" />
-              אמת הכל
-            </button>
-            <button
-              type="button"
-              onClick={handleExportBuildingsToExcel}
-              disabled={loading || buildings.length === 0}
-              className="flex items-center gap-1.5 px-3 py-1.5 text-sm bg-blue-500 hover:bg-blue-600 active:bg-blue-700 text-white rounded-md transition-all duration-200 shadow-sm hover:shadow-md font-medium disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none"
-              title="ייצא את כל המבנים לקובץ Excel"
-            >
-              <Download className="h-4 w-4" />
-              ייצא ל-Excel
-            </button>
-          </div>
-          {!isReadOnly && (
-            <div className="flex gap-2">
-              <button
-                type="button"
-                onClick={handleCancelAll}
-                className="flex items-center justify-center gap-2 px-4 sm:px-5 py-2.5 text-sm bg-gray-500 hover:bg-gray-600 active:bg-gray-700 text-white rounded-md transition-all duration-200 shadow-sm hover:shadow-md font-semibold w-full sm:w-auto"
-              >
-                <X className="h-4 w-4" />
-                {t('cancel')}
-              </button>
-              <button
-                type="button"
-                onClick={handleSaveAll}
-                disabled={isSaving || totalChanges === 0}
-                className="flex items-center justify-center gap-2 px-4 sm:px-5 py-2.5 text-sm bg-teal-600 hover:bg-teal-700 active:bg-teal-800 text-white rounded-md transition-all duration-200 shadow-sm hover:shadow-md disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none disabled:shadow-none font-semibold w-full sm:w-auto"
-              >
-                {isSaving ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  <Save className="h-4 w-4" />
+          <div className="action-bar flex-1 min-w-0 py-1 px-2">
+            <div className="flex flex-col sm:flex-row justify-end gap-1.5 sm:gap-2">
+              <div className="flex gap-1.5">
+                {!isReadOnly && (
+                  <button
+                    type="button"
+                    onClick={addEmptyBuildingRow}
+                    className="btn btn-action btn-primary"
+                  >
+                    <Plus className="h-5 w-5" />
+                    <span>הוסף מבנה</span>
+                  </button>
                 )}
-                {loading ? t('saving') : `${t('saveAll')}${totalChanges > 0 ? ` (${totalChanges})` : ''}`}
-              </button>
+                <button
+                  type="button"
+                  onClick={handleValidateAll}
+                  className="btn btn-action btn-primary"
+                >
+                  <CheckCircle2 className="h-5 w-5" />
+                  <span>אמת הכל</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={handleExportBuildingsToExcel}
+                  disabled={loading || buildings.length === 0}
+                  className="btn btn-action btn-export"
+                  title="ייצא את כל המבנים לקובץ Excel"
+                >
+                  <Download className="h-5 w-5" />
+                  <span>ייצא ל-Excel</span>
+                </button>
+              </div>
+              {!isReadOnly && (
+                <div className="flex gap-1.5">
+                  <button
+                    type="button"
+                    onClick={handleCancelAll}
+                    className="btn btn-action btn-cancel"
+                  >
+                    <X className="h-5 w-5" />
+                    <span>{t('cancel')}</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleSaveAll}
+                    disabled={isSaving || totalChanges === 0}
+                    className="btn btn-action btn-primary"
+                  >
+                    {isSaving ? (
+                      <Loader2 className="h-5 w-5 animate-spin" />
+                    ) : (
+                      <Save className="h-5 w-5" />
+                    )}
+                    <span>{loading ? t('saving') : `${t('saveAll')}${totalChanges > 0 ? ` (${totalChanges})` : ''}`}</span>
+                  </button>
+                </div>
+              )}
             </div>
-          )}
+          </div>
         </div>
 
-        <div className="bg-white rounded-xl shadow-lg hover:shadow-xl transition-shadow duration-200 overflow-hidden border-2 border-blue-400 w-full">
+        <div className="bg-white rounded-xl shadow-lg hover:shadow-xl transition-shadow duration-200 overflow-hidden border-2 border-theme-action-accent w-full">
           {fieldConfigLoading ? (
-            <div className="flex items-center justify-center" style={{ height: 'calc(100vh - 400px)', minHeight: '300px' }}>
-              <Loader2 className="h-8 w-8 animate-spin text-teal-600" />
+            <div className="flex items-center justify-center" style={{ height: 'calc(100vh - 280px)', minHeight: '400px' }}>
+              <Loader2 className="h-8 w-8 animate-spin text-theme-tab-active" />
             </div>
           ) : (
-          <div className="ag-theme-alpine buildings-list-grid" style={{ height: 'calc(100vh - 400px)', minHeight: '300px', width: '100%', minWidth: '100%', overflowX: 'auto' }}>
+          <div className="ag-theme-alpine buildings-list-grid" style={{ height: 'calc(100vh - 280px)', minHeight: '400px', width: '100%', minWidth: '100%', overflowX: 'auto' }}>
             <AgGridReact
               key={`buildings-grid-${configVersion}`}
               ref={gridRef}
@@ -4089,7 +4088,7 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
               </button>
               <button
                 onClick={handleCreateBuilding}
-                className="flex-1 px-4 py-2 bg-gradient-to-r from-teal-600 to-blue-600 text-white rounded-lg hover:from-teal-700 hover:to-blue-700 transition-all shadow-md hover:shadow-lg"
+                className="flex-1 px-4 py-2 bg-theme-tab-active text-white rounded-lg hover:bg-theme-tab-active-hover transition-all shadow-md hover:shadow-lg"
               >
                 Create
               </button>
@@ -4132,7 +4131,7 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
                 </p>
               </div>
 
-              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+              <div className="bg-theme-highlight border border-theme-card-border rounded-lg p-4">
                 <p className="text-blue-900 text-sm">
                   <strong>פעולה נדרשת:</strong> יש למחוק את הנכסים הרלוונטיים לפני שינוי אזורי המס של המבנה.
                 </p>
@@ -4142,7 +4141,7 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
             <div className="flex justify-end">
               <button
                 onClick={() => setTaxRegionValidationModal(prev => ({ ...prev, isOpen: false }))}
-                className="px-6 py-2 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white rounded-md transition-all duration-200 shadow-sm hover:shadow-md font-medium"
+                className="px-6 py-2 bg-theme-tab-active hover:bg-theme-tab-active-hover active:bg-theme-tab-active-active text-white rounded-md transition-all duration-200 shadow-sm hover:shadow-md font-medium"
               >
                 הבנתי
               </button>

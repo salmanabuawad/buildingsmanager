@@ -1,14 +1,21 @@
 /**
  * Admin: manage inspection tasks (list, create, assign, approve, return).
+ * Uses AG Grid with field_configurations for column layout.
  */
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { createPortal } from 'react-dom';
+import { AgGridReact } from 'ag-grid-react';
+import { ColDef } from 'ag-grid-community';
+import 'ag-grid-community/styles/ag-theme-alpine.css';
 import { inspectionTasksApi, inspectionReportsApi, type InspectionTask } from '../lib/inspectionApi';
 import { api } from '../lib/api';
 import { notifyTaskAssigned, notifyTaskReturned } from '../lib/inspectionTaskNotifications';
 import { getApiBaseUrl } from '../lib/appConfig';
 import { useUserRole } from '../contexts/UserRoleContext';
 import { getSession } from '../lib/usersTableAuth';
+import { useFieldConfig } from '../lib/useFieldConfig';
+import { useFieldConfigVersion } from '../contexts/FieldConfigContext';
+import { processColumnHeader } from '../lib/gridHeaderUtils';
 import {
   ListTodo,
   Plus,
@@ -56,6 +63,12 @@ const HISTORY_ACTION_LABELS: Record<string, string> = {
   returned: 'הוחזרה לפקח',
   approved: 'אושרה',
   cancelled: 'בוטלה',
+};
+
+const PRIORITY_LABELS: Record<string, string> = {
+  high: 'גבוה',
+  medium: 'בינוני',
+  low: 'נמוך',
 };
 
 export function InspectionTasksManager() {
@@ -274,6 +287,153 @@ export function InspectionTasksManager() {
 
   const inspectors = users.filter((u) => u.user_role === 'inspector');
 
+  // Row data for AG Grid (tasks + name lookups from users), newest first
+  type TaskRow = InspectionTask & { assigned_to_name: string; created_by_name: string; approved_by_name: string };
+  const rowData: TaskRow[] = useMemo(() => {
+    const list = (tasks || []).map((t) => {
+      const assignee = users.find((u) => u.user_id === t.assigned_to);
+      const creator = users.find((u) => u.user_id === t.created_by);
+      const approver = users.find((u) => u.user_id === t.approved_by);
+      return {
+        ...t,
+        assigned_to_name: assignee?.user_name ?? '-',
+        created_by_name: creator?.user_name ?? '-',
+        approved_by_name: approver?.user_name ?? '-',
+      };
+    });
+    return [...list].sort((a, b) => {
+      const da = a.created_at ? new Date(a.created_at).getTime() : 0;
+      const db = b.created_at ? new Date(b.created_at).getTime() : 0;
+      return db - da; // newest first
+    });
+  }, [tasks, users]);
+
+  const fmtDate = (v: string | null | undefined) => (v ? new Date(v).toLocaleDateString('he-IL') : '-');
+
+  const configVersion = useFieldConfigVersion();
+  const columnDefs: ColDef<TaskRow>[] = useMemo(() => [
+    { field: 'id', colId: 'id', ...processColumnHeader('מזהה'), editable: false },
+    { field: 'title', colId: 'title', ...processColumnHeader('כותרת'), editable: false },
+    { field: 'building_number', colId: 'building_number', ...processColumnHeader('בניין'), editable: false },
+    {
+      field: 'asset_ids',
+      colId: 'asset_ids',
+      ...processColumnHeader('נכסים'),
+      editable: false,
+      valueFormatter: (p) => {
+        const ids = p.value as number[] | null | undefined;
+        return ids && ids.length > 0 ? ids.join(', ') : 'כל הבניין';
+      },
+    },
+    { field: 'assigned_to_name', colId: 'assigned_to_name', ...processColumnHeader('פקח'), editable: false },
+    {
+      field: 'status',
+      colId: 'status',
+      ...processColumnHeader('סטטוס'),
+      editable: false,
+      valueFormatter: (p) => STATUS_LABELS[p.value ?? ''] ?? p.value,
+    },
+    {
+      field: 'priority',
+      colId: 'priority',
+      ...processColumnHeader('עדיפות'),
+      editable: false,
+      valueFormatter: (p) => PRIORITY_LABELS[p.value ?? ''] ?? p.value ?? '-',
+    },
+    {
+      field: 'created_at',
+      colId: 'created_at',
+      ...processColumnHeader('נוצר'),
+      editable: false,
+      valueFormatter: (p) => fmtDate(p.value),
+    },
+    { field: 'created_by_name', colId: 'created_by_name', ...processColumnHeader('נוצר ע"י'), editable: false },
+    {
+      field: 'updated_at',
+      colId: 'updated_at',
+      ...processColumnHeader('עודכן'),
+      editable: false,
+      valueFormatter: (p) => fmtDate(p.value),
+    },
+    {
+      field: 'taken_at',
+      colId: 'taken_at',
+      ...processColumnHeader('נלקח'),
+      editable: false,
+      valueFormatter: (p) => fmtDate(p.value),
+    },
+    {
+      field: 'submitted_at',
+      colId: 'submitted_at',
+      ...processColumnHeader('הוגש'),
+      editable: false,
+      valueFormatter: (p) => fmtDate(p.value),
+    },
+    {
+      field: 'approved_at',
+      colId: 'approved_at',
+      ...processColumnHeader('אושר'),
+      editable: false,
+      valueFormatter: (p) => fmtDate(p.value),
+    },
+    { field: 'approved_by_name', colId: 'approved_by_name', ...processColumnHeader('אושר ע"י'), editable: false },
+    {
+      field: 'note',
+      colId: 'note',
+      ...processColumnHeader('הערה'),
+      editable: false,
+      wrapText: true,
+    },
+    {
+      colId: 'actions',
+      headerName: 'פעולות',
+      editable: false,
+      pinned: 'right',
+      cellRenderer: (params: { data: TaskRow }) => {
+        const t = params.data;
+        if (!t) return null;
+        return (
+          <div className="flex gap-1 flex-wrap justify-end" dir="rtl" onClick={(e) => e.stopPropagation()}>
+            <button type="button" onClick={() => openDetail(t)} className="text-theme-tab-active hover:underline text-xs">
+              פרטים
+            </button>
+            {t.status === 'pending_approval' && isAdmin && (
+              <>
+                <button
+                  type="button"
+                  onClick={() => handleApprove(t.id)}
+                  disabled={actioningId === t.id}
+                  className="mr-2 text-green-600 hover:underline text-xs disabled:opacity-50"
+                >
+                  {actioningId === t.id ? '...' : 'אישור'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleReturn(t.id, undefined, t)}
+                  disabled={actioningId === t.id}
+                  className="mr-2 text-amber-600 hover:underline text-xs disabled:opacity-50"
+                >
+                  החזר לפקח
+                </button>
+              </>
+            )}
+            {(t.status === 'new' || t.status === 'in_progress' || t.status === 'pending_approval') && isAdmin && (
+              <button
+                type="button"
+                onClick={() => handleCancel(t.id)}
+                disabled={actioningId === t.id}
+                className="text-slate-600 hover:underline text-xs disabled:opacity-50"
+              >
+                {actioningId === t.id ? '...' : 'ביטול'}
+              </button>
+            )}
+          </div>
+        );
+      },
+    },
+  ], [configVersion, actioningId, isAdmin]);
+  const [configuredColumnDefs, fieldConfigLoading] = useFieldConfig(columnDefs, 'inspection-tasks-manager');
+
   const toggleCreateAsset = (assetId: number) => {
     setCreateAssetIds((prev) =>
       prev.includes(assetId) ? prev.filter((id) => id !== assetId) : [...prev, assetId]
@@ -395,9 +555,9 @@ export function InspectionTasksManager() {
   }
 
   return (
-    <div className="p-4 max-w-4xl mx-auto space-y-4" dir="rtl">
+    <div className="p-4 space-y-4" dir="rtl">
       <h1 className="text-xl font-semibold text-slate-800 border-b border-slate-200 pb-2 flex items-center gap-2">
-        <ListTodo className="h-6 w-6 text-indigo-600" />
+        <ListTodo className="h-6 w-6 text-theme-tab-active" />
         ניהול משימות ביקורת
       </h1>
 
@@ -442,7 +602,7 @@ export function InspectionTasksManager() {
                 setCreateAssetIds([]);
                 setCreateOpen(true);
               }}
-              className="flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-sm font-medium"
+              className="flex items-center gap-2 px-4 py-2 bg-theme-tab-active hover:bg-theme-tab-active-hover text-white rounded-lg text-sm font-medium"
             >
               <Plus className="h-4 w-4" />
               משימה חדשה
@@ -454,89 +614,33 @@ export function InspectionTasksManager() {
         </button>
       </div>
 
-      {loading ? (
+      {loading || fieldConfigLoading ? (
         <div className="flex justify-center py-8">
-          <Loader2 className="h-8 w-8 text-indigo-600 animate-spin" />
+          <Loader2 className="h-8 w-8 text-theme-tab-active animate-spin" />
         </div>
       ) : (
-        <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
-          <table className="w-full text-right text-sm">
-            <thead className="bg-slate-100 border-b border-slate-200">
-              <tr>
-                <th className="p-2 font-medium">מזהה</th>
-                <th className="p-2 font-medium">בניין</th>
-                <th className="p-2 font-medium">פקח</th>
-                <th className="p-2 font-medium">סטטוס</th>
-                <th className="p-2 font-medium">נוצר</th>
-                <th className="p-2 font-medium">פעולות</th>
-              </tr>
-            </thead>
-            <tbody>
-              {tasks.length === 0 ? (
-                <tr>
-                  <td colSpan={6} className="p-4 text-slate-500 text-center">
-                    אין משימות
-                  </td>
-                </tr>
-              ) : (
-                tasks.map((t) => {
-                  const assignee = users.find((u) => u.user_id === t.assigned_to);
-                  return (
-                    <tr
-                      key={t.id}
-                      className="border-b border-slate-100 hover:bg-slate-50 cursor-pointer"
-                      onClick={() => openDetail(t)}
-                    >
-                      <td className="p-2">{t.id}</td>
-                      <td className="p-2 font-medium">{t.building_number}</td>
-                      <td className="p-2">{assignee?.user_name ?? '-'}</td>
-                      <td className="p-2">{STATUS_LABELS[t.status] ?? t.status}</td>
-                      <td className="p-2 text-slate-600">{t.created_at ? new Date(t.created_at).toLocaleDateString('he-IL') : '-'}</td>
-                      <td className="p-2" onClick={(e) => e.stopPropagation()}>
-                        <button
-                          type="button"
-                          onClick={() => openDetail(t)}
-                          className="text-indigo-600 hover:underline text-xs"
-                        >
-                          פרטים
-                        </button>
-                        {t.status === 'pending_approval' && isAdmin && (
-                          <>
-                            <button
-                              type="button"
-                              onClick={() => handleApprove(t.id)}
-                              disabled={actioningId === t.id}
-                              className="mr-2 text-green-600 hover:underline text-xs disabled:opacity-50"
-                            >
-                              {actioningId === t.id ? '...' : 'אישור'}
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => handleReturn(t.id, undefined, t)}
-                              disabled={actioningId === t.id}
-                              className="mr-2 text-amber-600 hover:underline text-xs disabled:opacity-50"
-                            >
-                              החזר לפקח
-                            </button>
-                          </>
-                        )}
-                        {(t.status === 'new' || t.status === 'in_progress' || t.status === 'pending_approval') && isAdmin && (
-                          <button
-                            type="button"
-                            onClick={() => handleCancel(t.id)}
-                            disabled={actioningId === t.id}
-                            className="text-slate-600 hover:underline text-xs disabled:opacity-50"
-                          >
-                            {actioningId === t.id ? '...' : 'ביטול'}
-                          </button>
-                        )}
-                      </td>
-                    </tr>
-                  );
-                })
-              )}
-            </tbody>
-          </table>
+        <div className="ag-theme-alpine buildings-list-grid bg-white rounded-xl border border-slate-200 overflow-hidden" style={{ height: 'calc(100vh - 320px)', minHeight: 300, width: '100%', minWidth: '100%', overflowX: 'auto', direction: 'rtl' }}>
+          <AgGridReact<TaskRow>
+            key={`inspection-tasks-grid-${configVersion}`}
+            rowData={rowData}
+            columnDefs={configuredColumnDefs}
+            enableRtl={true}
+            defaultColDef={{
+              resizable: false,
+              wrapHeaderText: true,
+              autoHeaderHeight: true,
+              wrapText: true,
+              autoHeight: false,
+              cellStyle: { textAlign: 'right', fontSize: '16px' },
+              headerClass: 'buildings-list-header',
+              headerStyle: { fontSize: '11px', textAlign: 'right', fontWeight: 'normal' },
+              minWidth: 40,
+            }}
+            suppressColumnVirtualisation
+            suppressMovableColumns
+            onRowClicked={(e) => e.data && openDetail(e.data)}
+            getRowId={(p) => String(p.data?.id ?? '')}
+          />
         </div>
       )}
 
@@ -636,7 +740,7 @@ export function InspectionTasksManager() {
               <button type="button" onClick={() => setCreateOpen(false)} className="px-3 py-2 border border-slate-300 rounded-lg">
                 ביטול
               </button>
-              <button type="button" onClick={handleCreate} disabled={creating} className="px-4 py-2 bg-indigo-600 text-white rounded-lg disabled:opacity-50">
+              <button type="button" onClick={handleCreate} disabled={creating} className="px-4 py-2 bg-theme-tab-active text-white rounded-lg disabled:opacity-50">
                 {creating ? 'יוצר...' : 'צור משימה'}
               </button>
             </div>
@@ -694,7 +798,7 @@ export function InspectionTasksManager() {
                   type="button"
                   onClick={handleUpdateTask}
                   disabled={updatingTask || (editTitle.trim() === (detailTask.title ?? '').trim() && editNote.trim() === (detailTask.note ?? '').trim())}
-                  className="px-3 py-2 bg-indigo-600 text-white rounded-lg text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="px-3 py-2 bg-theme-tab-active text-white rounded-lg text-sm disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {updatingTask ? 'שומר...' : 'שמור שינויים'}
                 </button>
@@ -749,7 +853,7 @@ export function InspectionTasksManager() {
                   )}
                 </div>
                 <div className="flex flex-wrap gap-2">
-                  <label className="px-3 py-2 bg-indigo-100 hover:bg-indigo-200 rounded-lg text-sm cursor-pointer flex items-center gap-1">
+                  <label className="px-3 py-2 bg-theme-highlight hover:bg-theme-highlight/80 rounded-lg text-sm cursor-pointer flex items-center gap-1">
                     <FileUp className="h-4 w-4" />
                     {uploadingDetailFile ? 'מעלה...' : 'מגלריה / קבצים'}
                     <input
@@ -817,7 +921,7 @@ export function InspectionTasksManager() {
                           <li key={f.id} className="flex items-start gap-2 p-2 bg-slate-50 rounded-lg border border-slate-200">
                             <button
                               type="button"
-                              className="flex-shrink-0 w-16 h-16 rounded overflow-hidden bg-slate-200 flex items-center justify-center p-0 border-0 cursor-pointer focus:ring-2 focus:ring-indigo-500 focus:ring-offset-1"
+                              className="flex-shrink-0 w-16 h-16 rounded overflow-hidden bg-slate-200 flex items-center justify-center p-0 border-0 cursor-pointer focus:ring-2 focus:ring-theme-action-accent focus:ring-offset-1"
                               onClick={() => setPreviewModal({ url, name, isVideo: isVideoFile(f) })}
                             >
                               {isVideoFile(f) ? (

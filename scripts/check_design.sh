@@ -36,9 +36,20 @@ else
   echo "  OK"
 fi
 
-# 3. Backend imports
+# 3. No direct db.execute(text) outside repos (use repo pattern)
 echo ""
-echo "[3] Verifying backend imports..."
+echo "[3] Checking no direct raw SQL outside repos..."
+violations=$(grep -rE "db\.execute\s*\(\s*text\s*\(" backend/app --include="*.py" 2>/dev/null | grep -v "repos/" || true)
+if [ -n "$violations" ]; then
+  echo "$violations"
+  ErrorCount=$((ErrorCount + 1))
+else
+  echo "  OK"
+fi
+
+# 4. Backend imports
+echo ""
+echo "[4] Verifying backend imports..."
 if (cd backend && python -c "from app.main import app; print('OK')" 2>/dev/null); then
   echo "  OK"
 else
@@ -47,5 +58,6 @@ fi
 
 echo ""
 echo "=== Done ==="
+echo "Design rule: No direct DB access - use repos. See .cursor/rules/no-direct-db-use-repos.mdc"
 [ $ErrorCount -gt 0 ] && exit 1
 exit 0

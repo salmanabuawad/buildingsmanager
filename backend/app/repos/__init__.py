@@ -1,6 +1,9 @@
 """
 Repository layer: DB access only. No business logic.
-Only repos import db_rpc; all other code uses repos.
+
+Design rule: No direct DB access – all table access goes through repos.
+Routers/services/transactions must not use db.execute(text(...)) or db.query(Model).
+Only repos import db_rpc; all other code uses repos. See .cursor/rules/no-direct-db-use-repos.mdc.
 """
 from app.repos.base_repo import BaseRepo, transaction
 from app.repos.building_repo import BuildingRepo
@@ -15,6 +18,7 @@ from app.repos.inspection_repo import (
 )
 from app.repos.asset_file_repo import AssetFileRepo
 from app.repos.data_repo import DataRepo
+from app.repos.system_config_repo import SystemConfigRepo
 from app.repos.metadata_repo import MetadataRepo
 from app.repos.asset_type_repo import AssetTypeRepo
 from app.repos.user_repo import UserRepo  # ORM-based, for legacy User model
@@ -32,6 +36,7 @@ __all__ = [
     "InspectionTaskAccessTokenRepo",
     "AssetFileRepo",
     "DataRepo",
+    "SystemConfigRepo",
     "MetadataRepo",
     "AssetTypeRepo",
     "UserRepo",

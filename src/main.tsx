@@ -185,14 +185,8 @@ window.addEventListener('unhandledrejection', (event) => {
 
 ModuleRegistry.registerModules([AllCommunityModule]);
 
-// Preload field configurations BEFORE rendering - ensures grids get config on first paint
+// Defer field config load to first use (after login) - they require Bearer auth
 async function bootstrap() {
-  try {
-    const { loadFieldConfigurations } = await import('./lib/fieldConfigUtils');
-    await loadFieldConfigurations();
-  } catch (error) {
-    console.warn('[main] Failed to preload field configurations:', error);
-  }
   createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <UserRoleProvider>

@@ -157,7 +157,7 @@ export function UserManagement() {
             <button
               onClick={() => openPasswordModal(user.user_id)}
               disabled={saving === user.user_id || deleting === user.user_id}
-              className="px-2 py-1 text-xs rounded bg-blue-100 text-blue-800 hover:bg-blue-200 disabled:opacity-50"
+              className="px-2 py-1 text-xs rounded bg-theme-highlight text-theme-tab-active hover:bg-theme-highlight/80 disabled:opacity-50"
               title="שנה סיסמה"
             >
               <Key className="h-3 w-3 inline" /> סיסמה

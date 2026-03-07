@@ -233,7 +233,7 @@ export function AssetFilesModal({ isOpen, onClose, assetId, measurementDate, onF
               <button
                 onClick={handleViewAll}
                 disabled={selectedFiles.size === 0}
-                className="flex items-center gap-1 px-3 py-1.5 text-sm bg-blue-600 hover:bg-blue-700 text-white rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                className="flex items-center gap-1 px-3 py-1.5 text-sm bg-theme-tab-active hover:bg-theme-tab-active-hover text-white rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <Eye className="h-4 w-4" />
                 צפה בנבחרים{selectedFiles.size > 0 ? ` (${selectedFiles.size})` : ''}
@@ -289,7 +289,7 @@ export function AssetFilesModal({ isOpen, onClose, assetId, measurementDate, onF
                       key={file.id}
                       className={`border-2 rounded-lg p-2 cursor-pointer transition-all hover:shadow-lg ${
                         selectedFiles.has(file.id)
-                          ? 'border-blue-500 bg-blue-50'
+                          ? 'border-theme-action-accent bg-theme-highlight'
                           : 'border-gray-200 hover:border-gray-300'
                       }`}
                       onClick={() => handleViewFile(file)}

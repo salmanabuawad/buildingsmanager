@@ -278,7 +278,7 @@ export function AssetStatisticsModal({ isOpen, onClose, assets, assetTypes, buil
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
       <div className="bg-white rounded-lg shadow-2xl w-full max-w-6xl h-[90vh] flex flex-col m-4 transform transition-all">
         {/* Header */}
-        <div className="flex items-center justify-between p-3 border-b border-gray-200 bg-gradient-to-r from-teal-600 to-blue-600 rounded-t-lg flex-shrink-0">
+        <div className="flex items-center justify-between p-3 border-b border-gray-200 bg-gradient-to-r from-theme-tab-active to-theme-action-accent rounded-t-lg flex-shrink-0">
           <div className="flex items-center gap-2">
             <BarChart3 className="h-4 w-4 text-white" />
             <h2 className="text-lg font-bold text-white">סטטיסטיקות נכסים</h2>
@@ -307,7 +307,7 @@ export function AssetStatisticsModal({ isOpen, onClose, assets, assetTypes, buil
               </div>
               <div>
                 <p className="text-xs text-gray-600">סה"כ שטח</p>
-                <p className="text-lg font-bold text-teal-600">
+                <p className="text-lg font-bold text-theme-tab-active">
                   {totalArea.toLocaleString('he-IL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                 </p>
               </div>

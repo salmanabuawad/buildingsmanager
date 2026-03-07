@@ -521,7 +521,7 @@ export function AuditDetailsModal({ isOpen, onClose, actionId }: AuditDetailsMod
         <div className="flex-1 overflow-auto p-4 space-y-4">
           {loading && (
             <div className="flex items-center justify-center py-8">
-              <Loader2 className="h-8 w-8 text-teal-600 animate-spin" />
+              <Loader2 className="h-8 w-8 text-theme-tab-active animate-spin" />
               <span className="mr-2 text-slate-700">טוען...</span>
             </div>
           )}
@@ -571,7 +571,7 @@ export function AuditDetailsModal({ isOpen, onClose, actionId }: AuditDetailsMod
                   {beforeBuildings.length > 0 && (
                     <div className="flex flex-col">
                       <h4 className="text-md font-medium text-slate-600 mb-2">בניינים ({beforeBuildings.length})</h4>
-                      <div className="ag-theme-alpine rounded-xl shadow-lg border border-blue-100" style={{ height: '250px' }}>
+                      <div className="ag-theme-alpine rounded-xl shadow-lg border border-theme-card-border" style={{ height: '250px' }}>
                         <AgGridReact<Building>
                           ref={beforeBuildingGridRef}
                           rowData={beforeBuildings}
@@ -615,7 +615,7 @@ export function AuditDetailsModal({ isOpen, onClose, actionId }: AuditDetailsMod
                   {beforeAssets.length > 0 && (
                     <div className="flex flex-col">
                       <h4 className="text-md font-medium text-slate-600 mb-2">נכסים ({beforeAssets.length})</h4>
-                      <div className="ag-theme-alpine rounded-xl shadow-lg border border-blue-100" style={{ height: '250px' }}>
+                      <div className="ag-theme-alpine rounded-xl shadow-lg border border-theme-card-border" style={{ height: '250px' }}>
                         <AgGridReact<Asset>
                           ref={beforeAssetGridRef}
                           rowData={beforeAssets}
@@ -666,7 +666,7 @@ export function AuditDetailsModal({ isOpen, onClose, actionId }: AuditDetailsMod
                   {afterBuildings.length > 0 && (
                     <div className="flex flex-col">
                       <h4 className="text-md font-medium text-slate-600 mb-2">בניינים ({afterBuildings.length})</h4>
-                      <div className="ag-theme-alpine rounded-xl shadow-lg border border-blue-100" style={{ height: '250px' }}>
+                      <div className="ag-theme-alpine rounded-xl shadow-lg border border-theme-card-border" style={{ height: '250px' }}>
                         <AgGridReact<Building>
                           ref={afterBuildingGridRef}
                           rowData={afterBuildings}
@@ -710,7 +710,7 @@ export function AuditDetailsModal({ isOpen, onClose, actionId }: AuditDetailsMod
                   {afterAssets.length > 0 && (
                     <div className="flex flex-col">
                       <h4 className="text-md font-medium text-slate-600 mb-2">נכסים ({afterAssets.length})</h4>
-                      <div className="ag-theme-alpine rounded-xl shadow-lg border border-blue-100" style={{ height: '250px' }}>
+                      <div className="ag-theme-alpine rounded-xl shadow-lg border border-theme-card-border" style={{ height: '250px' }}>
                         <AgGridReact<Asset>
                           ref={afterAssetGridRef}
                           rowData={afterAssets}
@@ -757,7 +757,7 @@ export function AuditDetailsModal({ isOpen, onClose, actionId }: AuditDetailsMod
                   <h3 className="text-lg font-semibold text-slate-700 mb-2">
                     נכסים מושפעים ({relatedAssets.length})
                   </h3>
-                  <div className="ag-theme-alpine rounded-xl shadow-lg border border-blue-100" style={{ height: '300px' }}>
+                  <div className="ag-theme-alpine rounded-xl shadow-lg border border-theme-card-border" style={{ height: '300px' }}>
                     <AgGridReact<Asset>
                       ref={relatedAssetsGridRef}
                       rowData={relatedAssets}

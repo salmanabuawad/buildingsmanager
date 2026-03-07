@@ -2,15 +2,19 @@ from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, status,
 from fastapi.responses import Response, JSONResponse
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from jose import jwt, JWTError
-from sqlalchemy import text
 from sqlalchemy.orm import Session
 from typing import List, Optional
 from app.database import get_db
-from app.models import AssetFile, User
+from app.models import User
+from app.repos import AssetRepo, AssetFileRepo, SystemConfigRepo
 from app.schemas import AssetFileResponse
-from app.auth import get_current_user, decode_token
+from app.auth import decode_token
 from app.config import settings
 from app import storage
+
+_asset_repo = AssetRepo()
+_asset_file_repo = AssetFileRepo()
+_system_config_repo = SystemConfigRepo()
 import uuid
 import base64
 import hmac
@@ -96,15 +100,12 @@ def _media_type_from_filename(filename: str) -> str:
     return "application/octet-stream"
 
 
-def _get_storage_config_from_db(db: Session) -> Optional[tuple[str, str]]:
+def _get_storage_config() -> Optional[tuple[str, str]]:
     """Return (storage_path, storage_main_folder) from system_configuration name='file_storage', or None."""
     try:
-        row = db.execute(
-            text("SELECT value FROM system_configuration WHERE name = 'file_storage' LIMIT 1")
-        ).fetchone()
-        if not row:
+        raw = _system_config_repo.get_value_by_name("file_storage")
+        if not raw:
             return None
-        raw = row[0] if isinstance(row, (tuple, list)) else row
         data = json.loads(raw) if isinstance(raw, str) else raw
         if isinstance(data, dict):
             path = data.get("storage_path") or data.get("STORAGE_PATH")
@@ -116,9 +117,9 @@ def _get_storage_config_from_db(db: Session) -> Optional[tuple[str, str]]:
     return None
 
 
-def _apply_storage_config(db: Session) -> bool:
+def _apply_storage_config(db: Optional[Session] = None) -> bool:
     """Apply storage location from system_configuration if present. Return True if storage is configured."""
-    config = _get_storage_config_from_db(db)
+    config = _get_storage_config()
     if config:
         storage.configure_storage(path=config[0], main_folder=config[1])
         return True
@@ -127,7 +128,7 @@ def _apply_storage_config(db: Session) -> bool:
 
 
 def _ensure_storage(db: Optional[Session] = None):
-    if db is not None and _apply_storage_config(db):
+    if _apply_storage_config():
         return
     if settings.has_storage:
         storage.configure_storage(path=None, main_folder=None)
@@ -214,9 +215,7 @@ async def upload_file(
     if getattr(current_user, "role", None) not in ("admin", "editor", "user", "inspector"):
         raise HTTPException(status_code=403, detail="Insufficient permissions")
 
-    # Verify asset exists (raw SQL: DB has assets.asset_id, not assets.id/building_id)
-    row = db.execute(text("SELECT 1 FROM assets WHERE asset_id = :aid"), {"aid": asset_id}).first()
-    if not row:
+    if not _asset_repo.exists(asset_id):
         raise HTTPException(status_code=404, detail="Asset not found")
 
     # Ref-like: use client path as blob path when provided (assetId/filename)
@@ -238,19 +237,23 @@ async def upload_file(
 
         if do_db_insert:
             file_type = (file.content_type or "").strip() or _media_type_from_filename(file.filename or "")
-            db_file = AssetFile(
+            fname = file.filename or (blob_path.split("/")[-1] if "/" in blob_path else blob_path)
+            mdate = datetime.fromisoformat(measurement_date) if measurement_date else None
+            mdate_str = mdate.isoformat() if mdate else None
+            uid = getattr(current_user, "id", None)
+            uid_str = str(uid) if uid else None
+            row = _asset_file_repo.create_for_files(
                 asset_id=asset_id,
-                file_name=file.filename or (blob_path.split("/")[-1] if "/" in blob_path else blob_path),
-                file_path=blob_path,
+                file_url=blob_path,
+                file_name=fname,
                 file_type=file_type or None,
                 file_size=len(file_content),
-                measurement_date=datetime.fromisoformat(measurement_date) if measurement_date else None,
-                uploaded_by=getattr(current_user, "id", None)
+                measurement_date=mdate_str,
+                uploaded_by=uid_str,
             )
-            db.add(db_file)
-            db.commit()
-            db.refresh(db_file)
-            return db_file
+            if row:
+                row["file_path"] = row.get("file_url") or blob_path
+                return row
 
         base = str(request.base_url).rstrip("/")
         public_url = f"{base}/api/files/download?path={quote(blob_path, safe='')}"
@@ -267,8 +270,13 @@ def get_asset_files(
     db: Session = Depends(get_db),
     current_user = Depends(get_current_user_for_files),
 ):
-    files = db.query(AssetFile).filter(AssetFile.asset_id == asset_id).all()
-    return files
+    rows = _asset_file_repo.get_by_asset_id(asset_id)
+    out = []
+    for r in rows:
+        r = dict(r)
+        r["file_path"] = r.get("file_path") or r.get("file_url") or ""
+        out.append(AssetFileResponse.model_validate(r))
+    return out
 
 
 @router.delete("/{file_id}", status_code=status.HTTP_204_NO_CONTENT)
@@ -280,70 +288,33 @@ def delete_file(
     if getattr(current_user, "role", None) not in ("admin", "editor", "user", "inspector"):
         raise HTTPException(status_code=403, detail="Insufficient permissions")
 
-    db_file = db.query(AssetFile).filter(AssetFile.id == file_id).first()
+    db_file = _asset_file_repo.get_by_id(file_id)
     if not db_file:
         raise HTTPException(status_code=404, detail="File not found")
 
     try:
         _ensure_storage(db)
-        storage.delete_file(db_file.file_path)
-
-        # Delete from database
-        db.delete(db_file)
-        db.commit()
+        file_path = db_file.get("file_path") or db_file.get("file_url") or ""
+        storage.delete_file(file_path)
+        _asset_file_repo.delete_by_id(file_id)
         return None
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"File deletion failed: {str(e)}")
 
 
-def _filename_for_response(db: Session, blob_path: str) -> str:
-    """Prefer stored file_name from asset_files (match by file_path or file_url); else basename of blob_path."""
-    try:
-        row = db.query(AssetFile).filter(AssetFile.file_path == blob_path).first()
-        if row and getattr(row, "file_name", None) and "/" not in (row.file_name or "") and "\\" not in (row.file_name or ""):
-            return (row.file_name or "").strip()
-        # Table may have file_url instead of file_path; look up by path in URL
-        r = db.execute(
-            text("SELECT file_name FROM asset_files WHERE file_path = :p OR file_url LIKE :pat LIMIT 1"),
-            {"p": blob_path, "pat": f"%{blob_path}%"},
-        ).first()
-        if r and r[0] and "/" not in (r[0] or "") and "\\" not in (r[0] or ""):
-            return (r[0] or "").strip()
-    except Exception:
-        pass
-    return blob_path.split("/")[-1] if "/" in blob_path else blob_path
+def _filename_for_response(blob_path: str) -> str:
+    """Prefer stored file_name from asset_files (match by file_url); else basename of blob_path."""
+    fname = _asset_file_repo.get_filename_for_blob_path(blob_path)
+    return fname if fname else (blob_path.split("/")[-1] if "/" in blob_path else blob_path)
 
 
-def _file_meta_for_response(db: Session, blob_path: str) -> tuple[str, str]:
-    """Return (filename, media_type) for response; use stored file_name and file_type from asset_files when present.
-    Table may have file_url (not file_path); match by file_url containing the path."""
-    filename = blob_path.split("/")[-1] if "/" in blob_path else blob_path
-    media_type = _media_type_from_filename(filename)
-    pat = f"%{blob_path}%"
-    try:
-        # Prefer lookup by file_url (table often has file_url; path appears in URL as ...?path=... or .../path)
-        r = db.execute(
-            text("SELECT file_name, file_type FROM asset_files WHERE file_url LIKE :pat LIMIT 1"),
-            {"pat": pat},
-        ).first()
-        if r and r[0] and "/" not in (str(r[0]) or "") and "\\" not in (str(r[0]) or ""):
-            filename = (str(r[0]) or "").strip()
-        if r and len(r) > 1 and r[1] and "/" in (str(r[1] or "")):
-            media_type = (str(r[1]) or "").strip()
-    except Exception:
-        try:
-            row = db.query(AssetFile).filter(AssetFile.file_path == blob_path).first()
-            if row:
-                if getattr(row, "file_name", None) and "/" not in (row.file_name or "") and "\\" not in (row.file_name or ""):
-                    filename = (row.file_name or "").strip()
-                if getattr(row, "file_type", None) and (row.file_type or "").strip():
-                    mt = (row.file_type or "").strip()
-                    if "/" in mt and mt.count("/") == 1:
-                        media_type = mt
-        except Exception:
-            pass
-    return filename, media_type or _media_type_from_filename(filename)
+def _file_meta_for_response(blob_path: str) -> tuple[str, str]:
+    """Return (filename, media_type) for response; use stored file_name and file_type from asset_files when present."""
+    filename, media_type = _asset_file_repo.get_file_meta_for_blob_path(blob_path)
+    if not media_type or media_type == "application/octet-stream":
+        media_type = _media_type_from_filename(filename)
+    return filename, media_type
 
 
 @router.get("/download")
@@ -361,7 +332,7 @@ def get_file_by_path(
     try:
         _ensure_storage(db)
         content = storage.read_file(blob_path)
-        filename, media_type = _file_meta_for_response(db, blob_path)
+        filename, media_type = _file_meta_for_response(blob_path)
         return Response(
             content=content,
             media_type=media_type,
@@ -390,7 +361,7 @@ def get_file_view(
     try:
         _ensure_storage(db)
         content = storage.read_file(blob_path)
-        filename, media_type = _file_meta_for_response(db, blob_path)
+        filename, media_type = _file_meta_for_response(blob_path)
         return Response(
             content=content,
             media_type=media_type,
@@ -465,13 +436,15 @@ def get_file_url(
     db: Session = Depends(get_db),
     current_user = Depends(get_current_user_for_files),
 ):
-    db_file = db.query(AssetFile).filter(AssetFile.id == file_id).first()
+    db_file = _asset_file_repo.get_by_id(file_id)
     if not db_file:
         raise HTTPException(status_code=404, detail="File not found")
     _ensure_storage(db)
     base = str(request.base_url).rstrip("/")
-    download_url = f"{base}/api/files/download?path={db_file.file_path}"
-    return {"url": download_url, "filename": db_file.file_name}
+    file_path = db_file.get("file_path") or db_file.get("file_url") or ""
+    file_name = db_file.get("file_name") or ""
+    download_url = f"{base}/api/files/download?path={file_path}"
+    return {"url": download_url, "filename": file_name}
 
 
 # Signed URL route: /storage/v1/object/sign/{bucket}/{file_path}?token=JWT (no auth)
@@ -499,7 +472,7 @@ def get_file_signed(
     try:
         _ensure_storage(db)
         content = storage.read_file(blob_path)
-        filename, media_type = _file_meta_for_response(db, blob_path)
+        filename, media_type = _file_meta_for_response(blob_path)
         return Response(
             content=content,
             media_type=media_type,

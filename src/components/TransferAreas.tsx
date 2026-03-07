@@ -2084,7 +2084,7 @@ export const TransferAreas = forwardRef<TransferAreasRef, TransferAreasProps>(({
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="text-center">
-          <Loader2 className="h-12 w-12 text-teal-600 animate-spin mx-auto" />
+          <Loader2 className="h-12 w-12 text-theme-tab-active animate-spin mx-auto" />
           <p className="mt-4 text-slate-700 font-medium">{t('loading')}</p>
         </div>
       </div>
@@ -2093,14 +2093,14 @@ export const TransferAreas = forwardRef<TransferAreasRef, TransferAreasProps>(({
 
   return (
     <div className="max-w-7xl mx-auto px-2 sm:px-4 py-3">
-      <div className="mb-3 bg-gradient-to-r from-purple-600 to-indigo-600 rounded-lg shadow-lg p-2">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3 flex-wrap">
-            <BuildingIcon className="w-7 h-7 text-white" />
-            <h1 className="text-lg sm:text-xl font-bold text-white">
-              העברת שטחים - מבנה {building?.building_number}
-            </h1>
+      <div className="page-header mb-2 rounded-lg px-3 py-2">
+        <div className="flex items-center gap-2">
+          <div className="page-header-icon shrink-0">
+            <BuildingIcon className="w-5 h-5" />
           </div>
+          <h1 className="page-header-title text-sm sm:text-base font-bold">
+            העברת שטחים - מבנה {building?.building_number}
+          </h1>
         </div>
       </div>
 
@@ -2116,7 +2116,7 @@ export const TransferAreas = forwardRef<TransferAreasRef, TransferAreasProps>(({
         </div>
       )}
 
-      <div className="mb-2 flex justify-end gap-2">
+      <div className="mb-2 action-bar flex justify-end gap-2">
         <button
           onClick={async () => {
             if (!assets || assets.length === 0) {
@@ -2155,36 +2155,36 @@ export const TransferAreas = forwardRef<TransferAreasRef, TransferAreasProps>(({
               setToast({ message: 'שגיאה בייצוא לקובץ Excel', type: 'error' });
             }
           }}
-          className="flex items-center gap-1.5 px-3 py-1.5 text-sm bg-teal-500 hover:bg-teal-600 active:bg-teal-700 text-white rounded-md transition-all duration-200 shadow-sm hover:shadow-md font-medium"
+          className="btn btn-action btn-export"
           title="ייצא ל-Excel"
         >
-          <Download className="h-4 w-4" />
-          ייצא ל-Excel
+          <Download className="h-5 w-5" />
+          <span>ייצא ל-Excel</span>
         </button>
         <button
           onClick={handleCancelAll}
           disabled={loading || !hasChanges}
-          className="flex items-center gap-1.5 px-3 py-1.5 text-sm bg-slate-500 hover:bg-slate-600 active:bg-slate-700 text-white rounded-md transition-all duration-200 shadow-sm hover:shadow-md disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none font-medium"
+          className="btn btn-action btn-cancel disabled:opacity-50 disabled:cursor-not-allowed"
         >
-          <X className="h-4 w-4" />
-          ביטול
+          <X className="h-5 w-5" />
+          <span>ביטול</span>
         </button>
         <button
           onClick={handleOpenSaveAsNewMeasurementModal}
           disabled={loading || !hasChanges}
-          className="flex items-center gap-1.5 px-3 py-1.5 text-sm bg-teal-500 hover:bg-teal-600 active:bg-teal-700 text-white rounded-md transition-all duration-200 shadow-sm hover:shadow-md disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none font-medium"
+          className="btn btn-action btn-primary disabled:opacity-50 disabled:cursor-not-allowed"
           title={!hasChanges ? 'אין שינויים לשמירה' : 'שמור כמדידות חדשות (הרשומות הישנות יעברו להיסטוריה)'}
         >
           {loading ? (
-            <Loader2 className="h-4 w-4 animate-spin" />
+            <Loader2 className="h-5 w-5 animate-spin" />
           ) : (
-            <Copy className="h-4 w-4" />
+            <Copy className="h-5 w-5" />
           )}
-          {loading ? 'שומר...' : `שמור כמדידות חדשות${hasChanges ? ` (${dirtyAssets.size})` : ''}${validationErrors.size > 0 ? ` - ${validationErrors.size} שגיאות` : ''}`}
+          <span>{loading ? 'שומר...' : `שמור כמדידות חדשות${hasChanges ? ` (${dirtyAssets.size})` : ''}${validationErrors.size > 0 ? ` - ${validationErrors.size} שגיאות` : ''}`}</span>
         </button>
       </div>
 
-      <div className="bg-white rounded-xl shadow-lg hover:shadow-xl transition-shadow duration-200 border border-blue-100">
+      <div className="bg-white rounded-xl shadow-lg hover:shadow-xl transition-shadow duration-200 border border-theme-card-border">
         <div className="p-3">
           <div className="ag-theme-alpine" style={{ width: '100%', minWidth: '100%', height: '50vh', direction: 'ltr', overflowX: 'auto' }}>
             <AgGridReact<Asset>
@@ -2333,7 +2333,7 @@ export const TransferAreas = forwardRef<TransferAreasRef, TransferAreasProps>(({
                   if (add999AssetPersistentError) setAdd999AssetPersistentError(null);
                 }}
                 placeholder="הזן מזהה נכס"
-                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent text-right"
+                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-theme-action-accent focus:border-transparent text-right"
                 autoFocus
               />
             </div>
@@ -2353,7 +2353,7 @@ export const TransferAreas = forwardRef<TransferAreasRef, TransferAreasProps>(({
                   if (add999AssetPersistentError) setAdd999AssetPersistentError(null);
                 }}
                 placeholder=""
-                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent text-right"
+                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-theme-action-accent focus:border-transparent text-right"
               />
               {missingSize > 0 && (
                 <p className="mt-1 text-xs text-slate-500">
@@ -2372,7 +2372,7 @@ export const TransferAreas = forwardRef<TransferAreasRef, TransferAreasProps>(({
                 onChange={(e) => setNew999AssetComment(e.target.value)}
                 placeholder="הזן הערה שתתווסף לכל הנכסים בפעולת ההעברה"
                 rows={3}
-                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent text-right resize-none"
+                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-theme-action-accent focus:border-transparent text-right resize-none"
               />
             </div>
 
@@ -2403,7 +2403,7 @@ export const TransferAreas = forwardRef<TransferAreasRef, TransferAreasProps>(({
               <button
                 onClick={handleSave999Asset}
                 disabled={!new999AssetId || !new999AssetSize}
-                className="flex items-center gap-1.5 px-3 py-1.5 text-sm bg-teal-500 hover:bg-teal-600 text-white rounded-md transition-all shadow-sm hover:shadow disabled:opacity-50 disabled:cursor-not-allowed font-medium"
+                className="flex items-center gap-1.5 px-3 py-1.5 text-sm bg-theme-tab-active hover:bg-theme-tab-active-hover text-white rounded-md transition-all shadow-sm hover:shadow disabled:opacity-50 disabled:cursor-not-allowed font-medium"
               >
                 <Plus className="h-4 w-4" />
                 הוסף
@@ -2476,7 +2476,7 @@ export const TransferAreas = forwardRef<TransferAreasRef, TransferAreasProps>(({
                   setNewMeasurementDate(value);
                 }}
                 placeholder="DD/MM/YYYY"
-                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent text-right"
+                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-theme-action-accent focus:border-transparent text-right"
                 maxLength={10}
               />
               <p className="mt-1 text-xs text-slate-500">
@@ -2502,7 +2502,7 @@ export const TransferAreas = forwardRef<TransferAreasRef, TransferAreasProps>(({
               <button
                 onClick={handleSaveAsNewMeasurements}
                 disabled={loading}
-                className="flex items-center gap-1.5 px-3 py-1.5 text-sm bg-teal-500 hover:bg-teal-600 active:bg-teal-700 disabled:bg-gray-400  text-white rounded-md transition-all duration-200 shadow-sm hover:shadow-md disabled:shadow-none font-medium"
+                className="flex items-center gap-1.5 px-3 py-1.5 text-sm bg-theme-tab-active hover:bg-theme-tab-active-hover active:bg-theme-tab-active-active disabled:bg-gray-400  text-white rounded-md transition-all duration-200 shadow-sm hover:shadow-md disabled:shadow-none font-medium"
               >
                 {loading ? (
                   <Loader2 className="h-4 w-4 animate-spin" />

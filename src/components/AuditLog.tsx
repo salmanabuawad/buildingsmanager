@@ -351,7 +351,7 @@ export function AuditLog() {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="text-center">
-          <Loader2 className="h-12 w-12 text-teal-600 animate-spin mx-auto" />
+          <Loader2 className="h-12 w-12 text-theme-tab-active animate-spin mx-auto" />
           <p className="mt-4 text-slate-700 font-medium">טוען יומן ביקורת...</p>
         </div>
       </div>
@@ -380,7 +380,7 @@ export function AuditLog() {
         <h1 className="text-2xl font-bold text-slate-800">יומן ביקורת</h1>
         <button
           onClick={loadAuditLogs}
-          className="flex items-center gap-2 px-4 py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700 transition-colors"
+          className="flex items-center gap-2 px-4 py-2 bg-teal-600 text-white rounded-lg hover:bg-theme-tab-active-hover transition-colors"
         >
           <RefreshCw className="h-4 w-4" />
           רענן
@@ -390,7 +390,7 @@ export function AuditLog() {
       {/* Master Grid - After Update Data */}
       <div className="flex-1 flex flex-col">
         <h2 className="text-lg font-semibold text-slate-700 mb-2">נתונים אחרי עדכון</h2>
-        <div className="ag-theme-alpine rounded-xl shadow-lg border border-blue-100 flex-1" style={{ minHeight: '300px' }}>
+        <div className="ag-theme-alpine rounded-xl shadow-lg border border-theme-card-border flex-1" style={{ minHeight: '300px' }}>
           <AgGridReact<AuditLogType>
             ref={masterGridRef}
             rowData={masterData}
@@ -437,7 +437,7 @@ export function AuditLog() {
       {selectedRow && selectedRow.before_data && (
         <div className="flex-1 flex flex-col">
           <h2 className="text-lg font-semibold text-slate-700 mb-2">נתונים לפני עדכון</h2>
-          <div className="ag-theme-alpine rounded-xl shadow-lg border border-blue-100 flex-1" style={{ minHeight: '300px' }}>
+          <div className="ag-theme-alpine rounded-xl shadow-lg border border-theme-card-border flex-1" style={{ minHeight: '300px' }}>
             <AgGridReact<any>
               ref={detailGridRef}
               rowData={detailData}

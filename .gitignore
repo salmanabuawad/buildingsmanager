@@ -21,6 +21,10 @@ dist-ssr
 *.sln
 *.sw?
 .env
+.deploy-db-password
+
+# Backend storage (uploads, etc.)
+backend/storage
 
 # Backend lite queue (SQLite)
 backend/queue_lite.db

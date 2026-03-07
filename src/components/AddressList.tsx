@@ -614,7 +614,7 @@ export function AddressListComponent() {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-teal-600 mx-auto"></div>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-theme-tab-active mx-auto"></div>
           <p className="mt-4 text-slate-700 font-medium">{t('loading')}</p>
         </div>
       </div>
@@ -623,15 +623,15 @@ export function AddressListComponent() {
 
   return (
     <div className="max-w-5xl mx-auto px-4 py-3">
-      <div className="mb-3 bg-gradient-to-r from-blue-600 to-teal-600 rounded-lg shadow-lg p-2">
+      <div className="page-header mb-2 rounded-lg px-3 py-2">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <MapPin className="w-7 h-7 text-white bg-white/20 rounded-lg p-1" />
-            <h1 className="text-lg sm:text-xl font-bold text-white">רשימת כתובות</h1>
+            <div className="page-header-icon shrink-0">
+              <MapPin className="w-5 h-5" />
+            </div>
+            <h1 className="page-header-title text-sm sm:text-base font-bold">רשימת כתובות</h1>
           </div>
-          <div className="text-white text-sm font-medium">
-            {addresses.length} רשומות
-          </div>
+          <span className="page-header-badge">{addresses.length} רשומות</span>
         </div>
       </div>
 
@@ -675,25 +675,25 @@ export function AddressListComponent() {
       )}
 
       {isImporting && importProgress && (
-        <div className="mb-6 p-4 bg-blue-50 rounded-lg border border-blue-200">
+        <div className="mb-6 p-4 bg-theme-highlight rounded-lg border border-theme-card-border">
           <div className="flex items-center justify-between mb-2">
-            <span className="text-sm font-medium text-blue-900">
+            <span className="text-sm font-medium text-theme-tab-active-hover">
               מייבא... {importProgress.current} מתוך {importProgress.total}
             </span>
-            <span className="text-sm font-medium text-blue-700">
+            <span className="text-sm font-medium text-theme-tab-active">
               {importProgress.percentage}%
             </span>
           </div>
-          <div className="w-full bg-blue-200 rounded-full h-2.5">
+          <div className="w-full bg-theme-action-accent/30 rounded-full h-2.5">
             <div
-              className="bg-blue-600 h-2.5 rounded-full transition-all duration-300 ease-out"
+              className="bg-theme-tab-active h-2.5 rounded-full transition-all duration-300 ease-out"
               style={{ width: `${importProgress.percentage}%` }}
             />
           </div>
         </div>
       )}
 
-      <div className="bg-white rounded-xl shadow-lg border border-blue-100 p-6 mb-6">
+      <div className="bg-white rounded-xl shadow-lg border border-theme-card-border p-6 mb-6">
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center gap-3">
             <h2 className="text-xl font-bold text-slate-900">רשימת כתובות</h2>
@@ -701,7 +701,7 @@ export function AddressListComponent() {
               סך הכל: {addresses.length} כתובות
             </span>
           </div>
-          <div className="flex gap-2">
+          <div className="action-bar flex justify-end gap-2">
             <input
               ref={fileInputRef}
               type="file"
@@ -711,33 +711,32 @@ export function AddressListComponent() {
             />
             <button
               onClick={handleExportToExcel}
-              className="flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 text-white rounded-md transition-all duration-200 shadow-sm hover:shadow-md"
+              className="btn btn-action btn-export"
               title="ייצא נתונים ל-Excel"
             >
               <Download className="h-5 w-5" />
               <span className="hidden sm:inline">ייצא ל-Excel</span>
             </button>
-            <div className="flex items-center">
-              <button
-                onClick={() => handleExportTemplate('excel')}
-                className="flex items-center gap-2 px-4 py-2 bg-teal-600 hover:bg-teal-700 active:bg-teal-800 text-white rounded-l-md rounded-r-none transition-all duration-200 shadow-sm hover:shadow-md border-r-2 border-teal-500"
-                title="הורד תבנית לקובץ Excel"
-              >
-                <Download className="h-5 w-5" />
-                <span className="hidden sm:inline">הורד תבנית</span>
-              </button>
-              <button
-                onClick={() => handleExportTemplate('csv')}
-                className="flex items-center justify-center min-w-[50px] px-3 py-2 bg-teal-600 hover:bg-teal-700 active:bg-teal-800 text-white rounded-r-md rounded-l-none transition-all duration-200 shadow-sm hover:shadow-md text-sm font-medium whitespace-nowrap"
-                title="הורד תבנית CSV"
-              >
-                CSV
-              </button>
-            </div>
+            <button
+              onClick={() => handleExportTemplate('excel')}
+              className="btn btn-action btn-secondary"
+              title="הורד תבנית לקובץ Excel"
+            >
+              <Download className="h-5 w-5" />
+              <span className="hidden sm:inline">הורד תבנית</span>
+            </button>
+            <button
+              onClick={() => handleExportTemplate('csv')}
+              className="btn btn-action btn-secondary"
+              title="הורד תבנית CSV"
+            >
+              <Download className="h-5 w-5" />
+              <span>CSV</span>
+            </button>
             <button
               onClick={() => fileInputRef.current?.click()}
               disabled={isImporting}
-              className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white rounded-md transition-all duration-200 shadow-sm hover:shadow-md disabled:opacity-50 disabled:shadow-none"
+              className="btn btn-action btn-primary disabled:opacity-50 disabled:shadow-none"
             >
               <Upload className="h-5 w-5" />
               <span className="hidden sm:inline">{isImporting ? t('loading') : 'ייבא קובץ'}</span>
@@ -746,26 +745,26 @@ export function AddressListComponent() {
         </div>
 
         {/* Save All / Cancel buttons */}
-        <div className="mb-4 flex flex-col sm:flex-row justify-end gap-2 sm:gap-3">
+        <div className="mb-4 action-bar flex flex-col sm:flex-row justify-end gap-2 sm:gap-3">
           <button
             onClick={handleCancelAll}
             disabled={isSaving || (dirtyAddresses.size === 0 && deletedAddresses.size === 0)}
-            className="flex items-center justify-center gap-2 px-4 sm:px-5 py-2.5 text-sm bg-gray-500 hover:bg-gray-600 active:bg-gray-700 text-white rounded-md transition-all duration-200 shadow-sm hover:shadow-md disabled:opacity-50  disabled:shadow-none font-semibold w-full sm:w-auto"
+            className="btn btn-action btn-cancel disabled:opacity-50 disabled:cursor-not-allowed w-full sm:w-auto"
           >
-            <X className="h-4 w-4" />
-            {t('cancel')}
+            <X className="h-5 w-5" />
+            <span>{t('cancel')}</span>
           </button>
           <button
             onClick={handleSaveAll}
             disabled={isSaving || (dirtyAddresses.size === 0 && deletedAddresses.size === 0)}
-            className="flex items-center justify-center gap-2 px-4 sm:px-5 py-2.5 text-sm bg-teal-600 hover:bg-teal-700 active:bg-teal-800 text-white rounded-md transition-all duration-200 shadow-sm hover:shadow-md disabled:opacity-50  disabled:shadow-none font-semibold w-full sm:w-auto"
+            className="btn btn-action btn-primary disabled:opacity-50 disabled:cursor-not-allowed w-full sm:w-auto"
           >
             {isSaving ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
+              <Loader2 className="h-5 w-5 animate-spin" />
             ) : (
-              <Save className="h-4 w-4" />
+              <Save className="h-5 w-5" />
             )}
-            {isSaving ? 'שומר...' : `שמור הכל${dirtyAddresses.size + deletedAddresses.size > 0 ? ` (${dirtyAddresses.size + deletedAddresses.size})` : ''}`}
+            <span>{isSaving ? 'שומר...' : `שמור הכל${dirtyAddresses.size + deletedAddresses.size > 0 ? ` (${dirtyAddresses.size + deletedAddresses.size})` : ''}`}</span>
           </button>
         </div>
 

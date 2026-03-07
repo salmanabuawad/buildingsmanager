@@ -277,7 +277,7 @@ export function RowEditModal({ isOpen, onClose, rowData, assetTypes, operators =
                   type="checkbox"
                   checked={formData.penthouse === true}
                   onChange={(e) => handleFieldChange('penthouse', e.target.checked ? true : false)}
-                  className="w-4 h-4 text-blue-600 rounded focus:ring-2 focus:ring-blue-500 cursor-pointer"
+                  className="w-4 h-4 text-theme-tab-active rounded focus:ring-2 focus:ring-theme-action-accent cursor-pointer"
                 />
                 <span className="mr-2 text-sm text-slate-600">כן</span>
               </div>
@@ -467,7 +467,7 @@ export function RowEditModal({ isOpen, onClose, rowData, assetTypes, operators =
           </button>
           <button
             onClick={handleSave}
-            className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white rounded-md transition-all duration-200 shadow-sm hover:shadow-md font-medium"
+            className="flex items-center gap-2 px-4 py-2 bg-theme-tab-active hover:bg-theme-tab-active-hover active:bg-theme-tab-active-active text-white rounded-md transition-all duration-200 shadow-sm hover:shadow-md font-medium"
           >
             <Save className="h-4 w-4" />
             אישור

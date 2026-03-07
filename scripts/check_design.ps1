@@ -44,8 +44,16 @@ if ($LASTEXITCODE -ne 0 -or $out -notmatch "OK") {
     $ErrorCount++
 } else { Write-Host "  OK" -ForegroundColor Green }
 
-# 4. Protected routes have auth (sample check on rest_operations)
-Write-Host "`n[4] Checking rest_operations has auth (Depends)..." -ForegroundColor Yellow
+# 4. No direct db.execute(text) outside repos (use repo pattern)
+Write-Host "`n[4] Checking no direct raw SQL outside repos..." -ForegroundColor Yellow
+$violations = Select-String -Path "backend\app\routers\*.py", "backend\app\*.py", "backend\app\services\*.py", "backend\app\transactions\*.py", "backend\app\auth.py" -Pattern "db\.execute\s*\(\s*text\s*\(" -ErrorAction SilentlyContinue
+if ($violations) {
+    $violations | ForEach-Object { Write-Host "  VIOLATION: $($_.Path):$($_.LineNumber) - direct db.execute(text)" -ForegroundColor Red }
+    $ErrorCount++
+} else { Write-Host "  OK" -ForegroundColor Green }
+
+# 5. Protected routes have auth (sample check on rest_operations)
+Write-Host "`n[5] Checking rest_operations has auth (Depends)..." -ForegroundColor Yellow
 $hasDepends = Select-String -Path "backend\app\routers\rest_operations.py" -Pattern "Depends\(get_current_user_users_table\)" -Quiet
 if (-not $hasDepends) {
     Write-Host "  WARN: rest_operations may lack auth dependency" -ForegroundColor DarkYellow

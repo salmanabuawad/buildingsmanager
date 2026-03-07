@@ -37,10 +37,12 @@ npm run build
 
 | Layer | Location | Does | Does NOT |
 |-------|----------|------|----------|
-| **Router** | `routers/` | Parse request, call service, return HTTP | Business logic, SQL |
-| **Service** | `services/` | Orchestrate, validate, call transaction/repo | Raw SQL, HTTP details |
-| **Transaction** | `transactions/` | Multi-step DB work, call repos | db_rpc directly |
+| **Router** | `routers/` | Parse request, call service, return HTTP | Business logic, SQL, direct DB |
+| **Service** | `services/` | Orchestrate, validate, call transaction/repo | Raw SQL, HTTP details, direct DB |
+| **Transaction** | `transactions/` | Multi-step DB work, call repos | db_rpc directly, db.query() |
 | **Repo** | `repos/` | SQL via BaseRepo (db_rpc) | Skip repos |
+
+**No direct DB access** – All table access goes through repos. No `db.execute(text(...))` or `db.query(Model)` outside repos. See `.cursor/rules/no-direct-db-use-repos.mdc`.
 
 ---
 
@@ -160,6 +162,7 @@ def handler(request: Request, ...):
 ## Checklist for new features
 
 - [ ] DB logic in Python (transactions/repos), not in Postgres
+- [ ] No direct DB access – use repos only (no db.execute(text), no db.query in routers)
 - [ ] Migrations: schema only (no functions/triggers)
 - [ ] New endpoints: `Depends(get_current_user_users_table)`
 - [ ] Router → Service → Transaction/Repo flow
@@ -176,6 +179,7 @@ def handler(request: Request, ...):
 | Architecture | `docs/PROJECT_STRUCTURE.md` |
 | API rules | `docs/API_DESIGN_STANDARDS.md` |
 | No DB functions | `.cursor/rules/no-db-functions-triggers.mdc` |
+| No direct DB (use repos) | `.cursor/rules/no-direct-db-use-repos.mdc` |
 | API design | `.cursor/rules/api-design-standards.mdc` |
 | Auth | `backend/app/users_table.py`, `backend/app/routers/auth.py` |
 | Repos | `backend/app/repos/` |

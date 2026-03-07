@@ -290,6 +290,10 @@ Default run is **Vite dev server + FastAPI** (no Nginx). For production-like ser
 3. *(Optional)* Build and deploy frontend to Nginx: `npm run build` then `.\nginx\deploy-frontend.ps1` (Windows) or `./nginx/deploy-frontend.sh` (Linux). See [nginx/README.md](nginx/README.md).
 4. See [docs/LOCAL_INSTALL.md](docs/LOCAL_INSTALL.md).
 
+### Auto-deploy on push
+
+Configure GitHub Actions so each push to `main` deploys to the remote server. See [docs/AUTO_DEPLOY.md](docs/AUTO_DEPLOY.md).
+
 ## 📝 Data Model Notes
 
 - **Building numbers** are unique identifiers (BIGINT)

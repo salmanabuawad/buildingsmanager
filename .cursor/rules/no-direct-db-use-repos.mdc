@@ -1,0 +1,37 @@
+---
+description: All database access must go through repositories. No direct DB access.
+globs: backend/app/**/*.py
+alwaysApply: false
+---
+
+# No Direct DB Access – Use Repositories
+
+**All database table access must go through the repository layer. Routers, services, transactions, and auth must not perform direct DB operations.**
+
+## Rules
+
+1. **No raw SQL outside repos** – Do not use `db.execute(text("SELECT ..."))` or `db.execute(text("INSERT ..."))` in routers, services, auth, or transactions. All SQL lives in `app/repos/`.
+
+2. **No direct ORM queries outside repos** – Do not use `db.query(Model).filter(...)` in routers or services. Use the appropriate repo instead (e.g. `AssetRepo`, `BuildingRepo`, `AssetFileRepo`, `SystemConfigRepo`).
+
+3. **Repos are the single DB interface** – `app/repos/base_repo.py` and each `*_repo.py` define methods for all table access. Only `base_repo` imports `db_rpc`.
+
+4. **Only repos import `db_rpc`** – If you need to run SQL, add a method to the relevant repo (or create a new repo for a new table). Never import `db_rpc` outside `app/repos/base_repo.py`.
+
+## When adding new DB access
+
+1. Check if a repo already exists: `app/repos/` – `AssetRepo`, `BuildingRepo`, `DataRepo`, `AssetFileRepo`, `SystemConfigRepo`, etc.
+2. Add a new method to the existing repo, or create `app/repos/{table}_repo.py` extending `BaseRepo`.
+3. Use `_fetch()` for SELECT, `_run()` for INSERT/UPDATE/DELETE. Use `:param` style in SQL.
+4. Call the repo from your router, service, or transaction. Never pass `db: Session` for table access.
+
+## Exceptions
+
+- **Legacy `UserRepo`** – Uses Session-based ORM for the `User` model. New code should prefer `UsersRepo` (db_rpc) for the `users` table; `UserRepo` is for the legacy auth `User` model.
+- **Auth** – `get_current_user` may use `UserRepo(db).get_by_id()` for token validation. Prefer moving to repo calls over time.
+
+## Verification
+
+Run `.\scripts\check_design.ps1` – it checks:
+- No `db_rpc` imports outside base_repo
+- No `db.execute(text(` in non-repo files (direct raw SQL)

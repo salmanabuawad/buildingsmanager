@@ -228,7 +228,7 @@ export function MeasurementHistory({ assetId }: MeasurementHistoryProps) {
         <h2 className="text-lg sm:text-xl font-bold text-slate-900">{t('measurementHistory')}</h2>
         <button
           onClick={() => setIsAdding(true)}
-          className="flex items-center gap-2 px-3 py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700 transition-colors text-sm"
+          className="flex items-center gap-2 px-3 py-2 bg-theme-tab-active text-white rounded-lg hover:bg-theme-tab-active-hover transition-colors text-sm"
         >
           <Plus className="h-4 w-4" />
           {t('addMeasurement')}
@@ -264,7 +264,7 @@ export function MeasurementHistory({ assetId }: MeasurementHistoryProps) {
                 <button
                   onClick={() => fileInputRef.current?.click()}
                   disabled={isUploading && uploadingFor === 'new'}
-                  className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="flex items-center gap-2 px-4 py-2 bg-theme-tab-active text-white rounded-lg hover:bg-theme-tab-active-hover transition-colors text-sm disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <Upload className="h-4 w-4" />
                   {isUploading && uploadingFor === 'new' ? t('loading') : t('uploadDwgFile')}
@@ -274,7 +274,7 @@ export function MeasurementHistory({ assetId }: MeasurementHistoryProps) {
                   <button
                     onClick={() => fileInputRef.current?.click()}
                     disabled={isUploading && uploadingFor === 'new'}
-                    className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="flex items-center gap-2 px-4 py-2 bg-theme-tab-active text-white rounded-lg hover:bg-theme-tab-active-hover transition-colors text-sm disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     <Upload className="h-4 w-4" />
                     {t('changeFile')}
@@ -393,7 +393,7 @@ export function MeasurementHistory({ assetId }: MeasurementHistoryProps) {
           <div className="flex gap-2 mt-3">
             <button
               onClick={handleAddMeasurement}
-              className="flex items-center gap-2 px-4 py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700 transition-colors text-sm"
+              className="flex items-center gap-2 px-4 py-2 bg-theme-tab-active text-white rounded-lg hover:bg-theme-tab-active-hover transition-colors text-sm"
             >
               <Save className="h-4 w-4" />
               {t('save')}
@@ -419,7 +419,7 @@ export function MeasurementHistory({ assetId }: MeasurementHistoryProps) {
           {measurements.map((measurement) => (
             <div
               key={measurement.id}
-              className="border border-slate-200 rounded-lg p-4 hover:border-teal-300 transition-colors"
+              className="border border-slate-200 rounded-lg p-4 hover:border-theme-action-accent transition-colors"
             >
               {editingId === measurement.id ? (
                 <div>
@@ -439,7 +439,7 @@ export function MeasurementHistory({ assetId }: MeasurementHistoryProps) {
                         <button
                           onClick={() => document.getElementById(`file-edit-${measurement.id}`)?.click()}
                           disabled={isUploading && uploadingFor === measurement.id}
-                          className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                          className="flex items-center gap-2 px-4 py-2 bg-theme-tab-active text-white rounded-lg hover:bg-theme-tab-active-hover transition-colors text-sm disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                           <Upload className="h-4 w-4" />
                           {isUploading && uploadingFor === measurement.id ? t('loading') : t('uploadDwgFile')}
@@ -449,7 +449,7 @@ export function MeasurementHistory({ assetId }: MeasurementHistoryProps) {
                           <button
                             onClick={() => document.getElementById(`file-edit-${measurement.id}`)?.click()}
                             disabled={isUploading && uploadingFor === measurement.id}
-                            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                            className="flex items-center gap-2 px-4 py-2 bg-theme-tab-active text-white rounded-lg hover:bg-theme-tab-active-hover transition-colors text-sm disabled:opacity-50 disabled:cursor-not-allowed"
                           >
                             <Upload className="h-4 w-4" />
                             {t('changeFile')}
@@ -568,7 +568,7 @@ export function MeasurementHistory({ assetId }: MeasurementHistoryProps) {
                   <div className="flex gap-2 mt-3">
                     <button
                       onClick={() => handleUpdateMeasurement(measurement.id)}
-                      className="flex items-center gap-2 px-4 py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700 transition-colors text-sm"
+                      className="flex items-center gap-2 px-4 py-2 bg-theme-tab-active text-white rounded-lg hover:bg-theme-tab-active-hover transition-colors text-sm"
                     >
                       <Save className="h-4 w-4" />
                       {t('save')}
@@ -589,7 +589,7 @@ export function MeasurementHistory({ assetId }: MeasurementHistoryProps) {
                 <div>
                   <div className="flex items-start justify-between mb-3">
                     <div className="flex items-center gap-2">
-                      <Calendar className="h-5 w-5 text-teal-600" />
+                      <Calendar className="h-5 w-5 text-theme-tab-active" />
                       <span className="font-semibold text-slate-900">
                         {new Date(measurement.measurement_date).toLocaleDateString()}
                       </span>
@@ -597,7 +597,7 @@ export function MeasurementHistory({ assetId }: MeasurementHistoryProps) {
                     <div className="flex gap-2">
                         <button
                           onClick={() => startEdit(measurement)}
-                          className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                          className="p-2 text-theme-tab-active hover:bg-theme-highlight rounded-lg transition-colors"
                         >
                           <Edit2 className="h-4 w-4" />
                         </button>
@@ -636,7 +636,7 @@ export function MeasurementHistory({ assetId }: MeasurementHistoryProps) {
                     </div>
                     <div className="col-span-2">
                       <span className="text-slate-600">{t('totalArea')}:</span>
-                      <span className="font-bold text-teal-600 mr-2 text-base">
+                      <span className="font-bold text-theme-tab-active mr-2 text-base">
                         {measurement.total_area.toLocaleString()}
                       </span>
                     </div>
@@ -669,7 +669,7 @@ export function MeasurementHistory({ assetId }: MeasurementHistoryProps) {
                           <button
                             onClick={() => document.getElementById(`file-view-${measurement.id}`)?.click()}
                             disabled={isUploading && uploadingFor === measurement.id}
-                            className="flex items-center gap-1 px-3 py-1 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-xs disabled:opacity-50 disabled:cursor-not-allowed"
+                            className="flex items-center gap-1 px-3 py-1 bg-theme-tab-active text-white rounded-lg hover:bg-theme-tab-active-hover transition-colors text-xs disabled:opacity-50 disabled:cursor-not-allowed"
                           >
                             <Upload className="h-3 w-3" />
                             {t('changeFile')}
@@ -700,7 +700,7 @@ export function MeasurementHistory({ assetId }: MeasurementHistoryProps) {
                       <button
                         onClick={() => document.getElementById(`file-view-${measurement.id}`)?.click()}
                         disabled={isUploading && uploadingFor === measurement.id}
-                        className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm disabled:opacity-50 disabled:cursor-not-allowed w-full justify-center"
+                        className="flex items-center gap-2 px-4 py-2 bg-theme-tab-active text-white rounded-lg hover:bg-theme-tab-active-hover transition-colors text-sm disabled:opacity-50 disabled:cursor-not-allowed w-full justify-center"
                       >
                         <Upload className="h-4 w-4" />
                         {isUploading && uploadingFor === measurement.id ? t('loading') : t('uploadDwgFile')}

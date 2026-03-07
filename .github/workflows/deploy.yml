@@ -1,0 +1,35 @@
+# Auto-deploy to production on push to main
+name: Deploy to Production
+
+on:
+  push:
+    branches: [main, master]
+  workflow_dispatch:  # Allow manual run from Actions tab
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install paramiko
+        run: pip install paramiko
+
+      - name: Deploy to production
+        env:
+          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+          DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
+          DEPLOY_PASSWORD: ${{ secrets.DEPLOY_PASSWORD }}
+          DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
+        run: |
+          if [ -z "$DEPLOY_PASSWORD" ]; then
+            echo "::error::DEPLOY_PASSWORD secret not set. Add GitHub repo secrets: DEPLOY_HOST, DEPLOY_USER, DEPLOY_PASSWORD, DB_PASSWORD"
+            exit 1
+          fi
+          python scripts/run_deploy_remote.py

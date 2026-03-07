@@ -6,6 +6,7 @@ import { Toast } from './Toast';
 import { emailService } from '../lib/emailService';
 import type { EmailConfig } from '../lib/emailService';
 import type { ValidationMode } from '../lib/systemConfigService';
+import { useUIConfig } from '../contexts/UIConfigContext';
 
 export function SystemConfigurationManager() {
   const { isAdmin } = useUserRole();
@@ -41,6 +42,7 @@ export function SystemConfigurationManager() {
   const [validationConfigLoading, setValidationConfigLoading] = useState(true);
   const [validationConfigSaving, setValidationConfigSaving] = useState(false);
   const [showValidationSection, setShowValidationSection] = useState(true);
+  const { loadUIConfig } = useUIConfig();
 
   const [fileStoragePath, setFileStoragePath] = useState('./storage');
   const [fileStorageFolder, setFileStorageFolder] = useState('assetflow-files');
@@ -58,9 +60,13 @@ export function SystemConfigurationManager() {
       setValidationConfigLoading(true);
       try {
         const uiConfig = await api.systemConfiguration.getUIConfig();
-        if (!cancelled) setValidationMode(uiConfig.validation_mode ?? 'before_save');
+        if (!cancelled) {
+          setValidationMode(uiConfig.validation_mode ?? 'before_save');
+        }
       } catch {
-        if (!cancelled) setValidationMode('before_save');
+        if (!cancelled) {
+          setValidationMode('before_save');
+        }
       } finally {
         if (!cancelled) setValidationConfigLoading(false);
       }
@@ -411,7 +417,7 @@ export function SystemConfigurationManager() {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="text-center">
-          <Loader2 className="h-12 w-12 text-teal-600 animate-spin mx-auto" />
+          <Loader2 className="h-12 w-12 text-theme-tab-active animate-spin mx-auto" />
           <p className="mt-4 text-slate-700 font-medium">טוען הגדרות מערכת...</p>
         </div>
       </div>
@@ -419,7 +425,7 @@ export function SystemConfigurationManager() {
   }
 
   return (
-    <div className="w-full mx-auto px-4 py-6">
+    <div className="w-full mx-auto px-4 py-6 max-w-4xl">
       {toast && (
         <Toast
           message={toast.message}
@@ -429,12 +435,21 @@ export function SystemConfigurationManager() {
         />
       )}
 
-      {/* Validation mode */}
-      <div className="bg-white rounded-xl shadow-lg border border-blue-100 p-6 mb-6">
+      {/* Page header */}
+      <div className="mb-8">
+        <h1 className="text-2xl font-bold text-slate-800">הגדרות מערכת</h1>
+        <p className="mt-1 text-sm text-slate-600">ניהול הגדרות אימות, אחסון, דוא&quot;ל והגדרות מתקדמות</p>
+      </div>
+
+      {/* 1. אימות (Validation) */}
+      <div className="mb-2">
+        <h2 className="text-sm font-semibold text-slate-500 uppercase tracking-wide">אימות</h2>
+      </div>
+      <div className="bg-white rounded-xl shadow-lg border border-theme-highlight/50 p-6 mb-6">
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-3">
-            <AlertCircle className="h-6 w-6 text-teal-600" />
-            <h2 className="text-xl font-bold text-slate-800">אימות (Validation)</h2>
+            <AlertCircle className="h-6 w-6 text-theme-tab-active" />
+            <h3 className="text-lg font-bold text-slate-800">מתי להריץ אימות</h3>
           </div>
           <button
             type="button"
@@ -465,7 +480,7 @@ export function SystemConfigurationManager() {
                     <option value="online">אונליין (Online) – אימות בזמן הקלדה / מעבר שדה</option>
                   </select>
                   <p className="mt-1 text-xs text-slate-500">
-                    Off = no validation. Before save = validate when saving. Online = validate as you type.
+                    כבוי = ללא אימות. לפני שמירה = אימות בלחיצת שמירה. אונליין = אימות בזמן הקלדה או מעבר שדה.
                   </p>
                 </div>
                 {isAdmin && (
@@ -489,9 +504,10 @@ export function SystemConfigurationManager() {
                         await api.systemConfiguration.upsert(
                           'ui_config',
                           JSON.stringify(merged),
-                          existing?.description || 'UI config (validation mode, etc.)'
+                          existing?.description || 'UI config (validation mode)'
                         );
-                        setToast({ message: 'הגדרות האימות נשמרו. רענן את הדף כדי להחיל.', type: 'success' });
+                        await loadUIConfig();
+                        setToast({ message: 'הגדרות אימות נשמרו בהצלחה', type: 'success' });
                       } catch (err) {
                         const msg = (err as { message?: string })?.message ?? (err instanceof Error ? err.message : 'שגיאה בשמירת הגדרות אימות');
                         setToast({
@@ -503,10 +519,10 @@ export function SystemConfigurationManager() {
                       }
                     }}
                     disabled={validationConfigSaving}
-                    className="flex items-center gap-2 px-4 py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700 disabled:opacity-50"
+                    className="flex items-center gap-2 px-4 py-2 bg-theme-tab-active text-white rounded-lg hover:bg-theme-tab-active-hover disabled:opacity-50"
                   >
                     {validationConfigSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
-                    שמור הגדרות אימות
+                    שמור
                   </button>
                 )}
               </div>
@@ -515,12 +531,15 @@ export function SystemConfigurationManager() {
         )}
       </div>
 
-      {/* File storage location */}
-      <div className="bg-white rounded-xl shadow-lg border border-blue-100 p-6 mb-6">
+      {/* 2. אחסון (Storage) */}
+      <div className="mb-2 mt-10">
+        <h2 className="text-sm font-semibold text-slate-500 uppercase tracking-wide">אחסון</h2>
+      </div>
+      <div className="bg-white rounded-xl shadow-lg border border-theme-highlight/50 p-6 mb-6">
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-3">
-            <Settings className="h-6 w-6 text-teal-600" />
-            <h2 className="text-xl font-bold text-slate-800">מיקום אחסון קבצים (File storage)</h2>
+            <Settings className="h-6 w-6 text-theme-tab-active" />
+            <h3 className="text-lg font-bold text-slate-800">מיקום אחסון קבצים</h3>
           </div>
           <button
             type="button"
@@ -586,7 +605,7 @@ export function SystemConfigurationManager() {
                       }
                     }}
                     disabled={fileStorageSaving}
-                    className="flex items-center gap-2 px-4 py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700 disabled:opacity-50"
+                    className="flex items-center gap-2 px-4 py-2 bg-theme-tab-active text-white rounded-lg hover:bg-theme-tab-active-hover disabled:opacity-50"
                   >
                     {fileStorageSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
                     שמור מיקום אחסון
@@ -598,12 +617,15 @@ export function SystemConfigurationManager() {
         )}
       </div>
 
-      {/* Email (SMTP) settings */}
-      <div className="bg-white rounded-xl shadow-lg border border-blue-100 p-6 mb-6">
+      {/* 3. דוא"ל (Email) */}
+      <div className="mb-2 mt-10">
+        <h2 className="text-sm font-semibold text-slate-500 uppercase tracking-wide">דוא&quot;ל</h2>
+      </div>
+      <div className="bg-white rounded-xl shadow-lg border border-theme-highlight/50 p-6 mb-6">
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-3">
-            <Mail className="h-6 w-6 text-teal-600" />
-            <h2 className="text-xl font-bold text-slate-800">הגדרות דוא&quot;ל (SMTP)</h2>
+            <Mail className="h-6 w-6 text-theme-tab-active" />
+            <h3 className="text-lg font-bold text-slate-800">חיבור SMTP</h3>
           </div>
           <button
             type="button"
@@ -634,7 +656,7 @@ export function SystemConfigurationManager() {
                       smtp_username: c?.smtp_username || c?.from_email || 'profile.group.system@gmail.com',
                       from_email: c?.from_email || 'profile.group.system@gmail.com',
                     }))}
-                    className="text-sm font-medium text-blue-600 hover:text-blue-800 hover:underline"
+                    className="text-sm font-medium text-theme-tab-active hover:text-theme-tab-active-hover hover:underline"
                   >
                     חיבור עם Gmail – מילוי הגדרות
                   </button>
@@ -732,7 +754,7 @@ export function SystemConfigurationManager() {
                   type="button"
                   onClick={handleSaveEmailConfig}
                   disabled={emailConfigSaving || !isAdmin}
-                  className="flex items-center gap-2 px-4 py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="flex items-center gap-2 px-4 py-2 bg-theme-tab-active text-white rounded-lg hover:bg-theme-tab-active-hover transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {emailConfigSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
                   שמור הגדרות דוא&quot;ל
@@ -749,7 +771,7 @@ export function SystemConfigurationManager() {
                     type="button"
                     onClick={handleSendTestEmail}
                     disabled={sendingTestEmail || !isAdmin}
-                    className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="flex items-center gap-2 px-4 py-2 bg-theme-tab-active text-white rounded-lg hover:bg-theme-tab-active-hover transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     {sendingTestEmail ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
                     שליחת מייל בדיקה
@@ -761,11 +783,13 @@ export function SystemConfigurationManager() {
         )}
       </div>
 
-      {/* Email templates (stored in DB) */}
-      <div className="bg-white rounded-xl shadow-lg border border-blue-100 p-6 mb-6">
-        <div className="flex items-center gap-3 mb-4">
-          <FileText className="h-6 w-6 text-teal-600" />
-          <h2 className="text-xl font-bold text-slate-800">תבניות דוא&quot;ל (נשמרות במערכת)</h2>
+      {/* Email templates */}
+      <div className="bg-white rounded-xl shadow-lg border border-theme-highlight/50 p-6 mb-6">
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-3">
+            <FileText className="h-6 w-6 text-theme-tab-active" />
+            <h3 className="text-lg font-bold text-slate-800">תבניות דוא&quot;ל</h3>
+          </div>
         </div>
         <p className="text-sm text-slate-600 mb-4">
           משתנים דינמיים: <code className="bg-slate-100 px-1 rounded">{"{{name}}"}</code> (שם מקבל),{' '}
@@ -790,7 +814,7 @@ export function SystemConfigurationManager() {
                   <Eye className="h-4 w-4" />
                   הצג
                 </button>
-                <label className="flex items-center gap-1 px-3 py-1.5 text-sm bg-blue-100 text-blue-800 rounded-lg hover:bg-blue-200 cursor-pointer">
+                <label className="flex items-center gap-1 px-3 py-1.5 text-sm bg-theme-highlight text-theme-tab-active rounded-lg hover:bg-theme-highlight/80 cursor-pointer">
                   <Upload className="h-4 w-4" />
                   העלה
                   <input
@@ -833,7 +857,7 @@ export function SystemConfigurationManager() {
                   <Eye className="h-4 w-4" />
                   הצג
                 </button>
-                <label className="flex items-center gap-1 px-3 py-1.5 text-sm bg-blue-100 text-blue-800 rounded-lg hover:bg-blue-200 cursor-pointer">
+                <label className="flex items-center gap-1 px-3 py-1.5 text-sm bg-theme-highlight text-theme-tab-active rounded-lg hover:bg-theme-highlight/80 cursor-pointer">
                   <Upload className="h-4 w-4" />
                   העלה
                   <input
@@ -875,11 +899,18 @@ export function SystemConfigurationManager() {
         )}
       </div>
 
-      <div className="bg-white rounded-xl shadow-lg border border-blue-100 p-6">
+      {/* 4. הגדרות מתקדמות (Advanced key-value) */}
+      <div className="mb-2 mt-10">
+        <h2 className="text-sm font-semibold text-slate-500 uppercase tracking-wide">הגדרות מתקדמות</h2>
+      </div>
+      <p className="text-sm text-slate-600 mb-4">
+        הגדרות כלליות במבנה Key-Value. מומלץ לערוך רק אם יש הכרות עם המערכת.
+      </p>
+      <div className="bg-white rounded-xl shadow-lg border border-theme-highlight/50 p-6">
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center gap-3">
-            <Settings className="h-6 w-6 text-teal-600" />
-            <h1 className="text-2xl font-bold text-slate-800">הגדרות מערכת</h1>
+            <Settings className="h-6 w-6 text-theme-tab-active" />
+            <h3 className="text-lg font-bold text-slate-800">הגדרות Key-Value</h3>
           </div>
           <div className="flex items-center gap-2">
             <button
@@ -892,7 +923,7 @@ export function SystemConfigurationManager() {
             {isAdmin && (
               <button
                 onClick={handleAdd}
-                className="flex items-center gap-2 px-3 py-1.5 text-sm bg-teal-600 text-white rounded-lg hover:bg-teal-700 transition-colors"
+                className="flex items-center gap-2 px-3 py-1.5 text-sm bg-theme-tab-active text-white rounded-lg hover:bg-theme-tab-active-hover transition-colors"
               >
                 <Plus className="h-4 w-4" />
                 הוסף הגדרה
@@ -950,7 +981,7 @@ export function SystemConfigurationManager() {
               <button
                 onClick={handleSave}
                 disabled={saving !== null}
-                className="flex items-center gap-2 px-4 py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                className="flex items-center gap-2 px-4 py-2 bg-theme-tab-active text-white rounded-lg hover:bg-theme-tab-active-hover transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {saving !== null ? (
                   <Loader2 className="h-4 w-4 animate-spin" />
@@ -1012,7 +1043,7 @@ export function SystemConfigurationManager() {
                     <div className="flex items-center gap-2">
                       <button
                         onClick={() => handleEdit(config)}
-                        className="px-3 py-1.5 text-sm bg-blue-100 text-blue-800 rounded-lg hover:bg-blue-200 transition-colors flex items-center gap-1"
+                        className="px-3 py-1.5 text-sm bg-theme-highlight text-theme-tab-active rounded-lg hover:bg-theme-highlight/80 transition-colors flex items-center gap-1"
                       >
                         <Edit2 className="h-4 w-4" />
                         ערוך

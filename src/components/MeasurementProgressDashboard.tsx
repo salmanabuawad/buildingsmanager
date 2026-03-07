@@ -191,7 +191,7 @@ export const MeasurementProgressDashboard = ({ onOpenBuildingsList, onOpenMeasur
   if (loading) {
     return (
       <div className="flex items-center justify-center h-full">
-        <Loader2 className="h-8 w-8 animate-spin text-purple-600" />
+        <Loader2 className="h-8 w-8 animate-spin text-theme-tab-active" />
       </div>
     );
   }
@@ -203,7 +203,7 @@ export const MeasurementProgressDashboard = ({ onOpenBuildingsList, onOpenMeasur
         <p className="text-red-600">{error}</p>
         <button
           onClick={fetchData}
-          className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700"
+          className="px-4 py-2 bg-theme-tab-active text-white rounded-lg hover:bg-theme-tab-active-hover"
         >
           נסה שוב
         </button>
@@ -214,26 +214,28 @@ export const MeasurementProgressDashboard = ({ onOpenBuildingsList, onOpenMeasur
   return (
     <div className="h-full flex flex-col bg-white">
       {/* Header */}
-      <div className="flex items-center justify-between p-4 border-b border-purple-200 bg-gradient-to-r from-purple-50 to-indigo-50">
-        <div className="flex items-center gap-3">
-          <BarChart3 className="h-6 w-6 text-purple-600" />
-          <h2 className="text-xl font-bold text-slate-800">התקדמות פעילות מדידות</h2>
+      <div className="page-header rounded-t-lg px-2 py-1 flex items-center justify-between min-h-0">
+        <div className="flex items-center gap-1.5">
+          <div className="page-header-icon shrink-0 p-0">
+            <BarChart3 className="w-3.5 h-3.5" />
+          </div>
+          <h2 className="page-header-title text-sm font-bold">התקדמות פעילות מדידות</h2>
         </div>
         <button
           onClick={fetchData}
-          className="flex items-center gap-2 px-4 py-2 bg-white border border-purple-300 rounded-lg hover:bg-purple-50 text-purple-700 transition-colors"
+          className="btn btn-action btn-secondary !py-1 !px-2 !min-h-0 text-sm"
         >
-          <RefreshCw className="h-4 w-4" />
-          רענן
+          <RefreshCw className="h-3.5 w-3.5 shrink-0" />
+          <span>רענן</span>
         </button>
       </div>
 
       {/* Date Range Selector */}
-      <div className="p-4 border-b border-purple-200 bg-white">
-        <div className="flex items-center gap-4">
+      <div className="px-3 py-2 border-b border-theme-card-border bg-white">
+        <div className="flex items-center gap-3">
           <div className="flex items-center gap-2">
-            <Calendar className="h-5 w-5 text-purple-600" />
-            <label className="text-sm font-medium text-slate-700">מתאריך:</label>
+            <Calendar className="h-4 w-4 text-theme-tab-active shrink-0" />
+            <label className="text-xs font-medium text-slate-700">מתאריך:</label>
             <input
               type="text"
               value={startDate}
@@ -244,12 +246,12 @@ export const MeasurementProgressDashboard = ({ onOpenBuildingsList, onOpenMeasur
                 }
               }}
               placeholder="DD/MM/YYYY"
-              className="px-3 py-2 border border-purple-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+              className="px-2 py-1.5 text-sm border border-purple-300 rounded-md focus:ring-2 focus:ring-theme-action-accent focus:border-theme-action-accent w-28"
               dir="rtl"
             />
           </div>
           <div className="flex items-center gap-2">
-            <label className="text-sm font-medium text-slate-700">עד תאריך:</label>
+            <label className="text-xs font-medium text-slate-700">עד תאריך:</label>
             <input
               type="text"
               value={endDate}
@@ -260,13 +262,13 @@ export const MeasurementProgressDashboard = ({ onOpenBuildingsList, onOpenMeasur
                 }
               }}
               placeholder="DD/MM/YYYY"
-              className="px-3 py-2 border border-purple-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+              className="px-2 py-1.5 text-sm border border-purple-300 rounded-md focus:ring-2 focus:ring-theme-action-accent focus:border-theme-action-accent w-28"
               dir="rtl"
             />
           </div>
           <button
             onClick={fetchData}
-            className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
+            className="px-4 py-2 text-sm bg-theme-tab-active text-white rounded-lg hover:bg-theme-tab-active-hover transition-colors"
           >
             חפש
           </button>
@@ -275,49 +277,49 @@ export const MeasurementProgressDashboard = ({ onOpenBuildingsList, onOpenMeasur
 
       {/* Summary Cards */}
       {data && (
-        <div className="p-4 border-b border-purple-200 bg-gradient-to-r from-indigo-50 to-purple-50">
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+        <div className="p-3 border-b border-theme-card-border bg-gradient-to-r from-theme-highlight/30 to-theme-highlight/50">
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
             <div 
-              className={`bg-white rounded-lg p-4 shadow-sm border border-purple-100 ${onOpenBuildingsList ? 'cursor-pointer hover:shadow-md transition-shadow' : ''}`}
+              className={`bg-white rounded-lg p-3 shadow-sm border border-theme-card-border ${onOpenBuildingsList ? 'cursor-pointer hover:shadow-md transition-shadow' : ''}`}
               onClick={onOpenBuildingsList}
               title={onOpenBuildingsList ? 'לחץ לפתיחת רשימת מבנים' : ''}
             >
-              <p className="text-sm text-slate-600 mb-1">סה"כ מבנים</p>
-              <p className="text-2xl font-bold text-purple-700">
+              <p className="text-xs text-slate-600 mb-1">סה"כ מבנים</p>
+              <p className="text-xl font-bold text-theme-tab-active">
                 {data.total.totalBuildings.toLocaleString('he-IL')}
               </p>
             </div>
-            <div className="bg-white rounded-lg p-4 shadow-sm border border-purple-100">
-              <p className="text-sm text-slate-600 mb-1">סה"כ נכסים</p>
-              <p className="text-2xl font-bold text-indigo-700">
+            <div className="bg-white rounded-lg p-3 shadow-sm border border-theme-card-border">
+              <p className="text-xs text-slate-600 mb-1">סה"כ נכסים</p>
+              <p className="text-xl font-bold text-theme-action-accent">
                 {data.total.totalAssets.toLocaleString('he-IL')}
               </p>
             </div>
-            <div className="bg-white rounded-lg p-4 shadow-sm border border-purple-100">
-              <p className="text-sm text-slate-600 mb-1">תאריכי מדידה</p>
-              <p className="text-2xl font-bold text-blue-700">
+            <div className="bg-white rounded-lg p-3 shadow-sm border border-theme-card-border">
+              <p className="text-xs text-slate-600 mb-1">תאריכי מדידה</p>
+              <p className="text-xl font-bold text-blue-700">
                 {data.total.uniqueMeasurementDates.toLocaleString('he-IL')}
               </p>
             </div>
-            <div className="bg-white rounded-lg p-4 shadow-sm border border-purple-100">
-              <p className="text-sm text-slate-600 mb-1">סה"כ שטח (מ"ר)</p>
-              <p className="text-2xl font-bold text-green-700">
+            <div className="bg-white rounded p-2 shadow-sm border border-theme-card-border">
+              <p className="text-[10px] text-slate-600 mb-0.5">סה"כ שטח (מ"ר)</p>
+              <p className="text-lg font-bold text-green-700">
                 {data.total.totalArea.toLocaleString('he-IL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
               </p>
             </div>
-            <div className="bg-white rounded-lg p-4 shadow-sm border border-purple-100">
-              <p className="text-sm text-slate-600 mb-1">נשלחו לעירייה</p>
-              <p className="text-2xl font-bold text-teal-700">
+            <div className="bg-white rounded-lg p-3 shadow-sm border border-theme-card-border">
+              <p className="text-xs text-slate-600 mb-1">נשלחו לעירייה</p>
+              <p className="text-xl font-bold text-theme-tab-active">
                 {data.total.exportedCount.toLocaleString('he-IL')}
               </p>
             </div>
             <div 
-              className={`bg-white rounded-lg p-4 shadow-sm border border-purple-100 ${onOpenMeasuredNotExportedAssets ? 'cursor-pointer hover:shadow-md transition-shadow' : ''}`}
+              className={`bg-white rounded-lg p-3 shadow-sm border border-theme-card-border ${onOpenMeasuredNotExportedAssets ? 'cursor-pointer hover:shadow-md transition-shadow' : ''}`}
               onClick={onOpenMeasuredNotExportedAssets}
               title={onOpenMeasuredNotExportedAssets ? 'לחץ לפתיחת נכסים שנמדדו ולא נשלחו' : ''}
             >
-              <p className="text-sm text-slate-600 mb-1">לא נשלחו לעירייה</p>
-              <p className="text-2xl font-bold text-orange-700">
+              <p className="text-xs text-slate-600 mb-1">לא נשלחו לעירייה</p>
+              <p className="text-xl font-bold text-orange-700">
                 {data.total.notExportedCount.toLocaleString('he-IL')}
               </p>
             </div>

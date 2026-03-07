@@ -25,11 +25,11 @@ export function PreferencesButton() {
     <>
       <button
         onClick={() => setIsOpen(true)}
-        className="w-full flex items-center justify-between px-4 py-2.5 text-right bg-white hover:bg-blue-50 rounded-lg transition-all shadow-sm border border-blue-100 hover:shadow-md hover:border-blue-300 group"
+        className="w-full flex items-center justify-between px-4 py-2.5 text-right bg-white hover:bg-theme-highlight/50 rounded-lg transition-all shadow-sm border border-theme-card-border hover:shadow-md hover:border-theme-action-accent/50 group"
         title="העדפות"
       >
         <div className="flex items-center gap-2">
-          <span className="font-medium text-sm text-slate-700 group-hover:text-blue-900">העדפות עריכה</span>
+          <span className="font-medium text-sm text-slate-700 group-hover:text-theme-tab-active-hover">העדפות עריכה</span>
           <Settings className="h-4 w-4 text-blue-600 group-hover:text-blue-700" />
         </div>
         <div className="text-xs text-slate-500">
@@ -76,7 +76,7 @@ export function PreferencesButton() {
                       onChange={(e) => {
                         setEditMode(e.target.value as EditMode);
                       }}
-                      className="w-4 h-4 text-blue-600 focus:ring-blue-500 focus:ring-2"
+                      className="w-4 h-4 text-theme-tab-active focus:ring-theme-action-accent focus:ring-2"
                     />
                     <div className="text-right">
                       <div className="font-medium text-slate-800">עריכה ישירה בתא</div>
@@ -93,7 +93,7 @@ export function PreferencesButton() {
                       onChange={(e) => {
                         setEditMode(e.target.value as EditMode);
                       }}
-                      className="w-4 h-4 text-blue-600 focus:ring-blue-500 focus:ring-2"
+                      className="w-4 h-4 text-theme-tab-active focus:ring-theme-action-accent focus:ring-2"
                     />
                     <div className="text-right">
                       <div className="font-medium text-slate-800">עריכה בחלון נפרד</div>

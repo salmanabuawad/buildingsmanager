@@ -2939,7 +2939,7 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
                 const newValue = e.target.checked ? true : false;
                 params.setValue(newValue);
               }}
-              className="w-4 h-4 text-blue-600 rounded focus:ring-2 focus:ring-blue-500 cursor-pointer"
+              className="w-4 h-4 text-theme-tab-active rounded focus:ring-2 focus:ring-theme-action-accent cursor-pointer"
             />
           </div>
         );
@@ -3376,22 +3376,22 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
 
   return (
     <div className="max-w-[95vw] mx-auto px-4 py-6">
-      <div className="mb-6 bg-gradient-to-r from-indigo-600 to-purple-600 rounded-lg shadow-md p-4">
+      <div className="mb-6 page-header rounded-lg px-3 py-2">
         <div className="flex items-center gap-2">
-          <Upload className="w-6 h-6 text-white bg-white/20 rounded p-1" />
-          <div>
-            <h1 className="text-xl font-bold text-white">ייבוא נכסים מקובץ Excel</h1>
+          <div className="page-header-icon shrink-0">
+            <Upload className="w-5 h-5" />
           </div>
+          <h1 className="page-header-title text-lg sm:text-xl font-bold">ייבוא נכסים מקובץ Excel</h1>
         </div>
       </div>
 
-      <div className="bg-white rounded-lg shadow-md border border-indigo-100 p-6">
+      <div className="bg-white rounded-lg shadow-md border border-theme-card-border p-6">
         {/* Regular Import Section */}
         {mode === 'regular' && (
-        <div className="mb-6 p-4 bg-indigo-50 border border-indigo-200 rounded-lg">
+        <div className="mb-6 p-4 bg-theme-highlight border border-theme-card-border rounded-lg">
           <div className="flex items-center gap-2 mb-3">
-            <Upload className="h-5 w-5 text-indigo-600 flex-shrink-0" />
-            <h3 className="text-lg font-semibold text-indigo-900">ייבוא רגיל - כל השדות</h3>
+            <Upload className="h-5 w-5 text-theme-tab-active flex-shrink-0" />
+            <h3 className="text-lg font-semibold text-theme-tab-active-hover">ייבוא רגיל - כל השדות</h3>
           </div>
           <div className="space-y-3">
             <div className="flex flex-wrap gap-3">
@@ -3427,7 +3427,7 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
                 type="button"
                 onClick={() => fileInputRef.current?.click()}
                 disabled={isParsing}
-                className="flex items-center justify-center gap-2 px-4 py-2.5 bg-teal-600 text-white rounded-lg hover:bg-teal-700 transition-colors disabled:opacity-50 text-sm font-medium"
+                className="flex items-center justify-center gap-2 px-4 py-2.5 bg-theme-tab-active text-white rounded-lg hover:bg-theme-tab-active-hover transition-colors disabled:opacity-50 text-sm font-medium"
               >
                 {isParsing ? (
                   <>
@@ -3445,7 +3445,7 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
               <button
                 type="button"
                 onClick={() => downloadTemplate('excel')}
-                className="flex items-center justify-center gap-2 px-4 py-2.5 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors text-sm font-medium"
+                className="flex items-center justify-center gap-2 px-4 py-2.5 bg-theme-tab-active text-white rounded-lg hover:bg-theme-tab-active-hover transition-colors text-sm font-medium"
               >
                 <Download className="h-4 w-4" />
                 <span>הורד תבנית Excel</span>
@@ -3454,14 +3454,14 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
               <button
                 type="button"
                 onClick={() => downloadTemplate('csv')}
-                className="flex items-center justify-center gap-2 px-4 py-2.5 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors text-sm font-medium"
+                className="flex items-center justify-center gap-2 px-4 py-2.5 bg-theme-tab-active text-white rounded-lg hover:bg-theme-tab-active-hover transition-colors text-sm font-medium"
                 title="הורד תבנית CSV"
               >
                 <Download className="h-4 w-4" />
                 <span>הורד תבנית CSV</span>
               </button>
             </div>
-            <p className="text-xs text-indigo-700">
+            <p className="text-xs text-theme-tab-active">
               ייבוא מלא עם כל השדות. הקובץ חייב לכלול את כל העמודות הנדרשות לפי התבנית.
             </p>
           </div>
@@ -3564,7 +3564,7 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
                     type="checkbox"
                     checked={importFromAutomation}
                     onChange={(e) => setImportFromAutomation(e.target.checked)}
-                    className="w-4 h-4 text-blue-600 rounded focus:ring-2 focus:ring-blue-500 cursor-pointer"
+                    className="w-4 h-4 text-theme-tab-active rounded focus:ring-2 focus:ring-theme-action-accent cursor-pointer"
                   />
                   הנתונים מאוטומציה
                 </label>
@@ -3574,7 +3574,7 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
                   type="button"
                   onClick={handleValidate}
                   disabled={isValidating || isSaving}
-                  className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 text-sm font-medium"
+                  className="flex items-center gap-2 px-4 py-2 bg-theme-tab-active text-white rounded-lg hover:bg-theme-tab-active-hover transition-colors disabled:opacity-50 text-sm font-medium"
                 >
                   {isValidating ? (
                     <>
@@ -3669,7 +3669,7 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
                     }
                   }}
                   disabled={importedAssets.length === 0}
-                  className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors disabled:opacity-50 text-sm font-medium"
+                  className="flex items-center gap-2 px-4 py-2 bg-theme-tab-active text-white rounded-lg hover:bg-theme-tab-active-hover transition-colors disabled:opacity-50 text-sm font-medium"
                   title="ייצא ל-Excel"
                 >
                   <Download className="h-4 w-4" />
@@ -3686,7 +3686,7 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
                     !validationCompleted || 
                     !allAssetsValid
                   }
-                  className="flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors disabled:opacity-50 text-sm font-medium"
+                  className="flex items-center gap-2 px-4 py-2 bg-theme-action-accent text-white rounded-lg hover:bg-theme-action-accent-hover transition-colors disabled:opacity-50 text-sm font-medium"
                   title={
                     importedAssets.length === 0 
                       ? 'יש לטעון קובץ לפני שמירה' 
@@ -3713,7 +3713,7 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
               </div>
             </div>
 
-            <div className="bg-white rounded-xl shadow-lg hover:shadow-xl transition-shadow duration-200 overflow-hidden border-2 border-blue-400 w-full">
+            <div className="bg-white rounded-xl shadow-lg hover:shadow-xl transition-shadow duration-200 overflow-hidden border-2 border-theme-action-accent w-full">
               <div className="ag-theme-alpine" style={{ height: '60vh', width: '100%', minWidth: '100%', overflowX: 'auto' }}>
                 <AgGridReact
                 ref={gridRef}
@@ -3772,7 +3772,7 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
         {/* Info Section */}
         <div className="border-t border-slate-200 pt-6 space-y-4">
           <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2">
-            <FileText className="h-5 w-5 text-indigo-600" />
+            <FileText className="h-5 w-5 text-theme-tab-active" />
             פורמט קובץ Excel
           </h2>
           
@@ -3838,7 +3838,7 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
           <div className="bg-white rounded-lg shadow-xl max-w-4xl w-full mx-4 max-h-[90vh] flex flex-col">
             <div className="flex items-center justify-between p-4 border-b border-gray-200">
               <div className="flex items-center gap-3">
-                <FileText className="h-6 w-6 text-indigo-600" />
+                <FileText className="h-6 w-6 text-theme-tab-active" />
                 <h2 className="text-lg font-semibold text-gray-900">
                   מיפוי עמודות
                 </h2>
@@ -3878,7 +3878,7 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
                           }
                           setColumnMapping(newMapping);
                         }}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-right"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-theme-action-accent focus:border-transparent text-right"
                       >
                         <option value="">-- לא למפות --</option>
                         <option value="building_number">מזהה מבנה</option>
@@ -3932,7 +3932,7 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
               </button>
               <button
                 onClick={handleConfirmMapping}
-                className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors font-medium"
+                className="px-4 py-2 bg-theme-tab-active text-white rounded-lg hover:bg-theme-tab-active-hover transition-colors font-medium"
               >
                 המשך
               </button>
@@ -4033,7 +4033,7 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
                     setMeasurementDate(value);
                   }}
                   placeholder="DD/MM/YYYY"
-                  className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                  className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-theme-action-accent focus:border-indigo-500"
                   autoFocus
                 />
                 <p className="mt-2 text-xs text-slate-500">
@@ -4112,7 +4112,7 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
             </div>
             
             <div className="flex-1 overflow-auto p-6">
-              <div className="mb-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+              <div className="mb-4 p-4 bg-theme-highlight border border-theme-card-border rounded-lg">
                 <p className="text-sm text-blue-900">
                   מבנה {pendingBuildingNumber} לא קיים במערכת. יש ליצור את המבנה לפני המשך הייבוא.
                 </p>
@@ -4161,7 +4161,7 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
                         setBuildingCreateData(newData);
                         await validateBuildingData(newData);
                       }}
-                      className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent ${
+                      className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-theme-action-accent focus:border-transparent ${
                         buildingValidationErrors.residence_shared_area 
                           ? 'border-red-500' 
                           : 'border-gray-300'
@@ -4184,7 +4184,7 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
                       step="0.01"
                       value={buildingCreateData.business_shared_area || ''}
                       onChange={(e) => setBuildingCreateData(prev => ({ ...prev, business_shared_area: e.target.value ? parseFloat(e.target.value) : undefined }))}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-theme-action-accent focus:border-transparent"
                       disabled={isCreatingBuilding}
                     />
                   </div>
@@ -4199,7 +4199,7 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
                       step="0.01"
                       value={buildingCreateData.area_for_control || ''}
                       onChange={(e) => setBuildingCreateData(prev => ({ ...prev, area_for_control: e.target.value ? parseFloat(e.target.value) : undefined }))}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-theme-action-accent focus:border-transparent"
                       disabled={isCreatingBuilding}
                     />
                   </div>
@@ -4213,7 +4213,7 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
                       step="0.01"
                       value={buildingCreateData.shared_parking_area ?? ''}
                       onChange={(e) => setBuildingCreateData(prev => ({ ...prev, shared_parking_area: e.target.value ? parseFloat(e.target.value) : undefined }))}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-theme-action-accent focus:border-transparent"
                       disabled={isCreatingBuilding}
                     />
                   </div>
@@ -4228,7 +4228,7 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
                       min="0"
                       value={buildingCreateData.number_of_parking_units ?? ''}
                       onChange={(e) => setBuildingCreateData(prev => ({ ...prev, number_of_parking_units: e.target.value ? parseInt(e.target.value, 10) : undefined }))}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-theme-action-accent focus:border-transparent"
                       disabled={isCreatingBuilding}
                     />
                   </div>
@@ -4256,7 +4256,7 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
                       step="0.01"
                       value={buildingCreateData.overload_ratio || ''}
                       onChange={(e) => setBuildingCreateData(prev => ({ ...prev, overload_ratio: e.target.value ? parseFloat(e.target.value) : undefined }))}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-theme-action-accent focus:border-transparent"
                       disabled={isCreatingBuilding}
                       placeholder="לדוגמה: 15.50"
                     />
@@ -4325,7 +4325,7 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
                           setShowAddressDropdown(false);
                         }
                       }}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-theme-action-accent focus:border-transparent"
                       placeholder="חפש כתובת או הקלד סמל רחוב..."
                       disabled={isCreatingBuilding}
                     />
@@ -4373,7 +4373,7 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
                       id="elevator"
                       checked={buildingCreateData.elevator === true}
                       onChange={(e) => setBuildingCreateData(prev => ({ ...prev, elevator: e.target.checked ? true : false }))}
-                      className="w-4 h-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500"
+                      className="w-4 h-4 text-theme-tab-active border-gray-300 rounded focus:ring-theme-action-accent"
                       disabled={isCreatingBuilding}
                     />
                     <label htmlFor="elevator" className="text-sm font-medium text-slate-700 cursor-pointer">
@@ -4387,7 +4387,7 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
                       id="single_double_family"
                       checked={buildingCreateData.single_double_family === true}
                       onChange={(e) => setBuildingCreateData(prev => ({ ...prev, single_double_family: e.target.checked ? true : false }))}
-                      className="w-4 h-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500"
+                      className="w-4 h-4 text-theme-tab-active border-gray-300 rounded focus:ring-theme-action-accent"
                       disabled={isCreatingBuilding}
                     />
                     <label htmlFor="single_double_family" className="text-sm font-medium text-slate-700 cursor-pointer">
@@ -4401,7 +4401,7 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
                       id="condo"
                       checked={buildingCreateData.condo === true}
                       onChange={(e) => setBuildingCreateData(prev => ({ ...prev, condo: e.target.checked ? true : false }))}
-                      className="w-4 h-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500"
+                      className="w-4 h-4 text-theme-tab-active border-gray-300 rounded focus:ring-theme-action-accent"
                       disabled={isCreatingBuilding}
                     />
                     <label htmlFor="condo" className="text-sm font-medium text-slate-700 cursor-pointer">
@@ -4415,7 +4415,7 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
                       id="townhouses"
                       checked={buildingCreateData.townhouses === true}
                       onChange={(e) => setBuildingCreateData(prev => ({ ...prev, townhouses: e.target.checked ? true : false }))}
-                      className="w-4 h-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500"
+                      className="w-4 h-4 text-theme-tab-active border-gray-300 rounded focus:ring-theme-action-accent"
                       disabled={isCreatingBuilding}
                     />
                     <label htmlFor="townhouses" className="text-sm font-medium text-slate-700 cursor-pointer">
@@ -4431,7 +4431,7 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
                       type="number"
                       value={buildingCreateData.gosh || ''}
                       onChange={(e) => setBuildingCreateData(prev => ({ ...prev, gosh: e.target.value ? parseInt(e.target.value, 10) : undefined }))}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-theme-action-accent focus:border-transparent"
                       disabled={isCreatingBuilding}
                     />
                   </div>
@@ -4444,7 +4444,7 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
                       type="number"
                       value={buildingCreateData.helka || ''}
                       onChange={(e) => setBuildingCreateData(prev => ({ ...prev, helka: e.target.value ? parseInt(e.target.value, 10) : undefined }))}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-theme-action-accent focus:border-transparent"
                       disabled={isCreatingBuilding}
                     />
                   </div>
@@ -4457,7 +4457,7 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
                       type="number"
                       value={buildingCreateData.building_number_in_street || ''}
                       onChange={(e) => setBuildingCreateData(prev => ({ ...prev, building_number_in_street: e.target.value ? parseInt(e.target.value, 10) : undefined }))}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-theme-action-accent focus:border-transparent"
                       disabled={isCreatingBuilding}
                     />
                   </div>

@@ -24,14 +24,14 @@ import { OperatorsManager } from './components/OperatorsManager';
 import { ManagersManager } from './components/ManagersManager';
 import { MeasuredNotExportedAssets } from './components/MeasuredNotExportedAssets';
 import { MeasurementProgressDashboard } from './components/MeasurementProgressDashboard';
-import { X, Settings, Building, Home, Tag, Search, Plus, Building2, Upload, ChevronDown, ChevronLeft, Trash2, Database, CheckCircle2, AlertCircle, Loader2, Menu, MapPin, Edit, Square, Save, FileText, RefreshCw, Download, LogOut, Users, UserCog, BarChart3, Mail, ClipboardList, HelpCircle } from 'lucide-react';
+import { X, Settings, Building, Home, Tag, Search, Plus, Building2, Upload, ChevronDown, ChevronLeft, Trash2, Database, CheckCircle2, AlertCircle, Loader2, Menu, MapPin, Edit, Save, FileText, RefreshCw, Download, LogOut, Users, UserCog, BarChart3, Mail, ClipboardList, HelpCircle, User, Sun, SlidersHorizontal } from 'lucide-react';
 import { api, AssetType } from './lib/api';
 import { getSession, logoutUsersTable, loginByTaskToken } from './lib/usersTableAuth';
 import { assetValidators, validateEntity, getAssetTypes, getLatestExportDate as getCachedLatestExportDate } from './lib/validation';
-import { usePreferences } from './contexts/PreferencesContext';
 import { useUserRole } from './contexts/UserRoleContext';
 import { useUIConfig } from './contexts/UIConfigContext';
 import { useHelp } from './contexts/HelpContext';
+import { useValidationRules } from './contexts/ValidationContext';
 import { Login } from './components/Login';
 import { HelpModal } from './components/HelpModal';
 import { MobileTasksAndUpload } from './components/MobileTasksAndUpload';
@@ -54,12 +54,11 @@ interface Tab {
 }
 
 function App() {
-  const { preferences, setEditMode } = usePreferences();
   const { isLoading: roleLoading, isReadOnly, isAdmin, isInspector, userRole, refreshRole } = useUserRole();
   const roleLabel = userRole === 'admin' ? 'מנהל' : userRole === 'inspector' ? 'פקח' : 'משתמש';
   const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
   const [checkingAuth, setCheckingAuth] = useState(true);
-  
+
   const [tabs, setTabs] = useState<Tab[]>(() => {
     const s = getSession();
     if (s?.user_role === 'inspector') {
@@ -81,6 +80,35 @@ function App() {
   const [adminMenuOpen, setAdminMenuOpen] = useState(false);
   const [systemConfigSubmenuOpen, setSystemConfigSubmenuOpen] = useState(false);
   const [managerActionsSubmenuOpen, setManagerActionsSubmenuOpen] = useState(false);
+  const [userMenuOpen, setUserMenuOpen] = useState(false);
+  const [settingsMenuOpen, setSettingsMenuOpen] = useState(false);
+  const settingsMenuRef = useRef<HTMLDivElement>(null);
+
+  type Brightness = 'light' | 'normal' | 'dark';
+  type FontSize = 'small' | 'normal' | 'large';
+  const [brightness, setBrightness] = useState<Brightness>(() => (localStorage.getItem('app-brightness') as Brightness) || 'normal');
+  const [fontSize, setFontSize] = useState<FontSize>(() => (localStorage.getItem('app-font-size') as FontSize) || 'normal');
+
+  useEffect(() => {
+    if (brightness === 'normal') document.documentElement.removeAttribute('data-brightness');
+    else document.documentElement.setAttribute('data-brightness', brightness);
+    if (fontSize === 'normal') document.documentElement.removeAttribute('data-font-size');
+    else document.documentElement.setAttribute('data-font-size', fontSize);
+    if (brightness !== 'normal') localStorage.setItem('app-brightness', brightness);
+    else localStorage.removeItem('app-brightness');
+    if (fontSize !== 'normal') localStorage.setItem('app-font-size', fontSize);
+    else localStorage.removeItem('app-font-size');
+  }, [brightness, fontSize]);
+
+  useEffect(() => {
+    const h = (e: MouseEvent) => {
+      if (settingsMenuOpen && settingsMenuRef.current && !settingsMenuRef.current.contains(e.target as Node)) {
+        setSettingsMenuOpen(false);
+      }
+    };
+    document.addEventListener('click', h);
+    return () => document.removeEventListener('click', h);
+  }, [settingsMenuOpen]);
   const [showBatchValidationModal, setShowBatchValidationModal] = useState(false);
   const [batchValidationModalClosing, setBatchValidationModalClosing] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -98,6 +126,7 @@ function App() {
   } | null>(null);
   const { validation_rules_enabled: validationRulesEnabled, loadUIConfig } = useUIConfig();
   const { setContextFromTabType, openHelp } = useHelp();
+  const { refreshRules } = useValidationRules();
   const isMobile = useIsMobile();
   const mobileDefaultAppliedRef = useRef(false);
   const inspectorDefaultAppliedRef = useRef(false);
@@ -232,6 +261,7 @@ function App() {
   const handleLoginSuccess = async () => {
     setIsAuthenticated(true);
     await refreshRole();
+    await refreshRules();
   };
 
   const handleLogout = () => {
@@ -596,13 +626,19 @@ function App() {
     });
   }, [handleNavigation]);
 
+  const activeTab = tabs.find(tab => tab.id === activeTabId);
+  const isSidebarItemActive = useCallback((tabType: Tab['type'] | Tab['type'][]) => {
+    const types = Array.isArray(tabType) ? tabType : [tabType];
+    return activeTab ? types.includes(activeTab.type) : false;
+  }, [activeTab]);
+
   // Show login page if not authenticated
   // NOTE: Early returns must come AFTER all hooks to comply with Rules of Hooks
   if (checkingAuth || roleLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50">
+      <div className="min-h-screen flex items-center justify-center bg-app-bg">
         <div className="text-center">
-          <Loader2 className="w-12 h-12 text-indigo-600 animate-spin mx-auto mb-4" />
+          <Loader2 className="w-12 h-12 text-app-accent animate-spin mx-auto mb-4" />
           <p className="text-slate-600">טוען...</p>
         </div>
       </div>
@@ -1301,9 +1337,6 @@ function App() {
     });
   }
 
-  const activeTab = tabs.find(tab => tab.id === activeTabId);
-
-
   async function handleBatchValidateAllAssets() {
     setShowBatchValidationModal(true);
     setBatchValidationLoading(true);
@@ -1491,96 +1524,177 @@ function App() {
     }
   }
 
-
   return (
-    <div className="min-h-screen bg-gradient-to-br from-purple-50 via-white to-indigo-50 flex flex-col md:flex-row" dir="rtl">
-      {/* Mobile menu button */}
+    <div className="min-h-screen bg-app-bg flex flex-col" dir="rtl">
+      {/* theme_1: Dark blue header, icon strip */}
+      <header className="shrink-0 h-12 bg-app-header flex items-center justify-between px-4 text-white shadow-md">
+        <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2">
+            <div className="w-9 h-9 rounded-full bg-white/20 flex items-center justify-center">
+              <Building2 className="h-5 w-5" />
+            </div>
+            <span className="font-semibold text-base hidden sm:inline">מערכת ניהול מבנים</span>
+          </div>
+        </div>
+        <div className="flex items-center gap-1">
+          <button onClick={() => openHelp('manual')} title="עזרה" className="p-2.5 rounded hover:bg-white/10 transition-colors">
+            <HelpCircle className="h-5 w-5" />
+          </button>
+          <div className="relative" ref={settingsMenuRef}>
+            <button
+              onClick={() => { setSettingsMenuOpen((prev) => !prev); setUserMenuOpen(false); }}
+              title="הגדרות"
+              className={`p-2.5 rounded hover:bg-white/10 transition-colors ${settingsMenuOpen ? 'bg-white/10' : 'opacity-80'}`}
+            >
+              <SlidersHorizontal className="h-5 w-5" />
+            </button>
+            {settingsMenuOpen && (
+              <div className="absolute left-0 top-full mt-1 w-52 bg-app-sidebar border border-white/10 rounded-lg shadow-xl py-2 z-[100]">
+                <div className="px-3 py-1.5 border-b border-white/10">
+                  <span className="flex items-center gap-1.5 text-xs font-medium text-white/70">
+                    <Sun className="h-3.5 w-3.5" />
+                    בהירות
+                  </span>
+                  <div className="flex gap-1 mt-1">
+                    {(['light', 'normal', 'dark'] as const).map((b) => (
+                      <button
+                        key={b}
+                        onClick={() => setBrightness(b)}
+                        className={`flex-1 py-1.5 rounded text-sm ${brightness === b ? 'bg-white/20 text-white' : 'text-white/80 hover:bg-white/10'}`}
+                      >
+                        {b === 'light' ? 'בהיר' : b === 'normal' ? 'רגיל' : 'כהה'}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <div className="px-3 py-1.5">
+                  <span className="text-xs font-medium text-white/70">גודל גופן</span>
+                  <div className="flex gap-1 mt-1">
+                    {(['small', 'normal', 'large'] as const).map((f) => (
+                      <button
+                        key={f}
+                        onClick={() => setFontSize(f)}
+                        className={`flex-1 py-1.5 rounded text-sm ${fontSize === f ? 'bg-white/20 text-white' : 'text-white/80 hover:bg-white/10'}`}
+                      >
+                        {f === 'small' ? 'קטן' : f === 'normal' ? 'רגיל' : 'גדול'}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+          <div className="relative">
+            <button
+              onClick={() => setUserMenuOpen((prev) => !prev)}
+              title="משתמש"
+              className={`p-2.5 rounded hover:bg-white/10 transition-colors ${userMenuOpen ? 'bg-white/10' : 'opacity-80'}`}
+            >
+              <User className="h-5 w-5" />
+            </button>
+            {userMenuOpen && (
+              <div className="absolute left-0 top-full mt-1 w-48 bg-app-sidebar border border-white/10 rounded-lg shadow-xl py-2 z-[100]">
+                {(() => {
+                  const session = getSession();
+                  return (
+                    <>
+                      <div className="px-3 py-2 border-b border-white/10">
+                        <p className="text-sm font-medium text-white truncate">{session?.user_name || '-'}</p>
+                        <p className="text-xs text-white/80">{roleLabel}</p>
+                      </div>
+                      <button
+                        onClick={() => {
+                          setUserMenuOpen(false);
+                          handleLogout();
+                        }}
+                        className="w-full flex items-center justify-center gap-2 py-2 px-3 text-sm text-white/90 hover:bg-app-destructive/30 hover:text-white rounded-b-lg transition-colors"
+                        title="התנתק"
+                      >
+                        <LogOut className="h-4 w-4" />
+                        התנתק
+                      </button>
+                    </>
+                  );
+                })()}
+              </div>
+            )}
+          </div>
+        </div>
+      </header>
+
+      <div className="flex-1 flex flex-col md:flex-row min-h-0">
+      {/* theme_1: Mobile menu button - touch-friendly */}
       <button
         onClick={() => setSidebarOpen(!sidebarOpen)}
-        className="md:hidden fixed top-4 left-4 z-50 p-2 bg-white rounded-lg shadow-lg border border-purple-200"
+        className="md:hidden fixed z-50 min-h-[44px] min-w-[44px] p-3 left-2 bg-app-sidebar rounded-xl shadow-lg border border-app-sidebar-hover touch-manipulation"
+        style={{ top: 'max(0.5rem, env(safe-area-inset-top, 0px))' }}
+        aria-label="תפריט"
       >
-        <Menu className="h-6 w-6 text-purple-700" />
+        <Menu className="h-6 w-6 text-white" />
       </button>
 
-      {/* Sidebar - hidden on mobile, shown on desktop */}
-      <div className={`${sidebarOpen ? 'fixed inset-0 z-40 md:relative md:z-auto' : 'hidden md:flex'} md:w-48 bg-white/95 backdrop-blur-sm border-r border-purple-200 shadow-xl flex flex-col shrink-0`}>
-        {/* Mobile close button */}
+      {/* theme_1: Narrow icon-first sidebar - dark teal */}
+      <div className={`${sidebarOpen ? 'fixed inset-0 z-40 md:relative md:z-auto' : 'hidden md:flex'} md:w-[72px] lg:w-20 bg-app-sidebar border-l border-white/10 flex flex-col shrink-0 overflow-visible`}>
         {sidebarOpen && (
           <button
             onClick={() => setSidebarOpen(false)}
-            className="md:hidden absolute top-4 right-4 p-2 bg-white rounded-lg shadow-lg border border-purple-200"
+            className="md:hidden absolute min-h-[44px] min-w-[44px] p-3 right-2 bg-app-sidebar rounded-xl touch-manipulation"
+            style={{ top: 'max(0.5rem, env(safe-area-inset-top, 0px))' }}
+            aria-label="סגור תפריט"
           >
-            <X className="h-6 w-6 text-purple-700" />
+            <X className="h-6 w-6 text-white" />
           </button>
         )}
-        <div className="p-2 border-b border-purple-100 bg-gradient-to-br from-purple-100 via-indigo-50 to-white">
-          <div className="flex items-center justify-between">
-            <h2 className="text-xs font-semibold bg-gradient-to-r from-purple-700 to-indigo-700 bg-clip-text text-transparent">תפריט ראשי</h2>
-            <button
-              onClick={() => openHelp()}
-              className="p-1.5 rounded-lg hover:bg-purple-100 text-purple-600 hover:text-purple-800"
-              title="עזרה (F1)"
-              aria-label="עזרה"
-            >
-              <HelpCircle className="h-4 w-4" />
-            </button>
-          </div>
+        <div className="p-2 border-b border-white/10 flex flex-col items-center gap-1">
           {!roleLoading && userRole && (
-            <span className={`inline-block mt-1.5 px-2 py-0.5 rounded text-xs font-medium ${
-              userRole === 'admin' ? 'bg-pink-100 text-pink-800' :
-              userRole === 'inspector' ? 'bg-indigo-100 text-indigo-800' :
-              'bg-slate-100 text-slate-700'
-            }`}>
-              {roleLabel}
-            </span>
+            <span className="text-[10px] font-medium text-white/80 px-1 truncate max-w-full">{roleLabel}</span>
           )}
         </div>
-        <nav className="flex-1 p-3 space-y-2">
+        <nav className="flex-1 p-2 space-y-0.5 overflow-visible min-h-0">
+          {!isInspector && (
+            <button
+              onClick={openAssetSearch}
+              className={`w-full flex items-center justify-center p-2.5 rounded transition-all duration-200 text-white relative mb-1 ${isSidebarItemActive('asset-search') ? 'bg-app-sidebar-active border-r-[3px] border-r-app-sidebar-indicator' : 'hover:bg-app-sidebar-hover'}`}
+              title="חיפוש נכס"
+            >
+              <Search className="h-5 w-5 shrink-0" />
+            </button>
+          )}
           {isInspector && (
-            <div>
-              <button
-                onClick={openInspectionTasks}
-                className="w-full flex items-center justify-between px-4 py-2.5 text-right bg-indigo-100 hover:bg-indigo-200 active:bg-indigo-300 rounded-md transition-all duration-200 shadow-sm border border-indigo-200 hover:shadow-md hover:border-indigo-300 group"
-              >
-                <div className="flex items-center gap-2">
-                  <span className="font-medium text-sm text-slate-800 group-hover:text-indigo-900">משימות ביקורת</span>
-                  <ClipboardList className="h-4 w-4 text-indigo-700 group-hover:text-indigo-800" />
-                </div>
-              </button>
-            </div>
+            <button
+              onClick={openInspectionTasks}
+              className={`w-full flex items-center justify-center p-2.5 rounded transition-all duration-200 text-white relative ${isSidebarItemActive('inspection-tasks') ? 'bg-app-sidebar-active border-r-[3px] border-r-app-sidebar-indicator' : 'hover:bg-app-sidebar-hover'}`}
+              title="משימות ביקורת"
+            >
+              <ClipboardList className="h-5 w-5 shrink-0" />
+            </button>
           )}
           {!isInspector && isMobile && (
-            <div>
-              <button
-                onClick={openMobileTasksUpload}
-                className="w-full flex items-center justify-between px-4 py-2.5 text-right bg-indigo-50 hover:bg-indigo-100 active:bg-indigo-200 rounded-md transition-all duration-200 shadow-sm border border-indigo-100 hover:shadow-md hover:border-indigo-300 group"
-              >
-                <div className="flex items-center gap-2">
-                  <span className="font-medium text-sm text-slate-700 group-hover:text-indigo-900">משימות והעלאות</span>
-                  <ClipboardList className="h-4 w-4 text-indigo-600 group-hover:text-indigo-700" />
-                </div>
-              </button>
-            </div>
+            <button
+              onClick={openMobileTasksUpload}
+              className={`w-full flex items-center justify-center p-2.5 rounded transition-all duration-200 text-white relative ${isSidebarItemActive('mobile-tasks-upload') ? 'bg-app-sidebar-active border-r-[3px] border-r-app-sidebar-indicator' : 'hover:bg-app-sidebar-hover'}`}
+              title="משימות והעלאות"
+            >
+              <ClipboardList className="h-5 w-5 shrink-0" />
+            </button>
           )}
           {!isInspector && (
-          <>
-          <div>
+          <div className="relative">
             <button
-              onClick={() => setBuildingsMenuOpen(!buildingsMenuOpen)}
-              className="w-full flex items-center justify-between px-4 py-2.5 text-right bg-white hover:bg-purple-50 active:bg-purple-100 rounded-md transition-all duration-200 shadow-sm border border-purple-100 hover:shadow-md hover:border-purple-300 group"
+              onClick={() => {
+                setAssetsMenuOpen(false);
+                setAdminMenuOpen(false);
+                setManagerActionsSubmenuOpen(false);
+                setSystemConfigSubmenuOpen(false);
+                setBuildingsMenuOpen((prev) => !prev);
+              }}
+              className={`w-full flex items-center justify-center p-2.5 rounded transition-all duration-200 text-white relative ${isSidebarItemActive(['buildings', 'building-list-import', 'measurement-progress-dashboard']) ? 'bg-app-sidebar-active border-r-[3px] border-r-app-sidebar-indicator' : 'hover:bg-app-sidebar-hover'}`}
+              title="מבנים"
             >
-              <div className="flex items-center gap-2">
-                <span className="font-medium text-sm text-slate-700 group-hover:text-purple-900">מבנים</span>
-                <Building2 className="h-4 w-4 text-purple-600 group-hover:text-purple-700" />
-              </div>
-              {buildingsMenuOpen ? (
-                <ChevronDown className="h-4 w-4 text-slate-500" />
-              ) : (
-                <ChevronLeft className="h-4 w-4 text-slate-500" />
-              )}
+              <Building2 className="h-5 w-5 shrink-0" />
             </button>
             {buildingsMenuOpen && (
-              <div className="mr-2 mt-2 space-y-1.5">
+              <div className="absolute right-full top-0 mr-1 w-48 bg-app-sidebar border-l border-white/10 rounded-l-lg shadow-xl py-2 z-[100] max-h-[70vh] overflow-y-auto">
                 <button
                   onClick={() => {
                     const dashboardTab: Tab = { id: 'measurement-progress-dashboard', type: 'measurement-progress-dashboard', label: 'התקדמות פעילות מדידות', refreshKey: Date.now() };
@@ -1589,165 +1703,131 @@ function App() {
                     setActiveTabId('buildings');
                     setBuildingsMenuOpen(true);
                   }}
-                  className="w-full flex items-center gap-2 px-3 py-2 text-right bg-purple-50/50 hover:bg-purple-100 active:bg-purple-200 rounded-md transition-all duration-200 text-xs shadow-sm hover:shadow-md"
+                  className="w-full text-right py-2 px-3 text-sm text-white/90 hover:bg-app-sidebar-hover rounded"
                 >
-                  <span className="font-medium text-slate-700 text-xs">רשימת מבנים</span>
-                  <Building className="h-3.5 w-3.5 text-purple-600" />
+                  רשימת מבנים
                 </button>
                 {!isReadOnly && (
                   <>
                     <button
                       onClick={() => setShowCreateBuildingModal(true)}
-                      className="w-full flex items-center gap-2 px-3 py-2 text-right bg-purple-50/50 hover:bg-purple-100 active:bg-purple-200 rounded-md transition-all duration-200 text-xs shadow-sm hover:shadow-md"
+                      className="w-full text-right py-2 px-3 text-sm text-white/90 hover:bg-app-sidebar-hover rounded"
                     >
-                      <span className="font-medium text-slate-700">צור מבנה חדש</span>
-                      <Plus className="h-3.5 w-3.5 text-purple-600" />
+                      צור מבנה חדש
                     </button>
                     <button
                       onClick={openFileImport}
-                      className="w-full flex items-center gap-2 px-3 py-2 text-right bg-purple-50/50 hover:bg-purple-100 active:bg-purple-200 rounded-md transition-all duration-200 text-xs shadow-sm hover:shadow-md"
+                      className="w-full text-right py-2 px-3 text-sm text-white/90 hover:bg-app-sidebar-hover rounded"
                     >
-                      <span className="font-medium text-slate-700">ייבוא File</span>
-                      <Upload className="h-3.5 w-3.5 text-purple-600" />
+                      ייבוא File
                     </button>
                   </>
                 )}
               </div>
             )}
           </div>
-          <div>
+          )}
+          {!isInspector && (
+          <div className="relative">
             <button
-              onClick={() => setAssetsMenuOpen(!assetsMenuOpen)}
-              className="w-full flex items-center justify-between px-4 py-2.5 text-right bg-white hover:bg-indigo-50 active:bg-indigo-100 rounded-md transition-all duration-200 shadow-sm border border-purple-100 hover:shadow-md hover:border-indigo-300 group"
+              onClick={() => {
+                setBuildingsMenuOpen(false);
+                setAdminMenuOpen(false);
+                setManagerActionsSubmenuOpen(false);
+                setSystemConfigSubmenuOpen(false);
+                setAssetsMenuOpen((prev) => !prev);
+              }}
+              className={`w-full flex items-center justify-center p-2.5 rounded transition-all duration-200 text-white relative ${isSidebarItemActive(['assets', 'asset-details', 'asset-search', 'measured-not-exported-assets', 'assets-file-import', 'assets-skeleton-import', 'asset-types', 'transfer-areas', 'address-list', 'field-config', 'asset-data-entry', 'audit-log']) ? 'bg-app-sidebar-active border-r-[3px] border-r-app-sidebar-indicator' : 'hover:bg-app-sidebar-hover'}`}
+              title="נכסים"
             >
-              <div className="flex items-center gap-2">
-                <span className="font-medium text-sm text-slate-700 group-hover:text-indigo-900">נכסים</span>
-                <Home className="h-4 w-4 text-indigo-600 group-hover:text-indigo-700" />
-              </div>
-              {assetsMenuOpen ? (
-                <ChevronDown className="h-4 w-4 text-slate-500" />
-              ) : (
-                <ChevronLeft className="h-4 w-4 text-slate-500" />
-              )}
+              <Home className="h-5 w-5 shrink-0" />
             </button>
             {assetsMenuOpen && (
-              <div className="mr-2 mt-2 space-y-1.5">
+              <div className="absolute right-full top-0 mr-1 w-52 bg-app-sidebar border-l border-white/10 rounded-l-lg shadow-xl py-2 z-[100] max-h-[70vh] overflow-y-auto">
                 <button
                   onClick={openAssetSearch}
-                  className="w-full flex items-center gap-2 px-3 py-2 text-right bg-indigo-50/50 hover:bg-indigo-100 active:bg-indigo-200 rounded-md transition-all duration-200 text-xs shadow-sm hover:shadow-md"
+                  className="w-full text-right py-2 px-3 text-sm text-white/90 hover:bg-app-sidebar-hover rounded"
                 >
-                  <span className="font-medium text-slate-700">חיפוש נכס</span>
-                  <Search className="h-3.5 w-3.5 text-indigo-600" />
+                  חיפוש נכס
                 </button>
                 <button
                   onClick={openMeasuredNotExportedAssets}
-                  className="w-full flex items-center gap-2 px-3 py-2 text-right bg-indigo-50/50 hover:bg-indigo-100 active:bg-indigo-200 rounded-md transition-all duration-200 text-xs shadow-sm hover:shadow-md"
+                  className="w-full text-right py-2 px-3 text-sm text-white/90 hover:bg-app-sidebar-hover rounded"
                 >
-                  <span className="font-medium text-slate-700">נכסים שנמדדו ולא נשלחו</span>
-                  <AlertCircle className="h-3.5 w-3.5 text-indigo-600" />
+                  נכסים שנמדדו ולא נשלחו
                 </button>
                 {!isReadOnly && (
                   <>
                     <button
                       onClick={openAssetsFileImport}
-                      className="w-full flex items-center gap-2 px-3 py-2 text-right bg-indigo-50/50 hover:bg-indigo-100 active:bg-indigo-200 rounded-md transition-all duration-200 text-xs shadow-sm hover:shadow-md"
+                      className="w-full text-right py-2 px-3 text-sm text-white/90 hover:bg-app-sidebar-hover rounded"
                     >
-                      <span className="font-medium text-slate-700">ייבוא מלא</span>
-                      <Upload className="h-3.5 w-3.5 text-indigo-600" />
+                      ייבוא מלא
                     </button>
                     <button
                       onClick={openAssetsSkeletonImport}
-                      className="w-full flex items-center gap-2 px-3 py-2 text-right bg-indigo-50/50 hover:bg-indigo-100 active:bg-indigo-200 rounded-md transition-all duration-200 text-xs shadow-sm hover:shadow-md"
+                      className="w-full text-right py-2 px-3 text-sm text-white/90 hover:bg-app-sidebar-hover rounded"
                     >
-                      <span className="font-medium text-slate-700">ייבוא שלד</span>
-                      <Upload className="h-3.5 w-3.5 text-indigo-600" />
+                      ייבוא שלד
                     </button>
-                    <div className="w-full flex items-center justify-between px-3 py-2 bg-indigo-50/50 rounded-lg border border-indigo-200">
-                      <span className="font-medium text-slate-700 text-xs">מצב עריכה</span>
-                      <div className="flex items-center bg-white rounded-lg p-0.5 gap-0.5 border border-indigo-300">
-                        <button
-                          onClick={() => setEditMode('inline')}
-                          className={`p-1 rounded transition-colors ${
-                            preferences.editMode === 'inline'
-                              ? 'bg-indigo-600 text-white'
-                              : 'text-indigo-600 hover:bg-indigo-50'
-                          }`}
-                          title="עריכה ישירה בתא"
-                        >
-                          <Edit className="h-3.5 w-3.5" />
-                        </button>
-                        <button
-                          onClick={() => setEditMode('modal')}
-                          className={`p-1 rounded transition-colors ${
-                            preferences.editMode === 'modal'
-                              ? 'bg-indigo-600 text-white'
-                              : 'text-indigo-600 hover:bg-indigo-50'
-                          }`}
-                          title="עריכה בחלון נפרד"
-                        >
-                          <Square className="h-3.5 w-3.5" />
-                        </button>
-                      </div>
-                    </div>
                   </>
                 )}
               </div>
             )}
           </div>
-          <div>
+          )}
+          {!isInspector && (
+          <div className="relative">
             <button
-              onClick={() => setAdminMenuOpen(!adminMenuOpen)}
-              className="w-full flex items-center justify-between px-4 py-2.5 text-right bg-white hover:bg-pink-50 rounded-lg transition-all shadow-sm border border-purple-100 hover:shadow-md hover:border-pink-300 group"
+              onClick={() => {
+                setBuildingsMenuOpen(false);
+                setAssetsMenuOpen(false);
+                setAdminMenuOpen((prev) => !prev);
+              }}
+              className={`w-full flex items-center justify-center p-2.5 rounded transition-all duration-200 text-white relative ${isSidebarItemActive(['user-management', 'system-configuration', 'operators', 'managers', 'validation-rules']) ? 'bg-app-sidebar-active border-r-[3px] border-r-app-sidebar-indicator' : 'hover:bg-app-sidebar-hover'}`}
+              title="ניהול"
             >
-              <div className="flex items-center gap-2">
-                <span className="font-medium text-sm text-slate-700 group-hover:text-pink-900">ניהול</span>
-                <Settings className="h-4 w-4 text-pink-600 group-hover:text-pink-700" />
-              </div>
-              {adminMenuOpen ? (
-                <ChevronDown className="h-4 w-4 text-slate-500" />
-              ) : (
-                <ChevronLeft className="h-4 w-4 text-slate-500" />
-              )}
+              <Settings className="h-5 w-5 shrink-0" />
             </button>
             {adminMenuOpen && (
-              <div className="mr-2 mt-2 space-y-1.5">
+              <div className="absolute right-full top-0 mr-1 w-52 bg-app-sidebar border-l border-white/10 rounded-l-lg shadow-xl py-2 z-[100] max-h-[80vh] overflow-y-auto">
                 {isAdmin && (
                   <div>
                     <button
                       onClick={() => setManagerActionsSubmenuOpen(!managerActionsSubmenuOpen)}
-                      className="w-full flex items-center justify-between px-3 py-2 text-right bg-pink-50/50 hover:bg-pink-100 rounded-lg transition-all text-xs shadow-sm hover:shadow"
+                      className="w-full flex items-center justify-between px-3 py-2 text-right bg-transparent hover:bg-theme-sidebar-hover rounded-lg transition-all text-xs text-white/90"
                     >
                       <div className="flex items-center gap-2">
-                        <span className="font-medium text-slate-700">פעולות מנהל</span>
-                        <UserCog className="h-3.5 w-3.5 text-pink-600" />
+                        <span className="font-medium text-white/90">פעולות מנהל</span>
+                        <UserCog className="h-3.5 w-3.5 text-white/70" />
                       </div>
                       {managerActionsSubmenuOpen ? (
-                        <ChevronDown className="h-3.5 w-3.5 text-slate-500" />
+                        <ChevronDown className="h-3.5 w-3.5 text-white/70" />
                       ) : (
-                        <ChevronLeft className="h-3.5 w-3.5 text-slate-500" />
+                        <ChevronLeft className="h-3.5 w-3.5 text-white/70" />
                       )}
                     </button>
                     {managerActionsSubmenuOpen && (
-                      <div className="mr-2 mt-1.5 space-y-1 border-r-2 border-pink-200 pr-2">
+                      <div className="mr-2 mt-1 space-y-0.5 border-r-2 border-app-sidebar-indicator/50 pr-2">
                         <button
                           onClick={openInspectionTasks}
-                          className="w-full flex items-center gap-2 px-3 py-2 text-right bg-pink-50/80 hover:bg-pink-100 rounded-lg transition-all text-xs"
+                          className="w-full flex items-center gap-2 px-3 py-2 text-right bg-transparent hover:bg-theme-sidebar-hover rounded-lg transition-all text-xs text-white/90"
                         >
-                          <span className="text-slate-700">משימות ביקורת</span>
-                          <ClipboardList className="h-3 w-3 text-pink-500" />
+                          <span className="text-white/90">משימות ביקורת</span>
+                          <ClipboardList className="h-3 w-3 text-white/70" />
                         </button>
                         <button
                           onClick={openResetExportModal}
                           disabled={resetExportLoading}
-                          className="w-full flex items-center gap-2 px-3 py-2 text-right bg-pink-50/80 hover:bg-pink-100 rounded-lg transition-all text-xs disabled:opacity-50 disabled:cursor-not-allowed"
+                          className="w-full flex items-center gap-2 px-3 py-2 text-right bg-transparent hover:bg-theme-sidebar-hover rounded-lg transition-all text-xs text-white/90 disabled:opacity-50 disabled:cursor-not-allowed"
                         >
-                          <span className="text-slate-700">
+                          <span className="text-white/90">
                             איפוס שליחת נתונים מתאריך{displayLatestExportDate ? ` ${displayLatestExportDate}` : ''}
                           </span>
                           {resetExportLoading ? (
-                            <Loader2 className="h-3 w-3 text-pink-500 animate-spin" />
+                            <Loader2 className="h-3 w-3 text-white/70 animate-spin" />
                           ) : (
-                            <RefreshCw className="h-3 w-3 text-pink-500" />
+                            <RefreshCw className="h-3 w-3 text-white/70" />
                           )}
                         </button>
                       </div>
@@ -1757,78 +1837,78 @@ function App() {
                 {isAdmin && validationRulesEnabled && (
                   <button
                     onClick={openValidationRules}
-                    className="w-full flex items-center gap-2 px-3 py-2 text-right bg-pink-50/50 hover:bg-pink-100 rounded-lg transition-all text-xs shadow-sm hover:shadow"
+                    className="w-full flex items-center gap-2 px-3 py-2 text-right bg-transparent hover:bg-theme-sidebar-hover rounded-lg transition-all text-xs text-white/90"
                   >
-                    <span className="font-medium text-slate-700">כללי תקינות</span>
-                    <Settings className="h-3.5 w-3.5 text-pink-600" />
+                    <span className="font-medium text-white/90">כללי תקינות</span>
+                    <Settings className="h-3.5 w-3.5 text-white/70" />
                   </button>
                 )}
                 {isAdmin && (
                   <div>
                     <button
                       onClick={() => setSystemConfigSubmenuOpen(!systemConfigSubmenuOpen)}
-                      className="w-full flex items-center justify-between px-3 py-2 text-right bg-pink-50/50 hover:bg-pink-100 rounded-lg transition-all text-xs shadow-sm hover:shadow"
+                      className="w-full flex items-center justify-between px-3 py-2 text-right bg-transparent hover:bg-theme-sidebar-hover rounded-lg transition-all text-xs text-white/90"
                     >
                       <div className="flex items-center gap-2">
-                        <span className="font-medium text-slate-700">הגדרות מערכת</span>
-                        <Settings className="h-3.5 w-3.5 text-pink-600" />
+                        <span className="font-medium text-white/90">הגדרות מערכת</span>
+                        <Settings className="h-3.5 w-3.5 text-white/70" />
                       </div>
                       {systemConfigSubmenuOpen ? (
-                        <ChevronDown className="h-3.5 w-3.5 text-slate-500" />
+                        <ChevronDown className="h-3.5 w-3.5 text-white/70" />
                       ) : (
-                        <ChevronLeft className="h-3.5 w-3.5 text-slate-500" />
+                        <ChevronLeft className="h-3.5 w-3.5 text-white/70" />
                       )}
                     </button>
                     {systemConfigSubmenuOpen && (
-                      <div className="mr-2 mt-1.5 space-y-1 border-r-2 border-pink-200 pr-2">
+                      <div className="mr-2 mt-1 space-y-0.5 border-r-2 border-app-sidebar-indicator/50 pr-2">
                         <button
                           onClick={openSystemConfiguration}
-                          className="w-full flex items-center gap-2 px-3 py-2 text-right bg-pink-50/80 hover:bg-pink-100 rounded-lg transition-all text-xs"
+                          className="w-full flex items-center gap-2 px-3 py-2 text-right bg-transparent hover:bg-theme-sidebar-hover rounded-lg transition-all text-xs text-white/90"
                         >
-                          <span className="text-slate-700">הגדרות כלליות</span>
-                          <Settings className="h-3 w-3 text-pink-500" />
+                          <span className="text-white/90">הגדרות כלליות</span>
+                          <Settings className="h-3 w-3 text-white/70" />
                         </button>
                         <button
                           onClick={openAssetTypes}
-                          className="w-full flex items-center gap-2 px-3 py-2 text-right bg-pink-50/80 hover:bg-pink-100 rounded-lg transition-all text-xs"
+                          className="w-full flex items-center gap-2 px-3 py-2 text-right bg-transparent hover:bg-theme-sidebar-hover rounded-lg transition-all text-xs text-white/90"
                         >
-                          <span className="text-slate-700">סוגי נכסים</span>
-                          <Tag className="h-3 w-3 text-pink-500" />
+                          <span className="text-white/90">סוגי נכסים</span>
+                          <Tag className="h-3 w-3 text-white/70" />
                         </button>
                         <button
                           onClick={openAddressList}
-                          className="w-full flex items-center gap-2 px-3 py-2 text-right bg-pink-50/80 hover:bg-pink-100 rounded-lg transition-all text-xs"
+                          className="w-full flex items-center gap-2 px-3 py-2 text-right bg-transparent hover:bg-theme-sidebar-hover rounded-lg transition-all text-xs text-white/90"
                         >
-                          <span className="text-slate-700">רשימת כתובות</span>
-                          <MapPin className="h-3 w-3 text-pink-500" />
+                          <span className="text-white/90">רשימת כתובות</span>
+                          <MapPin className="h-3 w-3 text-white/70" />
                         </button>
                         <button
                           onClick={openFieldConfig}
-                          className="w-full flex items-center gap-2 px-3 py-2 text-right bg-pink-50/80 hover:bg-pink-100 rounded-lg transition-all text-xs"
+                          className="w-full flex items-center gap-2 px-3 py-2 text-right bg-transparent hover:bg-theme-sidebar-hover rounded-lg transition-all text-xs text-white/90"
                         >
-                          <span className="text-slate-700">הגדרות שדות</span>
-                          <Settings className="h-3 w-3 text-pink-500" />
+                          <span className="text-white/90">הגדרות שדות</span>
+                          <Settings className="h-3 w-3 text-white/70" />
                         </button>
                         <button
                           onClick={openOperators}
-                          className="w-full flex items-center gap-2 px-3 py-2 text-right bg-pink-50/80 hover:bg-pink-100 rounded-lg transition-all text-xs"
+                          className="w-full flex items-center gap-2 px-3 py-2 text-right bg-transparent hover:bg-theme-sidebar-hover rounded-lg transition-all text-xs text-white/90"
                         >
-                          <span className="text-slate-700">מפעילים</span>
-                          <Users className="h-3 w-3 text-pink-500" />
+                          <span className="text-white/90">מפעילים</span>
+                          <Users className="h-3 w-3 text-white/70" />
                         </button>
                         <button
                           onClick={openManagers}
-                          className="w-full flex items-center gap-2 px-3 py-2 text-right bg-pink-50/80 hover:bg-pink-100 rounded-lg transition-all text-xs"
+                          className="w-full flex items-center gap-2 px-3 py-2 text-right bg-transparent hover:bg-theme-sidebar-hover rounded-lg transition-all text-xs text-white/90"
                         >
-                          <span className="text-slate-700">מנהלים</span>
-                          <UserCog className="h-3 w-3 text-pink-500" />
+                          <span className="text-white/90">מנהלים</span>
+                          <UserCog className="h-3 w-3 text-white/70" />
                         </button>
                         <button
                           onClick={openUserManagement}
-                          className="w-full flex items-center gap-2 px-3 py-2 text-right bg-pink-50/80 hover:bg-pink-100 rounded-lg transition-all text-xs"
+                          className="w-full flex items-center gap-2 px-3 py-2 text-right bg-transparent hover:bg-theme-sidebar-hover rounded-lg transition-all text-xs text-white/90"
                         >
-                          <span className="text-slate-700">ניהול משתמשים</span>
-                          <Users className="h-3 w-3 text-pink-500" />
+                          <span className="text-white/90">ניהול משתמשים</span>
+                          <Users className="h-3 w-3 text-white/70" />
                         </button>
                       </div>
                     )}
@@ -1837,43 +1917,37 @@ function App() {
               </div>
             )}
           </div>
-          </>
           )}
         </nav>
         
-        {/* Help and Logout at bottom of sidebar */}
-        <div className="p-3 border-t border-purple-200 space-y-2">
-          <button
-            onClick={() => openHelp('manual')}
-            className="w-full flex items-center gap-2 px-4 py-2 text-right bg-slate-50 hover:bg-slate-100 rounded-md transition-all text-sm text-slate-600 hover:text-slate-800"
-            title="מדריך משתמש (F1 למענה מותאם למסך)"
-          >
-            <HelpCircle className="h-4 w-4" />
-            <span>עזרה</span>
-          </button>
-          <button
-            onClick={handleLogout}
-            className="w-full flex items-center gap-2 px-4 py-2.5 text-right bg-red-50 hover:bg-red-100 active:bg-red-200 rounded-md transition-all duration-200 shadow-sm border border-red-200 hover:shadow-md hover:border-red-300 group"
-          >
-            <span className="font-medium text-sm text-red-700 group-hover:text-red-900">התנתק</span>
-            <LogOut className="h-4 w-4 text-red-600 group-hover:text-red-700" />
-          </button>
-          <p className="text-center text-xs text-slate-400 pt-1">Kortex Digital</p>
+        <div className="p-2 border-t border-white/10 flex flex-col items-center gap-1">
+          <p className="text-[9px] text-white/50 pt-1">© Kortex</p>
         </div>
         
       </div>
 
-      <div className="flex-1 flex flex-col min-w-0">
-        <div className="bg-white/95 backdrop-blur-sm border-b border-purple-200 shadow-lg">
-          <div className="px-2 sm:px-4 py-1">
-            <div className="flex items-center gap-2 overflow-x-auto scrollbar-hide">
-              {tabs.map((tab) => (
+      <div
+        className="flex-1 flex flex-col min-w-0 pt-[52px] md:pt-0"
+        onClick={() => {
+          setBuildingsMenuOpen(false);
+          setAssetsMenuOpen(false);
+          setAdminMenuOpen(false);
+          setManagerActionsSubmenuOpen(false);
+          setSystemConfigSubmenuOpen(false);
+          setUserMenuOpen(false);
+        }}
+      >
+        {/* theme_1: Tabs bar - light gray */}
+        <div className="bg-app-tabs-bg border-b border-app-input-border">
+          <div className="px-2 sm:px-4 py-1.5">
+            <div className="flex flex-row-reverse items-center justify-end gap-1 overflow-x-auto scrollbar-hide min-h-[40px]">
+              {[...tabs].reverse().map((tab) => (
                 <div
                   key={tab.id}
-                  className={`flex items-center gap-2 px-3 py-1 border-b-2 transition-all duration-200 cursor-pointer group rounded-t-lg ${
+                  className={`flex items-center gap-2 px-4 py-2 border-b-2 transition-all duration-200 cursor-pointer group touch-manipulation flex-shrink-0 -mb-px ${
                     activeTabId === tab.id
-                      ? 'border-purple-600 bg-gradient-to-r from-purple-50 to-indigo-50 shadow-sm font-medium'
-                      : 'border-transparent hover:bg-purple-50/50 hover:border-purple-200 hover:shadow-sm'
+                      ? 'border-app-sidebar-indicator text-app-text-primary font-semibold'
+                      : 'border-transparent text-app-text-muted hover:text-app-text-primary hover:bg-white/40'
                   }`}
                 >
                   <div
@@ -1891,44 +1965,44 @@ function App() {
                     className="flex items-center gap-2 flex-shrink-0"
                   >
                     {tab.type === 'admin' ? (
-                      <Settings className="h-4 w-4 text-purple-700" />
+                      <Settings className="h-5 w-5 text-slate-600 shrink-0" />
                     ) : tab.type === 'asset-types' ? (
-                      <Tag className="h-4 w-4 text-purple-700" />
+                      <Tag className="h-5 w-5 text-slate-600 shrink-0" />
                     ) : tab.type === 'asset-search' ? (
-                      <Search className="h-4 w-4 text-purple-700" />
+                      <Search className="h-5 w-5 text-slate-600 shrink-0" />
                     ) : tab.type === 'measured-not-exported-assets' ? (
-                      <AlertCircle className="h-4 w-4 text-purple-700" />
+                      <AlertCircle className="h-5 w-5 text-slate-600 shrink-0" />
                     ) : tab.type === 'measurement-progress-dashboard' ? (
-                      <BarChart3 className="h-4 w-4 text-purple-700" />
+                      <BarChart3 className="h-5 w-5 text-slate-600 shrink-0" />
                     ) : tab.type === 'validation-rules' ? (
-                      <Settings className="h-4 w-4 text-purple-700" />
+                      <Settings className="h-5 w-5 text-slate-600 shrink-0" />
                     ) : tab.type === 'field-config' ? (
-                      <Settings className="h-4 w-4 text-purple-700" />
+                      <Settings className="h-5 w-5 text-slate-600 shrink-0" />
                     ) : tab.type === 'address-list' ? (
-                      <MapPin className="h-4 w-4 text-purple-700" />
+                      <MapPin className="h-5 w-5 text-slate-600 shrink-0" />
                     ) : tab.type === 'asset-data-entry' ? (
-                      <Edit className="h-4 w-4 text-purple-700" />
+                      <Edit className="h-5 w-5 text-slate-600 shrink-0" />
                     ) : tab.type === 'building-list-import' ? (
-                      <Upload className="h-4 w-4 text-purple-700" />
+                      <Upload className="h-5 w-5 text-slate-600 shrink-0" />
                     ) : tab.type === 'assets-file-import' ? (
-                      <Upload className="h-4 w-4 text-purple-700" />
+                      <Upload className="h-5 w-5 text-slate-600 shrink-0" />
                     ) : tab.type === 'audit-log' ? (
-                      <FileText className="h-4 w-4 text-purple-700" />
+                      <FileText className="h-5 w-5 text-slate-600 shrink-0" />
                     ) : tab.type === 'user-management' ? (
-                      <Users className="h-4 w-4 text-purple-700" />
+                      <Users className="h-5 w-5 text-slate-600 shrink-0" />
                     ) : tab.type === 'system-configuration' ? (
-                      <Settings className="h-4 w-4 text-purple-700" />
+                      <Settings className="h-5 w-5 text-slate-600 shrink-0" />
                     ) : tab.type === 'buildings' ? (
-                      <img src="/buildings.png" alt="Buildings" className="h-4 w-4" />
+                      <img src="/buildings.png" alt="Buildings" className="h-5 w-5 shrink-0" />
                     ) : tab.type === 'mobile-tasks-upload' ? (
-                      <ClipboardList className="h-4 w-4 text-purple-700" />
+                      <ClipboardList className="h-5 w-5 text-slate-600 shrink-0" />
                     ) : tab.type === 'inspection-tasks' ? (
-                      <ClipboardList className="h-4 w-4 text-purple-700" />
+                      <ClipboardList className="h-5 w-5 text-slate-600 shrink-0" />
                     ) : (
-                      <Building className="h-4 w-4 text-purple-700" />
+                      <Building className="h-5 w-5 text-slate-600 shrink-0" />
                     )}
-                    <span className={`font-normal whitespace-nowrap text-xs ${
-                      activeTabId === tab.id ? 'text-purple-900' : 'text-slate-600'
+                    <span className={`whitespace-nowrap text-sm hidden sm:inline ${
+                      activeTabId === tab.id ? 'text-app-text-primary' : 'text-app-text-muted'
                     }`}>
                       {tab.label}
                     </span>
@@ -1939,9 +2013,9 @@ function App() {
                         e.stopPropagation();
                         handleCloseTab(tab.id);
                       }}
-                      className="p-0.5 hover:bg-red-100 active:bg-red-200 rounded transition-all duration-200 hover:scale-110"
+                      className="p-0.5 text-slate-600 hover:bg-red-100 hover:text-red-600 active:bg-red-200 rounded transition-all duration-200 hover:scale-110"
                     >
-                      <X className="h-2.5 w-2.5 text-slate-600 hover:text-red-600" />
+                      <X className="h-2.5 w-2.5" />
                     </button>
                   )}
                 </div>
@@ -1952,7 +2026,7 @@ function App() {
 
         <div className="flex-1 overflow-hidden flex">
           {/* Main Content Area */}
-          <div className="flex-1 overflow-auto bg-gradient-to-br from-slate-50/50 to-white">
+          <div className="flex-1 overflow-auto bg-app-bg">
             {activeTab?.type === 'buildings' && (
               <BuildingsList
                 ref={buildingsListRef}
@@ -2079,6 +2153,7 @@ function App() {
           </div>
         </div>
       </div>
+      </div>
 
 
       {showBatchValidationModal && (
@@ -2112,7 +2187,7 @@ function App() {
             {batchValidationLoading ? (
               <div className="flex-1 flex items-center justify-center py-12">
                 <div className="text-center w-full max-w-md">
-                  <Loader2 className="h-8 w-8 text-blue-600 animate-spin mx-auto mb-4" />
+                  <Loader2 className="h-8 w-8 text-app-accent animate-spin mx-auto mb-4" />
                   <p className="text-slate-600 mb-4">מאמת את כל הנכסים במערכת...</p>
                   {batchValidationProgress && (
                     <div className="space-y-3">
@@ -2127,7 +2202,7 @@ function App() {
                       )}
                       <div className="w-full bg-slate-200 rounded-full h-2.5">
                         <div
-                          className="bg-blue-600 h-2.5 rounded-full transition-all duration-300"
+                          className="bg-theme-tab-active h-2.5 rounded-full transition-all duration-300"
                           style={{ width: `${(batchValidationProgress.current / batchValidationProgress.total) * 100}%` }}
                         ></div>
                       </div>

@@ -17,7 +17,8 @@
     "deploy": "npm run build",
     "db:setup": "node -e \"console.log('Windows: .\\\\scripts\\\\setup_local.ps1 | Linux: ./scripts/setup_local.sh (set PGPASSWORD)')\"",
     "db:backup": "node -e \"console.log('Run: pg_dump -U postgres buildingsmanager > backup.sql')\"",
-    "db:restore": "node -e \"console.log('Run: psql -U postgres buildingsmanager < backup.sql')\""
+    "db:restore": "node -e \"console.log('Run: psql -U postgres buildingsmanager < backup.sql')\"",
+    "db:update-remote": "powershell -ExecutionPolicy Bypass -File ./update-remote-db.ps1"
   },
   "dependencies": {
     "nodemailer": "^6.9.16",

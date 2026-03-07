@@ -81,12 +81,13 @@ backend/app/
     asset_type_repo.py
 ```
 
-### DB Access Rules
+### DB Access Rules (no direct access – use repos)
 
-1. **Only repos import `db_rpc`** – routers, services, and transactions use repos.
-2. **Use `transaction()` from `app.repos`** for multi-statement work; pass `conn` to repos when needed.
-3. **Repos encapsulate SQL** – `BuildingRepo`, `AssetRepo`, `AuditRepo`, `UsersRepo`, `InspectionTaskRepo`, etc.
-4. **Migrations** – only schema: tables, columns, indexes, constraints. No `CREATE FUNCTION`, no `CREATE TRIGGER`.
+1. **No direct DB access** – Routers, services, transactions, and auth must not use `db.execute(text(...))` or `db.query(Model)`. All table access goes through repos. See `.cursor/rules/no-direct-db-use-repos.mdc`.
+2. **Only repos import `db_rpc`** – Routers, services, and transactions use repos; only `base_repo.py` imports `db_rpc`.
+3. **Use `transaction()` from `app.repos`** for multi-statement work; pass `conn` to repos when needed.
+4. **Repos encapsulate SQL** – `BuildingRepo`, `AssetRepo`, `AuditRepo`, `UsersRepo`, `AssetFileRepo`, `SystemConfigRepo`, etc.
+5. **Migrations** – only schema: tables, columns, indexes, constraints. No `CREATE FUNCTION`, no `CREATE TRIGGER`.
 
 ---
 

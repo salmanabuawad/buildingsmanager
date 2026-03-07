@@ -4,7 +4,7 @@
  */
 
 import { getApiBaseUrl } from './appConfig';
-import { getSession, setFileSessionCookie, getAccessToken } from './usersTableAuth';
+import { getSession, setFileSessionCookie, getAccessToken, logoutUsersTable } from './usersTableAuth';
 
 export interface ApiError {
   message: string;
@@ -43,6 +43,11 @@ async function request<T>(
           : typeof raw === 'string'
             ? raw
             : res.statusText ?? 'Request failed';
+      if (res.status === 401 || (typeof message === 'string' && message.toLowerCase().includes('could not validate credentials'))) {
+        logoutUsersTable();
+        window.location.href = '/';
+        return { data: null, error: { message, code: String(res.status) } };
+      }
       const err: ApiError = {
         message,
         code: String(res.status),

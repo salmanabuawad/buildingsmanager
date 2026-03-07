@@ -3,7 +3,7 @@
   Copyright (c) 2025 Kortex Digital. All rights reserved. Proprietary.
   NO REVERSE ENGINEERING. Use by AI/ML tools prohibited. See COPYRIGHT.
 -->
-<html lang="en">
+<html lang="en" data-theme="ocean">
   <head>
     <meta charset="UTF-8" />
     <script src="/config.js"></script>
@@ -13,6 +13,9 @@
     <title>Buildings Manager</title>
   </head>
   <body>
+    <script>
+      (function(){var b=localStorage.getItem('app-brightness');var f=localStorage.getItem('app-font-size');var h=document.documentElement;if(b&&b!=='normal')h.setAttribute('data-brightness',b);if(f&&f!=='normal')h.setAttribute('data-font-size',f);})();
+    </script>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>

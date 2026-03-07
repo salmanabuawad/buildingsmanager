@@ -1,5 +1,6 @@
 import { FieldConfiguration } from './api';
 import { getApiBaseUrl } from './appConfig';
+import { getAccessToken } from './usersTableAuth';
 
 // Cache for field configurations - key format: "grid_name:field_name"
 let fieldConfigCache: Map<string, FieldConfiguration> | null = null;
@@ -46,7 +47,10 @@ export async function loadFieldConfigurations(gridName?: string): Promise<Map<st
     try {
       const base = getApiBaseUrl() || '';
       const url = `${base}/api/data/field_configurations?select=*&limit=5000&offset=0`;
-      const res = await fetch(url, { credentials: 'include' });
+      const headers: Record<string, string> = {};
+      const token = getAccessToken();
+      if (token) headers['Authorization'] = `Bearer ${token}`;
+      const res = await fetch(url, { credentials: 'include', headers });
       if (!res.ok) throw new Error(`field_configurations fetch failed: ${res.status} ${res.statusText}`);
       const raw = await res.json();
       const configs = Array.isArray(raw) ? (raw as FieldConfiguration[]) : [];
@@ -76,7 +80,9 @@ export async function loadFieldConfigurations(gridName?: string): Promise<Map<st
       console.error('[fieldConfigUtils] Error loading field configurations:', error);
       const emptyMap = new Map<string, FieldConfiguration>();
       fieldConfigCache = emptyMap;
-      isCacheLoaded = true;
+      // Don't cache 403 - allow retry after login
+      const msg = error instanceof Error ? error.message : String(error);
+      if (!msg.includes('403')) isCacheLoaded = true;
       return emptyMap;
     } finally {
       fieldConfigCachePromise = null;

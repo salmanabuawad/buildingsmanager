@@ -448,7 +448,7 @@ export function DistributionHistoryModal({
                             <td className="border border-gray-300 px-2 py-1.5 text-right font-semibold" rowSpan={2} style={{ verticalAlign: 'middle' }}>
                               <button
                                 onClick={handleAssetIdClick}
-                                className="text-blue-600 hover:text-blue-800 hover:underline cursor-pointer font-semibold"
+                                className="text-theme-link hover:text-theme-link-hover hover:underline cursor-pointer font-semibold"
                                 title="פתח פרטי נכס"
                               >
                                 {row.asset_id}

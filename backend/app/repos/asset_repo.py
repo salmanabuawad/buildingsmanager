@@ -169,6 +169,15 @@ class AssetRepo(BaseRepo):
         rows = self._fetch("SELECT * FROM assets WHERE asset_id = :aid", {"aid": asset_id}, conn=conn)
         return rows[0] if rows else None
 
+    def exists(self, asset_id: int, conn=None) -> bool:
+        """Return True if an asset with the given asset_id exists."""
+        rows = self._fetch(
+            "SELECT 1 FROM assets WHERE asset_id = :aid LIMIT 1",
+            {"aid": asset_id},
+            conn=conn,
+        )
+        return len(rows) > 0
+
     def get_by_ids(self, asset_ids: List[int], conn=None) -> List[Dict[str, Any]]:
         """Batch load assets by ID. Returns list in same order as input (missing IDs omitted)."""
         if not asset_ids:

@@ -10,7 +10,7 @@ export interface RestError {
   code?: string;
 }
 
-import { getAccessToken } from './usersTableAuth';
+import { getAccessToken, logoutUsersTable } from './usersTableAuth';
 
 function getAuthHeaders(): Record<string, string> {
   const h: Record<string, string> = { 'Content-Type': 'application/json' };
@@ -37,7 +37,13 @@ async function rest<T>(method: string, path: string, body?: unknown): Promise<{ 
     }
     if (!res.ok) {
       const detail = (data as { detail?: string })?.detail ?? res.statusText ?? 'Request failed';
-      return { data: null, error: { message: detail, code: String(res.status) } };
+      const message = typeof detail === 'string' ? detail : JSON.stringify(detail);
+      if (res.status === 401 || (typeof message === 'string' && message.toLowerCase().includes('could not validate credentials'))) {
+        logoutUsersTable();
+        window.location.href = '/';
+        return { data: null, error: { message, code: String(res.status) } };
+      }
+      return { data: null, error: { message, code: String(res.status) } };
     }
     return { data, error: null };
   } catch (e) {

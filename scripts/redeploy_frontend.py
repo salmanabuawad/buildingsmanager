@@ -21,7 +21,11 @@ def main():
         sftp = c.open_sftp()
         sftp.put(tmp, "/tmp/dist_deploy.tar.gz")
         sftp.close()
-        c.exec_command(f"cd /tmp && tar xzf dist_deploy.tar.gz && sudo cp -r dist/* {WEB_ROOT}/ && rm -rf dist dist_deploy.tar.gz")
+        stdin, stdout, stderr = c.exec_command(f"cd /tmp && tar xzf dist_deploy.tar.gz && sudo cp -r dist/* {WEB_ROOT}/ && rm -rf dist dist_deploy.tar.gz")
+        stdout.channel.recv_exit_status()
+        err = stderr.read().decode()
+        if err:
+            print("Remote stderr:", err)
         print("Deployed to", WEB_ROOT)
         c.close()
     finally:

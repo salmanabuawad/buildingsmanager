@@ -10,10 +10,15 @@ import { api } from './api';
 /** Validation mode: off = no validation; before_save = validate only on save; online = validate as user types/blur */
 export type ValidationMode = 'off' | 'before_save' | 'online';
 
+/** Theme identifiers. ocean = deep teal/blue; mist = lighter slate, airy. */
+export type ThemeId = 'ocean' | 'mist';
+
 export interface UIConfig {
   validation_rules_enabled: boolean;
   /** When to run validation. Default: before_save */
   validation_mode?: ValidationMode;
+  /** Active theme. Default: ocean */
+  theme_id?: ThemeId;
 }
 
 export interface EmailConfig {

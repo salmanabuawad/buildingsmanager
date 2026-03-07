@@ -1460,41 +1460,43 @@ export const MeasuredNotExportedAssets = ({ onSelectAsset }: MeasuredNotExported
         </div>
       )}
       {/* Header */}
-      <div className="flex items-center justify-between p-4 border-b border-purple-200 bg-gradient-to-r from-purple-50 to-indigo-50">
-        <div className="flex items-center gap-3">
-          <BuildingIcon className="h-6 w-6 text-purple-600" />
-          <h2 className="text-xl font-bold text-slate-800">נכסים שנמדדו ולא נשלחו לעירייה</h2>
-          <span className="px-3 py-1 bg-purple-100 text-purple-700 rounded-full text-sm font-medium">
-            {assets.length} נכסים
-          </span>
-        </div>
+      <div className="page-header rounded-lg px-4 py-2 mb-2">
         <div className="flex items-center gap-2">
+          <div className="page-header-icon shrink-0">
+            <BuildingIcon className="w-5 h-5" />
+          </div>
+          <h2 className="page-header-title text-lg font-bold">נכסים שנמדדו ולא נשלחו לעירייה</h2>
+          <span className="page-header-badge">{assets.length} נכסים</span>
+        </div>
+      </div>
+      <div className="action-bar mb-2">
+        <div className="flex flex-wrap justify-end gap-2">
           <button
             onClick={fetchData}
-            className="flex items-center gap-2 px-4 py-2 bg-white border border-purple-300 rounded-lg hover:bg-purple-50 text-purple-700 transition-colors"
+            className="btn btn-action btn-secondary"
           >
-            <RefreshCw className="h-4 w-4" />
-            רענן
+            <RefreshCw className="h-5 w-5" />
+            <span>רענן</span>
           </button>
           <button
             onClick={handleExportToExcel}
-            className="flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
+            className="btn btn-action btn-export"
           >
-            <Download className="h-4 w-4" />
-            ייצא ל-Excel
+            <Download className="h-5 w-5" />
+            <span>ייצא ל-Excel</span>
           </button>
           <button
             type="button"
             onClick={handleExportToAutomation}
             disabled={loading || exporting}
-            className="flex items-center gap-1.5 px-3 py-1.5 text-sm bg-purple-500 hover:bg-purple-600 active:bg-purple-700 text-white rounded-md transition-all duration-200 shadow-sm hover:shadow-md font-medium disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none"
+            className="btn btn-action btn-primary disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {exporting ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
+              <Loader2 className="h-5 w-5 animate-spin" />
             ) : (
-              <Download className="h-4 w-4" />
+              <Download className="h-5 w-5" />
             )}
-            שליחת נתונים לעירייה{exportToAutomationCount > 0 ? ` (${exportToAutomationCount})` : ''}
+            <span>שליחת נתונים לעירייה{exportToAutomationCount > 0 ? ` (${exportToAutomationCount})` : ''}</span>
           </button>
         </div>
       </div>

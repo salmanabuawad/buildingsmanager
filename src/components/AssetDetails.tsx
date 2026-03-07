@@ -2,7 +2,7 @@ import { useEffect, useState, useMemo, useRef, useCallback, forwardRef, useImper
 import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
 import { Asset, Building, AssetType, AddressList, Operator, api } from '../lib/api';
-import { Home, Loader2, Save, X, AlertCircle, Upload, Eye, CheckCircle2, Copy, FileText, Edit, Square, Download, ChevronRight, ChevronDown, History, MessageSquare } from 'lucide-react';
+import { Home, Loader2, Save, X, AlertCircle, Upload, Eye, CheckCircle2, Copy, FileText, Square, Download, ChevronRight, ChevronDown, History, MessageSquare } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { Toast } from './Toast';
 import { FileViewer } from './FileViewer';
@@ -592,19 +592,6 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
       await fetchData();
     }
   }), [hasChanges]);
-
-  // Handler for double-click on row
-  const handleRowDoubleClick = useCallback((event: any) => {
-    // Only handle double-click if edit mode is 'modal'
-    if (editMode !== 'modal') return;
-    
-    const rowData = event.data as Asset;
-    // Only allow editing for latest records
-    if (rowData && rowData.is_latest === true) {
-      setSelectedRowForEdit(rowData);
-      setIsRowEditModalOpen(true);
-    }
-  }, [editMode]);
 
   // Track last click to prevent double-click interference
   const clickTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -1900,7 +1887,7 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
       <div className="flex items-center justify-center gap-1 h-full">
         {isLatest ? (
           <div className="flex flex-col items-center gap-1">
-            <label className="flex items-center justify-center p-1 text-blue-600 hover:text-blue-700 transition-colors hover:scale-110 cursor-pointer" title={t('upload') || 'העלה קובץ'}>
+            <label className="flex items-center justify-center p-1 text-theme-tab-active hover:text-theme-tab-active-hover transition-colors hover:scale-110 cursor-pointer" title={t('upload') || 'העלה קובץ'}>
               <Upload className="h-5 w-5" />
               <input
                 type="file"
@@ -1922,7 +1909,7 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
               <div className="w-24 flex flex-col items-center gap-1">
                 <div className="w-full h-2 bg-gray-200 rounded-full overflow-hidden">
                   <div 
-                    className="h-full bg-blue-600 transition-all duration-300"
+                    className="h-full bg-theme-tab-active transition-all duration-300"
                     style={{ width: `${uploadProgress.progress}%` }}
                   />
                 </div>
@@ -2443,7 +2430,7 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
                     }
                   }));
                 }}
-                className="text-blue-600 hover:text-blue-800 underline decoration-blue-600 hover:decoration-blue-800 cursor-pointer transition-colors font-semibold"
+                className="text-theme-tab-active hover:text-theme-tab-active-hover underline decoration-theme-tab-active hover:decoration-theme-tab-active-hover cursor-pointer transition-colors font-semibold"
                 title="לחץ כדי לפתוח את הנכס"
               >
                 {assetId}
@@ -2632,7 +2619,7 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
                     });
                   }
                 }}
-                className="w-4 h-4 text-blue-600 rounded focus:ring-2 focus:ring-blue-500 cursor-pointer"
+                className="w-4 h-4 text-theme-tab-active rounded focus:ring-2 focus:ring-theme-action-accent cursor-pointer"
               />
             ) : (
               <span className="text-gray-600">{isChecked ? '✓' : ''}</span>
@@ -3428,9 +3415,9 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
       <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-slate-50/50 to-white">
         <div className="text-center">
           <div className="relative">
-            <Loader2 className="h-16 w-16 text-teal-600 animate-spin mx-auto" />
+            <Loader2 className="h-16 w-16 text-theme-tab-active animate-spin mx-auto" />
             <div className="absolute inset-0 flex items-center justify-center">
-              <div className="h-8 w-8 bg-teal-100 rounded-full animate-pulse"></div>
+              <div className="h-8 w-8 bg-theme-highlight rounded-full animate-pulse"></div>
             </div>
           </div>
           <p className="mt-6 text-slate-700 font-medium text-base animate-pulse">{t('loadingDetails')}</p>
@@ -3494,11 +3481,11 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
       {uploadProgress && (
         <div className="fixed inset-0 bg-black bg-opacity-50 z-[9999] flex items-center justify-center" style={{ cursor: 'wait' }}>
           <div className="bg-white rounded-lg p-6 shadow-xl flex flex-col items-center gap-4 min-w-[200px]">
-            <Loader2 className="h-12 w-12 text-teal-600 animate-spin" />
+            <Loader2 className="h-12 w-12 text-theme-tab-active animate-spin" />
             <p className="text-slate-700 font-medium text-lg">{t('uploading') || 'מעלה קובץ...'}</p>
             <p className="text-slate-500 text-sm truncate max-w-[280px]" title={uploadProgress.fileName}>{uploadProgress.fileName}</p>
             <div className="w-full max-w-[200px] h-2 bg-slate-200 rounded-full overflow-hidden">
-              <div className="h-full bg-teal-600 transition-all duration-300" style={{ width: `${uploadProgress.progress}%` }} />
+              <div className="h-full bg-theme-tab-active transition-all duration-300" style={{ width: `${uploadProgress.progress}%` }} />
             </div>
             <p className="text-slate-500 text-xs">{Math.round(uploadProgress.progress)}%</p>
           </div>
@@ -3519,7 +3506,7 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
             }`}
           >
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-bold text-slate-900 bg-gradient-to-r from-teal-600 to-blue-600 bg-clip-text text-transparent">שמור כמדידה חדשה</h3>
+              <h3 className="text-lg font-bold text-slate-900 bg-gradient-to-r from-theme-tab-active to-theme-action-accent bg-clip-text text-transparent">שמור כמדידה חדשה</h3>
               <button
                 type="button"
                 onClick={() => {
@@ -3560,7 +3547,7 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
                   setNewMeasurementDate(value);
                 }}
                 placeholder="DD/MM/YYYY"
-                className="w-full px-3 py-2 border-2 border-slate-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 text-right transition-all duration-200 hover:border-slate-400"
+                className="w-full px-3 py-2 border-2 border-slate-300 rounded-lg focus:ring-2 focus:ring-theme-action-accent focus:border-theme-action-accent text-right transition-all duration-200 hover:border-slate-400"
                 maxLength={10}
               />
               <p className="mt-1 text-xs text-slate-500">
@@ -3586,7 +3573,7 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
               <button
                 onClick={handleSaveAsNewMeasurement}
                 disabled={isSaving}
-                className="flex items-center gap-1 px-3 py-1.5 text-xs bg-teal-600 hover:bg-teal-700 active:bg-teal-800 disabled:bg-gray-400 text-white rounded-lg transition-all duration-200 font-semibold shadow-sm hover:shadow-md disabled:shadow-none"
+                className="flex items-center gap-1 px-3 py-1.5 text-xs bg-theme-tab-active hover:bg-theme-tab-active-hover active:bg-theme-tab-active-active disabled:bg-gray-400 text-white rounded-lg transition-all duration-200 font-semibold shadow-sm hover:shadow-md disabled:shadow-none"
               >
                 {isSaving ? (
                   <Loader2 className="h-3 w-3 animate-spin" />
@@ -3666,80 +3653,51 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
       )}
 
       <div className="w-full mx-auto px-1 sm:px-2 py-1 sm:py-2">
-      <div className="mb-2 bg-gradient-to-r from-blue-600 via-blue-500 to-teal-600 rounded-lg shadow-lg p-1.5 border border-blue-400/20">
-        <div className="flex items-center gap-2">
-          <Home className="w-5 h-5 text-white bg-white/20 rounded-lg p-1" strokeWidth={1.5} />
-          <div className="flex-1">
-            <h1 className="text-base sm:text-lg font-semibold text-white">
+      <div className="page-header mb-2 rounded-lg px-3 py-2">
+        <div className="flex items-center gap-2 flex-wrap">
+          <div className="page-header-icon shrink-0">
+            <Home className="w-5 h-5" strokeWidth={1.5} />
+          </div>
+          <div className="flex-1 min-w-0">
+            <h1 className="page-header-title text-sm sm:text-base font-semibold">
               {t('assetId')}: {asset.asset_id}
             </h1>
             {building && (
-              <div className="flex items-center gap-2 mt-0.5 flex-wrap">
-                <div className="flex items-center gap-1.5">
-                  <p className="text-[10px] sm:text-xs text-teal-50">
-                    מבנה {building.building_number}
-                  </p>
-                  <p className="text-[10px] sm:text-xs text-teal-50 font-medium bg-white/20 px-1.5 py-0.5 rounded">
-                    גוש: {building?.gosh || '-'}
-                  </p>
-                  <p className="text-[10px] sm:text-xs text-teal-50 font-medium bg-white/20 px-1.5 py-0.5 rounded">
-                    חלקה: {building?.helka || '-'}
-                  </p>
-                  {building?.address && (
-                    <p className="text-[10px] sm:text-xs text-teal-50 font-medium bg-white/20 px-1.5 py-0.5 rounded">
-                      כתובת: {buildingAddress || '-'}
-                    </p>
-                  )}
-                  {asset?.apartment_number && (
-                    <p className="text-[10px] sm:text-xs text-teal-50 font-medium bg-white/20 px-1.5 py-0.5 rounded">
-                      מספר דירה: {asset.apartment_number}
-                    </p>
-                  )}
-                  {asset?.apartment_floor && (
-                    <p className="text-[10px] sm:text-xs text-teal-50 font-medium bg-white/20 px-1.5 py-0.5 rounded">
-                      קומת דירה: {asset.apartment_floor}
-                    </p>
-                  )}
-                  {asset?.storage_number && (
-                    <p className="text-[10px] sm:text-xs text-teal-50 font-medium bg-white/20 px-1.5 py-0.5 rounded">
-                      מספר מחסן: {asset.storage_number}
-                    </p>
-                  )}
-                  {asset?.storage_floor && (
-                    <p className="text-[10px] sm:text-xs text-teal-50 font-medium bg-white/20 px-1.5 py-0.5 rounded">
-                      קומת מחסן: {asset.storage_floor}
-                    </p>
-                  )}
-                  {asset?.discount_type && (
-                    <p className="text-[10px] sm:text-xs text-teal-50 font-medium bg-white/20 px-1.5 py-0.5 rounded">
-                      סוג הנחה: {asset.discount_type}
-                    </p>
-                  )}
-                  {(asset?.discount_date_from || asset?.discount_date_to) && (
-                    <p className="text-[10px] sm:text-xs text-teal-50 font-medium bg-white/20 px-1.5 py-0.5 rounded">
-                      תאריך הנחה: {asset?.discount_date_from || ''} - {asset?.discount_date_to || ''}
-                    </p>
-                  )}
-                </div>
+              <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
+                <span className="page-header-label">מבנה {building.building_number}</span>
+                <span className="page-header-label">גוש: {building?.gosh || '-'}</span>
+                <span className="page-header-label">חלקה: {building?.helka || '-'}</span>
+                {building?.address && (
+                  <span className="page-header-badge page-header-badge-address">כתובת: {buildingAddress || '-'}</span>
+                )}
+                {asset?.apartment_number && (
+                  <span className="page-header-label">דירה: {asset.apartment_number}</span>
+                )}
+                {asset?.apartment_floor != null && (
+                  <span className="page-header-label">קומה: {asset.apartment_floor}</span>
+                )}
+                {asset?.storage_number && (
+                  <span className="page-header-label">מחסן: {asset.storage_number}</span>
+                )}
+                {asset?.storage_floor != null && (
+                  <span className="page-header-label">קומת מחסן: {asset.storage_floor}</span>
+                )}
+                {asset?.discount_type && (
+                  <span className="page-header-label">הנחה: {asset.discount_type}</span>
+                )}
+                {(asset?.discount_date_from || asset?.discount_date_to) && (
+                  <span className="page-header-label">תאריך הנחה: {asset?.discount_date_from || ''} - {asset?.discount_date_to || ''}</span>
+                )}
                 {areaDescriptionForTab && (
-                  <p className="text-xs text-white font-medium bg-blue-700 px-2 py-0.5 rounded">
-                    {areaDescriptionForTab}
-                  </p>
+                  <span className="page-header-badge page-header-badge-area">{areaDescriptionForTab}</span>
                 )}
                 {(() => {
-                  // Check if asset is a business asset
-                  if (!asset?.main_asset_type || !assetTypes || assetTypes.length === 0 || !building) {
-                    return null;
-                  }
+                  if (!asset?.main_asset_type || !assetTypes?.length || !building) return null;
                   const assetType = assetTypes.find(at => at.name === asset.main_asset_type);
                   const isBusinessAsset = assetType?.business_residence === 'עסקים';
-                  
-                  // Show overload_ratio for business assets only
                   if (isBusinessAsset && building.overload_ratio != null) {
                     return (
-                      <p className="text-xs text-white font-medium bg-purple-600 px-2 py-0.5 rounded">
-                        אחוז העמסה: {building.overload_ratio.toFixed(2)}%
-                      </p>
+                      <span className="page-header-pill">אחוז העמסה: {building.overload_ratio.toFixed(2)}%</span>
                     );
                   }
                   return null;
@@ -3747,43 +3705,36 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
               </div>
             )}
           </div>
-          <div className="flex items-center gap-2">
-            <div className="flex items-center bg-white/20 rounded-lg p-1 gap-1">
-              <button
-                onClick={() => setEditMode('inline')}
-                className={`p-1.5 rounded transition-colors ${
-                  editMode === 'inline'
-                    ? 'bg-white text-blue-600'
-                    : 'text-white/70 hover:text-white hover:bg-white/10'
-                }`}
-                title="עריכה ישירה בתא"
-              >
-                <Edit className="h-4 w-4" />
-              </button>
-              <button
-                onClick={() => setEditMode('modal')}
-                className={`p-1.5 rounded transition-colors ${
-                  editMode === 'modal'
-                    ? 'bg-white text-blue-600'
-                    : 'text-white/70 hover:text-white hover:bg-white/10'
-                }`}
-                title="עריכה בחלון נפרד"
-              >
-                <Square className="h-4 w-4" />
-              </button>
-            </div>
+          <div className="flex items-center bg-white/20 rounded-lg p-1 gap-1 shrink-0">
+            <button
+              onClick={() => {
+                setEditMode('modal');
+                if (latestMeasurement) {
+                  setSelectedRowForEdit(latestMeasurement);
+                  setIsRowEditModalOpen(true);
+                }
+              }}
+              className={`p-1.5 rounded transition-colors ${
+                editMode === 'modal'
+                  ? 'bg-white text-theme-tab-active'
+                  : 'text-white/70 hover:text-white hover:bg-white/10'
+              }`}
+              title="עריכה בחלון נפרד"
+            >
+              <Square className="h-4 w-4" />
+            </button>
           </div>
         </div>
       </div>
 
       {allMeasurements.length > 0 && (
-        <div className="bg-white rounded-xl shadow-lg border border-blue-100 hover:shadow-xl transition-shadow duration-200">
+        <div className="bg-white rounded-xl shadow-lg border border-theme-card-border hover:shadow-xl transition-shadow duration-200">
           <div className="p-2">
             {/* Latest Measurement Grid */}
             <div className="mb-2">
               <div className="flex items-center justify-between mb-1">
                 <h3 className="text-sm font-semibold text-slate-800">מדידה אחרונה</h3>
-                <div className="flex gap-1">
+                <div className="action-bar flex justify-end gap-2 py-1 px-2">
                   <button
                     onClick={async () => {
                       if (!pinnedTopRowData || pinnedTopRowData.length === 0) {
@@ -3816,7 +3767,7 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
                         setToast({ message: 'שגיאה בייצוא לקובץ Excel', type: 'error' });
                       }
                     }}
-                    className="btn btn-export btn-lg"
+                    className="btn btn-action btn-export"
                     title="ייצא ל-Excel"
                   >
                     <Download className="h-5 w-5" />
@@ -3825,7 +3776,7 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
                   <button
                     onClick={handleValidateLatestRow}
                     disabled={isSaving || isValidating || !latestMeasurement}
-                    className="btn btn-secondary btn-lg"
+                    className="btn btn-action btn-secondary disabled:opacity-50 disabled:cursor-not-allowed"
                     title="אמת את הנכס"
                   >
                     {isValidating ? (
@@ -3838,7 +3789,7 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
                   <button
                     onClick={handleOpenSaveAsNewMeasurementModal}
                     disabled={isSaving || isValidating || !latestMeasurement || !hasChanges || validationErrors.size > 0}
-                    className="btn btn-primary btn-lg"
+                    className="btn btn-action btn-primary disabled:opacity-50 disabled:cursor-not-allowed"
                     title={validationErrors.size > 0 ? 'תקן שגיאות לפני שמירה' : !hasChanges ? 'אין שינויים לשמירה' : 'שמור כמדידה חדשה'}
                   >
                     {isSaving ? (
@@ -3851,7 +3802,7 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
                   <button
                     onClick={handleSaveChanges}
                     disabled={isSaving || (!!assetId && !hasChanges)}
-                    className="btn btn-primary btn-lg"
+                    className="btn btn-action btn-primary disabled:opacity-50 disabled:cursor-not-allowed"
                     title={(!assetId && !latestMeasurement?.asset_id) ? 'מלא קוד נכס לשמירה' : (!hasChanges ? 'אין שינויים לשמירה' : 'שמור שינויים')}
                   >
                     {isSaving ? (
@@ -3864,14 +3815,14 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
                   <button
                     onClick={handleCancelChanges}
                     disabled={isSaving || !hasChanges}
-                    className="btn btn-cancel btn-lg"
+                    className="btn btn-action btn-cancel"
                   >
                     <X className="h-5 w-5" />
                     <span>{t('cancel')}</span>
                   </button>
                 </div>
               </div>
-              <div className="ag-theme-alpine rounded-xl shadow-lg border border-blue-100 asset-details-pinned-grid" style={{ height: '140px', width: '100%', overflowX: 'auto' }}>
+              <div className="ag-theme-alpine rounded-xl shadow-lg border border-theme-card-border asset-details-pinned-grid" style={{ height: '140px', width: '100%', overflowX: 'auto' }}>
                 <style>{`
                   .asset-details-pinned-grid .ag-header-cell-label,
                   .asset-details-pinned-grid .ag-header-cell-text,
@@ -3958,7 +3909,6 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
                 onSortChanged={() => {}}
                 onCellValueChanged={onCellValueChanged}
                 onCellEditingStopped={onCellEditingStopped}
-                onRowDoubleClicked={handleRowDoubleClick}
                 stopEditingWhenCellsLoseFocus={true}
                 enableRtl={true}
                 animateRows={false}
@@ -4129,13 +4079,6 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
                       }
                     }}
                     onSortChanged={() => {}}
-                    onRowDoubleClicked={(event: any) => {
-                      // Handle double-click for editing (only for latest records)
-                      // Don't process double-click for history rows - they should open audit modal
-                      if (event.data?.is_latest === true) {
-                        handleRowDoubleClick(event);
-                      }
-                    }}
                     onRowClicked={(event: any) => {
                       // Handle single click for audit details
                     }}

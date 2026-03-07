@@ -1427,7 +1427,7 @@ export const AssetDataEntry = forwardRef<AssetDataEntryRef, {}>((props, ref) => 
                   }
                 }}
                 placeholder="כל המבנים"
-                className="w-full md:w-64 px-2 py-1 text-xs border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 bg-white"
+                className="w-full md:w-64 px-2 py-1 text-xs border border-gray-300 rounded-lg focus:ring-2 focus:ring-theme-action-accent focus:border-theme-action-accent bg-white"
               />
               <datalist id="building-list">
                 {buildings.map(building => (
@@ -1531,7 +1531,7 @@ export const AssetDataEntry = forwardRef<AssetDataEntryRef, {}>((props, ref) => 
                     showToast('שגיאה בייצוא לקובץ Excel', 'error');
                   }
                 }}
-                className="flex items-center gap-1 px-3 py-1 text-xs bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 text-white rounded-md transition-all duration-200 shadow-sm hover:shadow-md font-semibold"
+                className="flex items-center gap-1 px-3 py-1 text-xs bg-theme-action-accent hover:bg-theme-action-accent-hover active:bg-theme-action-accent-active text-white rounded-md transition-all duration-200 shadow-sm hover:shadow-md font-semibold"
                 title="ייצא ל-Excel"
               >
                 <Download className="h-3.5 w-3.5" />
@@ -1541,7 +1541,7 @@ export const AssetDataEntry = forwardRef<AssetDataEntryRef, {}>((props, ref) => 
                 <button
                   onClick={handleSaveAll}
                   disabled={loading}
-                  className="flex items-center gap-1 px-3 py-1 text-xs bg-teal-600 hover:bg-teal-700 active:bg-teal-800 text-white rounded-md transition-all duration-200 shadow-sm hover:shadow-md disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none font-semibold"
+                  className="flex items-center gap-1 px-3 py-1 text-xs bg-theme-tab-active hover:bg-theme-tab-active-hover active:bg-theme-tab-active-active text-white rounded-md transition-all duration-200 shadow-sm hover:shadow-md disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none font-semibold"
                 >
                   {loading ? (
                     <Loader2 className="h-3.5 w-3.5 animate-spin" />

@@ -1619,21 +1619,8 @@ export const MeasuredNotExportedAssets = ({ onSelectAsset }: MeasuredNotExported
               await gridPreferences.saveColumnState(gridRef.current.api);
             }
           }}
-          onRowClicked={(event) => {
-            // Don't open asset details when clicking the checkbox/actions column (selection for export only)
-            const colId = event.column?.getColId?.();
-            if (colId === 'actions') return;
-            const target = event.event?.target as HTMLElement;
-            if (target?.closest?.('[role="checkbox"], input[type="checkbox"]')) return;
-            if (event.data) {
-              const asset = event.data as Asset;
-              onSelectAsset(
-                String(asset.asset_id),
-                String(asset.asset_id),
-                asset.building_number,
-                asset.tax_region ? String(asset.tax_region) : undefined
-              );
-            }
+          onRowClicked={() => {
+            // Only asset_id column onCellClicked opens details; row click does nothing
           }}
           onSelectionChanged={(e) => {
             const selected = gridRef.current?.api?.getSelectedRows() ?? [];

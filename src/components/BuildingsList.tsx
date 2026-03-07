@@ -3686,8 +3686,8 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
           </div>
         </div>
       )}
-      <div className="w-full px-2 sm:px-4 md:px-6 py-1.5 sm:py-2">
-        <div className="page-header mb-1.5 rounded-md px-2 py-1.5">
+      <div className="flex flex-col flex-1 min-h-0 w-full px-2 sm:px-4 md:px-6 py-1.5 sm:py-2">
+        <div className="page-header mb-1.5 rounded-md px-2 py-1.5 flex-shrink-0">
           <div className="relative flex items-center gap-1.5 flex-wrap">
             <div className="page-header-icon shrink-0">
               <img src="/buildings.png" alt="Buildings" className="w-4 h-4" />
@@ -3697,7 +3697,7 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
           </div>
         </div>
 
-        <div className="mb-1.5 flex flex-wrap items-center gap-2 sm:gap-3">
+        <div className="mb-1.5 flex flex-wrap items-center gap-2 sm:gap-3 flex-shrink-0">
           <div className="relative w-full sm:w-auto sm:min-w-[10rem] sm:max-w-[11rem]">
             <input
               type="text"
@@ -3769,13 +3769,13 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
           </div>
         </div>
 
-        <div className="bg-white rounded-xl shadow-lg hover:shadow-xl transition-shadow duration-200 overflow-hidden border-2 border-theme-action-accent w-full">
+        <div className="flex-1 min-h-0 flex flex-col bg-white rounded-xl shadow-lg hover:shadow-xl transition-shadow duration-200 overflow-hidden border-2 border-theme-action-accent w-full">
           {fieldConfigLoading ? (
-            <div className="flex items-center justify-center" style={{ height: 'calc(100vh - 280px)', minHeight: '400px' }}>
+            <div className="flex-1 min-h-[300px] flex items-center justify-center">
               <Loader2 className="h-8 w-8 animate-spin text-theme-tab-active" />
             </div>
           ) : (
-          <div className="ag-theme-alpine buildings-list-grid" style={{ height: 'calc(100vh - 280px)', minHeight: '400px', width: '100%', minWidth: '100%', overflowX: 'auto' }}>
+          <div className="ag-theme-alpine buildings-list-grid flex-1 min-h-[300px]" style={{ width: '100%', minWidth: '100%', overflowX: 'auto' }}>
             <AgGridReact
               key={`buildings-grid-${configVersion}`}
               ref={gridRef}

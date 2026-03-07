@@ -1448,7 +1448,7 @@ export const MeasuredNotExportedAssets = ({ onSelectAsset }: MeasuredNotExported
   }
 
   return (
-    <div className="h-full flex flex-col bg-white">
+    <div className="flex flex-col flex-1 min-h-0 bg-white">
       {/* Export progress modal - progress message in modal, not toast */}
       {exporting && (
         <div className="fixed inset-0 bg-black bg-opacity-50 z-[9999] flex items-center justify-center" style={{ cursor: 'wait' }}>
@@ -1502,8 +1502,8 @@ export const MeasuredNotExportedAssets = ({ onSelectAsset }: MeasuredNotExported
       </div>
 
       {/* Grid */}
-      <div className="bg-white rounded-xl shadow-lg hover:shadow-xl transition-shadow duration-200 overflow-hidden border border-slate-200 w-full">
-        <div className="ag-theme-alpine buildings-list-grid" style={{ height: '60vh', width: '100%', minWidth: '100%', overflowX: 'auto' }}>
+      <div className="flex-1 min-h-0 flex flex-col bg-white rounded-xl shadow-lg hover:shadow-xl transition-shadow duration-200 overflow-hidden border border-slate-200 w-full">
+        <div className="ag-theme-alpine buildings-list-grid flex-1 min-h-[200px]" style={{ width: '100%', minWidth: '100%', overflowX: 'auto' }}>
           <AgGridReact
             ref={gridRef}
             rowData={sortedAssets}

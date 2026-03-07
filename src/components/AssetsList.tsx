@@ -6075,7 +6075,7 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
           </div>
         );
       })()}
-      <div className="w-full py-2" style={{ maxWidth: '100vw', width: '100%', paddingLeft: '0.5rem', paddingRight: '0.5rem' }}>
+      <div className="flex flex-col flex-1 min-h-0 w-full py-2" style={{ maxWidth: '100vw', width: '100%', paddingLeft: '0.5rem', paddingRight: '0.5rem' }}>
         <div className="page-header mb-2 rounded-lg px-3 py-2">
           <div className="relative flex items-center gap-2 flex-wrap">
             <div className="page-header-icon shrink-0">
@@ -6394,13 +6394,13 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
         
         {/* Tab Content */}
         {activeTab === 'assets' && (
-          <div className="bg-white rounded-b-xl shadow-lg hover:shadow-xl transition-shadow duration-200 overflow-hidden border-2 border-theme-action-accent w-full">
+          <div className="flex-1 min-h-0 flex flex-col bg-white rounded-b-xl shadow-lg hover:shadow-xl transition-shadow duration-200 overflow-hidden border-2 border-theme-action-accent w-full">
             {fieldConfigLoading ? (
-              <div className="flex items-center justify-center" style={{ height: '55vh' }}>
+              <div className="flex-1 min-h-[200px] flex items-center justify-center">
                 <Loader2 className="h-8 w-8 animate-spin text-theme-tab-active" />
               </div>
             ) : (
-            <div className="ag-theme-alpine" style={{ height: '55vh', width: '100%', minWidth: '100%', overflowX: 'auto' }}>
+            <div className="ag-theme-alpine flex-1 min-h-[200px]" style={{ width: '100%', minWidth: '100%', overflowX: 'auto' }}>
               <AgGridReact
             key={`assets-grid-${configVersion}`}
             ref={gridRef}

@@ -555,8 +555,8 @@ export function InspectionTasksManager() {
   }
 
   return (
-    <div className="p-4 space-y-4" dir="rtl">
-      <h1 className="text-xl font-semibold text-slate-800 border-b border-slate-200 pb-2 flex items-center gap-2">
+    <div className="flex flex-col flex-1 min-h-0 p-4 space-y-4" dir="rtl">
+      <h1 className="text-xl font-semibold text-slate-800 border-b border-slate-200 pb-2 flex items-center gap-2 flex-shrink-0">
         <ListTodo className="h-6 w-6 text-theme-tab-active" />
         ניהול משימות ביקורת
       </h1>
@@ -567,7 +567,7 @@ export function InspectionTasksManager() {
         </div>
       )}
 
-      <div className="flex flex-wrap items-center gap-3">
+      <div className="flex flex-wrap items-center gap-3 flex-shrink-0">
         <span className="flex items-center gap-2 text-slate-600">
           <Filter className="h-4 w-4" />
           סטטוס:
@@ -615,11 +615,11 @@ export function InspectionTasksManager() {
       </div>
 
       {loading || fieldConfigLoading ? (
-        <div className="flex justify-center py-8">
+        <div className="flex-1 min-h-[300px] flex justify-center items-center">
           <Loader2 className="h-8 w-8 text-theme-tab-active animate-spin" />
         </div>
       ) : (
-        <div className="ag-theme-alpine buildings-list-grid bg-white rounded-xl border border-slate-200 overflow-hidden" style={{ height: 'calc(100vh - 320px)', minHeight: 300, width: '100%', minWidth: '100%', overflowX: 'auto', direction: 'rtl' }}>
+        <div className="ag-theme-alpine buildings-list-grid bg-white rounded-xl border border-slate-200 overflow-hidden flex-1 min-h-[300px]" style={{ width: '100%', minWidth: '100%', overflowX: 'auto', direction: 'rtl' }}>
           <AgGridReact<TaskRow>
             key={`inspection-tasks-grid-${configVersion}`}
             rowData={rowData}

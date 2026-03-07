@@ -212,7 +212,7 @@ export const MeasurementProgressDashboard = ({ onOpenBuildingsList, onOpenMeasur
   }
 
   return (
-    <div className="h-full flex flex-col bg-white">
+    <div className="flex flex-col flex-1 min-h-0 bg-white">
       {/* Header */}
       <div className="page-header rounded-t-lg px-2 py-1 flex items-center justify-between min-h-0">
         <div className="flex items-center gap-1.5">
@@ -329,10 +329,10 @@ export const MeasurementProgressDashboard = ({ onOpenBuildingsList, onOpenMeasur
 
       {/* Yearly Data Grid */}
       {data && (
-        <div className="flex-1 p-4">
-          <h3 className="text-lg font-semibold text-slate-800 mb-4">פירוט שנתי</h3>
-          <div className="bg-white rounded-xl shadow-lg hover:shadow-xl transition-shadow duration-200 overflow-hidden border border-slate-200 w-full">
-            <div className="ag-theme-alpine buildings-list-grid" style={{ height: 'calc(100vh - 600px)', minHeight: '300px', width: '100%', minWidth: '100%', overflowX: 'auto' }}>
+        <div className="flex-1 min-h-0 flex flex-col p-4">
+          <h3 className="text-lg font-semibold text-slate-800 mb-4 flex-shrink-0">פירוט שנתי</h3>
+          <div className="flex-1 min-h-0 flex flex-col bg-white rounded-xl shadow-lg hover:shadow-xl transition-shadow duration-200 overflow-hidden border border-slate-200 w-full">
+            <div className="ag-theme-alpine buildings-list-grid flex-1 min-h-[200px]" style={{ width: '100%', minWidth: '100%', overflowX: 'auto' }}>
               <AgGridReact
                 rowData={data.yearly}
                 columnDefs={columnDefs}

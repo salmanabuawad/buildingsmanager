@@ -2024,9 +2024,9 @@ function App() {
           </div>
         </div>
 
-        <div className="flex-1 overflow-hidden flex">
-          {/* Main Content Area */}
-          <div className="flex-1 overflow-auto bg-app-bg">
+        <div className="flex-1 overflow-hidden flex flex-col min-h-0">
+          {/* Main Content Area - no scroll; grid pages fill available space */}
+          <div className="flex-1 overflow-hidden flex flex-col min-h-0 bg-app-bg">
             {activeTab?.type === 'buildings' && (
               <BuildingsList
                 ref={buildingsListRef}

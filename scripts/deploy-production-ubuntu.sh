@@ -172,7 +172,7 @@ User=$DEPLOY_USER
 Group=$DEPLOY_USER
 WorkingDirectory=$REPO_ROOT/backend
 Environment="PATH=$REPO_ROOT/backend/venv/bin"
-ExecStart=$REPO_ROOT/backend/venv/bin/gunicorn app.main:app -w 4 -k uvicorn.workers.UvicornWorker -b 127.0.0.1:8000
+ExecStart=$REPO_ROOT/backend/venv/bin/gunicorn app.main:app -w 2 -k uvicorn.workers.UvicornWorker -b 127.0.0.1:8000
 Restart=always
 RestartSec=5
 

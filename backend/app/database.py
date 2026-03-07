@@ -5,11 +5,12 @@ from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 from app.config import settings
 
+# Tuned for 2 concurrent users: pool_size=3, max_overflow=2
 engine = create_engine(
     settings.DATABASE_URL,
     pool_pre_ping=True,
-    pool_size=10,
-    max_overflow=20
+    pool_size=3,
+    max_overflow=2
 )
 
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)

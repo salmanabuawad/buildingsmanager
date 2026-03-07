@@ -37,6 +37,8 @@ import { HelpModal } from './components/HelpModal';
 import { MobileTasksAndUpload } from './components/MobileTasksAndUpload';
 import { InspectionTasksManager } from './components/InspectionTasksManager';
 import { useIsMobile } from './hooks/useIsMobile';
+import { FontSizeProvider } from './contexts/FontSizeContext';
+import { setFontSizeStore } from './lib/fontSizeStore';
 
 interface Tab {
   id: string;
@@ -84,9 +86,13 @@ function App() {
   const [settingsMenuOpen, setSettingsMenuOpen] = useState(false);
   const settingsMenuRef = useRef<HTMLDivElement>(null);
 
-  type Brightness = 'light' | 'normal' | 'dark';
+  type Brightness = 'light' | 'normal' | 'dark' | 'contrast';
   type FontSize = 'small' | 'normal' | 'large';
-  const [brightness, setBrightness] = useState<Brightness>(() => (localStorage.getItem('app-brightness') as Brightness) || 'normal');
+  const [brightness, setBrightness] = useState<Brightness>(() => {
+    const stored = localStorage.getItem('app-brightness');
+    if (stored === 'gray') return 'contrast'; // migrate old gray to contrast
+    return (stored as Brightness) || 'normal';
+  });
   const [fontSize, setFontSize] = useState<FontSize>(() => (localStorage.getItem('app-font-size') as FontSize) || 'normal');
 
   useEffect(() => {
@@ -98,6 +104,7 @@ function App() {
     else localStorage.removeItem('app-brightness');
     if (fontSize !== 'normal') localStorage.setItem('app-font-size', fontSize);
     else localStorage.removeItem('app-font-size');
+    setFontSizeStore(fontSize);
   }, [brightness, fontSize]);
 
   useEffect(() => {
@@ -1525,6 +1532,7 @@ function App() {
   }
 
   return (
+    <FontSizeProvider value={fontSize}>
     <div className="min-h-screen bg-app-bg flex flex-col" dir="rtl">
       {/* theme_1: Dark blue header, icon strip */}
       <header className="shrink-0 h-12 bg-app-header flex items-center justify-between px-4 text-white shadow-md">
@@ -1555,14 +1563,14 @@ function App() {
                     <Sun className="h-3.5 w-3.5" />
                     בהירות
                   </span>
-                  <div className="flex gap-1 mt-1">
-                    {(['light', 'normal', 'dark'] as const).map((b) => (
+                  <div className="flex flex-wrap gap-1 mt-1">
+                    {(['light', 'normal', 'dark', 'contrast'] as const).map((b) => (
                       <button
                         key={b}
                         onClick={() => setBrightness(b)}
-                        className={`flex-1 py-1.5 rounded text-sm ${brightness === b ? 'bg-white/20 text-white' : 'text-white/80 hover:bg-white/10'}`}
+                        className={`flex-1 min-w-0 py-1.5 rounded text-sm ${brightness === b ? 'bg-white/20 text-white' : 'text-white/80 hover:bg-white/10'}`}
                       >
-                        {b === 'light' ? 'בהיר' : b === 'normal' ? 'רגיל' : 'כהה'}
+                        {b === 'light' ? 'בהיר' : b === 'normal' ? 'רגיל' : b === 'dark' ? 'כהה' : 'ניגודיות גבוהה'}
                       </button>
                     ))}
                   </div>
@@ -2411,6 +2419,7 @@ function App() {
 
       <HelpModal />
     </div>
+    </FontSizeProvider>
   );
 }
 

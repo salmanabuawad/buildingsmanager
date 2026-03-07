@@ -117,16 +117,20 @@ export function calculateWidthFromChars(chars: number, padding: number = 8): num
 
 /**
  * Apply field configuration to a column definition
+ * @param isLargeFont When true (גדול selected), multiplies width by 1.5 on the fly without updating DB
  */
 export function applyFieldConfigToColumn(
   colDef: any,
-  fieldConfig: FieldConfiguration | null
+  fieldConfig: FieldConfiguration | null,
+  options?: { isLargeFont?: boolean }
 ): any {
   if (!fieldConfig) {
     return colDef;
   }
 
-  const width = calculateWidthFromChars(fieldConfig.width_chars, fieldConfig.padding);
+  const baseWidth = calculateWidthFromChars(fieldConfig.width_chars, fieldConfig.padding);
+  const multiplier = options?.isLargeFont ? 1.65 * 1.55 : 1.65;
+  const width = Math.round(baseWidth * multiplier);
   
   const result: any = {
     ...colDef,
@@ -216,4 +220,5 @@ export function getFieldConfigurations(): FieldConfiguration[] {
   
   return allConfigs;
 }
+
 

@@ -3698,7 +3698,7 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
         </div>
 
         <div className="mb-1.5 flex flex-wrap items-center gap-2 sm:gap-3 flex-shrink-0">
-          <div className="relative w-full sm:w-auto sm:min-w-[10rem] sm:max-w-[11rem]">
+          <div className="relative w-full sm:w-auto sm:min-w-[14rem] sm:max-w-[20rem]">
             <input
               type="text"
               value={buildingFilter}

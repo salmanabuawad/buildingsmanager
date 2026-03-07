@@ -83,7 +83,10 @@ export function useGridPreferences<T = any>(
               const fieldConfig = fieldConfigs.get(fieldName);
               
               if (fieldConfig) {
-                const width = calculateWidthFromChars(fieldConfig.width_chars, fieldConfig.padding);
+                const baseWidth = calculateWidthFromChars(fieldConfig.width_chars, fieldConfig.padding);
+                const isLarge = typeof document !== 'undefined' && document.documentElement?.getAttribute?.('data-font-size') === 'large';
+                const multiplier = isLarge ? 1.65 * 1.55 : 1.65;
+                const width = Math.round(baseWidth * multiplier);
                 return {
                   ...col,
                   width: width,
@@ -225,4 +228,6 @@ export function useGridPreferences<T = any>(
     gridApi: gridRef?.current?.api || null,
   };
 }
+
+
 

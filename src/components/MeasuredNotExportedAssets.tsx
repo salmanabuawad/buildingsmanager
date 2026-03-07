@@ -71,6 +71,13 @@ const ValidationTooltipIcon = ({ message }: { message: string }) => {
   );
 };
 
+// Simple header for actions column - no checkbox (select all/clear via action bar buttons only)
+const ActionsHeader = () => (
+  <div className="flex items-center justify-center h-full w-full" style={{ direction: 'rtl' }}>
+    <span className="text-sm font-medium">פעולות</span>
+  </div>
+);
+
 interface MeasuredNotExportedAssetsProps {
   onSelectAsset: (assetId: string, assetIdentifier: string, buildingNumber: number, taxRegion?: string) => void;
 }
@@ -88,6 +95,7 @@ export const MeasuredNotExportedAssets = ({ onSelectAsset }: MeasuredNotExported
   const [error, setError] = useState<string | null>(null);
   const [toast, setToast] = useState<{ message: string; type: 'error' | 'success' | 'info' } | null>(null);
   const [exportToAutomationCount, setExportToAutomationCount] = useState<number>(0);
+  const [selectedExportCount, setSelectedExportCount] = useState<number>(0);
   const [validationErrors, setValidationErrors] = useState<Map<string, string[]>>(new Map());
   const gridRef = useRef<AgGridReact<Asset>>(null);
 
@@ -299,11 +307,15 @@ export const MeasuredNotExportedAssets = ({ onSelectAsset }: MeasuredNotExported
   }, [fetchData]);
 
   // Column definitions - comprehensive set matching AssetsList, all read-only
+  // Actions column pinned right (near sidebar) - includes selection checkbox
   const columnDefs = useMemo<ColDef<Asset>[]>(() => {
     const defs: ColDef<Asset>[] = [
     {
       colId: 'actions',
       headerName: 'פעולות',
+      headerComponent: ActionsHeader,
+      pinned: 'right',
+      lockPosition: true,
       editable: false,
       suppressMovable: true,
       suppressHeaderMenuButton: true,
@@ -316,9 +328,21 @@ export const MeasuredNotExportedAssets = ({ onSelectAsset }: MeasuredNotExported
         const errors = validationErrors.get(assetId);
         const hasErrors = errors && errors.length > 0;
         const errorMessage = hasErrors ? errors.join('\n') : '';
+        const isSelected = params.node?.isSelected?.() ?? false;
 
         return (
-          <div className="flex items-center justify-center gap-1 h-full">
+          <div className="flex items-center justify-center gap-1.5 h-full">
+            <input
+              type="checkbox"
+              role="checkbox"
+              checked={isSelected}
+              onChange={(e) => {
+                e.stopPropagation();
+                params.node?.setSelected(e.target.checked);
+              }}
+              onClick={(e) => e.stopPropagation()}
+              className="h-4 w-4 cursor-pointer accent-emerald-600"
+            />
             {hasErrors && (
               <ValidationTooltipIcon message={errorMessage} />
             )}
@@ -744,7 +768,18 @@ export const MeasuredNotExportedAssets = ({ onSelectAsset }: MeasuredNotExported
   }, [t, assetTypes, getAreaDescriptionForTaxRegion, getAssetTypeTooltip, onSelectAsset, validationErrors]);
   
   // Apply field configurations to column definitions
-  const [configuredColumnDefs] = useFieldConfig(columnDefs, 'measured-not-exported-assets');
+  const [configuredColumnDefsRaw] = useFieldConfig(columnDefs, 'measured-not-exported-assets');
+
+  // Force actions to the right (near sidebar): in RTL, first columns = rightmost
+  const configuredColumnDefs = useMemo(() => {
+    const cols = [...configuredColumnDefsRaw];
+    const actionsCol = cols.find(c => (c.colId || c.field) === 'actions');
+    const rest = cols.filter(c => (c.colId || c.field) !== 'actions');
+    if (actionsCol) {
+      return [actionsCol, ...rest];
+    }
+    return cols;
+  }, [configuredColumnDefsRaw]);
 
   // Sort assets to show invalid ones first
   const sortedAssets = useMemo(() => {
@@ -782,11 +817,18 @@ export const MeasuredNotExportedAssets = ({ onSelectAsset }: MeasuredNotExported
     document.body.style.cursor = 'wait';
 
     try {
-      // STEP 1: Get assets that will be exported (measured but not exported)
-      const assetsToExport = await api.assets.getMeasuredNotExported();
-      
+      // STEP 1: Get selected rows from grid, or all if none selected
+      const apiRef = gridRef.current?.api;
+      const selectedRows = apiRef?.getSelectedRows() ?? [];
+      const assetsToExport = selectedRows.length > 0
+        ? (selectedRows as Asset[])
+        : await api.assets.getMeasuredNotExported();
+
       if (assetsToExport.length === 0) {
-        setToast({ message: 'אין נכסים לשליחה - כל הנכסים כבר נשלחו לעירייה', type: 'info' });
+        const msg = selectedRows.length === 0
+          ? 'בחר נכסים לשליחה באמצעות תיבות הסימון'
+          : 'אין נכסים לשליחה - כל הנכסים כבר נשלחו לעירייה';
+        setToast({ message: msg, type: 'info' });
         setTimeout(() => setToast(null), 5000);
         setExporting(false);
         setExportProgressMessage('');
@@ -1470,7 +1512,32 @@ export const MeasuredNotExportedAssets = ({ onSelectAsset }: MeasuredNotExported
         </div>
       </div>
       <div className="action-bar mb-2">
-        <div className="flex flex-wrap justify-end gap-2">
+        <div className="flex flex-wrap justify-end items-center gap-2">
+          <span className="text-sm text-slate-600 mr-2">
+            נבחרו: <strong>{selectedExportCount}</strong> מתוך {assets.length}
+          </span>
+          <span className="text-slate-300">|</span>
+          <button
+            type="button"
+            onClick={() => {
+              gridRef.current?.api?.selectAll();
+              setSelectedExportCount(gridRef.current?.api?.getSelectedRows()?.length ?? 0);
+            }}
+            className="btn btn-action btn-secondary"
+          >
+            <span>בחר הכל</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              gridRef.current?.api?.deselectAll();
+              setSelectedExportCount(0);
+            }}
+            className="btn btn-action btn-secondary"
+          >
+            <span>נקה בחירה</span>
+          </button>
+          <span className="text-slate-300">|</span>
           <button
             onClick={fetchData}
             className="btn btn-action btn-secondary"
@@ -1488,15 +1555,16 @@ export const MeasuredNotExportedAssets = ({ onSelectAsset }: MeasuredNotExported
           <button
             type="button"
             onClick={handleExportToAutomation}
-            disabled={loading || exporting}
+            disabled={loading || exporting || selectedExportCount === 0}
             className="btn btn-action btn-primary disabled:opacity-50 disabled:cursor-not-allowed"
+            title={selectedExportCount > 0 ? `שלח ${selectedExportCount} נכסים נבחרים לעירייה` : 'בחר נכסים לשליחה'}
           >
             {exporting ? (
               <Loader2 className="h-5 w-5 animate-spin" />
             ) : (
               <Download className="h-5 w-5" />
             )}
-            <span>שליחת נתונים לעירייה{exportToAutomationCount > 0 ? ` (${exportToAutomationCount})` : ''}</span>
+            <span>שליחת נתונים לעירייה{selectedExportCount > 0 ? ` (${selectedExportCount})` : ''}</span>
           </button>
         </div>
       </div>
@@ -1538,6 +1606,8 @@ export const MeasuredNotExportedAssets = ({ onSelectAsset }: MeasuredNotExported
           }}
           onFirstDataRendered={async (params) => {
             await gridPreferences.saveColumnState(params.api);
+            params.api.selectAll();
+            setSelectedExportCount(params.api.getSelectedRows().length);
           }}
           onColumnMoved={async (params) => {
             if (gridRef.current?.api) {
@@ -1550,6 +1620,11 @@ export const MeasuredNotExportedAssets = ({ onSelectAsset }: MeasuredNotExported
             }
           }}
           onRowClicked={(event) => {
+            // Don't open asset details when clicking the checkbox/actions column (selection for export only)
+            const colId = event.column?.getColId?.();
+            if (colId === 'actions') return;
+            const target = event.event?.target as HTMLElement;
+            if (target?.closest?.('[role="checkbox"], input[type="checkbox"]')) return;
             if (event.data) {
               const asset = event.data as Asset;
               onSelectAsset(
@@ -1560,12 +1635,18 @@ export const MeasuredNotExportedAssets = ({ onSelectAsset }: MeasuredNotExported
               );
             }
           }}
-          rowSelection={{
-            mode: 'singleRow',
-            enableClickSelection: true,
-            checkboxes: false,
-            hideDisabledCheckboxes: true
+          onSelectionChanged={(e) => {
+            const selected = gridRef.current?.api?.getSelectedRows() ?? [];
+            setSelectedExportCount(selected.length);
+            e.api?.refreshCells({ columns: ['actions'], force: true });
           }}
+          rowSelection={{
+            mode: 'multiRow',
+            checkboxes: false,
+            headerCheckbox: false,
+            enableClickSelection: false
+          }}
+          getRowId={(params) => String(params.data?.asset_id)}
           animateRows={false}
           localeText={{
             noRowsToShow: 'אין נכסים להצגה',

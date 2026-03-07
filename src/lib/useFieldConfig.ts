@@ -3,16 +3,22 @@ import { ColDef } from 'ag-grid-community';
 import { loadFieldConfigurations, applyFieldConfigToColumn, getFieldConfigCache, isFieldConfigCacheLoaded } from './fieldConfigUtils';
 import { FieldConfiguration } from './api';
 import { useFieldConfigVersion } from '../contexts/FieldConfigContext';
+import { subscribeFontSize, isLargeFont } from './fontSizeStore';
 
 /**
  * Hook to apply field configurations to column definitions
  * Uses in-memory cache if available, otherwise loads from database
+ * When "גדול" (large) font is selected, multiplies column widths by 1.5 on the fly (no DB update)
  * @param columnDefs Column definitions to configure
  * @param gridName Optional grid name to filter configurations for this specific grid
  * @returns [configuredColumnDefs, isLoading] - wait for !isLoading before rendering grid
  */
 export function useFieldConfig<T = any>(columnDefs: ColDef<T>[], gridName?: string): [ColDef<T>[], boolean] {
   const configVersion = useFieldConfigVersion();
+  const [, forceUpdate] = useState(0);
+  useEffect(() => {
+    return subscribeFontSize(() => forceUpdate((n) => n + 1));
+  }, []);
 
   // Initialize from cache immediately if available (synchronous)
   const getInitialConfigs = (): Map<string, FieldConfiguration> => {
@@ -124,9 +130,9 @@ export function useFieldConfig<T = any>(columnDefs: ColDef<T>[], gridName?: stri
         };
       }
 
-      // Apply field configuration
+      // Apply field configuration (multiply width by 1.5 when גדול selected, on the fly)
       return {
-        colDef: applyFieldConfigToColumn(colDef, fieldConfig),
+        colDef: applyFieldConfigToColumn(colDef, fieldConfig, { isLargeFont: isLargeFont() }),
         order: fieldConfig.column_order ?? Infinity,
         visible: fieldConfig.visible !== false // Default to true if undefined
       };
@@ -187,4 +193,5 @@ export function useReloadFieldConfig() {
 
   return { reload, reloadKey };
 }
+
 

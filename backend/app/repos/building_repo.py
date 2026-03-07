@@ -148,6 +148,44 @@ class BuildingRepo(BaseRepo):
         )
         return rows[0] if rows else None
 
+    def recompute_distribution_flags(self, building_number: int, asset_type_repo, conn=None) -> None:
+        """
+        Set need_business_distribution / need_residence_distribution based on building shared
+        areas and asset types in the building. Replaces DB trigger auto_set_distribution_flags_on_change.
+        """
+        building_row = self.get_shared_areas(building_number, conn=conn)
+        if not building_row:
+            return
+        bn_business = float(building_row.get("business_shared_area") or 0)
+        bn_residence = float(building_row.get("residence_shared_area") or 0)
+        if bn_business <= 0 and bn_residence <= 0:
+            return
+        rows = self._fetch(
+            "SELECT DISTINCT main_asset_type FROM assets WHERE building_number = :bn AND main_asset_type IS NOT NULL",
+            {"bn": building_number},
+            conn=conn,
+        )
+        need_business = False
+        need_residence = False
+        for r in rows:
+            br = asset_type_repo.get_business_residence_by_name(r.get("main_asset_type"), conn=conn)
+            if br == "עסקים" and bn_business > 0:
+                need_business = True
+            elif br == "מגורים" and bn_residence > 0:
+                need_residence = True
+            else:
+                if bn_business > 0:
+                    need_business = True
+                if bn_residence > 0:
+                    need_residence = True
+        if need_business or need_residence:
+            self.update_distribution_flags(
+                building_number,
+                need_business_distribution=need_business if bn_business > 0 else None,
+                need_residence_distribution=need_residence if bn_residence > 0 else None,
+                conn=conn,
+            )
+
     def get_asset_ids(self, building_number: int, conn=None) -> List[int]:
         rows = self._fetch(
             "SELECT asset_id FROM assets WHERE building_number = :bn ORDER BY asset_id",

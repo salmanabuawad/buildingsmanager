@@ -10,6 +10,7 @@ from app.repos import (
     AssetRepo,
     AuditRepo,
     UsersRepo,
+    AssetTypeRepo,
 )
 
 
@@ -41,6 +42,7 @@ _building_repo = BuildingRepo()
 _asset_repo = AssetRepo()
 _audit_repo = AuditRepo()
 _users_repo = UsersRepo()
+_asset_type_repo = AssetTypeRepo()
 
 
 def _resolve_user_id(p_user_id: Optional[str]) -> Optional[int]:
@@ -149,6 +151,11 @@ def save_assets_bulk_transactional(
 
             _building_repo.update_total_area(v_building_number, conn=conn)
 
+        # Recompute distribution flags for manual updates (replaces DB trigger)
+        if p_action_type == "manual_update":
+            for bn in affected_buildings:
+                _building_repo.recompute_distribution_flags(bn, _asset_type_repo, conn=conn)
+
         if not p_after_data or p_after_data in (None, "null", {}):
             if first_building_number and p_action_type in ("distribute_shared", "business_distribution", "residence_distribution", "transfer_area"):
                 after_assets = _asset_repo.get_all_for_building(first_building_number, conn=conn)
@@ -179,6 +186,9 @@ def save_assets_bulk_transactional(
                 _building_repo.clear_residence_distribution(first_building_number, conn=conn)
             elif p_action_type == "distribute_shared":
                 _building_repo.clear_both_distribution(first_building_number, conn=conn)
+        elif p_action_type == "manual_update":
+            for bn in affected_buildings:
+                _building_repo.recompute_distribution_flags(bn, _asset_type_repo, conn=conn)
 
         count = len(affected_asset_ids)
         return {

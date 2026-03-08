@@ -32,20 +32,20 @@ export function Login({ onLoginSuccess }: LoginProps) {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-[#f5f5f5] px-4">
+    <div className="min-h-screen flex items-center justify-center bg-theme-content px-4">
       <div className="max-w-md w-full">
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-20 h-20 bg-app-header rounded-lg shadow-lg mb-4">
+          <div className="inline-flex items-center justify-center w-20 h-20 bg-theme-tab-active rounded-2xl shadow-lg mb-4">
             <Building2 className="w-12 h-12 text-white" />
           </div>
-          <h1 className="text-3xl font-bold text-slate-800 mb-2">מערכת ניהול מבנים</h1>
-          <p className="text-slate-600">התחברות למערכת</p>
+          <h1 className="text-3xl font-bold text-theme-text-primary mb-2">מערכת ניהול מבנים</h1>
+          <p className="text-theme-text-muted">התחברות למערכת</p>
         </div>
 
-        <div className="bg-white rounded-lg shadow-md p-8 border border-slate-200">
+        <div className="bg-white rounded-2xl shadow-xl p-8 border border-theme-card-border">
           <form onSubmit={handleSubmit} className="space-y-6">
             <div>
-              <label htmlFor="username" className="block text-sm font-medium text-slate-700 mb-2 text-right">
+              <label htmlFor="username" className="block text-sm font-medium text-theme-text-primary mb-2 text-right">
                 שם משתמש
               </label>
               <input
@@ -55,7 +55,7 @@ export function Login({ onLoginSuccess }: LoginProps) {
                 onChange={(e) => setUserName(e.target.value)}
                 required
                 disabled={loading}
-                className="w-full px-4 py-3 border border-app-input-border rounded focus:ring-2 focus:ring-app-accent focus:border-app-accent outline-none transition-all text-right disabled:bg-slate-100 disabled:cursor-not-allowed"
+                className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-theme-tab-active focus:border-theme-tab-active outline-none transition-all text-right disabled:bg-slate-100 disabled:cursor-not-allowed"
                 placeholder="הזן שם משתמש"
                 dir="rtl"
                 autoComplete="username"
@@ -63,7 +63,7 @@ export function Login({ onLoginSuccess }: LoginProps) {
             </div>
 
             <div>
-              <label htmlFor="password" className="block text-sm font-medium text-slate-700 mb-2 text-right">
+              <label htmlFor="password" className="block text-sm font-medium text-theme-text-primary mb-2 text-right">
                 סיסמה
               </label>
               <div className="relative">
@@ -74,7 +74,7 @@ export function Login({ onLoginSuccess }: LoginProps) {
                   onChange={(e) => setPassword(e.target.value)}
                   required
                   disabled={loading}
-                  className="w-full px-4 py-3 border border-app-input-border rounded focus:ring-2 focus:ring-app-accent focus:border-app-accent outline-none transition-all text-right disabled:bg-slate-100 disabled:cursor-not-allowed"
+                  className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-theme-tab-active focus:border-theme-tab-active outline-none transition-all text-right disabled:bg-slate-100 disabled:cursor-not-allowed"
                   placeholder="הזן סיסמה"
                   dir="rtl"
                   autoComplete="current-password"
@@ -82,7 +82,7 @@ export function Login({ onLoginSuccess }: LoginProps) {
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-700 focus:outline-none"
+                  className="absolute left-3 top-1/2 -translate-y-1/2 text-theme-text-muted hover:text-theme-text-primary focus:outline-none"
                   tabIndex={-1}
                 >
                   {showPassword ? 'הסתר' : 'הצג'}
@@ -100,7 +100,7 @@ export function Login({ onLoginSuccess }: LoginProps) {
             <button
               type="submit"
               disabled={loading || !userName.trim() || !password}
-              className="w-full py-3 px-4 bg-app-accent hover:bg-app-accent-hover text-white font-semibold rounded shadow-md transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none flex items-center justify-center gap-2"
+              className="w-full py-3 px-4 bg-theme-tab-active hover:bg-theme-tab-active-hover text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none flex items-center justify-center gap-2"
             >
               {loading ? (
                 <>
@@ -114,8 +114,8 @@ export function Login({ onLoginSuccess }: LoginProps) {
           </form>
         </div>
 
-        <p className="text-center text-sm text-slate-500 mt-6">
-          מערכת ניהול מבנים © {new Date().getFullYear()}
+        <p className="text-center text-sm text-theme-text-muted mt-6">
+          מערכת ניהול מבנים © {new Date().getFullYear()} Kortex Digital
         </p>
       </div>
     </div>

@@ -3,11 +3,31 @@ import { Document, Page, pdfjs } from 'react-pdf';
 import { ZoomIn, ZoomOut, Download, RotateCw, ChevronLeft, ChevronRight, File as FileIcon, Printer } from 'lucide-react';
 import { sanitizeFilename } from '../lib/sanitize';
 import { getFileTypeCategory } from '../lib/fileCompression';
-import { supabase } from '../lib/supabase';
+import { getApiBaseUrl } from '../lib/appConfig';
+import { api, getFileApiHeaders, getFileViewUrl } from '../lib/apiClient';
 import 'react-pdf/dist/Page/AnnotationLayer.css';
 import 'react-pdf/dist/Page/TextLayer.css';
 
 pdfjs.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`;
+
+/** True if the string looks like a local filesystem or Cursor workspace path (not a loadable app URL). */
+function isLocalOrCursorPath(url: string): boolean {
+  const u = (url || '').trim();
+  if (!u) return false;
+  if (u.startsWith('file:')) return true;
+  if (/^[a-zA-Z]:[\\/]/.test(u)) return true;
+  if (u.startsWith('@') && /[@]?[a-zA-Z]:[\\/]/.test(u)) return true;
+  if (u.includes('workspaceStorage') || u.includes('\\')) return true;
+  return false;
+}
+
+/** Return a safe display/download filename (basename only), never the full path. */
+function safeBasename(urlOrPath: string, fallback = 'file'): string {
+  if (!urlOrPath) return fallback;
+  const normalized = urlOrPath.replace(/\\/g, '/');
+  const last = normalized.split('/').pop()?.split('?')[0]?.trim();
+  return last || fallback;
+}
 
 interface FileViewerProps {
   fileUrl: string;
@@ -15,7 +35,7 @@ interface FileViewerProps {
 }
 
 export function FileViewer({ fileUrl, fileName }: FileViewerProps) {
-  const [fileType, setFileType] = useState<'pdf' | 'image' | 'video' | 'document' | 'other' | 'loading'>('loading');
+  const [fileType, setFileType] = useState<'pdf' | 'image' | 'document' | 'other' | 'loading'>('loading');
   const [numPages, setNumPages] = useState<number>(0);
   const [pageNumber, setPageNumber] = useState<number>(1);
   const [scale, setScale] = useState<number>(1.0);
@@ -23,67 +43,91 @@ export function FileViewer({ fileUrl, fileName }: FileViewerProps) {
   const [imageError, setImageError] = useState(false);
   const [pdfLoadError, setPdfLoadError] = useState<string | null>(null);
   const [actualFileUrl, setActualFileUrl] = useState<string | null>(null);
+  const [blobUrl, setBlobUrl] = useState<string | null>(null);
+  const [fileBlob, setFileBlob] = useState<Blob | null>(null);
   const [isPreparingUrl, setIsPreparingUrl] = useState<boolean>(true);
+  const [isLocalPath, setIsLocalPath] = useState<boolean>(false);
 
-  // Try to get signed URL if the file is from a private bucket
+  // Resolve display URL: ignore local/Cursor paths; for our API get view URL or blob; otherwise use fileUrl.
   useEffect(() => {
     let cancelled = false;
+    setIsLocalPath(isLocalOrCursorPath(fileUrl));
 
-    const getSignedUrlIfNeeded = async () => {
+    const run = async () => {
       setIsPreparingUrl(true);
       setPdfLoadError(null);
+      setFileBlob(null);
+      setBlobUrl(null);
 
-      if (fileUrl.includes('.supabase.co/storage/v1/object/sign/')) {
-        if (!cancelled) setActualFileUrl(fileUrl);
-        setIsPreparingUrl(false);
+      if (isLocalOrCursorPath(fileUrl)) {
+        if (!cancelled) {
+          setActualFileUrl(null);
+          setPdfLoadError('הקובץ מצביע למיקום מקומי. פתח את הקובץ מתוך רשימת הקבצים של הנכס.');
+          setIsPreparingUrl(false);
+        }
         return;
       }
 
-      try {
-        const urlObj = new URL(fileUrl);
-        const pathMatch = urlObj.pathname.match(/\/storage\/v1\/object\/(?:public|sign)\/([^/]+)\/(.+)/);
-
-        if (pathMatch) {
-          const [, bucket, path] = pathMatch;
-
-          const { data, error } = await supabase.storage
-            .from(bucket)
-            .createSignedUrl(path, 3600); // 1 hour expiry
-
-          if (cancelled) return;
-
-          if (!error && data?.signedUrl) {
-            if (process.env.NODE_ENV === 'development') {
-            }
-            setActualFileUrl(data.signedUrl);
-            setIsPreparingUrl(false);
-            return;
-          }
-          if (error) {
-            if (error.message?.includes('Bucket not found') || error.statusCode === '404') {
-              setPdfLoadError(`Storage bucket "${bucket}" not found. See CREATE_STORAGE_BUCKETS.md for instructions.`);
-            } else if (process.env.NODE_ENV === 'development') {
-              console.warn('Failed to create signed URL, using original:', error);
-            }
-          }
-        }
-      } catch (error) {
-        if (process.env.NODE_ENV === 'development') {
-          console.warn('Could not parse file URL for signed URL generation:', error);
-        }
+      let urlToUse: string;
+      if (fileUrl.startsWith('http') || fileUrl.startsWith('/')) {
+        urlToUse = fileUrl;
+      } else {
+        const { data } = api.storage.from('structure-drawings').getPublicUrl(fileUrl);
+        urlToUse = data.publicUrl;
       }
 
-      if (!cancelled) {
-        setActualFileUrl(fileUrl);
-        setIsPreparingUrl(false);
+      const isOurApi = urlToUse.includes('/api/files/download') || urlToUse.includes('/download?');
+      if (isOurApi) {
+        try {
+          const pathMatch = urlToUse.match(/[?&]path=([^&]+)/);
+          const path = pathMatch ? decodeURIComponent(pathMatch[1]) : null;
+          if (path) {
+            const result = await getFileViewUrl(path);
+            if (!cancelled && 'url' in result) {
+              setActualFileUrl(result.url);
+              setIsPreparingUrl(false);
+              return;
+            }
+          }
+        } catch {
+          /* fallback to download URL + blob */
+        }
+        if (!cancelled) setActualFileUrl(urlToUse);
+        try {
+          const res = await fetch(urlToUse, {
+            credentials: 'include',
+            headers: getFileApiHeaders(),
+          });
+          if (!cancelled && res.ok) {
+            const blob = await res.blob();
+            if (!cancelled) {
+              setFileBlob(blob);
+              setBlobUrl(URL.createObjectURL(blob));
+            }
+          }
+        } catch {
+          /* error UI can show */
+        }
+      } else {
+        if (!cancelled) setActualFileUrl(urlToUse);
+        setBlobUrl(urlToUse);
       }
+
+      if (!cancelled) setIsPreparingUrl(false);
     };
 
-    getSignedUrlIfNeeded();
-    return () => { cancelled = true; };
+    run();
+    return () => {
+      cancelled = true;
+      setBlobUrl(prev => {
+        if (prev && prev.startsWith('blob:')) URL.revokeObjectURL(prev);
+        return null;
+      });
+      setFileBlob(null);
+    };
   }, [fileUrl]);
 
-  // Reset state when file changes to handle switching between different file types
+  // Reset state when file changes (do not clear actualFileUrl — URL effect sets it)
   useEffect(() => {
     setFileType('loading');
     setNumPages(0);
@@ -92,43 +136,31 @@ export function FileViewer({ fileUrl, fileName }: FileViewerProps) {
     setRotation(0);
     setImageError(false);
     setPdfLoadError(null);
-    setActualFileUrl(null);
-    setIsPreparingUrl(true);
   }, [fileUrl, fileName]);
 
-  // Detect file type from URL and filename (use original fileUrl to avoid duplicate calls)
+  // Safe display name: never show full URL/link, only basename.
+  const displayName = useMemo(() => {
+    const raw = (fileName || fileUrl || '').trim();
+    if (raw && !raw.startsWith('http') && !raw.includes('/api/') && !raw.includes('path=') && raw.length < 200) {
+      return raw;
+    }
+    return safeBasename(fileName || fileUrl, 'קובץ');
+  }, [fileName, fileUrl]);
+
+  // Detect file type from filename (avoid HEAD request so we don't block or require auth)
   useEffect(() => {
-    const detectFileType = async () => {
-      const name = (fileName || fileUrl).toLowerCase();
-      
-      // First check filename extension - this works without fetching
-      const category = getFileTypeCategory(name, '');
-      if (category !== 'other') {
-        setFileType(category);
-        return;
-      }
+    const name = (displayName || fileUrl).toLowerCase();
+    const category = getFileTypeCategory(name, '');
+    setFileType(category);
+  }, [fileUrl, displayName]);
 
-      // Only fetch headers if we can't determine from extension
-      // Use original fileUrl to avoid duplicate calls when actualFileUrl changes
-      try {
-        const response = await fetch(fileUrl, { method: 'HEAD' });
-        const contentType = response.headers.get('content-type') || '';
-        const detectedCategory = getFileTypeCategory(name, contentType);
-        setFileType(detectedCategory);
-      } catch (error) {
-        // If HEAD request fails, try to determine from extension
-        setFileType(getFileTypeCategory(name, ''));
-      }
-    };
-
-    // Only run detection once when fileUrl or fileName changes, not when actualFileUrl changes
-    detectFileType();
-  }, [fileUrl, fileName]); // Removed actualFileUrl from dependencies to avoid duplicate calls
-
-  const documentOptions = useMemo(() => ({
-    httpHeaders: {},
-    withCredentials: false,
-  }), []);
+  const documentOptions = useMemo(() => {
+    const url = actualFileUrl || blobUrl || '';
+    const needsAuth = typeof url === 'string' && (url.includes('/api/files/download') || url.includes('/download?'));
+    return needsAuth
+      ? { httpHeaders: getFileApiHeaders(), withCredentials: true as const }
+      : { httpHeaders: {} as Record<string, string>, withCredentials: false as const };
+  }, [actualFileUrl, blobUrl]);
 
   function onDocumentLoadSuccess({ numPages }: { numPages: number }) {
     setNumPages(numPages);
@@ -146,8 +178,7 @@ export function FileViewer({ fileUrl, fileName }: FileViewerProps) {
       const bucketName = bucketMatch ? bucketMatch[1] : 'unknown';
       setPdfLoadError(
         `Storage bucket "${bucketName}" not found. ` +
-        `Please create the bucket in Supabase Dashboard: Storage → New bucket → Name: "${bucketName}". ` +
-        `See CREATE_STORAGE_BUCKETS.md for detailed instructions.`
+        `Storage bucket "${bucketName}" not found. Configure backend file storage.`
       );
     } else {
       setPdfLoadError(error.message || 'Failed to load PDF file. The file may be corrupted or inaccessible.');
@@ -182,44 +213,43 @@ export function FileViewer({ fileUrl, fileName }: FileViewerProps) {
   }
 
   async function handleDownload() {
+    if (isLocalPath) {
+      alert('לא ניתן להוריד קובץ ממיקום מקומי. פתח את הקובץ מתוך רשימת הקבצים של הנכס.');
+      return;
+    }
     try {
-      // Use actualFileUrl if available (signed URL), otherwise fallback to fileUrl
-      const urlToDownload = actualFileUrl || fileUrl;
-      
+      const urlToDownload = actualFileUrl || (!isLocalOrCursorPath(fileUrl) ? fileUrl : null);
       if (!urlToDownload) {
-        alert('File URL not available. Please try again.');
+        alert('כתובת הקובץ אינה זמינה. נסה שוב.');
         return;
       }
-      
-      const response = await fetch(urlToDownload);
-      
+      const isOurDownloadUrl = urlToDownload.includes('/api/files/download') || urlToDownload.includes('/download?');
+      const response = await fetch(urlToDownload, {
+        ...(isOurDownloadUrl ? { credentials: 'include' as const, headers: getFileApiHeaders() } : {}),
+      });
       if (!response.ok) {
         throw new Error(`Failed to fetch file: ${response.status} ${response.statusText}`);
       }
-      
       const blob = await response.blob();
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
-      
-      // Extract filename from URL if fileName is not provided or extract from URL path
       let downloadName = fileName;
       if (!downloadName || downloadName === 'file') {
         try {
           const urlObj = new URL(urlToDownload);
           const pathParts = urlObj.pathname.split('/');
           const lastPart = pathParts[pathParts.length - 1];
-          // Remove query parameters if any
           const filenameFromUrl = lastPart.split('?')[0];
-          if (filenameFromUrl && filenameFromUrl !== '') {
-            downloadName = filenameFromUrl;
-          }
-        } catch (e) {
-          // If URL parsing fails, use default
+          if (filenameFromUrl && filenameFromUrl !== '') downloadName = filenameFromUrl;
+        } catch {
+          /* use default */
         }
       }
-      
-      link.download = sanitizeFilename(downloadName || 'file');
+      if (!downloadName || downloadName === 'file') {
+        downloadName = displayName || safeBasename(fileUrl, 'file');
+      }
+      link.download = sanitizeFilename(downloadName);
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
@@ -230,60 +260,98 @@ export function FileViewer({ fileUrl, fileName }: FileViewerProps) {
     }
   }
 
-  function handlePrint() {
-    const urlToPrint = actualFileUrl || fileUrl;
-    if (!urlToPrint) {
-      alert('כתובת הקובץ אינה זמינה. נסה שוב.');
+  async function handlePrint() {
+    if (isLocalPath) {
+      alert('לא ניתן להדפיס קובץ ממיקום מקומי. פתח את הקובץ מתוך רשימת הקבצים של הנכס.');
+      return;
+    }
+    const isOurApi = (u: string) => u.includes('/api/files/');
+
+    // Open print window: attach onload before navigating so we don't miss the load event.
+    function openUrlAndPrint(urlToOpen: string, _docTitle?: string) {
+      const w = window.open('', '_blank', 'noopener,noreferrer');
+      if (!w) {
+        alert('לא ניתן לפתוח חלון להדפסה. אפשר חלונות קופצים עבור האתר.');
+        return;
+      }
+      const doPrint = () => {
+        try {
+          w.focus();
+          w.print();
+          w.onafterprint = () => { try { w.close(); } catch { /* ignore */ } };
+        } catch {
+          try { w.close(); } catch { /* ignore */ }
+        }
+      };
+      w.onload = () => setTimeout(doPrint, 800);
+      setTimeout(doPrint, 8000);
+      w.location.href = urlToOpen;
+    }
+
+    const rawUrl = actualFileUrl || fileUrl;
+    const pathMatch = rawUrl.match(/[?&]path=([^&]+)/);
+    const path = pathMatch ? decodeURIComponent(pathMatch[1]) : null;
+    const buildDownloadUrl = (): string | null => {
+      if (!path) return null;
+      const base = getApiBaseUrl().replace(/\/$/, '');
+      return `${base ? base + '/' : ''}api/files/download?path=${encodeURIComponent(path)}`;
+    };
+
+    // Parse physical filename from Content-Disposition so print window shows server's file name and type.
+    const filenameFromDisposition = (res: Response): string | null => {
+      const h = res.headers.get('Content-Disposition');
+      if (!h) return null;
+      const utf8Match = h.match(/filename\*=UTF-8''([^;]+)/i);
+      if (utf8Match) return decodeURIComponent(utf8Match[1].replace(/"/g, ''));
+      const match = h.match(/filename=["']?([^"';]+)["']?/i);
+      return match ? match[1].trim() : null;
+    };
+
+    // Our API: get a short-lived view URL with token so the new window can load the file without auth, then print.
+    if (path && (rawUrl.includes('/api/files/download') || rawUrl.includes('/download?') || rawUrl.includes('/view?'))) {
+      const result = await getFileViewUrl(path);
+      if (!('url' in result)) {
+        alert(result.error || 'לא ניתן לקבל כתובת להדפסה. נסה שוב.');
+        return;
+      }
+      openUrlAndPrint(result.url);
       return;
     }
 
-    const printContainer = document.createElement('div');
-    printContainer.id = 'print-container-' + Date.now();
-    printContainer.style.display = 'none';
-    document.body.appendChild(printContainer);
-
-    if (fileType === 'pdf' || fileType === 'image') {
-      const iframe = document.createElement('iframe');
-      iframe.src = urlToPrint;
-      iframe.style.width = '100%';
-      iframe.style.height = '100%';
-      printContainer.appendChild(iframe);
-
-      iframe.onload = () => {
-        try {
-          iframe.contentWindow?.print();
-        } catch (e) {
-          window.print();
-        }
-        setTimeout(() => {
-          document.body.removeChild(printContainer);
-        }, 1000);
-      };
-
-      iframe.onerror = () => {
-        document.body.removeChild(printContainer);
-        alert('לא ניתן להדפיס את הקובץ. נסה להוריד אותו במקום זאת.');
-      };
-    } else {
-      fetch(urlToPrint)
-        .then(response => response.blob())
-        .then(blob => {
-          const blobUrl = URL.createObjectURL(blob);
-          const link = document.createElement('a');
-          link.href = blobUrl;
-          link.download = fileName || 'file';
-          document.body.appendChild(link);
-          link.click();
-          document.body.removeChild(link);
-          document.body.removeChild(printContainer);
-          URL.revokeObjectURL(blobUrl);
-          alert('הקובץ הורדו. אתה יכול להדפיס אותו מתוך התוכנה המתאימה.');
-        })
-        .catch(() => {
-          document.body.removeChild(printContainer);
-          alert('לא ניתן להדפיס את הקובץ. נסה להוריד אותו במקום זאת.');
-        });
+    if (actualFileUrl && actualFileUrl.includes('/view?') && (actualFileUrl.includes('token=') || actualFileUrl.includes('expiry='))) {
+      alert(actualFileUrl);
+      openUrlAndPrint(actualFileUrl);
+      return;
     }
+    if (blobUrl && blobUrl.startsWith('blob:')) {
+      alert(blobUrl);
+      openUrlAndPrint(blobUrl, displayName);
+      return;
+    }
+    if (fileBlob) {
+      const blobUrlForPrint = URL.createObjectURL(fileBlob);
+      alert(blobUrlForPrint);
+      openUrlAndPrint(blobUrlForPrint, displayName);
+      return;
+    }
+    if (actualFileUrl && (actualFileUrl.startsWith('http') || actualFileUrl.startsWith('/')) && !isOurApi(actualFileUrl)) {
+      alert(actualFileUrl);
+      openUrlAndPrint(actualFileUrl);
+      return;
+    }
+    alert('כתובת הקובץ אינה זמינה. נסה שוב.');
+  }
+
+  // Local/Cursor path – not loadable via app
+  if (isLocalPath) {
+    return (
+      <div className="w-full">
+        <div className="border border-slate-300 rounded-lg bg-amber-50 p-8 flex flex-col items-center justify-center gap-2 text-center">
+          <span className="text-amber-800 font-medium">{safeBasename(fileUrl, 'קובץ')}</span>
+          <p className="text-slate-700 text-sm">הקובץ מצביע למיקום מקומי. פתח את הקובץ מתוך רשימת הקבצים של הנכס.</p>
+        </div>
+      </div>
+    );
   }
 
   // Loading state
@@ -377,9 +445,9 @@ export function FileViewer({ fileUrl, fileName }: FileViewerProps) {
               <div className="flex items-center justify-center p-12">
                 <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-slate-800"></div>
               </div>
-            ) : actualFileUrl ? (
+            ) : (fileBlob || blobUrl || actualFileUrl) ? (
               <Document
-                file={actualFileUrl}
+                file={fileBlob || blobUrl || actualFileUrl || ''}
                 onLoadSuccess={onDocumentLoadSuccess}
                 loading={
                   <div className="flex items-center justify-center p-12">
@@ -506,10 +574,10 @@ export function FileViewer({ fileUrl, fileName }: FileViewerProps) {
             <div className="bg-red-50 border border-red-200 rounded-lg p-6">
               <p className="text-red-800">Failed to load image.</p>
             </div>
-          ) : actualFileUrl ? (
+          ) : (blobUrl || actualFileUrl) ? (
             <img
-              src={actualFileUrl}
-              alt={fileName || 'Image'}
+              src={blobUrl || actualFileUrl || ''}
+              alt={displayName || 'Image'}
               className="max-w-full h-auto"
               style={{
                 transform: `scale(${scale}) rotate(${rotation}deg)`,
@@ -528,51 +596,13 @@ export function FileViewer({ fileUrl, fileName }: FileViewerProps) {
     );
   }
 
-  // Video Viewer
-  if (fileType === 'video') {
-    return (
-      <div className="w-full">
-        <div className="border border-slate-300 rounded-t-lg bg-white p-4">
-          <div className="flex items-center justify-end">
-            <button
-              onClick={handleDownload}
-              className="flex items-center gap-2 px-3 py-1 bg-slate-800 text-white rounded hover:bg-slate-700 text-sm"
-              title="הורדת וידאו"
-            >
-              <Download className="h-4 w-4" />
-              הורדת וידאו
-            </button>
-          </div>
-        </div>
-        <div className="border border-t-0 border-slate-300 rounded-b-lg bg-slate-50 p-4 flex justify-center">
-          {isPreparingUrl ? (
-            <div className="flex items-center justify-center p-12">
-              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-slate-800" />
-            </div>
-          ) : actualFileUrl ? (
-            <video
-              src={actualFileUrl}
-              controls
-              playsInline
-              className="max-w-full max-h-[600px]"
-            />
-          ) : (
-            <div className="bg-red-50 border border-red-200 rounded-lg p-6">
-              <p className="text-red-800">Failed to prepare video URL.</p>
-            </div>
-          )}
-        </div>
-      </div>
-    );
-  }
-
   // Document or other file types - show print and download option
   return (
     <div className="w-full">
       <div className="border border-slate-300 rounded-lg bg-slate-50 p-12 flex flex-col items-center justify-center">
         <FileIcon className="h-16 w-16 text-slate-400 mb-4" />
         <p className="text-slate-700 mb-4">
-          {fileName || 'תצוגה מקדימה אינה זמינה לסוג קובץ זה'}
+          {displayName || 'תצוגה מקדימה אינה זמינה לסוג קובץ זה'}
         </p>
         <div className="flex items-center gap-2">
           <button

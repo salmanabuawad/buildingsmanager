@@ -13,7 +13,6 @@ import { DistributionHistoryModal } from './DistributionHistoryModal';
 import { TransferHistoryModal } from './TransferHistoryModal';
 import { ChangeTaxRegionModal } from './ChangeTaxRegionModal';
 import { useValidationRules } from '../contexts/ValidationContext';
-import { supabase } from '../lib/supabase';
 import { compressFile } from '../lib/fileCompression';
 import { formatDateToDDMMYYYY } from '../lib/dateUtils';
 import { getAssetTypes, setLatestExportDate } from '../lib/validation';
@@ -22,9 +21,11 @@ import { createAndDownloadZip } from '../lib/zipExport';
 import { numericValueParser, numericValueParserInt } from '../lib/numberUtils';
 import { useGridPreferences } from '../lib/useGridPreferences';
 import { useFieldConfig } from '../lib/useFieldConfig';
+import { useFieldConfigVersion } from '../contexts/FieldConfigContext';
 import { processColumnHeader } from '../lib/gridHeaderUtils';
 import { exportToExcel } from '../lib/excelExport';
 import { useUserRole } from '../contexts/UserRoleContext';
+import { useUIConfig } from '../contexts/UIConfigContext';
 import { Toast } from './Toast';
 import { FileViewer } from './FileViewer';
 import { AssetFilesModal } from './AssetFilesModal';
@@ -32,7 +33,6 @@ import { AssetStatisticsModal } from './AssetStatisticsModal';
 interface AssetsListProps {
   buildingNumber: number;
   taxRegion?: string;
-  validateInline?: boolean;
   onSelectAsset: (assetId: string, assetIdentifier: string, buildingNumber: number, taxRegion?: string) => void;
   onOpenTransferAreas?: (selectedAssetIds: string[], buildingNumber: number, taxRegion?: string) => void;
   onOpenNewAsset?: (buildingNumber: number, taxRegion?: string) => void;
@@ -313,10 +313,11 @@ const OperatorCellEditor = React.forwardRef<any, OperatorCellEditorParams>((prop
 OperatorCellEditor.displayName = 'OperatorCellEditor';
 
 function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsListRef>) {
-  const { buildingNumber, taxRegion, validateInline = true, onSelectAsset, onOpenTransferAreas, onOpenNewAsset, selectedAssetIds, onOpenAssetsTab, onCloseTabAndOpenMultiTax, onCloseTab, isErrorFixingMode = false } = props;
+  const { buildingNumber, taxRegion, onSelectAsset, onOpenTransferAreas, onOpenNewAsset, selectedAssetIds, onOpenAssetsTab, onCloseTabAndOpenMultiTax, onCloseTab, isErrorFixingMode = false } = props;
   const { t } = useTranslation();
   const { validationRules } = useValidationRules(); // Get validation rules from context
   const { isReadOnly } = useUserRole();
+  const { shouldValidateBeforeSave, shouldValidateOnBlur } = useUIConfig();
   const [assets, setAssets] = useState<Asset[]>([]);
   const [building, setBuilding] = useState<Building | null>(null);
   const [assetTypes, setAssetTypes] = useState<AssetType[]>([]);
@@ -331,8 +332,6 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
   const [deletedAssets, setDeletedAssets] = useState<Set<string>>(new Set());
   const [originalAssets, setOriginalAssets] = useState<Asset[]>([]);
   const [validationErrors, setValidationErrors] = useState<Map<string, string>>(new Map());
-  const validationErrorsRef = useRef<Map<string, string>>(new Map());
-  validationErrorsRef.current = validationErrors;
   // Save is gated behind an explicit Validate action.
   // Any edit resets this back to false.
   const [isValidatedForSave, setIsValidatedForSave] = useState(false);
@@ -345,7 +344,6 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
     'assets-list',
     'default'
   );
-
 
   const [showBatchValidationModal, setShowBatchValidationModal] = useState(false);
   const [batchValidationLoading, setBatchValidationLoading] = useState(false);
@@ -381,17 +379,14 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
   const [exportToAutomationCount, setExportToAutomationCount] = useState<number>(0);
 
   // Any change invalidates the last validation snapshot (user must re-validate).
-  // When validateInline is true, do NOT clear validation errors – inline validation will set them.
   useEffect(() => {
     const hasChanges = dirtyAssets.size > 0 || newAssets.size > 0 || deletedAssets.size > 0;
     if (hasChanges) {
       setIsValidatedForSave(false);
-      if (!validateInline) {
-        setValidationErrors(new Map());
-      }
+      setValidationErrors(new Map());
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [dirtyAssets, newAssets, deletedAssets, validateInline]);
+  }, [dirtyAssets, newAssets, deletedAssets]);
 
   
   // Save tax region in a variable for validation handler
@@ -511,6 +506,20 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
     return matchingAssetType?.area_description_for_tab || String(taxRegion);
   }, [assetTypes]);
 
+  const multiRegionBadge = useMemo(() => {
+    if (taxRegion) return null;
+    const regions = new Set<number>();
+    assets.forEach(a => {
+      const tr = a.tax_region;
+      if (tr == null) return;
+      const n = typeof tr === 'string' ? parseInt(tr, 10) : tr;
+      if (!isNaN(n)) regions.add(n);
+    });
+    const sorted = Array.from(regions).sort((a, b) => a - b);
+    const labels = sorted.map(r => getAreaDescriptionForTaxRegion(r));
+    return sorted.length > 0 ? labels.join(', ') : null;
+  }, [taxRegion, assets, getAreaDescriptionForTaxRegion]);
+
   // Helper function to generate comprehensive tooltip for asset types
   const getAssetTypeTooltip = useCallback((assetTypeName: string | null | undefined): string => {
     if (!assetTypeName) return '';
@@ -608,61 +617,15 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
     hasUnsavedChanges: () => totalChanges > 0
   }), [totalChanges]);
   
-  // Fetch export to automation count for current building
+  // Fetch export to automation count for current building (uses same backend logic as mark_exported)
   const fetchExportToAutomationCount = useCallback(async () => {
     if (!buildingNumber) {
       setExportToAutomationCount(0);
       return;
     }
-    
     try {
-      // Count assets in this building that match export condition:
-      // - measurement_date IS NOT NULL
-      // - exported_to_automation IS NULL OR false
-      // - data_from_automation IS NULL OR false
-      // Use the same query pattern as getMeasuredNotExported
-      const { data, error } = await supabase
-        .from('assets')
-        .select('asset_id')
-        .eq('building_number', buildingNumber)
-        .not('measurement_date', 'is', null)
-        .or('exported_to_automation.is.null,exported_to_automation.eq.false');
-      
-      if (error) {
-        console.error('[AssetsList] Error fetching export to automation count:', error);
-        setExportToAutomationCount(0);
-        return;
-      }
-      
-      // Filter by data_from_automation in JavaScript (Supabase .or() doesn't work well with multiple conditions)
-      const filtered = (data || []).filter(asset => {
-        // Check data_from_automation: should be null or false
-        // Since we don't have the full asset data, we need to fetch it or use a different approach
-        // For now, count all assets that match the first conditions
-        // The actual export will filter by data_from_automation
-        return true;
-      });
-      
-      // Actually, we need to check data_from_automation too
-      // Let's fetch the full data to filter properly
-      const { data: fullData, error: fullError } = await supabase
-        .from('assets')
-        .select('asset_id, data_from_automation')
-        .eq('building_number', buildingNumber)
-        .not('measurement_date', 'is', null)
-        .or('exported_to_automation.is.null,exported_to_automation.eq.false');
-      
-      if (fullError) {
-        console.error('[AssetsList] Error fetching export to automation count:', fullError);
-        setExportToAutomationCount(0);
-        return;
-      }
-      
-      const count = (fullData || []).filter(asset => 
-        !asset.data_from_automation || asset.data_from_automation === false
-      ).length;
-      
-      setExportToAutomationCount(count);
+      const list = await api.assets.getMeasuredNotExported(buildingNumber);
+      setExportToAutomationCount(list?.length ?? 0);
     } catch (err) {
       console.error('[AssetsList] Error fetching export to automation count:', err);
       setExportToAutomationCount(0);
@@ -683,30 +646,8 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
     document.body.style.cursor = 'wait';
 
     try {
-      // STEP 1: Get assets in this building that match export condition
-      // Use the same query pattern as getMeasuredNotExported
-      const { data: assetsToExport, error: fetchAssetsError } = await supabase
-        .from('assets')
-        .select('*')
-        .eq('building_number', buildingNumber)
-        .not('measurement_date', 'is', null)
-        .or('exported_to_automation.is.null,exported_to_automation.eq.false');
-      
-      // Filter by data_from_automation in JavaScript (Supabase .or() doesn't work well with multiple conditions)
-      const filteredAssets = (assetsToExport || []).filter(asset => 
-        !asset.data_from_automation || asset.data_from_automation === false
-      );
-      
-      if (fetchAssetsError) {
-        console.error('[AssetsList] Error fetching assets to export:', fetchAssetsError);
-        setToast({ message: 'שגיאה בטעינת נכסים לשליחה', type: 'error' });
-        setTimeout(() => setToast(null), 5000);
-        setExporting(false);
-        setExportProgressMessage('');
-        document.body.style.cursor = '';
-        return;
-      }
-      
+      // STEP 1: Get assets in this building that match export condition (same backend logic as mark_exported)
+      const filteredAssets = await api.assets.getMeasuredNotExported(buildingNumber);
       if (!filteredAssets || filteredAssets.length === 0) {
         setToast({ message: 'אין נכסים לשליחה - כל הנכסים כבר נשלחו לעירייה', type: 'info' });
         setTimeout(() => setToast(null), 5000);
@@ -716,72 +657,60 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
         return;
       }
 
-      // STEP 2: Validate all assets before export
-      setToast({ message: 'מאמת נכסים לפני שליחה...', type: 'info' });
-      
-      // Prepare cached data for validation
-      const cachedData = {
-        assetTypes: assetTypes.length > 0 ? assetTypes : await api.assetTypes.getAll(),
-        building: building
-      };
-
-      // Validate assets for this building
-      const batchResult = await AssetValidationHandler.validateBuildingAssets(
-        filteredAssets as Asset[],
-        buildingNumber,
-        {
-          mode: 'building',
-          validateOnlyLatest: false,
-          cachedData: cachedData,
-          taxRegion: validationTaxRegion,
-          onProgress: (progress) => {
-            setToast({ 
-              message: `מאמת נכסים... ${progress.current}/${progress.total} - ${progress.currentAsset}`, 
-              type: 'info' 
-            });
+      // When validation is on ("מתי להריץ אימות" !== כבוי), validate all assets before export
+      if (shouldValidateBeforeSave) {
+        setToast({ message: 'מאמת נכסים לפני שליחה...', type: 'info' });
+        const cachedData = {
+          assetTypes: assetTypes.length > 0 ? assetTypes : await api.assetTypes.getAll(),
+          building: building
+        };
+        const batchResult = await AssetValidationHandler.validateBuildingAssets(
+          filteredAssets as Asset[],
+          buildingNumber,
+          {
+            mode: 'building',
+            validateOnlyLatest: false,
+            cachedData: cachedData,
+            taxRegion: validationTaxRegion,
+            onProgress: (progress) => {
+              setToast({
+                message: `מאמת נכסים... ${progress.current}/${progress.total} - ${progress.currentAsset}`,
+                type: 'info'
+              });
+            }
+          }
+        );
+        const allValidationResults: Array<{ assetId: string; buildingNumber: number; errors: string[] }> = [];
+        for (const result of batchResult.results) {
+          if (!result.valid && result.errors && result.errors.length > 0) {
+            const assetId = typeof result.assetId === 'string' ? result.assetId : String(result.assetId);
+            allValidationResults.push({ assetId, buildingNumber, errors: result.errors });
           }
         }
-      );
-
-      // Collect validation errors
-      const allValidationResults: Array<{ assetId: string; buildingNumber: number; errors: string[] }> = [];
-      for (const result of batchResult.results) {
-        if (!result.valid && result.errors && result.errors.length > 0) {
-          const assetId = typeof result.assetId === 'string' 
-            ? result.assetId 
-            : String(result.assetId);
-          
-          allValidationResults.push({
-            assetId: assetId,
-            buildingNumber: buildingNumber,
-            errors: result.errors
+        if (allValidationResults.length > 0) {
+          const invalidCount = allValidationResults.length;
+          const errorMessages = allValidationResults
+            .slice(0, 5)
+            .map(r => `נכס ${r.assetId}: ${r.errors.join(', ')}`)
+            .join('\n');
+          const moreErrors = invalidCount > 5 ? `\nועוד ${invalidCount - 5} נכסים עם שגיאות...` : '';
+          setToast({
+            message: `לא ניתן לשלוח נכסים - נמצאו ${invalidCount} נכסים עם שגיאות אימות:\n${errorMessages}${moreErrors}\n\nיש לתקן את השגיאות לפני שליחה.`,
+            type: 'error'
           });
+          setTimeout(() => setToast(null), 15000);
+          setExporting(false);
+          document.body.style.cursor = '';
+          return;
         }
       }
 
-      // STEP 3: Check if validation passed
-      if (allValidationResults.length > 0) {
-        const invalidCount = allValidationResults.length;
-        const errorMessages = allValidationResults
-          .slice(0, 5)
-          .map(r => `נכס ${r.assetId}: ${r.errors.join(', ')}`)
-          .join('\n');
-        
-        const moreErrors = invalidCount > 5 ? `\nועוד ${invalidCount - 5} נכסים עם שגיאות...` : '';
-        
-        setToast({ 
-          message: `לא ניתן לשלוח נכסים - נמצאו ${invalidCount} נכסים עם שגיאות אימות:\n${errorMessages}${moreErrors}\n\nיש לתקן את השגיאות לפני שליחה.`, 
-          type: 'error' 
-        });
-        setTimeout(() => setToast(null), 15000);
-        setExporting(false);
-        document.body.style.cursor = '';
-        return;
-      }
-
-      // STEP 4: All assets passed validation - proceed with export
+      // Proceed with export (with or without validation depending on "מתי להריץ אימות")
       setExportProgressMessage('מתחיל שליחה...');
-      setToast({ message: 'כל הנכסים עברו אימות בהצלחה. מתחיל שליחה...', type: 'success' });
+      setToast({
+        message: shouldValidateBeforeSave ? 'כל הנכסים עברו אימות בהצלחה. מתחיל שליחה...' : 'מתחיל שליחה...',
+        type: 'success'
+      });
       
       // Get asset IDs from filtered assets (only assets in current building/tax region)
       const assetIdsToMark = filteredAssets
@@ -801,44 +730,11 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
         return;
       }
 
-      // Mark only the filtered assets as exported (not all assets in the system)
-      const exportDate = new Date();
-      const day = String(exportDate.getDate()).padStart(2, '0');
-      const month = String(exportDate.getMonth() + 1).padStart(2, '0');
-      const year = exportDate.getFullYear();
-      const exportDateStr = `${day}/${month}/${year}`;
-
-      // Update each asset individually to avoid type mismatch issues with .in() operator
-      const updatePromises = assetIdsToMark.map(async (assetId) => {
-        const { error } = await supabase
-          .from('assets')
-          .update({ 
-            exported_to_automation: true,
-            export_to_automation_at: exportDateStr
-          })
-          .eq('asset_id', assetId);
-        return error;
-      });
-      
-      const updateErrors = await Promise.all(updatePromises);
-      const updateError = updateErrors.find(err => err !== null);
-
-      if (updateError) {
-        console.error('[AssetsList] Error marking assets as exported:', updateError);
-        setToast({ message: 'שגיאה בסימון נכסים כייצאו', type: 'error' });
-        setTimeout(() => setToast(null), 5000);
-        setExporting(false);
-        setExportProgressMessage('');
-        document.body.style.cursor = '';
-        return;
-      }
-
-      // Update latest export date cache
-      setLatestExportDate(exportDateStr);
+      // Do not mark as exported here — mark only after successful send (see below)
 
       // Fetch the exported assets to export them to Excel
-      // Use RPC function to avoid type mismatch issues with .in() operator
-      // Ensure assetIds are numbers (not strings) for the RPC call
+      // Use REST assets/by-ids to avoid type mismatch issues with .in() operator
+      // Ensure assetIds are numbers (not strings) for the REST call
       const numericAssetIdsForQuery = assetIdsToMark;
 
       if (numericAssetIdsForQuery.length === 0) {
@@ -1196,7 +1092,7 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
               }
               
               // Download file from storage
-              const { data: fileData, error: downloadError } = await supabase.storage
+              const { data: fileData, error: downloadError } = await api.storage
                 .from('structure-drawings')
                 .download(filePath);
               
@@ -1205,11 +1101,10 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
                 if (downloadError?.message?.includes('Bucket not found') || downloadError?.statusCode === '404') {
                   console.error(
                     'Storage bucket "structure-drawings" not found. ' +
-                    'Please create the bucket in Supabase Dashboard: Storage → New bucket → Name: "structure-drawings". ' +
-                    'See CREATE_STORAGE_BUCKETS.md for detailed instructions.'
+                    'Storage bucket "structure-drawings" not found. Configure backend file storage.'
                   );
                   // Show error to user
-                  setToast({ message: 'Storage bucket "structure-drawings" not found. Please create it in Supabase Dashboard. See CREATE_STORAGE_BUCKETS.md for instructions.', type: 'error' });
+                  setToast({ message: 'Storage bucket "structure-drawings" not found. Configure backend file storage.', type: 'error' });
                   setTimeout(() => setToast(null), 10000);
                   continue;
                 }
@@ -1289,14 +1184,14 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
         ]);
         const opData = [headers, ...opRows];
         const opExcelBlob = createExcelBlob({
-          filename: `נכסים_מפעיל_${operatorId}_${dateStr}.xlsx`,
+          filename: `נכסים_מפעיל_${operatorId}_${dateStr}_${operatorAssets.length}נכסים.xlsx`,
           sheetName: 'נכסים',
           data: opData,
           columnWidths: [{ wch: 15 }, { wch: 15 }, { wch: 20 }, { wch: 20 }, { wch: 12 }, { wch: 12 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 10 }, { wch: 12 }, { wch: 12 }, { wch: 12 }, { wch: 15 }, { wch: 15 }]
         });
         const subj = templateOp ? applyTpl(templateOp.subject, operator.name, operatorAssets.length) : `שליחת נתונים - ${dateStrHe}`;
         const body = templateOp ? applyTpl(templateOp.body, operator.name, operatorAssets.length) : `שלום ${operator.name},\n\nמצורף קובץ הנתונים.\nתאריך: ${dateStrHe}\n\nבברכה,\nמערכת ניהול נכסים`;
-        sendItems.push({ to: operator.email, recipientName: operator.name, subject: subj, body, attachmentFilename: `נכסים_מפעיל_${operator.name}_${dateStr}.xlsx`, attachmentBlob: opExcelBlob });
+        sendItems.push({ to: operator.email, recipientName: operator.name, subject: subj, body, attachmentFilename: `נכסים_מפעיל_${operator.name}_${dateStr}_${operatorAssets.length}נכסים.xlsx`, attachmentBlob: opExcelBlob });
       }
       if (sendItems.length === 0) {
         const fullRows = assetsForExcel.map((asset: any) => [
@@ -1309,7 +1204,7 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
           '', '', '', '', '', ''
         ]);
         const fullExcelBlob = createExcelBlob({
-          filename: `נכסים_שליחה_${dateStr}.xlsx`,
+          filename: `נכסים_שליחה_${dateStr}_${assetsForExcel.length}נכסים.xlsx`,
           sheetName: 'נכסים',
           data: [headers, ...fullRows],
           columnWidths: [{ wch: 15 }, { wch: 15 }, { wch: 20 }, { wch: 20 }, { wch: 12 }, { wch: 12 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 10 }, { wch: 12 }, { wch: 12 }, { wch: 12 }, { wch: 15 }, { wch: 15 }]
@@ -1318,7 +1213,7 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
           if (!operator?.email || !operator.email.includes('@')) continue;
           const subj = templateOp ? applyTpl(templateOp.subject, operator.name, assetsForExcel.length) : `שליחת נתונים - ${dateStrHe}`;
           const body = templateOp ? applyTpl(templateOp.body, operator.name, assetsForExcel.length) : `שלום ${operator.name},\n\nמצורף קובץ הנתונים.\nתאריך: ${dateStrHe}\n\nבברכה,\nמערכת ניהול נכסים`;
-          sendItems.push({ to: operator.email, recipientName: operator.name, subject: subj, body, attachmentFilename: `נכסים_שליחה_${dateStr}.xlsx`, attachmentBlob: fullExcelBlob });
+          sendItems.push({ to: operator.email, recipientName: operator.name, subject: subj, body, attachmentFilename: `נכסים_שליחה_${dateStr}_${assetsForExcel.length}נכסים.xlsx`, attachmentBlob: fullExcelBlob });
         }
       }
       const managersList = await api.managers.getAll();
@@ -1342,14 +1237,14 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
         ]);
         const mgrData = [headers, ...mgrRows];
         const mgrExcelBlob = createExcelBlob({
-          filename: `נכסים_מנהל_${manager.id}_${dateStr}.xlsx`,
+          filename: `נכסים_מנהל_${manager.id}_${dateStr}_${managerAssets.length}נכסים.xlsx`,
           sheetName: 'נכסים',
           data: mgrData,
           columnWidths: [{ wch: 15 }, { wch: 15 }, { wch: 20 }, { wch: 20 }, { wch: 12 }, { wch: 12 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 10 }, { wch: 12 }, { wch: 12 }, { wch: 12 }, { wch: 15 }, { wch: 15 }]
         });
         const subj = templateMgr ? applyTpl(templateMgr.subject, manager.name, managerAssets.length) : `שליחת נתונים - ${dateStrHe}`;
         const body = templateMgr ? applyTpl(templateMgr.body, manager.name, managerAssets.length) : `שלום ${manager.name},\n\nמצורף קובץ הנתונים.\nתאריך: ${dateStrHe}\n\nבברכה,\nמערכת ניהול נכסים`;
-        sendItems.push({ to: manager.email, recipientName: manager.name, subject: subj, body, attachmentFilename: `נכסים_מנהל_${manager.name}_${dateStr}.xlsx`, attachmentBlob: mgrExcelBlob });
+        sendItems.push({ to: manager.email, recipientName: manager.name, subject: subj, body, attachmentFilename: `נכסים_מנהל_${manager.name}_${dateStr}_${managerAssets.length}נכסים.xlsx`, attachmentBlob: mgrExcelBlob });
       }
       let sentCount = 0;
       if (sendItems.length > 0) {
@@ -1372,6 +1267,18 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
       setExportProgressMessage('מוריד קובץ ZIP...');
       const { createAndDownloadZip } = await import('../lib/zipExport');
       await createAndDownloadZip(zipFilename, zipFiles);
+
+      // Mark as exported only after successful send so the count updates correctly
+      try {
+        await api.assets.markExportedByIds(assetIdsToMark);
+        const d = new Date();
+        setLatestExportDate(
+          `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`
+        );
+      } catch (markErr: any) {
+        console.error('[AssetsList] Error marking assets as exported after send:', markErr);
+      }
+
       let successMessage = `נשלחו ${assetIdsToMark.length} נכסים לעירייה בהצלחה. הקובץ הורד.`;
       if (sentCount > 0) successMessage += ` ${sentCount} מיילים נשלחו למפעילים ולמנהלים.`;
       setToast({ message: successMessage, type: 'success' });
@@ -1396,7 +1303,7 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
       setExportProgressMessage('');
       document.body.style.cursor = '';
     }
-  }, [buildingNumber, building, assetTypes, validationTaxRegion, fetchExportToAutomationCount, fetchData]);
+  }, [buildingNumber, building, assetTypes, validationTaxRegion, shouldValidateBeforeSave, fetchExportToAutomationCount, fetchData]);
 
   useEffect(() => {
     fetchData();
@@ -1472,20 +1379,19 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
     };
   }, [buildingNumber]);
 
-  // Refresh grid when validation errors change to show error styling and invalid icon
+  // Refresh grid when validation errors change to show error styling
   useEffect(() => {
-    const api = gridRef.current?.api;
-    if (!api) return;
-    // Defer to next frame so React has committed validationErrors state; ref is already updated on render
-    const rafId = requestAnimationFrame(() => {
-      api.redrawRows();
-      const rowNodes: any[] = [];
-      api.forEachNode((node) => rowNodes.push(node));
-      if (rowNodes.length > 0) {
-        api.refreshCells({ rowNodes, columns: ['actions'], force: true });
+    if (validationErrors.size > 0 && gridRef.current?.api) {
+      if (process.env.NODE_ENV === 'development') {
       }
-    });
-    return () => cancelAnimationFrame(rafId);
+      // Lightweight refresh to update cell styling for validation errors
+      setTimeout(() => {
+        if (gridRef.current?.api) {
+          // Refresh cells without forcing - preserves cache and scroll position
+          gridRef.current.api.refreshCells({ force: false });
+        }
+      }, 50);
+    }
   }, [validationErrors]);
   async function fetchData(showLoading = true, skipBuildingFetch = false) {
     try {
@@ -1874,18 +1780,14 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
     return errors;
   }, []);
 
-  const getRowStyle = useCallback((params: { data?: { asset_id?: unknown; _validationError?: string }; } | null) => {
+  const getRowStyle = useCallback((params: { data?: { asset_id?: unknown }; } | null) => {
     if (!params?.data) return null;
     const assetId = String(params.data.asset_id);
     if (deletedAssets.has(assetId)) {
       return { backgroundColor: '#fee2e2', opacity: 0.7 };
     }
-    const hasError = (params.data as any)._validationError != null || validationErrors?.has(assetId);
-    if (hasError) {
-      return { borderLeft: '3px solid #dc2626', backgroundColor: '#fef2f2' };
-    }
     return null;
-  }, [deletedAssets, validationErrors]);
+  }, [deletedAssets]);
 
   const onCellValueChanged = useCallback(async (event: any) => {
     // Skip validation if we're currently refreshing after save (prevents unnecessary API calls)
@@ -2073,37 +1975,11 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
       // We'll update our state in onCellEditingStopped
       // Also don't refresh cells here - wait until editing stops to prevent re-renders during typing
 
-      // When validateInline is false, clear validation errors on edit (validate before save only).
-      // When validateInline is true, run inline validation here (onCellValueChanged fires for dropdown/select edits; onCellEditingStopped may not)
+      // No online validation on edit: user must click Validate.
+      // Use startTransition to prevent blocking the UI during typing
       startTransition(() => {
         setIsValidatedForSave(false);
-        if (!validateInline) {
-          setValidationErrors(new Map());
-        } else if (shouldMarkAsDirty) {
-          const nextDirty = { ...(dirtyAssets.get(assetId) || {}), [field]: newValue };
-          if (updatedAsset.business_distribution_area !== data.business_distribution_area) {
-            nextDirty.business_distribution_area = updatedAsset.business_distribution_area;
-          }
-          const assetForValidation = { ...data, ...nextDirty };
-          const cachedData = { assetTypes: assetTypes || [], building: building };
-          AssetValidationHandler.validateSingleAsset(assetForValidation, { taxRegion: validationTaxRegion, cachedData })
-            .then((result) => {
-              const discountErrors = validateDiscountDates(assetForValidation);
-              const allErrors = [...(result.errors || []), ...discountErrors];
-              const actualValid = result.valid && allErrors.length === 0;
-              setValidationErrors((prev) => {
-                const next = new Map(prev);
-                if (actualValid) next.delete(assetId);
-                else if (allErrors.length > 0) next.set(assetId, allErrors.join('\n'));
-                return next;
-              });
-              if (gridRef.current?.api) {
-                gridRef.current.api.refreshCells({ force: true });
-                gridRef.current.api.redrawRows();
-              }
-            })
-            .catch((err) => console.error('[AssetsList] Inline validation error:', err));
-        }
+        setValidationErrors(new Map());
       });
 
     } catch (error) {
@@ -2111,7 +1987,7 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
       setToast({ message: 'Failed to track change', type: 'error' });
       setTimeout(() => setToast(null), 3000);
     }
-  }, [validationTaxRegion, assetTypes, building, setAssets, taxRegion, newAssets, originalAssets, operators, validateInline, dirtyAssets, validateDiscountDates]);
+  }, [validationTaxRegion, assetTypes, building, setAssets, taxRegion, newAssets, originalAssets, operators]);
 
   // Track when cell editing starts - store initial value
   const onCellEditingStarted = useCallback((event: any) => {
@@ -2211,8 +2087,6 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
     
     // Only update if value changed (or if it's a new asset)
     if (isNew || valueChanged) {
-      const nextDirtyForAsset = { ...(dirtyAssets.get(assetId) || {}), [field]: newValue };
-      const updatedAsset = { ...data, ...nextDirtyForAsset };
       setDirtyAssets(prev => {
         const next = new Map(prev);
         const existing = next.get(assetId) || {};
@@ -2227,39 +2101,14 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
           String(a.asset_id) === assetId ? { ...a, [field]: newValue } : a
         ));
         setIsValidatedForSave(false);
-        if (!validateInline) {
-          setValidationErrors(new Map());
-        }
+        setValidationErrors(new Map());
       });
-      // When validateInline is true, run single-asset validation after cell blur
-      if (validateInline) {
-        const cachedData = { assetTypes: assetTypes || [], building: building };
-        AssetValidationHandler.validateSingleAsset(updatedAsset, {
-          taxRegion: validationTaxRegion,
-          cachedData,
-        }).then((result) => {
-          const discountErrors = validateDiscountDates(updatedAsset);
-          const allErrors = [...(result.errors || []), ...discountErrors];
-          const actualValid = result.valid && allErrors.length === 0;
-          setValidationErrors((prev) => {
-            const next = new Map(prev);
-            if (actualValid) {
-              next.delete(assetId);
-            } else if (allErrors.length > 0) {
-              next.set(assetId, allErrors.join('\n'));
-            }
-            return next;
-          });
-          if (gridRef.current?.api) {
-            gridRef.current.api.refreshCells({ force: true });
-            gridRef.current.api.redrawRows();
-          }
-        }).catch((err) => {
-          console.error('[AssetsList] Inline validation error:', err);
-        });
+      // When "מתי להריץ אימות" is "אונליין", run validation after cell edit (on blur)
+      if (shouldValidateOnBlur) {
+        setTimeout(() => runValidationProgrammatically().catch(() => {}), 0);
       }
     }
-  }, [newAssets, originalAssets, validateInline, validationTaxRegion, assetTypes, building, dirtyAssets, validateDiscountDates]);
+  }, [newAssets, originalAssets, shouldValidateOnBlur]);
 
   // Helper function to run validation programmatically (without modal)
   async function runValidationProgrammatically(): Promise<{ hasErrors: boolean; errorMessage?: string }> {
@@ -2715,8 +2564,11 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
     setToast(null);
 
     try {
-      // Run validation before saving - MUST pass before proceeding to server
-      const validationResult = await runValidationProgrammatically();
+      // Run validation before saving when "מתי להריץ אימות" is before_save (or online)
+      let validationResult = { hasErrors: false as boolean, errorMessage: '' as string };
+      if (shouldValidateBeforeSave) {
+        validationResult = await runValidationProgrammatically();
+      }
       if (validationResult.hasErrors) {
         // Stop save operation - don't submit to server
         setIsSaving(false);
@@ -2827,7 +2679,6 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
       // Collect ALL assets to save in a single bulk operation
       // This ensures all distribution-related assets are saved together in one transaction
       const assetsToSave: any[] = [];
-      const typeChangesForFlags: Array<{ building_number: number; oldType: string | null; newType: string | null }> = [];
 
       // Detect if this is a distribution save by checking for distribution-related changes
       let isDistributionSave = false;
@@ -2929,27 +2780,13 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
             assetsToSave.push(assetData);
           } else {
             // For updates, send full asset data merged with changes to ensure all fields (including sub_asset_type fields) are present
-            // CRITICAL: Explicitly include main_asset_type and asset_size when changed - DB needs them for distribution flag logic
-            const payload: any = { ...updatedData, asset_id: assetId, building_number: buildingNumberValue };
-            if (changes.main_asset_type !== undefined) payload.main_asset_type = changes.main_asset_type;
-            if (changes.asset_size !== undefined) payload.asset_size = changes.asset_size;
-            assetsToSave.push(payload);
-            // Track type changes that cross accountable↔non_accountable boundary (only those need flag update)
-            if (changes.main_asset_type !== undefined) {
-              const oldType = asset.main_asset_type != null ? String(asset.main_asset_type).trim() : null;
-              const newType = changes.main_asset_type != null ? String(changes.main_asset_type).trim() : null;
-              if (oldType !== newType && buildingNumberValue && assetTypes?.length) {
-                const oldNonAcc = isAssetTypeNotAccountableForDistribution(oldType);
-                const newNonAcc = isAssetTypeNotAccountableForDistribution(newType);
-                if (oldNonAcc !== newNonAcc) {
-                  typeChangesForFlags.push({
-                    building_number: Number(buildingNumberValue),
-                    oldType: oldType || null,
-                    newType: newType || null
-                  });
-                }
-              }
-            }
+            // Note: is_new_measurement should only be set for explicit "save as new measurement" operations,
+            // not for distribution saves. Distribution saves update assets in place without creating history.
+            assetsToSave.push({
+              ...updatedData,
+              asset_id: assetId,
+              building_number: buildingNumberValue
+            });
           }
         } catch (err) {
           const asset = assets.find(a => String(a.id) === String(assetId));
@@ -2986,10 +2823,8 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
         // Computed overload_ratio for business distribution (percentage) - used in afterData and success handler
         let computedOverloadRatioForSave: number | null = null;
 
-        // Always pass undefined so API derives isBusinessContext from the assets being saved.
-        // Tab-based (!isResidentTaxRegion) can be wrong when asset type differs from tab (e.g. residence asset on business tab).
-        // Deriving from main_asset_type ensures the correct distribution flag is set.
-        const isBusinessContext = undefined;
+        // Determine tab context (business or residence) for passing to API
+        const isBusinessContext = !isResidentTaxRegion;
 
         if (isDistributionSave && distributionType && building) {
           if (distributionType === 'business' && building?.business_shared_area != null) {
@@ -3047,19 +2882,8 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
             }
           }
           
-          // Explicit fallback: call set_distribution_flags_for_asset_type_change when DB bulk save
-          // didn't set flags. Ensures distribution flags are set from Assets List (same as Asset Details).
-          if (!isDistributionSave && typeChangesForFlags.length > 0) {
-            await Promise.all(
-              typeChangesForFlags.map(({ building_number, oldType, newType }) =>
-                supabase.rpc('set_distribution_flags_for_asset_type_change', {
-                  p_building_number: building_number,
-                  p_old_main_asset_type: oldType,
-                  p_new_main_asset_type: newType
-                })
-              )
-            );
-          }
+          // Note: Distribution flags for asset type changes are now set in the database transaction
+          // via the set_distribution_flags_for_asset_type_change function, which ensures atomicity
           
           // Note: Distribution flags are automatically cleared by the database function save_assets_bulk_transactional
           // when action_type is 'business_distribution' or 'residence_distribution'
@@ -4806,7 +4630,7 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
         uploadOptions.contentType = compressedFile.type;
       }
 
-      const { error: uploadError } = await supabase.storage
+      const { error: uploadError } = await api.storage
         .from('structure-drawings')
         .upload(filePath, compressedFile, uploadOptions);
 
@@ -4817,8 +4641,7 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
         if (uploadError.message?.includes('Bucket not found') || uploadError.statusCode === '404') {
           throw new Error(
             'Storage bucket "structure-drawings" not found. ' +
-            'Please create the bucket in Supabase Dashboard: Storage → New bucket → Name: "structure-drawings". ' +
-            'See CREATE_STORAGE_BUCKETS.md for detailed instructions.'
+            'Storage bucket "structure-drawings" not found. Configure backend file storage.'
           );
         }
         throw uploadError;
@@ -4827,7 +4650,7 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
       setUploadProgress({ assetId, progress: 90, fileName: file.name });
 
       // Step 4: Get public URL
-      const { data: { publicUrl } } = supabase.storage
+      const { data: { publicUrl } } = api.storage
         .from('structure-drawings')
         .getPublicUrl(filePath);
 
@@ -4838,7 +4661,7 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
       // But we want to associate files with the latest measurement, so we get the asset's measurement_date
       const asset = assets.find(a => a.asset_id === assetId);
       const measurementDate = asset?.measurement_date || null;
-      await api.assets.files.add(assetId, publicUrl, file.name, compressedFile.size, compressedFile.type || file.type, measurementDate);
+      await api.assets.files.add(assetId, publicUrl, file.name, file.size, file.type, measurementDate);
 
       setUploadProgress({ assetId, progress: 100, fileName: file.name });
 
@@ -5078,7 +4901,7 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
     const currentValue = dirtyChanges && 'penthouse' in dirtyChanges 
       ? dirtyChanges.penthouse 
       : params.data?.penthouse;
-    const isChecked = currentValue === true || currentValue === 'כן';
+    const isChecked = currentValue === true;
     
     // Always show checkbox for both new and existing assets
     return (
@@ -5124,7 +4947,7 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
               });
             }
           }}
-          className="w-4 h-4 text-blue-600 rounded focus:ring-2 focus:ring-blue-500 cursor-pointer"
+          className="w-4 h-4 text-theme-tab-active rounded focus:ring-2 focus:ring-theme-action-accent cursor-pointer"
         />
       </div>
     );
@@ -5203,13 +5026,12 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
         // Safety checks for state variables - use empty defaults if undefined
         const safeNewAssets = newAssets || new Set<string>();
         const safeDeletedAssets = deletedAssets || new Set<string>();
-        // Prefer _validationError from row data (set when rowData updates); fallback to ref
-        const errorFromData = (asset as any)._validationError;
-        const hasValidationError = (errorFromData != null && errorFromData !== '') || (validationErrorsRef.current || new Map()).has(assetId);
+        const safeValidationErrors = validationErrors || new Map<string, string>();
         const safeSelectedAssets = selectedAssets || new Set<string>();
         
         const isNew = safeNewAssets.has(assetId);
         const isDeleted = safeDeletedAssets.has(assetId);
+        const hasValidationError = safeValidationErrors.has(assetId);
         
         // Debug logging for validation errors
         if (process.env.NODE_ENV === 'development' && hasValidationError) {
@@ -5250,7 +5072,7 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
                     return next;
                   });
                 }}
-                className="w-4 h-4 text-blue-600 rounded focus:ring-2 focus:ring-blue-500 cursor-pointer"
+                className="w-4 h-4 text-theme-tab-active rounded focus:ring-2 focus:ring-theme-action-accent cursor-pointer"
                 title={!taxRegion && hasMultipleTaxRegions ? "בחר לשינוי אזור מס" : "בחר להעברת שטחים"}
               />
             )}
@@ -5264,7 +5086,7 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
                       gridRef.current.api.refreshCells({ columns: ['actions'], force: true });
                     }
                   }}
-                  className="flex items-center justify-center w-7 h-7 rounded-full bg-emerald-100 text-emerald-700 hover:bg-emerald-200 transition-colors duration-200"
+                  className="flex items-center justify-center w-7 h-7 rounded-full bg-theme-highlight text-theme-tab-active hover:bg-theme-highlight/80 transition-colors duration-200"
                   title="בטל בחירת מקור"
                 >
                   <Copy className="w-4 h-4" />
@@ -5284,7 +5106,7 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
                   }}
                   className={`flex items-center justify-center w-7 h-7 rounded-full transition-colors duration-200 ${
                     sourceAssetId
-                      ? 'text-blue-600 hover:bg-blue-100 hover:text-blue-700'
+                      ? 'text-theme-tab-active hover:bg-theme-highlight hover:text-theme-tab-active-hover'
                       : 'text-gray-400 hover:bg-gray-100 hover:text-gray-600'
                   }`}
                   title={sourceAssetId ? 'העתק סוג נכס ותת-סוגים מהמקור' : 'סמן כמקור סוג נכס'}
@@ -5293,7 +5115,7 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
                 </button>
               )
             )}
-            {hasValidationError && (() => {
+            {hasValidationError && safeValidationErrors && safeValidationErrors.has(assetId) && (() => {
               // Validation tooltip component
               const ValidationTooltipButton = ({ errorMessage, onErrorClick }: { errorMessage: string, onErrorClick: () => void }) => {
                 const [isHovered, setIsHovered] = useState(false);
@@ -5349,7 +5171,7 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
                 );
               };
 
-              const errorMsg = (typeof errorFromData === 'string' ? errorFromData : null) || (validationErrorsRef.current || new Map()).get(assetId) || 'שגיאת אימות';
+              const errorMsg = safeValidationErrors.get(assetId) || 'שגיאת אימות';
               return (
                 <ValidationTooltipButton
                   errorMessage={errorMsg}
@@ -5404,7 +5226,7 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
           <div className="flex items-center justify-center gap-1 h-full">
             {!isErrorFixingMode && !isNew && taxRegion && (
               <label
-                className="flex items-center justify-center p-1 text-blue-600 hover:text-blue-700 transition-colors hover:scale-110 cursor-pointer"
+                className="flex items-center justify-center p-1 text-theme-tab-active hover:text-theme-tab-active-hover transition-colors hover:scale-110 cursor-pointer"
                 title={t('upload') || 'העלה קובץ'}
                 onClick={(e) => e.stopPropagation()}
               >
@@ -5420,7 +5242,7 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
                     if (el) fileInputRefs.current.set(assetId, el);
                   }}
                   className="hidden"
-                  accept="image/*,video/*,.pdf,.dwg,.docx,.doc,.txt,.xlsx"
+                  accept="image/*,.pdf,.dwg,.docx,.doc,.txt,.xlsx"
                   onChange={async (e) => {
                     const files = e.target.files;
                     if (!files?.length) return;
@@ -5502,7 +5324,7 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
                 cursor: 'default',
                 transition: 'all 0.2s ease'
               }}
-              className="hover:text-emerald-700 hover:decoration-emerald-600"
+              className="hover:text-theme-tab-active-hover hover:decoration-theme-tab-active"
               title={t('viewDetails') || 'לחץ לצפייה בפרטים'}
             >
               {value}
@@ -6054,18 +5876,14 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
     });
   }, [t, onSelectAsset, buildingNumber, assetTypes, newAssets, dirtyAssets, building, taxRegion, selectedAssets, deletedAssets, validationErrors, getCellStyle, isResidentTaxRegion, isMultiTaxRegion, isFieldEditable, penthouseCellRenderer, assetsWithFiles, sourceAssetId, applySourceValues, operators]);
 
-  // Apply field configurations to column definitions (must be after columnDefs is defined)
-  const configuredColumnDefs = useFieldConfig(columnDefs, 'assets-list');
+  // Apply field configurations to column definitions (ref_only pattern: rely on columnDefs prop only)
+  const configVersion = useFieldConfigVersion();
+  const [configuredColumnDefs, fieldConfigLoading] = useFieldConfig(columnDefs, 'assets-list');
 
   // Check if all visible assets are residential assets (מגורים)
-  // Sort assets to put errored rows first; merge dirty changes so edits show with validation errors
+  // Sort assets to put errored rows first
   const sortedAssets = useMemo(() => {
-    return [...assets].map((asset, idx) => {
-      const assetId = String(asset.asset_id);
-      const dirty = dirtyAssets.get(assetId);
-      const merged = dirty ? { ...asset, ...dirty } : asset;
-      return { asset: merged, idx };
-    })
+    return [...assets].map((asset, idx) => ({ asset, idx }))
       .sort((a, b) => {
         const aId = String(a.asset.asset_id);
         const bId = String(b.asset.asset_id);
@@ -6074,13 +5892,11 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
         if (aHasError !== bHasError) {
           return aHasError ? -1 : 1;
         }
+        // Preserve original order within error/non-error groups
         return a.idx - b.idx;
       })
-      .map(({ asset }) => ({
-        ...asset,
-        _validationError: validationErrors.get(String(asset.asset_id))
-      }));
-  }, [assets, validationErrors, dirtyAssets]);
+      .map(x => x.asset);
+  }, [assets, validationErrors]);
 
   const areAllAssetsResidence = useMemo(() => {
     if (!assets || assets.length === 0 || !assetTypes || assetTypes.length === 0) {
@@ -6155,7 +5971,7 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="text-center">
-          <Loader2 className="h-12 w-12 text-teal-600 animate-spin mx-auto" />
+          <Loader2 className="h-12 w-12 text-theme-tab-active animate-spin mx-auto" />
           <p className="mt-4 text-slate-700 font-medium">{t('loadingAssets')}</p>
         </div>
       </div>
@@ -6167,7 +5983,7 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
       {isSaving && (
         <div className="fixed inset-0 bg-black bg-opacity-50 z-[9999] flex items-center justify-center" style={{ cursor: 'wait' }}>
           <div className="bg-white rounded-lg p-6 shadow-xl flex flex-col items-center gap-4">
-            <Loader2 className="h-12 w-12 text-teal-600 animate-spin" />
+            <Loader2 className="h-12 w-12 text-theme-tab-active animate-spin" />
             <p className="text-slate-700 font-medium text-lg">שומר נתונים...</p>
             <p className="text-slate-500 text-sm">אנא המתן, הפעולה עשויה לקחת מספר שניות</p>
           </div>
@@ -6177,7 +5993,7 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
       {exporting && (
         <div className="fixed inset-0 bg-black bg-opacity-50 z-[9999] flex items-center justify-center" style={{ cursor: 'wait' }}>
           <div className="bg-white rounded-lg p-6 shadow-xl flex flex-col items-center gap-4 min-w-[280px]">
-            <Loader2 className="h-12 w-12 text-teal-600 animate-spin" />
+            <Loader2 className="h-12 w-12 text-theme-tab-active animate-spin" />
             <p className="text-slate-700 font-medium text-lg">שולח נתונים לעירייה</p>
             <p className="text-slate-600 text-sm text-center">{exportProgressMessage || 'מתחיל...'}</p>
           </div>
@@ -6187,11 +6003,11 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
       {uploadProgress && (
         <div className="fixed inset-0 bg-black bg-opacity-50 z-[9999] flex items-center justify-center" style={{ cursor: 'wait' }}>
           <div className="bg-white rounded-lg p-6 shadow-xl flex flex-col items-center gap-4 min-w-[200px]">
-            <Loader2 className="h-12 w-12 text-teal-600 animate-spin" />
+            <Loader2 className="h-12 w-12 text-theme-tab-active animate-spin" />
             <p className="text-slate-700 font-medium text-lg">מעלה קובץ...</p>
             <p className="text-slate-500 text-sm truncate max-w-[280px]" title={uploadProgress.fileName}>{uploadProgress.fileName}</p>
             <div className="w-full max-w-[200px] h-2 bg-slate-200 rounded-full overflow-hidden">
-              <div className="h-full bg-teal-600 transition-all duration-300" style={{ width: `${uploadProgress.progress}%` }} />
+              <div className="h-full bg-theme-tab-active transition-all duration-300" style={{ width: `${uploadProgress.progress}%` }} />
             </div>
             <p className="text-slate-500 text-xs">{Math.round(uploadProgress.progress)}%</p>
           </div>
@@ -6259,61 +6075,45 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
           </div>
         );
       })()}
-      <div className="w-full py-2" style={{ maxWidth: '100vw', width: '100%', paddingLeft: '0.5rem', paddingRight: '0.5rem' }}>
+      <div className="flex flex-col flex-1 min-h-0 w-full py-2" style={{ maxWidth: '100vw', width: '100%', paddingLeft: '0.5rem', paddingRight: '0.5rem' }}>
         <div className="page-header mb-2 rounded-lg px-3 py-2">
           <div className="relative flex items-center gap-2 flex-wrap">
             <div className="page-header-icon shrink-0">
               <BuildingIcon className="w-5 h-5" />
             </div>
             <div className="flex items-center gap-1.5 flex-wrap">
-                {((building?.address ?? building?.building_address) || building?.building_number_in_street != null) && (
-                  <span className="page-header-badge page-header-badge-address">
-                    <BuildingIcon className="w-4 h-4" />
-                    כתובת: {(buildingAddress ?? '-')}{building?.building_number_in_street != null ? ` מס' ${building.building_number_in_street}` : ''}
-                  </span>
-                )}
-                {taxRegion ? (
-                  <span className="page-header-badge page-header-badge-area">
-                    {getAreaDescriptionForTaxRegion(taxRegion)}
-                  </span>
-                ) : null}
-                <span className="page-header-label">גוש: {building?.gosh || '-'}</span>
-                <span className="page-header-label">חלקה: {building?.helka || '-'}</span>
-                <span className="page-header-label">סך הכל: {assets.length} נכסים</span>
-                <span className="page-header-label font-bold">מזהה מבנה {building?.building_number || '-'}</span>
-                {isResidentTaxRegion && building?.residence_shared_area != null && building.residence_shared_area > 0 && (
-                  <span className="page-header-label">שטח משותף מגורים: {building.residence_shared_area.toLocaleString('he-IL')}</span>
-                )}
-                {taxRegion && !isMultiTaxRegion && !isResidentTaxRegion && building?.business_shared_area != null && building.business_shared_area > 0 && (
-                  <span className="page-header-label">שטח משותף עסקים: {building.business_shared_area.toLocaleString('he-IL')}</span>
-                )}
-                {taxRegion && !isMultiTaxRegion && !isResidentTaxRegion && building?.overload_ratio != null && (
-                  <span className="page-header-pill">אחוז העמסה: {building.overload_ratio.toFixed(2)}%</span>
-                )}
+              {((building?.address ?? building?.building_address) || building?.building_number_in_street != null) && (
+                <span className="page-header-badge page-header-badge-address">
+                  <BuildingIcon className="w-4 h-4" />
+                  כתובת: {(buildingAddress ?? '-')}{building?.building_number_in_street != null ? ` מס' ${building.building_number_in_street}` : ''}
+                </span>
+              )}
+              <span className="page-header-label">גוש: {building?.gosh || '-'}</span>
+              <span className="page-header-label">חלקה: {building?.helka || '-'}</span>
+              {taxRegion ? (
+                <span className="page-header-badge page-header-badge-area">
+                  {getAreaDescriptionForTaxRegion(taxRegion)}
+                </span>
+              ) : multiRegionBadge ? (
+                <span className="page-header-badge page-header-badge-area">{multiRegionBadge}</span>
+              ) : null}
+              <span className="page-header-label">סך הכל: {assets.length} נכסים</span>
+              <span className="page-header-label font-bold">מזהה מבנה {building?.building_number || '-'}</span>
+              {isResidentTaxRegion && building?.residence_shared_area != null && building.residence_shared_area > 0 && (
+                <span className="page-header-label">שטח משותף מגורים: {building.residence_shared_area.toLocaleString('he-IL')}</span>
+              )}
+              {taxRegion && !isMultiTaxRegion && !isResidentTaxRegion && building?.business_shared_area != null && building.business_shared_area > 0 && (
+                <span className="page-header-label">שטח משותף עסקים: {building.business_shared_area.toLocaleString('he-IL')}</span>
+              )}
+              {taxRegion && !isMultiTaxRegion && !isResidentTaxRegion && building?.overload_ratio != null && (
+                <span className="page-header-pill">אחוז העמסה: {building.overload_ratio.toFixed(2)}%</span>
+              )}
             </div>
-            {!taxRegion && (() => {
-                const assetTaxRegions = new Set<number>();
-                assets.forEach(asset => {
-                  if (asset.tax_region != null) {
-                    const taxRegionNum = typeof asset.tax_region === 'string' 
-                      ? parseInt(asset.tax_region, 10) 
-                      : asset.tax_region;
-                    if (!isNaN(taxRegionNum)) {
-                      assetTaxRegions.add(taxRegionNum);
-                    }
-                  }
-                });
-                const sortedRegions = Array.from(assetTaxRegions).sort((a, b) => a - b);
-                const regionDescriptions = sortedRegions.map(region => getAreaDescriptionForTaxRegion(region));
-                return sortedRegions.length > 0 ? (
-                  <span className="page-header-badge page-header-badge-area">{regionDescriptions.join(', ')}</span>
-                ) : null;
-            })()}
           </div>
         </div>
         <div className="action-bar mb-2">
           {/* All Action Buttons in One Row */}
-          <div className="flex flex-wrap items-center gap-2 justify-between">
+          <div className="flex flex-wrap items-center gap-2 justify-end">
             {/* Hide add button if building has more than one tax region and no specific taxRegion is selected, or in error fixing mode */}
             {!isErrorFixingMode && (() => {
               const hasMultipleTaxRegions = building?.tax_region && building.tax_region.includes(',');
@@ -6376,11 +6176,11 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
                 type="button"
                 onClick={handleExportToAutomation}
                 disabled={loading || exporting || exportToAutomationCount === 0}
-                className="btn btn-action text-orange-600 hover:bg-black/5 active:bg-black/10 disabled:opacity-50 min-w-[90px] [&_svg]:text-orange-600 [&_span]:text-orange-600"
+                className="btn btn-action btn-primary disabled:opacity-50 disabled:cursor-not-allowed"
                 title={exportToAutomationCount > 0 ? `שלח ${exportToAutomationCount} נכסים שנמדדו ולא נשלחו לעירייה` : 'אין נכסים לשליחה - כל הנכסים כבר נשלחו לעירייה'}
               >
                 {exporting ? <Loader2 className="h-5 w-5 animate-spin" /> : <Upload className="h-5 w-5" />}
-                <span>שליחה לעירייה{exportToAutomationCount > 0 ? ` (${exportToAutomationCount})` : ''}</span>
+                <span>שליחת נתונים לעירייה{exportToAutomationCount > 0 ? ` (${exportToAutomationCount})` : ''}</span>
               </button>
             )}
             {/* Statistics button - visible in business and residence tabs (not in multi-tax tabs) */}
@@ -6389,7 +6189,7 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
                 type="button"
                 onClick={() => setShowAssetStatisticsModal(true)}
                 disabled={loading || assets.length === 0}
-                className="btn btn-action btn-primary"
+                className="btn btn-action btn-secondary disabled:opacity-50 disabled:cursor-not-allowed"
                 title="הצג סטטיסטיקות לפי סוגי נכסים ותתי-סוגים"
               >
                 <BarChart3 className="h-5 w-5" />
@@ -6402,11 +6202,11 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
                 type="button"
                 onClick={() => setChangeTaxRegionModalOpen(true)}
                 disabled={loading || selectedAssets.size === 0}
-                className="btn btn-action btn-primary"
+                className="btn btn-action btn-secondary disabled:opacity-50 disabled:cursor-not-allowed"
                 title={selectedAssets.size > 0 ? `שנה אזור מס ל-${selectedAssets.size} נכסים נבחרים` : 'בחר נכסים לשינוי אזור מס'}
               >
                 <MapPin className="h-5 w-5" />
-                <span>שנה אזור מס{selectedAssets.size > 0 ? ` (${selectedAssets.size})` : ''}</span>
+                <span>שנה אזור מס {selectedAssets.size > 0 ? `(${selectedAssets.size})` : ''}</span>
               </button>
             )}
             {/* Distribute shared area button - always visible in residence tabs, enabled when flag is on (blinking alert), hidden in error fixing mode */}
@@ -6420,7 +6220,7 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
                   building.need_residence_distribution !== true
                   // Note: Allow distribution even if area is 0, as long as flag is true (blinking alert is on)
                 }
-                className="btn btn-action btn-secondary-ghost"
+                className="btn btn-action btn-primary disabled:opacity-50 disabled:cursor-not-allowed"
                 title={building.need_residence_distribution === true 
                   ? building.residence_shared_area != null && building.residence_shared_area > 0
                     ? `פזר שטח משותף מגורים (${building.residence_shared_area.toLocaleString('he-IL')}) בין כל נכסי המגורים`
@@ -6444,7 +6244,7 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
                   building.need_business_distribution !== true
                   // Note: Allow distribution even if area is 0, as long as flag is true (blinking alert is on)
                 }
-                className="btn btn-action btn-secondary-ghost"
+                className="btn btn-action btn-primary disabled:opacity-50 disabled:cursor-not-allowed"
                 title={building.need_business_distribution === true
                   ? building.business_shared_area != null && building.business_shared_area > 0
                     ? `פזר שטח משותף עסקים (${building.business_shared_area.toLocaleString('he-IL')}) בין כל נכסי העסקים`
@@ -6467,7 +6267,7 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
               if (!shouldShowButtons) return null;
               
               // Check if building is private (single_double_family)
-              const isPrivateBuilding = building?.single_double_family === 'כן' || building?.single_double_family === 'yes';
+              const isPrivateBuilding = Boolean(building?.single_double_family);
               
               // Check if tax region is "multi" (multiple tax regions - when taxRegion is not set or building has multiple)
               const isMultiTaxRegion = !taxRegion || (building?.tax_region && building.tax_region.includes(','));
@@ -6492,29 +6292,15 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
                         }
                       }}
                       disabled={!canTransferAreas}
-                      className="btn btn-action btn-secondary-ghost min-w-[90px]"
+                      className="btn btn-action btn-secondary disabled:opacity-50 disabled:cursor-not-allowed"
                       title={canTransferAreas ? `העברת שטחים (${selectedAssets.size} נכסים נבחרו)` : 'בחר לפחות 2 נכסים להעברת שטחים'}
                     >
                       <MoveLeft className="h-5 w-5" />
-                      <span>העברת שטחים{selectedAssets.size > 0 ? ` (${selectedAssets.size})` : ''}</span>
+                      <span>העברת שטחים {selectedAssets.size > 0 ? `(${selectedAssets.size})` : ''}</span>
                     </button>
                   )}
                   {!isReadOnly && (
-                    <div className="flex flex-row gap-2 ml-auto">
-                      <button
-                        type="button"
-                        onClick={handleSaveAll}
-                        disabled={isSaving || loading || totalChanges === 0}
-                        className="btn btn-action btn-primary"
-                        title={totalChanges === 0 ? 'אין שינויים לשמירה' : undefined}
-                      >
-                        {isSaving || loading ? (
-                          <Loader2 className="h-5 w-5 animate-spin" />
-                        ) : (
-                          <Save className="h-5 w-5" />
-                        )}
-                        <span>{isSaving || loading ? 'שומר...' : 'שמור הכל'}{totalChanges > 0 ? ` (${totalChanges})` : ''}</span>
-                      </button>
+                    <>
                       <button
                         type="button"
                         onClick={handleCancelAll}
@@ -6524,7 +6310,22 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
                         <X className="h-5 w-5" />
                         <span>ביטול</span>
                       </button>
-                    </div>
+                      {/* Save button: enabled when there are changes, validation runs before save */}
+                      <button
+                        type="button"
+                        onClick={handleSaveAll}
+                        disabled={isSaving || loading || totalChanges === 0}
+                        className="btn btn-action btn-primary disabled:opacity-50 disabled:cursor-not-allowed"
+                        title={totalChanges === 0 ? 'אין שינויים לשמירה' : undefined}
+                      >
+                        {isSaving || loading ? (
+                          <Loader2 className="h-5 w-5 animate-spin" />
+                        ) : (
+                          <Save className="h-5 w-5" />
+                        )}
+                        <span>{isSaving || loading ? 'שומר...' : `שמור הכל${totalChanges > 0 ? ` (${totalChanges})` : ''}`}</span>
+                      </button>
+                    </>
                   )}
                 </>
               );
@@ -6539,8 +6340,8 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
                   onClick={() => setActiveTab('assets')}
                   className={`flex items-center gap-2 px-4 py-2.5 text-sm font-semibold transition-all duration-200 rounded-t-lg ${
                     activeTab === 'assets'
-                      ? 'text-blue-700 bg-white border-b-2 border-blue-600 shadow-md -mb-0.5'
-                      : 'text-gray-600 hover:text-blue-600 hover:bg-white/50'
+                      ? 'text-theme-tab-active-hover bg-white border-b-2 border-theme-tab-active shadow-md -mb-0.5'
+                      : 'text-gray-600 hover:text-theme-tab-active hover:bg-white/50'
                   }`}
                 >
                   <BuildingIcon className="h-4 w-4" />
@@ -6554,14 +6355,14 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
                       onClick={() => setActiveTab('distribution-history')}
                       className={`flex items-center gap-2 px-4 py-2.5 text-sm font-semibold transition-all duration-200 rounded-t-lg ${
                         activeTab === 'distribution-history'
-                          ? 'text-teal-700 bg-white border-b-2 border-teal-600 shadow-md -mb-0.5'
-                          : 'text-gray-600 hover:text-teal-600 hover:bg-white/50'
+                          ? 'text-theme-tab-active-hover bg-white border-b-2 border-theme-tab-active shadow-md -mb-0.5'
+                          : 'text-gray-600 hover:text-theme-tab-active hover:bg-white/50'
                       }`}
                     >
                       <History className="h-4 w-4" />
                       היסטוריית פיזור
                       {distributionHistoryCount > 0 && (
-                        <span className="ml-1 px-2 py-0.5 text-xs font-medium bg-teal-100 text-teal-700 rounded-full">
+                        <span className="ml-1 px-2 py-0.5 text-xs font-medium bg-theme-highlight text-theme-tab-active rounded-full">
                           {distributionHistoryCount}
                         </span>
                       )}
@@ -6593,9 +6394,15 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
         
         {/* Tab Content */}
         {activeTab === 'assets' && (
-          <div className="bg-white rounded-b-xl shadow-lg hover:shadow-xl transition-shadow duration-200 overflow-hidden border-2 border-blue-400 w-full">
-            <div className="ag-theme-alpine" style={{ height: '60vh', width: '100%', minWidth: '100%', overflowX: 'auto' }}>
+          <div className="flex-1 min-h-0 flex flex-col bg-white rounded-b-xl shadow-lg hover:shadow-xl transition-shadow duration-200 overflow-hidden border-2 border-theme-action-accent w-full">
+            {fieldConfigLoading ? (
+              <div className="flex-1 min-h-[200px] flex items-center justify-center">
+                <Loader2 className="h-8 w-8 animate-spin text-theme-tab-active" />
+              </div>
+            ) : (
+            <div className="ag-theme-alpine flex-1 min-h-[200px]" style={{ width: '100%', minWidth: '100%', overflowX: 'auto' }}>
               <AgGridReact
+            key={`assets-grid-${configVersion}`}
             ref={gridRef}
             rowData={sortedAssets}
             columnDefs={configuredColumnDefs}
@@ -6637,14 +6444,26 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
             onCellEditingStopped={onCellEditingStopped}
             onCellEditingStarted={onCellEditingStarted}
             onGridReady={async (params) => {
-              // Load saved column state first
               await gridPreferences.loadColumnState(params.api);
-              // Ensure all columns are visible and grid calculates proper width
-              params.api.refreshCells({ force: false });
-              // Scroll to left on grid ready using AG Grid API
+              // ref_only pattern: only pin actions column, columnDefs prop drives width/order/headerName
               setTimeout(() => {
+                const columnState = params.api.getColumnState();
+                const actionsCol = columnState.find((col: any) => col.colId === 'actions');
+                if (actionsCol) {
+                  const updatedState = columnState.map((col: any) => ({
+                    ...col,
+                    pinned: col.colId === 'actions' ? 'right' : col.pinned,
+                    lockPosition: col.colId === 'actions',
+                    lockPinned: col.colId === 'actions',
+                  }));
+                  params.api.applyColumnState({
+                    state: updatedState,
+                    applyOrder: true,
+                    defaultState: { pinned: null }
+                  });
+                }
                 params.api.ensureColumnVisible('asset_id', 'start');
-              }, 100);
+              }, 150);
             }}
             onFirstDataRendered={async (params) => {
               // Scroll to left after data render using AG Grid API
@@ -6697,6 +6516,7 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
             enterNavigatesVerticallyAfterEdit={true}
           />
             </div>
+            )}
           </div>
         )}
         
@@ -6704,7 +6524,7 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
         {!isMultiTaxRegion && (
           <>
             {activeTab === 'distribution-history' && (
-              <div className="rounded-b-xl shadow-lg hover:shadow-xl transition-shadow duration-200 border-2 border-blue-400 bg-white overflow-hidden" style={{ height: '60vh', width: '100%' }}>
+              <div className="rounded-b-xl shadow-lg hover:shadow-xl transition-shadow duration-200 border-2 border-theme-action-accent bg-white overflow-hidden" style={{ height: '55vh', width: '100%' }}>
                 <DistributionHistoryModal
                   isOpen={true}
                   onClose={() => setActiveTab('assets')}
@@ -6716,7 +6536,7 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
             )}
             
             {activeTab === 'transfer-history' && !isResidentTaxRegion && (
-              <div className="rounded-b-xl shadow-lg hover:shadow-xl transition-shadow duration-200 border-2 border-blue-400 bg-white overflow-hidden" style={{ height: '60vh', width: '100%' }}>
+              <div className="rounded-b-xl shadow-lg hover:shadow-xl transition-shadow duration-200 border-2 border-theme-action-accent bg-white overflow-hidden" style={{ height: '55vh', width: '100%' }}>
                 <TransferHistoryModal
                   isOpen={true}
                   onClose={() => setActiveTab('assets')}
@@ -6815,7 +6635,7 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
             <div className="flex justify-center">
               <button
                 onClick={() => setDistributionModalOpen(false)}
-                className="px-6 py-2 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white rounded-md transition-all duration-200 shadow-sm hover:shadow-md font-semibold"
+                className="px-6 py-2 bg-theme-tab-active hover:bg-theme-tab-active-hover active:bg-theme-tab-active-active text-white rounded-md transition-all duration-200 shadow-sm hover:shadow-md font-semibold"
               >
                 אישור
               </button>

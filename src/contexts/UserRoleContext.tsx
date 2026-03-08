@@ -7,10 +7,8 @@ interface UserRoleContextType {
   userRole: UserRole | null;
   isLoading: boolean;
   isAdmin: boolean;
+  isReadOnly: boolean;
   isInspector: boolean;
-  isUser: boolean;
-  isReadOnly: boolean; // same as isUser
-  isDev: boolean; // user_name === 'dev' - required for inspection tasks access
   refreshRole: () => Promise<void>;
 }
 
@@ -20,18 +18,14 @@ export function UserRoleProvider({ children }: { children: ReactNode }) {
   const [userRole, setUserRole] = useState<UserRole | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  const [isDev, setIsDev] = useState(false);
-
   const fetchUserRole = useCallback(() => {
     const s = getSession();
     if (!s) {
       setUserRole('user');
-      setIsDev(false);
       setIsLoading(false);
       return;
     }
-    setUserRole(s.user_role === 'admin' ? 'admin' : s.user_role === 'inspector' ? 'inspector' : 'user');
-    setIsDev(s.user_name === 'dev');
+    setUserRole((s.user_role === 'admin' ? 'admin' : s.user_role === 'inspector' ? 'inspector' : 'user') as UserRole);
     setIsLoading(false);
   }, []);
 
@@ -44,19 +38,16 @@ export function UserRoleProvider({ children }: { children: ReactNode }) {
   };
 
   const isAdmin = userRole === 'admin';
+  const isReadOnly = userRole === 'user';
   const isInspector = userRole === 'inspector';
-  const isUser = userRole === 'user';
-  const isReadOnly = isUser;
 
   return (
     <UserRoleContext.Provider value={{
       userRole,
       isLoading,
       isAdmin,
-      isInspector,
-      isUser,
       isReadOnly,
-      isDev,
+      isInspector,
       refreshRole,
     }}>
       {children}

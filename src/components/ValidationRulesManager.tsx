@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ValidationRule, api } from '../lib/api';
+import { ValidationRule, api, toBoolean } from '../lib/api';
 import { useValidationRules } from '../contexts/ValidationContext';
 import { Settings, Plus, Save, X, RefreshCw, Download, Upload } from 'lucide-react';
 import * as XLSX from 'xlsx';
@@ -335,10 +335,8 @@ export function ValidationRulesManager() {
           const join_field = getValue('join_field');
           const comparison_operator = getValue('comparison_operator');
 
-          // Parse enabled field - default to true if not specified
-          const enabled = enabledStr === '' || enabledStr === undefined 
-            ? true 
-            : (enabledStr.toLowerCase() === 'כן' || enabledStr.toLowerCase() === 'yes' || enabledStr === '1' || enabledStr === 'true' || enabledStr === '✓');
+          // Parse enabled field to boolean (default true if empty)
+          const enabled = (enabledStr === '' || enabledStr === undefined) ? true : toBoolean(enabledStr);
 
           // Parse value_numeric
           const value_numeric = value_numericStr ? parseInt(value_numericStr) : undefined;
@@ -504,14 +502,14 @@ export function ValidationRulesManager() {
             <div className="flex gap-1">
               <button
                 onClick={() => saveEdit(rule.id)}
-                className="p-1 text-teal-600 hover:text-teal-700"
+                className="p-1 text-theme-tab-active hover:text-theme-tab-active-hover"
                 title={t('save')}
               >
                 <Save className="h-4 w-4" />
               </button>
               <button
                 onClick={cancelEdit}
-                className="p-1 text-slate-600 hover:text-app-text-primary"
+                className="p-1 text-slate-600 hover:text-slate-700"
                 title={t('cancel')}
               >
                 <X className="h-4 w-4" />
@@ -523,7 +521,7 @@ export function ValidationRulesManager() {
           <div className="flex gap-1">
             <button
               onClick={() => startEdit(rule)}
-              className="px-2 py-1 text-sm text-teal-600 hover:text-teal-700"
+              className="px-2 py-1 text-sm text-theme-tab-active hover:text-theme-tab-active-hover"
             >
               {t('edit')}
             </button>
@@ -681,7 +679,7 @@ export function ValidationRulesManager() {
           <Settings className="h-5 w-5 text-teal-600" />
           <h2 className="text-lg font-bold text-slate-800">{t('validationRules')}</h2>
         </div>
-        <div className="action-bar flex gap-2">
+        <div className="flex gap-2">
           <input
             ref={fileInputRef}
             type="file"
@@ -699,7 +697,7 @@ export function ValidationRulesManager() {
           </button>
           <button
             onClick={handleExportToExcel}
-            className="flex items-center gap-2 px-3 py-1.5 text-sm bg-app-accent text-white rounded hover:bg-app-accent-hover transition-colors"
+            className="flex items-center gap-2 px-3 py-1.5 text-sm bg-theme-action-accent text-white rounded-lg hover:bg-theme-action-accent-hover transition-colors"
           >
             <Download className="h-4 w-4" />
             ייצא ל-Excel
@@ -713,7 +711,7 @@ export function ValidationRulesManager() {
           </button>
           <button
             onClick={handleAdd}
-            className="flex items-center gap-2 px-3 py-1.5 text-sm bg-teal-600 text-white rounded-lg hover:bg-teal-700 transition-colors"
+            className="flex items-center gap-2 px-3 py-1.5 text-sm bg-theme-tab-active text-white rounded-lg hover:bg-theme-tab-active-hover transition-colors"
           >
             <Plus className="h-4 w-4" />
             {t('addRule')}
@@ -910,13 +908,13 @@ export function ValidationRulesManager() {
           <div className="flex gap-2 mt-4">
             <button
               onClick={handleSave}
-              className="px-4 py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700"
+              className="px-4 py-2 bg-theme-tab-active text-white rounded-lg hover:bg-theme-tab-active-hover"
             >
               {t('save')}
             </button>
             <button
               onClick={() => setIsAdding(false)}
-              className="px-4 py-2 bg-slate-200 text-app-text-primary rounded-lg hover:bg-slate-300"
+              className="px-4 py-2 bg-slate-200 text-slate-700 rounded-lg hover:bg-slate-300"
             >
               {t('cancel')}
             </button>
@@ -938,7 +936,7 @@ export function ValidationRulesManager() {
             <div className="mb-2 text-sm text-slate-600">
               מציג {rules.length} כללי תקינות
             </div>
-            <div className="bg-white rounded-xl shadow-lg hover:shadow-xl transition-shadow duration-200 overflow-hidden border-2 border-blue-400 w-full">
+            <div className="bg-white rounded-xl shadow-lg hover:shadow-xl transition-shadow duration-200 overflow-hidden border-2 border-theme-action-accent w-full">
               <div className="ag-theme-alpine" style={{ height: '60vh', width: '100%', minWidth: '100%', overflowX: 'auto' }}>
                 <AgGridReact
                 ref={gridRef}

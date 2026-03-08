@@ -2,15 +2,18 @@
  * Inspector task notifications by email.
  * Sends when: task assigned (create/update), task returned to inspector.
  * Uses email_template_inspection_task from system_configuration.
- * Placeholders: {{inspectorName}}, {{taskTitle}}, {{taskId}}, {{taskLink}}
+ * Placeholders: {{inspectorName}}, {{taskTitle}}, {{taskId}}, {{taskLink}}, {{action}}
  */
 
+import { inspectionTasksApi } from './inspectionApi';
 import { api } from './api';
 import { emailService } from './emailService';
 
 /** Build deep link URL to open a specific inspection task. With token: one-time login, no password. */
 export function getTaskDeepLink(taskId: number, token?: string | null): string {
-  const hash = token ? `#inspection-tasks/${taskId}?token=${encodeURIComponent(token)}` : `#inspection-tasks/${taskId}`;
+  const hash = token
+    ? `#inspection-tasks/${taskId}?token=${encodeURIComponent(token)}`
+    : `#inspection-tasks/${taskId}`;
   if (typeof window !== 'undefined') {
     const base = `${window.location.origin}${window.location.pathname || '/'}`.replace(/\/$/, '');
     return `${base}${hash}`;
@@ -40,14 +43,15 @@ async function sendNotification(
     }
     let token: string | null = null;
     try {
-      token = await api.inspectionTasks.createAccessToken(taskId, assignedToUserId);
+      const res = await inspectionTasksApi.createAccessToken(taskId, assignedToUserId);
+      token = res?.token ?? null;
     } catch (e) {
       console.warn('[inspectionTaskNotifications] Failed to create token:', e);
     }
     const taskLink = getTaskDeepLink(taskId, token);
     const action = kind === 'assigned' ? 'הוקצתה אליך' : 'הוחזרה אליך לתיקון';
     const vars = {
-      inspectorName: user.full_name?.trim() || user.user_name || 'פקח',
+      inspectorName: (user as { full_name?: string | null }).full_name?.trim() || user.user_name || 'פקח',
       taskTitle,
       taskId: String(taskId),
       taskLink,
@@ -64,9 +68,10 @@ async function sendNotification(
         throw new Error('no template');
       }
     } catch {
-      subject = kind === 'assigned'
-        ? `משימת ביקורת הוקצתה אליך: ${taskTitle}`
-        : `משימה הוחזרה אליך: ${taskTitle}`;
+      subject =
+        kind === 'assigned'
+          ? `משימת ביקורת הוקצתה אליך: ${taskTitle}`
+          : `משימה הוחזרה אליך: ${taskTitle}`;
       body = `שלום ${vars.inspectorName},\n\nמשימת ביקורת ${action}.\nכותרת: ${taskTitle}\nמזהה משימה: #${taskId}\n\nלפתיחת המשימה ישירות (ללא צורך בהתחברות): ${taskLink}\n\nהקישור הוא חד-פעמי ותקף ל־7 ימים.\n\nבברכה,\nמערכת ניהול נכסים`;
     }
     const result = await emailService.sendEmail({

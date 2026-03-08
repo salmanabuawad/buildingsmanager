@@ -190,7 +190,7 @@ export function ManagersManager() {
   if (loading) {
     return (
       <div className="flex justify-center items-center min-h-[200px]">
-        <Loader2 className="h-10 w-10 animate-spin text-app-accent" />
+        <Loader2 className="h-10 w-10 animate-spin text-theme-tab-active" />
       </div>
     );
   }
@@ -199,7 +199,7 @@ export function ManagersManager() {
     <div className="p-4 max-w-6xl mx-auto">
       <div className="flex items-center justify-between mb-4">
         <h1 className="text-xl font-bold text-slate-800 flex items-center gap-2">
-          <UserCog className="h-6 w-6 text-app-accent" />
+          <UserCog className="h-6 w-6 text-theme-tab-active" />
           מנהלים
         </h1>
         <div className="flex gap-2">
@@ -237,13 +237,13 @@ export function ManagersManager() {
           ) : (
             <>
               {isAdmin && (
-                <button onClick={() => setIsAdding(true)} className="btn bg-app-accent text-white px-3 py-2 rounded flex items-center gap-2">
+                <button onClick={() => setIsAdding(true)} className="btn bg-theme-tab-active text-white px-3 py-2 rounded flex items-center gap-2">
                   <Plus className="h-4 w-4" /> הוסף מנהל
                 </button>
               )}
               {(dirtyItems.size > 0 || deletedItems.size > 0) && (
                 <>
-                  <button onClick={handleSaveAll} disabled={isSaving} className="btn bg-teal-600 text-white px-3 py-2 rounded flex items-center gap-2">
+                  <button onClick={handleSaveAll} disabled={isSaving} className="btn bg-theme-tab-active text-white px-3 py-2 rounded flex items-center gap-2">
                     <Save className="h-4 w-4" /> שמור שינויים
                   </button>
                   <button onClick={handleCancelAll} className="btn border rounded px-3 py-2">ביטול</button>

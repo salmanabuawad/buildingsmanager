@@ -89,21 +89,12 @@ export async function compressFile(file: File): Promise<File> {
         compressedFile = await imageCompression(file, minimalOptions);
       }
 
-      // Enforce: images for asset upload must be under 30KB
-      if (compressedFile.size / 1024 > MAX_FILE_SIZE_KB) {
-        throw new Error(
-          `לא ניתן לדחוס את התמונה מתחת ל־30KB. גודל נוכחי: ${(compressedFile.size / 1024).toFixed(1)}KB. נסה תמונה קטנה יותר.`
-        );
-      }
       return compressedFile;
     } catch (error) {
       console.error('Image compression failed:', error);
-      if (error instanceof Error && error.message.includes('לא ניתן לדחוס')) {
-        throw error;
-      }
-      throw new Error(
-        `שגיאה בדחיסת התמונה: ${error instanceof Error ? error.message : 'שגיאה לא ידועה'}. נסה קובץ אחר.`
-      );
+      // If compression fails, try to at least reduce the file
+      // Return original file if compression fails completely
+      return file;
     }
   }
 
@@ -243,7 +234,7 @@ export async function compressFile(file: File): Promise<File> {
 /**
  * Gets file type category for determining which viewer to use
  */
-export function getFileTypeCategory(fileName: string, mimeType?: string): 'pdf' | 'image' | 'video' | 'document' | 'other' {
+export function getFileTypeCategory(fileName: string, mimeType?: string): 'pdf' | 'image' | 'document' | 'other' {
   const lowerName = fileName.toLowerCase();
   const lowerMime = (mimeType || '').toLowerCase();
 
@@ -251,14 +242,9 @@ export function getFileTypeCategory(fileName: string, mimeType?: string): 'pdf' 
     return 'pdf';
   }
 
-  if (lowerName.match(/\.(jpg|jpeg|png|gif|webp|bmp|svg)$/i) ||
+  if (lowerName.match(/\.(jpg|jpeg|png|gif|webp|bmp|svg)$/i) || 
       lowerMime.startsWith('image/')) {
     return 'image';
-  }
-
-  if (lowerName.match(/\.(mp4|webm|mov|ogg|m4v)$/i) ||
-      lowerMime.startsWith('video/')) {
-    return 'video';
   }
 
   if (lowerName.match(/\.(doc|docx|xls|xlsx|txt|rtf)$/i) ||

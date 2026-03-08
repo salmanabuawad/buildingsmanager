@@ -2,14 +2,24 @@ import { useEffect, useState, useMemo } from 'react';
 import { ColDef } from 'ag-grid-community';
 import { loadFieldConfigurations, applyFieldConfigToColumn, getFieldConfigCache, isFieldConfigCacheLoaded } from './fieldConfigUtils';
 import { FieldConfiguration } from './api';
+import { useFieldConfigVersion } from '../contexts/FieldConfigContext';
+import { subscribeFontSize, isLargeFont } from './fontSizeStore';
 
 /**
  * Hook to apply field configurations to column definitions
  * Uses in-memory cache if available, otherwise loads from database
+ * When "גדול" (large) font is selected, multiplies column widths by 1.5 on the fly (no DB update)
  * @param columnDefs Column definitions to configure
  * @param gridName Optional grid name to filter configurations for this specific grid
+ * @returns [configuredColumnDefs, isLoading] - wait for !isLoading before rendering grid
  */
-export function useFieldConfig<T = any>(columnDefs: ColDef<T>[], gridName?: string): ColDef<T>[] {
+export function useFieldConfig<T = any>(columnDefs: ColDef<T>[], gridName?: string): [ColDef<T>[], boolean] {
+  const configVersion = useFieldConfigVersion();
+  const [, forceUpdate] = useState(0);
+  useEffect(() => {
+    return subscribeFontSize(() => forceUpdate((n) => n + 1));
+  }, []);
+
   // Initialize from cache immediately if available (synchronous)
   const getInitialConfigs = (): Map<string, FieldConfiguration> => {
     if (isFieldConfigCacheLoaded()) {
@@ -37,7 +47,7 @@ export function useFieldConfig<T = any>(columnDefs: ColDef<T>[], gridName?: stri
   const [fieldConfigs, setFieldConfigs] = useState<Map<string, FieldConfiguration>>(getInitialConfigs);
   const [loading, setLoading] = useState(!isFieldConfigCacheLoaded());
 
-  // Load field configurations on mount or when gridName changes
+  // Load field configurations on mount, when gridName changes, or when config invalidated
   useEffect(() => {
     // If cache is already loaded, use it immediately
     if (isFieldConfigCacheLoaded()) {
@@ -74,7 +84,7 @@ export function useFieldConfig<T = any>(columnDefs: ColDef<T>[], gridName?: stri
       }
     }
     loadConfigs();
-  }, [gridName]);
+  }, [gridName, configVersion]);
 
   // Apply field configurations to column definitions and sort by column_order
   // Only include columns that are visible (visible !== false)
@@ -103,6 +113,11 @@ export function useFieldConfig<T = any>(columnDefs: ColDef<T>[], gridName?: stri
         fieldConfig = fieldConfigs.get(fieldName);
       }
 
+      // Alias: buildings-list uses 'address' but DB has 'building_address'
+      if (!fieldConfig && gridName === 'buildings-list' && fieldName === 'address') {
+        fieldConfig = fieldConfigs.get(`${gridName}:building_address`) ?? fieldConfigs.get('building_address');
+      }
+
       if (!fieldConfig) {
         // No configuration found, return original with resizable disabled
         return {
@@ -115,16 +130,20 @@ export function useFieldConfig<T = any>(columnDefs: ColDef<T>[], gridName?: stri
         };
       }
 
-      // Apply field configuration
+      // Apply field configuration (multiply width by 1.5 when גדול selected, on the fly)
       return {
-        colDef: applyFieldConfigToColumn(colDef, fieldConfig),
+        colDef: applyFieldConfigToColumn(colDef, fieldConfig, { isLargeFont: isLargeFont() }),
         order: fieldConfig.column_order ?? Infinity,
         visible: fieldConfig.visible !== false // Default to true if undefined
       };
     });
 
-    // Filter out columns that are not visible (visible === false)
     const visibleColumns = columnsWithConfig.filter(item => item.visible);
+
+    if (process.env.NODE_ENV === 'development' && gridName && visibleColumns.length > 0) {
+      const withConfig = visibleColumns.filter(v => v.colDef.width != null).length;
+      console.log(`[useFieldConfig] ${gridName}: ${withConfig}/${visibleColumns.length} cols have field config`);
+    }
 
     // Sort by column_order from field configuration ONLY
     // This ensures pinned columns maintain their position in the order
@@ -157,7 +176,7 @@ export function useFieldConfig<T = any>(columnDefs: ColDef<T>[], gridName?: stri
     return sortedColumnDefs;
   }, [columnDefs, fieldConfigs, loading, gridName]);
 
-  return configuredColumnDefs;
+  return [configuredColumnDefs, loading];
 }
 
 /**
@@ -174,4 +193,5 @@ export function useReloadFieldConfig() {
 
   return { reload, reloadKey };
 }
+
 

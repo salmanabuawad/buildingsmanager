@@ -1,8 +1,8 @@
-import React, { useEffect, useState, useMemo, useRef, useCallback, forwardRef, useImperativeHandle } from 'react';
+import { useEffect, useState, useMemo, useRef, useCallback, forwardRef, useImperativeHandle } from 'react';
 import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
 import { Asset, Building, AssetType, AddressList, Operator, api } from '../lib/api';
-import { Home, Loader2, Save, X, AlertCircle, Upload, Eye, CheckCircle2, Copy, FileText, Edit, Square, Download, ChevronRight, ChevronDown, History, MessageSquare } from 'lucide-react';
+import { Home, Loader2, Save, X, AlertCircle, Upload, Eye, CheckCircle2, Copy, FileText, Square, Download, ChevronRight, ChevronDown, History, MessageSquare } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { Toast } from './Toast';
 import { FileViewer } from './FileViewer';
@@ -12,7 +12,6 @@ import { AgGridReact } from 'ag-grid-react';
 import { ColDef, CellClassParams } from 'ag-grid-community';
 import { assetValidators, validateAll, inputValidators } from '../lib/validation';
 import { AssetValidationHandler } from '../lib/assetValidationHandler';
-import { supabase } from '../lib/supabase';
 import { ValidationResultModal, SingleAssetValidationResult, ValidationProgress } from './ValidationResultModal';
 import { RowEditModal } from './RowEditModal';
 import { AuditLog, Building as BuildingType } from '../lib/api';
@@ -24,12 +23,12 @@ import { useGridPreferences } from '../lib/useGridPreferences';
 import { processColumnHeader } from '../lib/gridHeaderUtils';
 import { useFieldConfig } from '../lib/useFieldConfig';
 import { exportToExcel } from '../lib/excelExport';
+import { useUIConfig } from '../contexts/UIConfigContext';
 
 interface AssetDetailsProps {
   assetId?: number;
   buildingNumber?: number;
   taxRegion?: string;
-  validateInline?: boolean;
   onDataUpdate?: () => void;
   onAssetCreated?: (assetDbId: number, assetIdentifier: string) => void;
 }
@@ -39,11 +38,11 @@ export interface AssetDetailsRef {
   refresh: () => Promise<void>;
 }
 
-function AssetDetailsInner(props: AssetDetailsProps, ref: React.ForwardedRef<AssetDetailsRef>) {
-  const { assetId, buildingNumber, taxRegion, validateInline = true, onDataUpdate, onAssetCreated } = props;
+export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ assetId, buildingNumber, taxRegion, onDataUpdate, onAssetCreated }, ref) => {
   const { t } = useTranslation();
   const { preferences, setEditMode } = usePreferences();
   const { validationRules } = useValidationRules(); // Get validation rules from context
+  const { shouldValidateOnBlur } = useUIConfig();
   const editMode = preferences.editMode;
   const [asset, setAsset] = useState<Asset | null>(null);
   const [allMeasurements, setAllMeasurements] = useState<Asset[]>([]);
@@ -364,7 +363,7 @@ function AssetDetailsInner(props: AssetDetailsProps, ref: React.ForwardedRef<Ass
                        atTaxRegionNum != null && 
                        !isNaN(atTaxRegionNum) && 
                        atTaxRegionNum === assetTaxRegionNum &&
-                       (at.active === true || at.active === 'כן');
+                       (at.active === true);
               });
               
               if (!matchingAssetTypeForTaxRegion) {
@@ -375,7 +374,7 @@ function AssetDetailsInner(props: AssetDetailsProps, ref: React.ForwardedRef<Ass
                   const atTaxRegionNum = at.tax_region != null 
                     ? (typeof at.tax_region === 'string' ? parseInt(at.tax_region, 10) : at.tax_region)
                     : null;
-                  if (atNameStr === newAssetTypeName && atTaxRegionNum != null && !isNaN(atTaxRegionNum) && (at.active === true || at.active === 'כן')) {
+                  if (atNameStr === newAssetTypeName && atTaxRegionNum != null && !isNaN(atTaxRegionNum) && (at.active === true)) {
                     validTaxRegions.add(atTaxRegionNum);
                   }
                 });
@@ -506,91 +505,63 @@ function AssetDetailsInner(props: AssetDetailsProps, ref: React.ForwardedRef<Ass
         }
       }
 
-      // Debounce expensive database validations (800ms delay for better performance)
-      // This prevents validation from running on every keystroke
-      // Skip when validateInline is false (validate before save only)
-      if (!validateInline) {
-        validationTimerRef.current.delete(String(assetId));
-        return;
-      }
-      const timer = setTimeout(async () => {
-        try {
-          // Prepare cached data for validation (all data is already in memory)
-          const cachedData = {
-            assetTypes: assetTypes || [],
-            building: building
-          };
-
-          // Use the same validation as the validate button - AssetValidationHandler.validateSingleAsset
-          // This ensures consistent validation behavior across all components
-          const result = await AssetValidationHandler.validateSingleAsset(updatedAsset, {
-            taxRegion: validationTaxRegion, // Use validationTaxRegion from tab - same as AssetsList
-            cachedData: cachedData
-          });
-
-          // Add discount validation errors
-          const discountErrors = validateDiscountDates(updatedAsset);
-          const allErrors = [...(result.errors || []), ...discountErrors];
-
-          // Recalculate actualValid from results - same as handleValidateLatestRow
-          // This ensures consistency: an asset is only valid if valid=true AND no errors
-          const actualValid = result.valid && allErrors.length === 0;
-
-          // Update validationErrors state to reflect validation results
-          if (actualValid) {
-            // Validation passed - clear errors for this asset
-            setValidationErrors(prev => {
-              const newMap = new Map(prev);
-              newMap.delete(assetId);
-              return newMap;
+      // When "מתי להריץ אימות" is "אונליין", run debounced validation on cell change
+      if (shouldValidateOnBlur) {
+        const timer = setTimeout(async () => {
+          try {
+            const cachedData = {
+              assetTypes: assetTypes || [],
+              building: building
+            };
+            const result = await AssetValidationHandler.validateSingleAsset(updatedAsset, {
+              taxRegion: validationTaxRegion,
+              cachedData: cachedData
             });
-            // Refresh the grid cells to clear validation styling
-            // Also refresh the actions column to update invalid icon
-            event.api.refreshCells({ 
-              rowNodes: [node], 
-              columns: ['actions', 'structure_drawing_url'],
-              force: true 
-            });
-            // Also refresh all cells for styling updates
-            event.api.refreshCells({ rowNodes: [node], force: true });
-          } else if (allErrors.length > 0) {
-            // Validation failed - set errors for this asset
-            setValidationErrors(prev => {
-              const newMap = new Map(prev);
-              const errorMap = new Map<string, string>();
-              allErrors.forEach((error, index) => {
-                // Use a generic field name or index if we can't determine the field
-                errorMap.set(`error_${index}`, error);
+            const discountErrors = validateDiscountDates(updatedAsset);
+            const allErrors = [...(result.errors || []), ...discountErrors];
+            const actualValid = result.valid && allErrors.length === 0;
+
+            if (actualValid) {
+              setValidationErrors(prev => {
+                const newMap = new Map(prev);
+                newMap.delete(assetId);
+                return newMap;
               });
-              newMap.set(assetId, errorMap);
-              return newMap;
-            });
-            // Refresh the grid cells to show validation styling
-            // Also refresh the actions column to update invalid icon
-            event.api.refreshCells({ 
-              rowNodes: [node], 
-              columns: ['actions', 'structure_drawing_url'],
-              force: true 
-            });
-            // Also refresh all cells for styling updates
-            event.api.refreshCells({ rowNodes: [node], force: true });
+              event.api.refreshCells({ rowNodes: [node], columns: ['actions', 'structure_drawing_url'], force: true });
+              event.api.refreshCells({ rowNodes: [node], force: true });
+            } else if (allErrors.length > 0) {
+              setValidationErrors(prev => {
+                const newMap = new Map(prev);
+                const errorMap = new Map<string, string>();
+                allErrors.forEach((error, index) => errorMap.set(`error_${index}`, error));
+                newMap.set(assetId, errorMap);
+                return newMap;
+              });
+              event.api.refreshCells({ rowNodes: [node], columns: ['actions', 'structure_drawing_url'], force: true });
+              event.api.refreshCells({ rowNodes: [node], force: true });
+            }
+          } catch (error) {
+            console.error('Error in debounced validation:', error);
+          } finally {
+            validationTimerRef.current.delete(String(assetId));
           }
-        } catch (error) {
-          console.error('Error in debounced validation:', error);
-        } finally {
-          // Clean up timer reference
-          validationTimerRef.current.delete(String(assetId));
-        }
-      }, 500); // 500ms debounce delay
-
-      validationTimerRef.current.set(String(assetId), timer);
+        }, 500);
+        validationTimerRef.current.set(String(assetId), timer);
+      } else {
+        validationTimerRef.current.delete(String(assetId));
+        setValidationErrors(prev => {
+          const newMap = new Map(prev);
+          newMap.delete(assetId);
+          return newMap;
+        });
+      }
 
     } catch (error) {
       console.error('Error tracking change:', error);
       setError('Failed to track change');
       setTimeout(() => setError(null), 3000);
     }
-  }, [validationTaxRegion, assetTypes, building, validateDiscountDates, validateInline]);
+  }, [validationTaxRegion, assetTypes, building, validateDiscountDates, shouldValidateOnBlur]);
 
   const onCellEditingStopped = useCallback((event: any) => {
     const { data, column, colDef } = event;
@@ -621,19 +592,6 @@ function AssetDetailsInner(props: AssetDetailsProps, ref: React.ForwardedRef<Ass
       await fetchData();
     }
   }), [hasChanges]);
-
-  // Handler for double-click on row
-  const handleRowDoubleClick = useCallback((event: any) => {
-    // Only handle double-click if edit mode is 'modal'
-    if (editMode !== 'modal') return;
-    
-    const rowData = event.data as Asset;
-    // Only allow editing for latest records
-    if (rowData && rowData.is_latest === true) {
-      setSelectedRowForEdit(rowData);
-      setIsRowEditModalOpen(true);
-    }
-  }, [editMode]);
 
   // Track last click to prevent double-click interference
   const clickTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -1543,7 +1501,7 @@ function AssetDetailsInner(props: AssetDetailsProps, ref: React.ForwardedRef<Ass
       const filePath = `${assetId}/${sanitizedName}`;
 
       // Step 3: Upload with simulated progress tracking
-      // Simulate upload progress (Supabase doesn't provide real-time progress)
+      // Simulate upload progress (backend does not provide real-time progress)
       const progressInterval = setInterval(() => {
         setUploadProgress((prev) => {
           if (!prev || prev.assetId !== assetId) return prev;
@@ -1560,7 +1518,7 @@ function AssetDetailsInner(props: AssetDetailsProps, ref: React.ForwardedRef<Ass
         uploadOptions.contentType = compressedFile.type;
       }
 
-      const { error: uploadError } = await supabase.storage
+      const { error: uploadError } = await api.storage
         .from('structure-drawings')
         .upload(filePath, compressedFile, uploadOptions);
 
@@ -1571,8 +1529,7 @@ function AssetDetailsInner(props: AssetDetailsProps, ref: React.ForwardedRef<Ass
         if (uploadError.message?.includes('Bucket not found') || uploadError.statusCode === '404') {
           throw new Error(
             'Storage bucket "structure-drawings" not found. ' +
-            'Please create the bucket in Supabase Dashboard: Storage → New bucket → Name: "structure-drawings". ' +
-            'See CREATE_STORAGE_BUCKETS.md for detailed instructions.'
+            'Storage bucket "structure-drawings" not found. Configure backend file storage.'
           );
         }
         throw uploadError;
@@ -1581,7 +1538,7 @@ function AssetDetailsInner(props: AssetDetailsProps, ref: React.ForwardedRef<Ass
       setUploadProgress({ assetId, progress: 90, fileName: file.name });
 
       // Step 4: Get public URL
-      const { data: { publicUrl } } = supabase.storage
+      const { data: { publicUrl } } = api.storage
         .from('structure-drawings')
         .getPublicUrl(filePath);
 
@@ -1591,7 +1548,7 @@ function AssetDetailsInner(props: AssetDetailsProps, ref: React.ForwardedRef<Ass
       // Get the current measurement_date from the asset
       const currentAsset = allMeasurements.find(a => a.asset_id === assetId && a.is_latest === true);
       const measurementDate = currentAsset?.measurement_date || null;
-      await api.assets.files.add(assetId, publicUrl, file.name, compressedFile.size, compressedFile.type || file.type, measurementDate);
+      await api.assets.files.add(assetId, publicUrl, file.name, file.size, file.type, measurementDate);
 
       setUploadProgress({ assetId, progress: 100, fileName: file.name });
 
@@ -1930,13 +1887,13 @@ function AssetDetailsInner(props: AssetDetailsProps, ref: React.ForwardedRef<Ass
       <div className="flex items-center justify-center gap-1 h-full">
         {isLatest ? (
           <div className="flex flex-col items-center gap-1">
-            <label className="flex items-center justify-center p-1 text-app-accent hover:text-app-accent-hover transition-colors hover:scale-110 cursor-pointer" title={t('upload') || 'העלה קובץ'}>
+            <label className="flex items-center justify-center p-1 text-theme-tab-active hover:text-theme-tab-active-hover transition-colors hover:scale-110 cursor-pointer" title={t('upload') || 'העלה קובץ'}>
               <Upload className="h-5 w-5" />
               <input
                 type="file"
                 multiple
                 className="hidden"
-                accept="image/*,video/*,.pdf,.dwg,.docx,.doc,.txt,.xlsx"
+                accept="image/*,.pdf,.dwg,.docx,.doc,.txt,.xlsx"
                 onChange={async (e) => {
                   const files = e.target.files;
                   if (!files?.length || !asset.asset_id) return;
@@ -1952,7 +1909,7 @@ function AssetDetailsInner(props: AssetDetailsProps, ref: React.ForwardedRef<Ass
               <div className="w-24 flex flex-col items-center gap-1">
                 <div className="w-full h-2 bg-gray-200 rounded-full overflow-hidden">
                   <div 
-                    className="h-full bg-blue-600 transition-all duration-300"
+                    className="h-full bg-theme-tab-active transition-all duration-300"
                     style={{ width: `${uploadProgress.progress}%` }}
                   />
                 </div>
@@ -2473,7 +2430,7 @@ function AssetDetailsInner(props: AssetDetailsProps, ref: React.ForwardedRef<Ass
                     }
                   }));
                 }}
-                className="text-app-accent hover:text-app-accent-hover underline decoration-blue-600 hover:decoration-blue-800 cursor-pointer transition-colors font-semibold"
+                className="text-theme-tab-active hover:text-theme-tab-active-hover underline decoration-theme-tab-active hover:decoration-theme-tab-active-hover cursor-pointer transition-colors font-semibold"
                 title="לחץ כדי לפתוח את הנכס"
               >
                 {assetId}
@@ -2610,7 +2567,7 @@ function AssetDetailsInner(props: AssetDetailsProps, ref: React.ForwardedRef<Ass
       hide: false, // Always show penthouse checkbox for residence assets
       editable: false,
       cellRenderer: (params: any) => {
-        const isChecked = params.value === true || params.value === 'כן';
+        const isChecked = params.value === true;
         const isEditable = params.data.is_latest === true && editMode === 'inline';
         return (
           <div className="flex items-center justify-center h-full">
@@ -2662,7 +2619,7 @@ function AssetDetailsInner(props: AssetDetailsProps, ref: React.ForwardedRef<Ass
                     });
                   }
                 }}
-                className="w-4 h-4 text-app-accent rounded focus:ring-2 focus:ring-app-accent cursor-pointer"
+                className="w-4 h-4 text-theme-tab-active rounded focus:ring-2 focus:ring-theme-action-accent cursor-pointer"
               />
             ) : (
               <span className="text-gray-600">{isChecked ? '✓' : ''}</span>
@@ -2673,12 +2630,12 @@ function AssetDetailsInner(props: AssetDetailsProps, ref: React.ForwardedRef<Ass
       valueGetter: (params: any) => {
         const value = params.data?.penthouse;
         // Convert to boolean: true if checked, false otherwise
-        return (value === true || value === 'כן') ? true : false;
+        return value === true;
       },
       valueSetter: (params: any) => {
         // Always set as boolean: true or false
         const newValue = params.newValue;
-        params.data.penthouse = (newValue === true || newValue === 'כן') ? true : false;
+        params.data.penthouse = newValue === true;
         return true;
       },
       cellStyle: (params) => {
@@ -3094,7 +3051,7 @@ function AssetDetailsInner(props: AssetDetailsProps, ref: React.ForwardedRef<Ass
   }, [t, assetTypes, editMode, isFieldEditable, getCellStyle, structureDrawingCellRenderer, actionsCellRenderer, asset, isBusinessAsset, isBusinessContext, operators]);
 
   // Apply field configurations to column definitions for main grid
-  const configuredColumnDefs = useFieldConfig(columnDefs, 'asset-details-main');
+  const [configuredColumnDefs] = useFieldConfig(columnDefs, 'asset-details-main');
 
   // Column definitions for history grid - no validation
   const historyColumnDefs: ColDef<Asset>[] = useMemo(() => {
@@ -3111,7 +3068,7 @@ function AssetDetailsInner(props: AssetDetailsProps, ref: React.ForwardedRef<Ass
   }, [columnDefs, historyActionsCellRenderer]);
 
   // Apply field configurations to column definitions for history grid
-  const configuredHistoryColumnDefs = useFieldConfig(historyColumnDefs, 'asset-details-history');
+  const [configuredHistoryColumnDefs] = useFieldConfig(historyColumnDefs, 'asset-details-history');
 
   useEffect(() => {
     api.operators.getAll().then(setOperators).catch(() => setOperators([]));
@@ -3458,9 +3415,9 @@ function AssetDetailsInner(props: AssetDetailsProps, ref: React.ForwardedRef<Ass
       <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-slate-50/50 to-white">
         <div className="text-center">
           <div className="relative">
-            <Loader2 className="h-16 w-16 text-app-accent animate-spin mx-auto" />
+            <Loader2 className="h-16 w-16 text-theme-tab-active animate-spin mx-auto" />
             <div className="absolute inset-0 flex items-center justify-center">
-              <div className="h-8 w-8 bg-slate-100 rounded-full animate-pulse"></div>
+              <div className="h-8 w-8 bg-theme-highlight rounded-full animate-pulse"></div>
             </div>
           </div>
           <p className="mt-6 text-slate-700 font-medium text-base animate-pulse">{t('loadingDetails')}</p>
@@ -3524,11 +3481,11 @@ function AssetDetailsInner(props: AssetDetailsProps, ref: React.ForwardedRef<Ass
       {uploadProgress && (
         <div className="fixed inset-0 bg-black bg-opacity-50 z-[9999] flex items-center justify-center" style={{ cursor: 'wait' }}>
           <div className="bg-white rounded-lg p-6 shadow-xl flex flex-col items-center gap-4 min-w-[200px]">
-            <Loader2 className="h-12 w-12 text-app-accent animate-spin" />
+            <Loader2 className="h-12 w-12 text-theme-tab-active animate-spin" />
             <p className="text-slate-700 font-medium text-lg">{t('uploading') || 'מעלה קובץ...'}</p>
             <p className="text-slate-500 text-sm truncate max-w-[280px]" title={uploadProgress.fileName}>{uploadProgress.fileName}</p>
             <div className="w-full max-w-[200px] h-2 bg-slate-200 rounded-full overflow-hidden">
-              <div className="h-full bg-app-accent transition-all duration-300" style={{ width: `${uploadProgress.progress}%` }} />
+              <div className="h-full bg-theme-tab-active transition-all duration-300" style={{ width: `${uploadProgress.progress}%` }} />
             </div>
             <p className="text-slate-500 text-xs">{Math.round(uploadProgress.progress)}%</p>
           </div>
@@ -3549,7 +3506,7 @@ function AssetDetailsInner(props: AssetDetailsProps, ref: React.ForwardedRef<Ass
             }`}
           >
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-bold text-app-header">שמור כמדידה חדשה</h3>
+              <h3 className="text-lg font-bold text-slate-900 bg-gradient-to-r from-theme-tab-active to-theme-action-accent bg-clip-text text-transparent">שמור כמדידה חדשה</h3>
               <button
                 type="button"
                 onClick={() => {
@@ -3590,7 +3547,7 @@ function AssetDetailsInner(props: AssetDetailsProps, ref: React.ForwardedRef<Ass
                   setNewMeasurementDate(value);
                 }}
                 placeholder="DD/MM/YYYY"
-                className="w-full px-3 py-2 border-2 border-app-input-border rounded-lg focus:ring-2 focus:ring-app-accent focus:border-app-accent text-right transition-all duration-200 hover:border-slate-400"
+                className="w-full px-3 py-2 border-2 border-slate-300 rounded-lg focus:ring-2 focus:ring-theme-action-accent focus:border-theme-action-accent text-right transition-all duration-200 hover:border-slate-400"
                 maxLength={10}
               />
               <p className="mt-1 text-xs text-slate-500">
@@ -3616,7 +3573,7 @@ function AssetDetailsInner(props: AssetDetailsProps, ref: React.ForwardedRef<Ass
               <button
                 onClick={handleSaveAsNewMeasurement}
                 disabled={isSaving}
-                className="flex items-center gap-1 px-3 py-1.5 text-xs bg-app-accent hover:bg-app-accent-hover active:bg-teal-800 disabled:bg-gray-400 text-white rounded-lg transition-all duration-200 font-semibold shadow-sm hover:shadow-md disabled:shadow-none"
+                className="flex items-center gap-1 px-3 py-1.5 text-xs bg-theme-tab-active hover:bg-theme-tab-active-hover active:bg-theme-tab-active-active disabled:bg-gray-400 text-white rounded-lg transition-all duration-200 font-semibold shadow-sm hover:shadow-md disabled:shadow-none"
               >
                 {isSaving ? (
                   <Loader2 className="h-3 w-3 animate-spin" />
@@ -3696,59 +3653,51 @@ function AssetDetailsInner(props: AssetDetailsProps, ref: React.ForwardedRef<Ass
       )}
 
       <div className="w-full mx-auto px-1 sm:px-2 py-1 sm:py-2">
-      <div className="page-header mb-2 rounded-xl p-4">
-        <div className="relative flex items-center gap-3 flex-wrap">
+      <div className="page-header mb-2 rounded-lg px-3 py-2">
+        <div className="flex items-center gap-2 flex-wrap">
           <div className="page-header-icon shrink-0">
             <Home className="w-5 h-5" strokeWidth={1.5} />
           </div>
-          <h1 className="page-header-title text-base sm:text-lg font-semibold">
-            {t('assetId')}: {asset.asset_id}
-          </h1>
-          {building && (
-            <div className="flex items-center gap-2 flex-wrap">
-              {((building?.address ?? building?.building_address) || building?.building_number_in_street != null) && (
-                <span className="page-header-badge page-header-badge-address">
-                  כתובת: {(buildingAddress ?? '-')}{building?.building_number_in_street != null ? ` מס' ${building.building_number_in_street}` : ''}
-                </span>
-              )}
-              <span className="page-header-badge">גוש: {building?.gosh || '-'}</span>
-              <span className="page-header-badge">חלקה: {building?.helka || '-'}</span>
-              <span className="page-header-label">מבנה {building.building_number}</span>
-              {asset?.apartment_number && (
-                <span className="page-header-badge">מספר דירה: {asset.apartment_number}</span>
-              )}
-              {asset?.apartment_floor && (
-                <span className="page-header-badge">קומת דירה: {asset.apartment_floor}</span>
-              )}
-              {asset?.storage_number && (
-                <span className="page-header-badge">מספר מחסן: {asset.storage_number}</span>
-              )}
-              {asset?.storage_floor && (
-                <span className="page-header-badge">קומת מחסן: {asset.storage_floor}</span>
-              )}
-              {asset?.discount_type && (
-                <span className="page-header-badge">סוג הנחה: {asset.discount_type}</span>
-              )}
-              {(asset?.discount_date_from || asset?.discount_date_to) && (
-                <span className="page-header-badge">תאריך הנחה: {asset?.discount_date_from || ''} - {asset?.discount_date_to || ''}</span>
-              )}
-              {areaDescriptionForTab && (
-                <span className="page-header-badge page-header-badge-area">{areaDescriptionForTab}</span>
-              )}
+          <div className="flex-1 min-w-0">
+            <h1 className="page-header-title text-sm sm:text-base font-semibold">
+              {t('assetId')}: {asset.asset_id}
+            </h1>
+            {building && (
+              <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
+                <span className="page-header-label">מבנה {building.building_number}</span>
+                <span className="page-header-label">גוש: {building?.gosh || '-'}</span>
+                <span className="page-header-label">חלקה: {building?.helka || '-'}</span>
+                {building?.address && (
+                  <span className="page-header-badge page-header-badge-address">כתובת: {buildingAddress || '-'}</span>
+                )}
+                {asset?.apartment_number && (
+                  <span className="page-header-label">דירה: {asset.apartment_number}</span>
+                )}
+                {asset?.apartment_floor != null && (
+                  <span className="page-header-label">קומה: {asset.apartment_floor}</span>
+                )}
+                {asset?.storage_number && (
+                  <span className="page-header-label">מחסן: {asset.storage_number}</span>
+                )}
+                {asset?.storage_floor != null && (
+                  <span className="page-header-label">קומת מחסן: {asset.storage_floor}</span>
+                )}
+                {asset?.discount_type && (
+                  <span className="page-header-label">הנחה: {asset.discount_type}</span>
+                )}
+                {(asset?.discount_date_from || asset?.discount_date_to) && (
+                  <span className="page-header-label">תאריך הנחה: {asset?.discount_date_from || ''} - {asset?.discount_date_to || ''}</span>
+                )}
+                {areaDescriptionForTab && (
+                  <span className="page-header-badge page-header-badge-area">{areaDescriptionForTab}</span>
+                )}
                 {(() => {
-                  // Check if asset is a business asset
-                  if (!asset?.main_asset_type || !assetTypes || assetTypes.length === 0 || !building) {
-                    return null;
-                  }
+                  if (!asset?.main_asset_type || !assetTypes?.length || !building) return null;
                   const assetType = assetTypes.find(at => at.name === asset.main_asset_type);
                   const isBusinessAsset = assetType?.business_residence === 'עסקים';
-                  
-                  // Show overload_ratio for business assets only
                   if (isBusinessAsset && building.overload_ratio != null) {
                     return (
-                      <span className="page-header-pill">
-                        אחוז העמסה: {building.overload_ratio.toFixed(2)}%
-                      </span>
+                      <span className="page-header-pill">אחוז העמסה: {building.overload_ratio.toFixed(2)}%</span>
                     );
                   }
                   return null;
@@ -3756,43 +3705,36 @@ function AssetDetailsInner(props: AssetDetailsProps, ref: React.ForwardedRef<Ass
               </div>
             )}
           </div>
-          <div className="flex items-center gap-2">
-            <div className="flex items-center bg-white/20 rounded-lg p-1 gap-1">
-              <button
-                onClick={() => setEditMode('inline')}
-                className={`p-1.5 rounded transition-colors ${
-                  editMode === 'inline'
-                    ? 'bg-white text-app-accent'
-                    : 'text-white/70 hover:text-white hover:bg-white/10'
-                }`}
-                title="עריכה ישירה בתא"
-              >
-                <Edit className="h-4 w-4" />
-              </button>
-              <button
-                onClick={() => setEditMode('modal')}
-                className={`p-1.5 rounded transition-colors ${
-                  editMode === 'modal'
-                    ? 'bg-white text-app-accent'
-                    : 'text-white/70 hover:text-white hover:bg-white/10'
-                }`}
-                title="עריכה בחלון נפרד"
-              >
-                <Square className="h-4 w-4" />
-              </button>
-            </div>
+          <div className="flex items-center bg-white/20 rounded-lg p-1 gap-1 shrink-0">
+            <button
+              onClick={() => {
+                setEditMode('modal');
+                if (latestMeasurement) {
+                  setSelectedRowForEdit(latestMeasurement);
+                  setIsRowEditModalOpen(true);
+                }
+              }}
+              className={`p-1.5 rounded transition-colors ${
+                editMode === 'modal'
+                  ? 'bg-white text-theme-tab-active'
+                  : 'text-white/70 hover:text-white hover:bg-white/10'
+              }`}
+              title="עריכה בחלון נפרד"
+            >
+              <Square className="h-4 w-4" />
+            </button>
           </div>
         </div>
       </div>
 
       {allMeasurements.length > 0 && (
-        <div className="bg-white rounded-xl shadow-lg border border-blue-100 hover:shadow-xl transition-shadow duration-200">
+        <div className="bg-white rounded-xl shadow-lg border border-theme-card-border hover:shadow-xl transition-shadow duration-200">
           <div className="p-2">
             {/* Latest Measurement Grid */}
             <div className="mb-2">
               <div className="flex items-center justify-between mb-1">
                 <h3 className="text-sm font-semibold text-slate-800">מדידה אחרונה</h3>
-                <div className="action-bar flex gap-2">
+                <div className="action-bar flex justify-end gap-2 py-1 px-2">
                   <button
                     onClick={async () => {
                       if (!pinnedTopRowData || pinnedTopRowData.length === 0) {
@@ -3825,7 +3767,7 @@ function AssetDetailsInner(props: AssetDetailsProps, ref: React.ForwardedRef<Ass
                         setToast({ message: 'שגיאה בייצוא לקובץ Excel', type: 'error' });
                       }
                     }}
-                    className="btn btn-export btn-lg"
+                    className="btn btn-action btn-export"
                     title="ייצא ל-Excel"
                   >
                     <Download className="h-5 w-5" />
@@ -3834,7 +3776,7 @@ function AssetDetailsInner(props: AssetDetailsProps, ref: React.ForwardedRef<Ass
                   <button
                     onClick={handleValidateLatestRow}
                     disabled={isSaving || isValidating || !latestMeasurement}
-                    className="btn btn-secondary btn-lg"
+                    className="btn btn-action btn-secondary disabled:opacity-50 disabled:cursor-not-allowed"
                     title="אמת את הנכס"
                   >
                     {isValidating ? (
@@ -3847,7 +3789,7 @@ function AssetDetailsInner(props: AssetDetailsProps, ref: React.ForwardedRef<Ass
                   <button
                     onClick={handleOpenSaveAsNewMeasurementModal}
                     disabled={isSaving || isValidating || !latestMeasurement || !hasChanges || validationErrors.size > 0}
-                    className="btn btn-primary btn-lg"
+                    className="btn btn-action btn-primary disabled:opacity-50 disabled:cursor-not-allowed"
                     title={validationErrors.size > 0 ? 'תקן שגיאות לפני שמירה' : !hasChanges ? 'אין שינויים לשמירה' : 'שמור כמדידה חדשה'}
                   >
                     {isSaving ? (
@@ -3860,7 +3802,7 @@ function AssetDetailsInner(props: AssetDetailsProps, ref: React.ForwardedRef<Ass
                   <button
                     onClick={handleSaveChanges}
                     disabled={isSaving || (!!assetId && !hasChanges)}
-                    className="btn btn-primary btn-lg"
+                    className="btn btn-action btn-primary disabled:opacity-50 disabled:cursor-not-allowed"
                     title={(!assetId && !latestMeasurement?.asset_id) ? 'מלא קוד נכס לשמירה' : (!hasChanges ? 'אין שינויים לשמירה' : 'שמור שינויים')}
                   >
                     {isSaving ? (
@@ -3873,14 +3815,14 @@ function AssetDetailsInner(props: AssetDetailsProps, ref: React.ForwardedRef<Ass
                   <button
                     onClick={handleCancelChanges}
                     disabled={isSaving || !hasChanges}
-                    className="btn btn-cancel btn-lg"
+                    className="btn btn-action btn-cancel"
                   >
                     <X className="h-5 w-5" />
                     <span>{t('cancel')}</span>
                   </button>
                 </div>
               </div>
-              <div className="ag-theme-alpine rounded-xl shadow-lg border border-blue-100 asset-details-pinned-grid" style={{ height: '140px', width: '100%', overflowX: 'auto' }}>
+              <div className="ag-theme-alpine rounded-xl shadow-lg border border-theme-card-border asset-details-pinned-grid" style={{ height: '140px', width: '100%', overflowX: 'auto' }}>
                 <style>{`
                   .asset-details-pinned-grid .ag-header-cell-label,
                   .asset-details-pinned-grid .ag-header-cell-text,
@@ -3967,7 +3909,6 @@ function AssetDetailsInner(props: AssetDetailsProps, ref: React.ForwardedRef<Ass
                 onSortChanged={() => {}}
                 onCellValueChanged={onCellValueChanged}
                 onCellEditingStopped={onCellEditingStopped}
-                onRowDoubleClicked={handleRowDoubleClick}
                 stopEditingWhenCellsLoseFocus={true}
                 enableRtl={true}
                 animateRows={false}
@@ -4138,13 +4079,6 @@ function AssetDetailsInner(props: AssetDetailsProps, ref: React.ForwardedRef<Ass
                       }
                     }}
                     onSortChanged={() => {}}
-                    onRowDoubleClicked={(event: any) => {
-                      // Handle double-click for editing (only for latest records)
-                      // Don't process double-click for history rows - they should open audit modal
-                      if (event.data?.is_latest === true) {
-                        handleRowDoubleClick(event);
-                      }
-                    }}
                     onRowClicked={(event: any) => {
                       // Handle single click for audit details
                     }}
@@ -4253,9 +4187,7 @@ function AssetDetailsInner(props: AssetDetailsProps, ref: React.ForwardedRef<Ass
           }}
         />
       )}
+    </div>
     </>
   );
-}
-
-export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(AssetDetailsInner);
-AssetDetails.displayName = 'AssetDetails';
+});

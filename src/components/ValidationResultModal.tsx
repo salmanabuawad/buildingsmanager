@@ -147,10 +147,10 @@ export function ValidationResultModal({
         {/* Header */}
         <div className={`flex items-center justify-between mb-4 px-4 py-3 rounded-t-lg ${
           actualContext === 'single' 
-            ? (singleResult?.valid ? 'bg-green-50 border-b border-green-200' : singleResult ? 'bg-red-50 border-b border-red-200' : 'bg-blue-50 border-b border-blue-200')
+            ? (singleResult?.valid ? 'bg-green-50 border-b border-green-200' : singleResult ? 'bg-red-50 border-b border-red-200' : 'bg-theme-highlight border-b border-theme-card-border')
             : actualContext === 'building'
-            ? 'bg-blue-50 border-b border-blue-200'
-            : 'bg-[#f0f0f0] border-b border-slate-200'
+            ? 'bg-theme-highlight border-b border-theme-card-border'
+            : 'bg-theme-highlight border-b border-theme-card-border'
         }`}>
           <div className="flex items-center gap-2">
             {actualContext === 'single' && !isLoading && singleResult && (
@@ -165,13 +165,13 @@ export function ValidationResultModal({
               </div>
             )}
             {actualContext === 'building' && (
-              <div className="p-2 rounded-full bg-blue-100">
-                <BuildingIcon className="h-5 w-5 text-blue-600" />
+              <div className="p-2 rounded-full bg-theme-highlight">
+                <BuildingIcon className="h-5 w-5 text-theme-tab-active" />
               </div>
             )}
             {actualContext === 'import' && (
-              <div className="p-2 rounded-full bg-slate-200">
-                <Download className="h-5 w-5 text-app-accent" />
+              <div className="p-2 rounded-full bg-theme-highlight">
+                <Download className="h-5 w-5 text-purple-600" />
               </div>
             )}
             <h3 className="text-lg font-bold text-slate-900">
@@ -191,9 +191,9 @@ export function ValidationResultModal({
           <div className="flex-1 flex items-center justify-center py-12">
             <div className="text-center w-full max-w-md">
               <Loader2 className={`h-8 w-8 animate-spin mx-auto mb-4 ${
-                actualContext === 'single' ? 'text-blue-600' :
-                actualContext === 'building' ? 'text-blue-600' :
-                'text-app-accent'
+                actualContext === 'single' ? 'text-theme-tab-active' :
+                actualContext === 'building' ? 'text-theme-tab-active' :
+                'text-theme-tab-active'
               }`} />
               <p className="text-slate-600 mb-4">
                 {config.loadingMessage}
@@ -217,7 +217,7 @@ export function ValidationResultModal({
                       className={`h-2.5 rounded-full transition-all duration-300 ${
                         actualContext === 'single' ? 'bg-blue-600' :
                         actualContext === 'building' ? 'bg-blue-600' :
-                        'bg-app-accent'
+                        'bg-theme-tab-active'
                       }`}
                       style={{ width: `${(progress.current / progress.total) * 100}%` }}
                     ></div>
@@ -235,14 +235,14 @@ export function ValidationResultModal({
                   onClick={() => setValidationFilter('all')}
                   className={`rounded-lg p-4 text-center transition-all cursor-pointer ${
                     validationFilter === 'all' 
-                      ? 'bg-blue-200 border-2 border-blue-500 shadow-md' 
-                      : 'bg-blue-50 hover:bg-blue-100'
+                      ? 'bg-blue-200 border-2 border-theme-action-accent shadow-md' 
+                      : 'bg-blue-50 hover:bg-theme-highlight'
                   }`}
                 >
-                  <div className={`text-2xl font-bold ${validationFilter === 'all' ? 'text-blue-900' : 'text-blue-700'}`}>
+                  <div className={`text-2xl font-bold ${validationFilter === 'all' ? 'text-theme-tab-active-hover' : 'text-theme-tab-active'}`}>
                     {batchResults.total}
                   </div>
-                  <div className={`text-sm mt-1 ${validationFilter === 'all' ? 'text-blue-900 font-semibold' : 'text-blue-600'}`}>
+                  <div className={`text-sm mt-1 ${validationFilter === 'all' ? 'text-theme-tab-active-hover font-semibold' : 'text-theme-tab-active'}`}>
                     סה"כ נכסים
                   </div>
                 </button>
@@ -325,7 +325,7 @@ export function ValidationResultModal({
                                             onClose(); // Close the validation modal when opening asset view
                                           }
                                         }}
-                                        className="text-blue-600 hover:text-blue-800 underline decoration-blue-600 hover:decoration-blue-800 cursor-pointer transition-colors"
+                                        className="text-theme-tab-active hover:text-blue-800 underline decoration-blue-600 hover:decoration-blue-800 cursor-pointer transition-colors"
                                         title="לחץ כדי לפתוח את הנכס"
                                       >
                                         נכס {error.assetId} (מבנה {error.buildingNumber})
@@ -339,8 +339,8 @@ export function ValidationResultModal({
                                 <>
                                   {error.matchedAssetTypeRecord && (
                                     <div className="mt-2 mb-2 p-2 bg-blue-50 border border-blue-200 rounded">
-                                      <p className="text-xs font-semibold text-blue-900 mb-1">רישום מסוג נכס שתואם:</p>
-                                      <p className="text-xs text-blue-700">{error.matchedAssetTypeRecord}</p>
+                                      <p className="text-xs font-semibold text-theme-tab-active-hover mb-1">רישום מסוג נכס שתואם:</p>
+                                      <p className="text-xs text-theme-tab-active">{error.matchedAssetTypeRecord}</p>
                                     </div>
                                   )}
                                   <ul className="mt-2 space-y-1">
@@ -406,7 +406,7 @@ export function ValidationResultModal({
                 onClick={handleClose}
                 className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors w-full sm:w-auto ${
                   actualContext === 'import'
-                    ? 'text-white bg-app-accent hover:bg-app-accent-hover'
+                    ? 'text-white bg-theme-tab-active hover:bg-theme-tab-active-hover'
                     : actualContext === 'building'
                     ? 'text-white bg-blue-600 hover:bg-blue-700'
                     : 'text-slate-700 bg-slate-100 hover:bg-slate-200'
@@ -436,8 +436,8 @@ export function ValidationResultModal({
                 <div>
                   {singleResult.matchedAssetTypeRecord && (
                     <div className="mb-6 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-                      <p className="text-sm font-semibold text-blue-900 mb-1">רישום מסוג נכס שתואם:</p>
-                      <p className="text-xs text-blue-700">{singleResult.matchedAssetTypeRecord}</p>
+                      <p className="text-sm font-semibold text-theme-tab-active-hover mb-1">רישום מסוג נכס שתואם:</p>
+                      <p className="text-xs text-theme-tab-active">{singleResult.matchedAssetTypeRecord}</p>
                     </div>
                   )}
                   <p className="text-lg font-semibold text-slate-800 mb-4">

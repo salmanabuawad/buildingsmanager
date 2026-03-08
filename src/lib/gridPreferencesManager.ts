@@ -17,7 +17,6 @@ export const GRID_NAMES = {
   TRANSFER_AREAS: 'transfer-areas',
   ASSET_DETAILS_MAIN: 'asset-details-main',
   ASSET_DETAILS_HISTORY: 'asset-details-history',
-  USER_MANAGEMENT: 'user-management',
 } as const;
 
 /**

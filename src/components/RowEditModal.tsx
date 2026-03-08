@@ -143,7 +143,7 @@ export function RowEditModal({ isOpen, onClose, rowData, assetTypes, operators =
       >
         <div className="flex items-center justify-between p-4 border-b border-gray-200">
           <div className="flex items-center gap-3">
-            <h3 className="text-lg font-bold text-app-header">עריכת נכס</h3>
+            <h3 className="text-lg font-bold text-slate-900 bg-gradient-to-r from-teal-600 to-blue-600 bg-clip-text text-transparent">עריכת נכס</h3>
             {formData.asset_id && (
               <span className="text-sm font-medium text-slate-600 bg-slate-100 px-3 py-1 rounded-lg">
                 {formData.asset_id}
@@ -170,7 +170,7 @@ export function RowEditModal({ isOpen, onClose, rowData, assetTypes, operators =
                 value={formData.measurement_date || ''}
                 onChange={(e) => handleFieldChange('measurement_date', e.target.value)}
                 placeholder="DD/MM/YYYY"
-                className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-app-accent focus:border-app-accent text-right ${
+                className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-right ${
                   dateError ? 'border-red-500 bg-red-50' : 'border-slate-300'
                 }`}
                 maxLength={10}
@@ -189,7 +189,7 @@ export function RowEditModal({ isOpen, onClose, rowData, assetTypes, operators =
                 type="text"
                 value={formData.asset_id || ''}
                 onChange={(e) => handleFieldChange('asset_id', e.target.value)}
-                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-app-accent focus:border-app-accent text-right"
+                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-right"
               />
             </div>
 
@@ -202,7 +202,7 @@ export function RowEditModal({ isOpen, onClose, rowData, assetTypes, operators =
                 type="text"
                 value={formData.payer_id || ''}
                 onChange={(e) => handleFieldChange('payer_id', e.target.value)}
-                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-app-accent focus:border-app-accent text-right"
+                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-right"
               />
             </div>
 
@@ -215,7 +215,7 @@ export function RowEditModal({ isOpen, onClose, rowData, assetTypes, operators =
                 type="number"
                 value={formData.tax_region ?? ''}
                 onChange={(e) => handleFieldChange('tax_region', e.target.value === '' ? undefined : parseInt(e.target.value) || undefined)}
-                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-app-accent focus:border-app-accent text-right"
+                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-right"
                 placeholder="אזור מס"
               />
             </div>
@@ -228,7 +228,7 @@ export function RowEditModal({ isOpen, onClose, rowData, assetTypes, operators =
               <select
                 value={formData.operator_id != null ? String(formData.operator_id) : ''}
                 onChange={(e) => handleFieldChange('operator_id', e.target.value === '' ? null : parseInt(e.target.value, 10))}
-                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-app-accent focus:border-app-accent text-right"
+                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-right"
               >
                 <option value="">—</option>
                 {operators.map((o) => (
@@ -249,7 +249,7 @@ export function RowEditModal({ isOpen, onClose, rowData, assetTypes, operators =
                 value={formData.main_asset_type || ''}
                 onChange={(e) => handleFieldChange('main_asset_type', e.target.value)}
                 title={getAssetTypeTooltip(formData.main_asset_type)}
-                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-app-accent focus:border-app-accent text-right"
+                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-right"
               />
             </div>
 
@@ -263,7 +263,7 @@ export function RowEditModal({ isOpen, onClose, rowData, assetTypes, operators =
                 step="0.01"
                 value={formData.asset_size || 0}
                 onChange={(e) => handleFieldChange('asset_size', parseFloat(e.target.value) || 0)}
-                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-app-accent focus:border-app-accent text-right"
+                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-right"
               />
             </div>
 
@@ -275,9 +275,9 @@ export function RowEditModal({ isOpen, onClose, rowData, assetTypes, operators =
               <div className="flex items-center h-10">
                 <input
                   type="checkbox"
-                  checked={formData.penthouse === true || formData.penthouse === 'כן'}
+                  checked={formData.penthouse === true}
                   onChange={(e) => handleFieldChange('penthouse', e.target.checked ? true : false)}
-                  className="w-4 h-4 text-blue-600 rounded focus:ring-2 focus:ring-blue-500 cursor-pointer"
+                  className="w-4 h-4 text-theme-tab-active rounded focus:ring-2 focus:ring-theme-action-accent cursor-pointer"
                 />
                 <span className="mr-2 text-sm text-slate-600">כן</span>
               </div>
@@ -292,7 +292,7 @@ export function RowEditModal({ isOpen, onClose, rowData, assetTypes, operators =
                 type="text"
                 value={formData.apartment_number ?? ''}
                 onChange={(e) => handleFieldChange('apartment_number', e.target.value || undefined)}
-                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-app-accent focus:border-app-accent text-right"
+                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-right"
                 placeholder="מספר דירה"
               />
             </div>
@@ -306,7 +306,7 @@ export function RowEditModal({ isOpen, onClose, rowData, assetTypes, operators =
                 type="text"
                 value={formData.apartment_floor ?? ''}
                 onChange={(e) => handleFieldChange('apartment_floor', e.target.value || undefined)}
-                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-app-accent focus:border-app-accent text-right"
+                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-right"
                 placeholder="קומת דירה"
               />
             </div>
@@ -320,7 +320,7 @@ export function RowEditModal({ isOpen, onClose, rowData, assetTypes, operators =
                 type="text"
                 value={formData.storage_number ?? ''}
                 onChange={(e) => handleFieldChange('storage_number', e.target.value || undefined)}
-                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-app-accent focus:border-app-accent text-right"
+                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-right"
                 placeholder="מספר מחסן"
               />
             </div>
@@ -334,7 +334,7 @@ export function RowEditModal({ isOpen, onClose, rowData, assetTypes, operators =
                 type="text"
                 value={formData.storage_floor ?? ''}
                 onChange={(e) => handleFieldChange('storage_floor', e.target.value || undefined)}
-                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-app-accent focus:border-app-accent text-right"
+                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-right"
                 placeholder="קומת מחסן"
               />
             </div>
@@ -348,7 +348,7 @@ export function RowEditModal({ isOpen, onClose, rowData, assetTypes, operators =
                 type="text"
                 value={formData.discount_type || ''}
                 onChange={(e) => handleFieldChange('discount_type', e.target.value || undefined)}
-                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-app-accent focus:border-app-accent text-right"
+                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-right"
                 placeholder="סוג הנחה"
               />
             </div>
@@ -363,7 +363,7 @@ export function RowEditModal({ isOpen, onClose, rowData, assetTypes, operators =
                 value={formData.discount_date_from || ''}
                 onChange={(e) => handleFieldChange('discount_date_from', e.target.value || undefined)}
                 placeholder="DD/MM/YYYY"
-                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-app-accent focus:border-app-accent text-right"
+                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-right"
                 maxLength={10}
               />
             </div>
@@ -378,7 +378,7 @@ export function RowEditModal({ isOpen, onClose, rowData, assetTypes, operators =
                 value={formData.discount_date_to || ''}
                 onChange={(e) => handleFieldChange('discount_date_to', e.target.value || undefined)}
                 placeholder="DD/MM/YYYY"
-                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-app-accent focus:border-app-accent text-right"
+                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-right"
                 maxLength={10}
               />
             </div>
@@ -393,7 +393,7 @@ export function RowEditModal({ isOpen, onClose, rowData, assetTypes, operators =
                 onChange={(e) => handleFieldChange('comment', e.target.value || undefined)}
                 placeholder="הערה"
                 rows={3}
-                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-app-accent focus:border-app-accent text-right resize-vertical"
+                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-right resize-vertical"
               />
             </div>
 
@@ -412,7 +412,7 @@ export function RowEditModal({ isOpen, onClose, rowData, assetTypes, operators =
                       value={formData[`sub_asset_type_${num1}` as keyof Asset] as string || ''}
                       onChange={(e) => handleFieldChange(`sub_asset_type_${num1}` as keyof Asset, e.target.value)}
                       title={getAssetTypeTooltip(formData[`sub_asset_type_${num1}` as keyof Asset] as string)}
-                      className="w-full px-2 py-1.5 text-xs border border-slate-300 rounded-lg focus:ring-2 focus:ring-app-accent focus:border-app-accent text-right"
+                      className="w-full px-2 py-1.5 text-xs border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-right"
                     />
                   </div>
                   <div className="col-span-2">
@@ -424,7 +424,7 @@ export function RowEditModal({ isOpen, onClose, rowData, assetTypes, operators =
                       step="0.01"
                       value={(formData[`sub_asset_size_${num1}` as keyof Asset] as number) === 0 ? '' : (formData[`sub_asset_size_${num1}` as keyof Asset] as number || '')}
                       onChange={(e) => handleFieldChange(`sub_asset_size_${num1}` as keyof Asset, e.target.value === '' ? 0 : parseFloat(e.target.value) || 0)}
-                      className="w-full px-2 py-1.5 text-xs border border-slate-300 rounded-lg focus:ring-2 focus:ring-app-accent focus:border-app-accent text-right"
+                      className="w-full px-2 py-1.5 text-xs border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-right"
                     />
                   </div>
                   <div className="col-span-1">
@@ -436,7 +436,7 @@ export function RowEditModal({ isOpen, onClose, rowData, assetTypes, operators =
                       value={formData[`sub_asset_type_${num2}` as keyof Asset] as string || ''}
                       onChange={(e) => handleFieldChange(`sub_asset_type_${num2}` as keyof Asset, e.target.value)}
                       title={getAssetTypeTooltip(formData[`sub_asset_type_${num2}` as keyof Asset] as string)}
-                      className="w-full px-2 py-1.5 text-xs border border-slate-300 rounded-lg focus:ring-2 focus:ring-app-accent focus:border-app-accent text-right"
+                      className="w-full px-2 py-1.5 text-xs border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-right"
                     />
                   </div>
                   <div className="col-span-2">
@@ -448,7 +448,7 @@ export function RowEditModal({ isOpen, onClose, rowData, assetTypes, operators =
                       step="0.01"
                       value={(formData[`sub_asset_size_${num2}` as keyof Asset] as number) === 0 ? '' : (formData[`sub_asset_size_${num2}` as keyof Asset] as number || '')}
                       onChange={(e) => handleFieldChange(`sub_asset_size_${num2}` as keyof Asset, e.target.value === '' ? 0 : parseFloat(e.target.value) || 0)}
-                      className="w-full px-2 py-1.5 text-xs border border-slate-300 rounded-lg focus:ring-2 focus:ring-app-accent focus:border-app-accent text-right"
+                      className="w-full px-2 py-1.5 text-xs border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-right"
                     />
                   </div>
                 </div>
@@ -467,7 +467,7 @@ export function RowEditModal({ isOpen, onClose, rowData, assetTypes, operators =
           </button>
           <button
             onClick={handleSave}
-            className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white rounded-md transition-all duration-200 shadow-sm hover:shadow-md font-medium"
+            className="flex items-center gap-2 px-4 py-2 bg-theme-tab-active hover:bg-theme-tab-active-hover active:bg-theme-tab-active-active text-white rounded-md transition-all duration-200 shadow-sm hover:shadow-md font-medium"
           >
             <Save className="h-4 w-4" />
             אישור

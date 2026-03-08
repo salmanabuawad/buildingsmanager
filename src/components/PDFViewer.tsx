@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { Document, Page, pdfjs } from 'react-pdf';
 import { ZoomIn, ZoomOut, Download, RotateCw, ChevronLeft, ChevronRight } from 'lucide-react';
 import { sanitizeFilename } from '../lib/sanitize';
-import { supabase } from '../lib/supabase';
+import { api } from '../lib/apiClient';
 import 'react-pdf/dist/Page/AnnotationLayer.css';
 import 'react-pdf/dist/Page/TextLayer.css';
 
@@ -31,7 +31,7 @@ export function PDFViewer({ fileUrl, fileName }: PDFViewerProps) {
       setLoadError(null);
 
       // Check if URL is already a signed URL
-      if (fileUrl.includes('.supabase.co/storage/v1/object/sign/')) {
+      if (fileUrl.includes('/storage/v1/object/sign/') || fileUrl.includes('/api/')) {
         if (!cancelled) setActualFileUrl(fileUrl);
         setIsPreparingUrl(false);
         return;
@@ -44,7 +44,7 @@ export function PDFViewer({ fileUrl, fileName }: PDFViewerProps) {
         if (pathMatch) {
           const [, bucket, path] = pathMatch;
 
-          const { data, error } = await supabase.storage
+          const { data, error } = await api.storage
             .from(bucket)
             .createSignedUrl(path, 3600); // 1 hour expiry
 
@@ -60,7 +60,7 @@ export function PDFViewer({ fileUrl, fileName }: PDFViewerProps) {
           if (error) {
             // Check for bucket not found error
             if (error.message?.includes('Bucket not found') || error.statusCode === '404') {
-              const errorMsg = `Storage bucket "${bucket}" not found. Please create the bucket in Supabase Dashboard: Storage → New bucket → Name: "${bucket}". See CREATE_STORAGE_BUCKETS.md for detailed instructions.`;
+              const errorMsg = `Storage bucket "${bucket}" not found. Configure backend file storage.`;
               console.error(errorMsg);
               setLoadError(errorMsg);
               // Still try to use original URL in case bucket gets created
@@ -101,8 +101,7 @@ export function PDFViewer({ fileUrl, fileName }: PDFViewerProps) {
       const bucketName = bucketMatch ? bucketMatch[1] : 'unknown';
       setLoadError(
         `Storage bucket "${bucketName}" not found. ` +
-        `Please create the bucket in Supabase Dashboard: Storage → New bucket → Name: "${bucketName}". ` +
-        `See CREATE_STORAGE_BUCKETS.md for detailed instructions.`
+        `Storage bucket "${bucketName}" not found. Configure backend file storage.`
       );
     } else {
       setLoadError(error.message || 'Failed to load PDF file. The file may be corrupted or inaccessible.');
@@ -189,30 +188,30 @@ export function PDFViewer({ fileUrl, fileName }: PDFViewerProps) {
 
   return (
     <div className="w-full">
-      <div className="bg-slate-100 border border-app-input-border rounded-t-lg p-4 flex items-center justify-between flex-wrap gap-4">
+      <div className="bg-slate-100 border border-slate-300 rounded-t-lg p-4 flex items-center justify-between flex-wrap gap-4">
         <div className="flex items-center gap-2">
           <button
             onClick={zoomOut}
             disabled={scale <= 0.5}
-            className="p-2 bg-white border border-app-input-border rounded hover:bg-slate-50 disabled:opacity-50 "
+            className="p-2 bg-white border border-slate-300 rounded hover:bg-slate-50 disabled:opacity-50 "
             title="Zoom Out"
           >
             <ZoomOut className="h-5 w-5" />
           </button>
-          <span className="text-sm font-medium text-app-text-primary min-w-[80px] text-center">
+          <span className="text-sm font-medium text-slate-700 min-w-[80px] text-center">
             {Math.round(scale * 100)}%
           </span>
           <button
             onClick={zoomIn}
             disabled={scale >= 3.0}
-            className="p-2 bg-white border border-app-input-border rounded hover:bg-slate-50 disabled:opacity-50 "
+            className="p-2 bg-white border border-slate-300 rounded hover:bg-slate-50 disabled:opacity-50 "
             title="Zoom In"
           >
             <ZoomIn className="h-5 w-5" />
           </button>
           <button
             onClick={rotate}
-            className="p-2 bg-white border border-app-input-border rounded hover:bg-slate-50 ml-2"
+            className="p-2 bg-white border border-slate-300 rounded hover:bg-slate-50 ml-2"
             title="Rotate"
           >
             <RotateCw className="h-5 w-5" />
@@ -225,18 +224,18 @@ export function PDFViewer({ fileUrl, fileName }: PDFViewerProps) {
               <button
                 onClick={previousPage}
                 disabled={pageNumber <= 1}
-                className="flex items-center gap-1 px-3 py-1 bg-white border border-app-input-border rounded hover:bg-slate-50 disabled:opacity-50  text-sm"
+                className="flex items-center gap-1 px-3 py-1 bg-white border border-slate-300 rounded hover:bg-slate-50 disabled:opacity-50  text-sm"
               >
                 <ChevronRight className="h-4 w-4 text-black" />
                 Previous
               </button>
-              <span className="text-sm text-app-text-primary">
+              <span className="text-sm text-slate-700">
                 Page {pageNumber} of {numPages}
               </span>
               <button
                 onClick={nextPage}
                 disabled={pageNumber >= numPages}
-                className="flex items-center gap-1 px-3 py-1 bg-white border border-app-input-border rounded hover:bg-slate-50 disabled:opacity-50  text-sm"
+                className="flex items-center gap-1 px-3 py-1 bg-white border border-slate-300 rounded hover:bg-slate-50 disabled:opacity-50  text-sm"
               >
                 Next
                 <ChevronLeft className="h-4 w-4 text-black" />
@@ -254,7 +253,7 @@ export function PDFViewer({ fileUrl, fileName }: PDFViewerProps) {
         </div>
       </div>
 
-      <div className="border border-t-0 border-app-input-border rounded-b-lg bg-slate-50 p-4 overflow-auto max-h-[600px]">
+      <div className="border border-t-0 border-slate-300 rounded-b-lg bg-slate-50 p-4 overflow-auto max-h-[600px]">
         <div className="flex justify-center">
           {isPreparingUrl ? (
             <div className="flex items-center justify-center p-12">

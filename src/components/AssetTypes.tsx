@@ -1,6 +1,11 @@
 import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
-import { AssetType, api } from '../lib/api';
+import { AssetType, api, toBoolean } from '../lib/api';
+
+function toBooleanFromInput(v: unknown): boolean | undefined {
+  if (v == null || String(v).trim() === '') return undefined;
+  return toBoolean(v);
+}
 import { assetTypeValidators, inputValidators } from '../lib/validation';
 import { Plus, Tag, Upload, Save, X, Loader2, Download, Trash2, ArrowUpDown, ArrowUp, ArrowDown, Filter, FileText } from 'lucide-react';
 import * as XLSX from 'xlsx';
@@ -416,7 +421,7 @@ export function AssetTypes() {
                   }
                 }, 0);
               }}
-              className={`w-4 h-4 text-blue-600 rounded ${isDirty ? 'ring-2 ring-yellow-400' : ''}`}
+              className={`w-4 h-4 text-theme-tab-active rounded ${isDirty ? 'ring-2 ring-yellow-400' : ''}`}
             />
           </div>
         );
@@ -498,7 +503,7 @@ export function AssetTypes() {
                 params.setValue(newValue);
                 handleCellChange(assetType.id, 'elevator', newValue);
               }}
-              className={`w-4 h-4 text-blue-600 rounded ${isDirty ? 'ring-2 ring-yellow-400' : ''}`}
+              className={`w-4 h-4 text-theme-tab-active rounded ${isDirty ? 'ring-2 ring-yellow-400' : ''}`}
             />
           </div>
         );
@@ -524,7 +529,7 @@ export function AssetTypes() {
                 params.setValue(newValue);
                 handleCellChange(assetType.id, 'single_double_family', newValue);
               }}
-              className={`w-4 h-4 text-blue-600 rounded ${isDirty ? 'ring-2 ring-yellow-400' : ''}`}
+              className={`w-4 h-4 text-theme-tab-active rounded ${isDirty ? 'ring-2 ring-yellow-400' : ''}`}
             />
           </div>
         );
@@ -550,7 +555,7 @@ export function AssetTypes() {
                 params.setValue(newValue);
                 handleCellChange(assetType.id, 'penthouse', newValue);
               }}
-              className={`w-4 h-4 text-blue-600 rounded ${isDirty ? 'ring-2 ring-yellow-400' : ''}`}
+              className={`w-4 h-4 text-theme-tab-active rounded ${isDirty ? 'ring-2 ring-yellow-400' : ''}`}
             />
           </div>
         );
@@ -576,7 +581,7 @@ export function AssetTypes() {
                 params.setValue(newValue);
                 handleCellChange(assetType.id, 'condo', newValue);
               }}
-              className={`w-4 h-4 text-blue-600 rounded ${isDirty ? 'ring-2 ring-yellow-400' : ''}`}
+              className={`w-4 h-4 text-theme-tab-active rounded ${isDirty ? 'ring-2 ring-yellow-400' : ''}`}
             />
           </div>
         );
@@ -602,7 +607,7 @@ export function AssetTypes() {
                 params.setValue(newValue);
                 handleCellChange(assetType.id, 'townhouses', newValue);
               }}
-              className={`w-4 h-4 text-blue-600 rounded ${isDirty ? 'ring-2 ring-yellow-400' : ''}`}
+              className={`w-4 h-4 text-theme-tab-active rounded ${isDirty ? 'ring-2 ring-yellow-400' : ''}`}
             />
           </div>
         );
@@ -661,7 +666,7 @@ export function AssetTypes() {
                   }
                 }, 0);
               }}
-              className={`w-4 h-4 text-blue-600 rounded ${isDirty ? 'ring-2 ring-yellow-400' : ''}`}
+              className={`w-4 h-4 text-theme-tab-active rounded ${isDirty ? 'ring-2 ring-yellow-400' : ''}`}
             />
           </div>
         );
@@ -703,7 +708,7 @@ export function AssetTypes() {
                   }
                 }, 0);
               }}
-              className={`w-4 h-4 text-blue-600 rounded ${isDirty ? 'ring-2 ring-yellow-400' : ''}`}
+              className={`w-4 h-4 text-theme-tab-active rounded ${isDirty ? 'ring-2 ring-yellow-400' : ''}`}
             />
           </div>
         );
@@ -740,7 +745,7 @@ export function AssetTypes() {
                 params.setValue(newValue);
                 handleCellChange(assetType.id, 'not_accountable_for_statistics', newValue);
               }}
-              className={`w-4 h-4 text-blue-600 rounded ${isDirty ? 'ring-2 ring-yellow-400' : ''}`}
+              className={`w-4 h-4 text-theme-tab-active rounded ${isDirty ? 'ring-2 ring-yellow-400' : ''}`}
             />
           </div>
         );
@@ -782,7 +787,7 @@ export function AssetTypes() {
                   }
                 }, 0);
               }}
-              className={`w-4 h-4 text-blue-600 rounded ${isDirty ? 'ring-2 ring-yellow-400' : ''}`}
+              className={`w-4 h-4 text-theme-tab-active rounded ${isDirty ? 'ring-2 ring-yellow-400' : ''}`}
             />
           </div>
         );
@@ -824,7 +829,7 @@ export function AssetTypes() {
                   }
                 }, 0);
               }}
-              className={`w-4 h-4 text-blue-600 rounded ${isDirty ? 'ring-2 ring-yellow-400' : ''}`}
+              className={`w-4 h-4 text-theme-tab-active rounded ${isDirty ? 'ring-2 ring-yellow-400' : ''}`}
             />
           </div>
         );
@@ -973,11 +978,11 @@ export function AssetTypes() {
 
           // Property characteristics - compact inline format
           const characteristics: string[] = [];
-          if (at.elevator === true || at.elevator === 'כן') characteristics.push('מעלית');
-          if (at.single_double_family === true || at.single_double_family === 'כן') characteristics.push('בית פרטי');
-          if (at.penthouse === true || at.penthouse === 'כן') characteristics.push('דירת גג');
-          if (at.condo === true || at.condo === 'כן') characteristics.push('בית משותף');
-          if (at.townhouses === true || at.townhouses === 'כן') characteristics.push('טוריים');
+          if (at.elevator === true) characteristics.push('מעלית');
+          if (at.single_double_family === true) characteristics.push('בית פרטי');
+          if (at.penthouse === true) characteristics.push('דירת גג');
+          if (at.condo === true) characteristics.push('בית משותף');
+          if (at.townhouses === true) characteristics.push('טוריים');
 
           if (characteristics.length > 0) {
             sections.push(`מאפיינים: ${characteristics.join(' • ')}`);
@@ -1040,7 +1045,7 @@ export function AssetTypes() {
   }, [t, getCurrentValue, isFieldDirty, handleDelete, deletedAssetTypes, assetTypes, dirtyAssetTypes, handleCellChange, gridRef]);
 
   // Apply field configurations from database
-  const configuredColumnDefs = useFieldConfig(columnDefs, 'asset-types');
+  const [configuredColumnDefs] = useFieldConfig(columnDefs, 'asset-types');
 
 
   async function downloadTemplate(format: 'excel' | 'csv' = 'excel') {
@@ -1399,15 +1404,15 @@ export function AssetTypes() {
             description: description || undefined,
             tax_region: tax_region ? parseInt(tax_region) : undefined,
             area_description_for_tab: area_description_for_tab || undefined,
-            elevator: elevator || undefined,
-            single_double_family: single_double_family || undefined,
-            penthouse: penthouse || undefined,
-            condo: condo || undefined,
-            townhouses: townhouses || undefined,
+            elevator: toBooleanFromInput(elevator),
+            single_double_family: toBooleanFromInput(single_double_family),
+            penthouse: toBooleanFromInput(penthouse),
+            condo: toBooleanFromInput(condo),
+            townhouses: toBooleanFromInput(townhouses),
             business_residence: validBusinessResidence,
-            non_accountable_for_total_area: non_accountable_for_total_area && (non_accountable_for_total_area.toLowerCase() === 'כן' || non_accountable_for_total_area.toLowerCase() === 'yes' || non_accountable_for_total_area === '1' || non_accountable_for_total_area === 'true') ? true : (non_accountable_for_total_area && (non_accountable_for_total_area.toLowerCase() === 'לא' || non_accountable_for_total_area.toLowerCase() === 'no' || non_accountable_for_total_area === '0' || non_accountable_for_total_area === 'false') ? false : undefined),
-            non_accountable_for_distribution: non_accountable_for_distribution && (non_accountable_for_distribution.toLowerCase() === 'כן' || non_accountable_for_distribution.toLowerCase() === 'yes' || non_accountable_for_distribution === '1' || non_accountable_for_distribution === 'true') ? true : (non_accountable_for_distribution && (non_accountable_for_distribution.toLowerCase() === 'לא' || non_accountable_for_distribution.toLowerCase() === 'no' || non_accountable_for_distribution === '0' || non_accountable_for_distribution === 'false') ? false : undefined),
-            not_accountable_for_statistics: not_accountable_for_statistics && (not_accountable_for_statistics.toLowerCase() === 'כן' || not_accountable_for_statistics.toLowerCase() === 'yes' || not_accountable_for_statistics === '1' || not_accountable_for_statistics === 'true') ? true : (not_accountable_for_statistics && (not_accountable_for_statistics.toLowerCase() === 'לא' || not_accountable_for_statistics.toLowerCase() === 'no' || not_accountable_for_statistics === '0' || not_accountable_for_statistics === 'false') ? false : undefined),
+            non_accountable_for_total_area: toBooleanFromInput(non_accountable_for_total_area),
+            non_accountable_for_distribution: toBooleanFromInput(non_accountable_for_distribution),
+            not_accountable_for_statistics: toBooleanFromInput(not_accountable_for_statistics),
             min_size: min_size ? parseFloat(min_size) : undefined,
             max_size: max_size ? parseFloat(max_size) : undefined,
           };
@@ -1453,8 +1458,8 @@ export function AssetTypes() {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-teal-600 mx-auto"></div>
-          <p className="mt-4 text-app-text-primary font-medium">{t('loading')}</p>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-theme-tab-active mx-auto"></div>
+          <p className="mt-4 text-slate-700 font-medium">{t('loading')}</p>
         </div>
       </div>
     );
@@ -1462,13 +1467,15 @@ export function AssetTypes() {
 
   return (
     <div className="max-w-5xl mx-auto px-2 py-3">
-      <div className="page-header mb-3 rounded-xl p-4">
-        <div className="relative flex items-center gap-3 flex-wrap">
-          <div className="page-header-icon shrink-0">
-            <Tag className="w-6 h-6" />
+      <div className="page-header mb-2 rounded-lg px-3 py-2">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <div className="page-header-icon shrink-0">
+              <Tag className="w-5 h-5" />
+            </div>
+            <h1 className="page-header-title text-sm sm:text-base font-bold">{t('assetTypes')}</h1>
           </div>
-          <h1 className="page-header-title text-lg sm:text-xl font-bold">{t('assetTypes')}</h1>
-          <span className="page-header-label">{assetTypes.length} רשומות</span>
+          <span className="page-header-badge">{assetTypes.length} רשומות</span>
         </div>
       </div>
 
@@ -1484,13 +1491,13 @@ export function AssetTypes() {
         </div>
       )}
 
-      <div className="bg-white rounded-xl shadow-lg hover:shadow-xl transition-shadow duration-200 border border-blue-100 p-6 mb-6">
+      <div className="bg-white rounded-xl shadow-lg hover:shadow-xl transition-shadow duration-200 border border-theme-card-border p-6 mb-6">
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center gap-3">
             <h2 className="text-xl font-bold text-slate-900">{t('assetTypes')}</h2>
           </div>
           {!isAdding && (
-            <div className="action-bar flex gap-2">
+            <div className="action-bar flex justify-end gap-2">
               <input
                 ref={fileInputRef}
                 type="file"
@@ -1501,17 +1508,16 @@ export function AssetTypes() {
               <button
                 type="button"
                 onClick={() => downloadTemplate('excel')}
-                className="flex items-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-700 active:bg-green-800 text-white rounded-md transition-all duration-200 shadow-sm hover:shadow-md font-medium"
+                className="btn btn-action btn-secondary"
                 title="הורד תבנית Excel"
               >
                 <Download className="h-5 w-5" />
                 <span className="hidden sm:inline">הורד תבנית Excel</span>
               </button>
-
               <button
                 type="button"
                 onClick={() => downloadTemplate('csv')}
-                className="flex items-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-700 active:bg-green-800 text-white rounded-md transition-all duration-200 shadow-sm hover:shadow-md font-medium"
+                className="btn btn-action btn-secondary"
                 title="הורד תבנית CSV"
               >
                 <Download className="h-5 w-5" />
@@ -1521,7 +1527,7 @@ export function AssetTypes() {
                 type="button"
                 onClick={exportAssetTypes}
                 disabled={assetTypes.length === 0}
-                className="flex items-center gap-2 px-4 py-2 bg-app-accent hover:bg-app-accent-hover active:bg-app-accent-active text-white rounded-md transition-all duration-200 shadow-sm hover:shadow-md disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none font-medium"
+                className="btn btn-action btn-export disabled:opacity-50 disabled:cursor-not-allowed"
                 title="ייצא את כל סוגי הנכסים"
               >
                 <FileText className="h-5 w-5" />
@@ -1531,7 +1537,7 @@ export function AssetTypes() {
                 type="button"
                 onClick={() => fileInputRef.current?.click()}
                 disabled={isImporting}
-                className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white rounded-md transition-all duration-200 shadow-sm hover:shadow-md disabled:opacity-50 disabled:shadow-none font-medium"
+                className="btn btn-action btn-primary disabled:opacity-50 disabled:shadow-none"
               >
                 <Upload className="h-5 w-5" />
                 <span className="hidden sm:inline">{isImporting ? t('loading') : t('importCSV')}</span>
@@ -1539,10 +1545,10 @@ export function AssetTypes() {
               <button
                 type="button"
                 onClick={startAdd}
-                className="flex items-center gap-2 px-4 py-2 bg-teal-600 hover:bg-teal-700 active:bg-teal-800 text-white rounded-md transition-all duration-200 shadow-sm hover:shadow-md font-medium"
+                className="btn btn-action btn-primary"
               >
                 <Plus className="h-5 w-5" />
-                {t('addAssetType')}
+                <span>{t('addAssetType')}</span>
               </button>
             </div>
           )}
@@ -1550,28 +1556,28 @@ export function AssetTypes() {
 
         {/* Save All / Cancel buttons - always visible */}
         {!isAdding && (
-          <div className="mb-4 flex flex-col sm:flex-row justify-end gap-2 sm:gap-3">
+          <div className="mb-4 action-bar flex flex-col sm:flex-row justify-end gap-2 sm:gap-3">
             <button
               type="button"
               onClick={handleCancelAll}
               disabled={isSaving || (dirtyAssetTypes.size === 0 && deletedAssetTypes.size === 0)}
-              className="flex items-center justify-center gap-2 px-4 sm:px-5 py-2.5 text-sm bg-gray-500 hover:bg-gray-600 active:bg-gray-700 text-white rounded-md transition-all duration-200 shadow-sm hover:shadow-md disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none font-semibold w-full sm:w-auto"
+              className="btn btn-action btn-cancel disabled:opacity-50 disabled:cursor-not-allowed w-full sm:w-auto"
             >
-              <X className="h-4 w-4" />
-              {t('cancel')}
+              <X className="h-5 w-5" />
+              <span>{t('cancel')}</span>
             </button>
             <button
               type="button"
               onClick={handleSaveAll}
               disabled={isSaving || (dirtyAssetTypes.size === 0 && deletedAssetTypes.size === 0)}
-              className="flex items-center justify-center gap-2 px-4 sm:px-5 py-2.5 text-sm bg-teal-600 hover:bg-teal-700 active:bg-teal-800 text-white rounded-md transition-all duration-200 shadow-sm hover:shadow-md disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none font-semibold w-full sm:w-auto"
+              className="btn btn-action btn-primary disabled:opacity-50 disabled:cursor-not-allowed w-full sm:w-auto"
             >
               {isSaving ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
+                <Loader2 className="h-5 w-5 animate-spin" />
               ) : (
-                <Save className="h-4 w-4" />
+                <Save className="h-5 w-5" />
               )}
-              {isSaving ? 'שומר...' : `שמור הכל${dirtyAssetTypes.size + deletedAssetTypes.size > 0 ? ` (${dirtyAssetTypes.size + deletedAssetTypes.size})` : ''}`}
+              <span>{isSaving ? 'שומר...' : `שמור הכל${dirtyAssetTypes.size + deletedAssetTypes.size > 0 ? ` (${dirtyAssetTypes.size + deletedAssetTypes.size})` : ''}`}</span>
             </button>
           </div>
         )}
@@ -1583,7 +1589,7 @@ export function AssetTypes() {
             </h3>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
               <div>
-                <label className="block text-sm font-medium text-app-text-primary mb-1">
+                <label className="block text-sm font-medium text-slate-700 mb-1">
                   קוד נכס *
                 </label>
                 <input
@@ -1592,24 +1598,24 @@ export function AssetTypes() {
                   onChange={(e) => {
                     setFormData({ ...formData, name: e.target.value });
                   }}
-                  className="w-full px-3 py-2 border-2 border-app-input-border rounded-lg focus:ring-2 focus:ring-app-accent focus:border-app-accent hover:border-slate-400 transition-all duration-200"
+                  className="w-full px-3 py-2 border-2 border-slate-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 hover:border-slate-400 transition-all duration-200"
                   placeholder="199"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-app-text-primary mb-1">
+                <label className="block text-sm font-medium text-slate-700 mb-1">
                   תיאור
                 </label>
                 <input
                   type="text"
                   value={formData.description}
                   onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                  className="w-full px-3 py-2 border-2 border-app-input-border rounded-lg focus:ring-2 focus:ring-app-accent focus:border-app-accent hover:border-slate-400 transition-all duration-200"
+                  className="w-full px-3 py-2 border-2 border-slate-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 hover:border-slate-400 transition-all duration-200"
                   placeholder="תיאור"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-app-text-primary mb-1">
+                <label className="block text-sm font-medium text-slate-700 mb-1">
                   אזור מיסים
                 </label>
                 <input
@@ -1617,73 +1623,73 @@ export function AssetTypes() {
                   step="1"
                   value={formData.tax_region}
                   onChange={(e) => setFormData({ ...formData, tax_region: e.target.value })}
-                  className="w-full px-3 py-2 border-2 border-app-input-border rounded-lg focus:ring-2 focus:ring-app-accent focus:border-app-accent hover:border-slate-400 transition-all duration-200"
+                  className="w-full px-3 py-2 border-2 border-slate-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 hover:border-slate-400 transition-all duration-200"
                   placeholder="10"
                 />
               </div>
               <div>
-                <label className="flex items-center gap-2 text-sm font-medium text-app-text-primary mb-1">
+                <label className="flex items-center gap-2 text-sm font-medium text-slate-700 mb-1">
                   <input
                     type="checkbox"
                     checked={formData.elevator === true}
                     onChange={(e) => setFormData({ ...formData, elevator: e.target.checked })}
-                    className="w-4 h-4 text-app-accent rounded focus:ring-2 focus:ring-app-accent cursor-pointer"
+                    className="w-4 h-4 text-theme-tab-active rounded focus:ring-2 focus:ring-blue-500 cursor-pointer"
                   />
                   מעלית
                 </label>
               </div>
               <div>
-                <label className="flex items-center gap-2 text-sm font-medium text-app-text-primary mb-1">
+                <label className="flex items-center gap-2 text-sm font-medium text-slate-700 mb-1">
                   <input
                     type="checkbox"
                     checked={formData.single_double_family === true}
                     onChange={(e) => setFormData({ ...formData, single_double_family: e.target.checked })}
-                    className="w-4 h-4 text-app-accent rounded focus:ring-2 focus:ring-app-accent cursor-pointer"
+                    className="w-4 h-4 text-theme-tab-active rounded focus:ring-2 focus:ring-blue-500 cursor-pointer"
                   />
                   בית פרטי חד משפחתי דו משפחתי
                 </label>
               </div>
               <div>
-                <label className="flex items-center gap-2 text-sm font-medium text-app-text-primary mb-1">
+                <label className="flex items-center gap-2 text-sm font-medium text-slate-700 mb-1">
                   <input
                     type="checkbox"
                     checked={formData.penthouse === true}
                     onChange={(e) => setFormData({ ...formData, penthouse: e.target.checked })}
-                    className="w-4 h-4 text-app-accent rounded focus:ring-2 focus:ring-app-accent cursor-pointer"
+                    className="w-4 h-4 text-theme-tab-active rounded focus:ring-2 focus:ring-blue-500 cursor-pointer"
                   />
                   דירת גג
                 </label>
               </div>
               <div>
-                <label className="flex items-center gap-2 text-sm font-medium text-app-text-primary mb-1">
+                <label className="flex items-center gap-2 text-sm font-medium text-slate-700 mb-1">
                   <input
                     type="checkbox"
                     checked={formData.condo === true}
                     onChange={(e) => setFormData({ ...formData, condo: e.target.checked })}
-                    className="w-4 h-4 text-app-accent rounded focus:ring-2 focus:ring-app-accent cursor-pointer"
+                    className="w-4 h-4 text-theme-tab-active rounded focus:ring-2 focus:ring-blue-500 cursor-pointer"
                   />
                   בית משותף
                 </label>
               </div>
               <div>
-                <label className="flex items-center gap-2 text-sm font-medium text-app-text-primary mb-1">
+                <label className="flex items-center gap-2 text-sm font-medium text-slate-700 mb-1">
                   <input
                     type="checkbox"
                     checked={formData.townhouses === true}
                     onChange={(e) => setFormData({ ...formData, townhouses: e.target.checked })}
-                    className="w-4 h-4 text-app-accent rounded focus:ring-2 focus:ring-app-accent cursor-pointer"
+                    className="w-4 h-4 text-theme-tab-active rounded focus:ring-2 focus:ring-blue-500 cursor-pointer"
                   />
                   מבנים צמודי קרקע טוריים מעל 2 יחידות
                 </label>
               </div>
               <div>
-                <label className="block text-sm font-medium text-app-text-primary mb-1">
+                <label className="block text-sm font-medium text-slate-700 mb-1">
                   עסקים/מגורים
                 </label>
                 <select
                   value={formData.business_residence || ''}
                   onChange={(e) => setFormData({ ...formData, business_residence: e.target.value || '' })}
-                  className="w-full px-3 py-2 border-2 border-app-input-border rounded-lg focus:ring-2 focus:ring-app-accent focus:border-app-accent hover:border-slate-400 transition-all duration-200"
+                  className="w-full px-3 py-2 border-2 border-slate-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 hover:border-slate-400 transition-all duration-200"
                 >
                   <option value="">-- בחר --</option>
                   <option value="עסקים">עסקים</option>
@@ -1691,62 +1697,62 @@ export function AssetTypes() {
                 </select>
               </div>
               <div>
-                <label className="flex items-center gap-2 text-sm font-medium text-app-text-primary mb-1" title="נכסים מסוג זה לא נספרים בחישוב שטח המבנה הכולל">
+                <label className="flex items-center gap-2 text-sm font-medium text-slate-700 mb-1" title="נכסים מסוג זה לא נספרים בחישוב שטח המבנה הכולל">
                   <input
                     type="checkbox"
                     checked={formData.non_accountable_for_total_area}
                     onChange={(e) => setFormData({ ...formData, non_accountable_for_total_area: e.target.checked })}
-                    className="w-4 h-4 text-app-accent rounded focus:ring-2 focus:ring-app-accent cursor-pointer"
+                    className="w-4 h-4 text-theme-tab-active rounded focus:ring-2 focus:ring-blue-500 cursor-pointer"
                   />
                   לא נספר בחישוב שטח מבנה
                 </label>
               </div>
               <div>
-                <label className="flex items-center gap-2 text-sm font-medium text-app-text-primary mb-1" title="נכסים מסוג זה לא נכללים בפיזור שטח משותף. שינוי ערך זה יאפס את דגלי הפיזור במבנים מושפעים">
+                <label className="flex items-center gap-2 text-sm font-medium text-slate-700 mb-1" title="נכסים מסוג זה לא נכללים בפיזור שטח משותף. שינוי ערך זה יאפס את דגלי הפיזור במבנים מושפעים">
                   <input
                     type="checkbox"
                     checked={formData.non_accountable_for_distribution}
                     onChange={(e) => setFormData({ ...formData, non_accountable_for_distribution: e.target.checked })}
-                    className="w-4 h-4 text-app-accent rounded focus:ring-2 focus:ring-app-accent cursor-pointer"
+                    className="w-4 h-4 text-theme-tab-active rounded focus:ring-2 focus:ring-blue-500 cursor-pointer"
                   />
                   לא נספר בפיזור
                 </label>
               </div>
               <div>
-                <label className="flex items-center gap-2 text-sm font-medium text-app-text-primary mb-1" title="נכסים מסוג זה לא יופיעו בסטטיסטיקות נכסים">
+                <label className="flex items-center gap-2 text-sm font-medium text-slate-700 mb-1" title="נכסים מסוג זה לא יופיעו בסטטיסטיקות נכסים">
                   <input
                     type="checkbox"
                     checked={formData.not_accountable_for_statistics}
                     onChange={(e) => setFormData({ ...formData, not_accountable_for_statistics: e.target.checked })}
-                    className="w-4 h-4 text-app-accent rounded focus:ring-2 focus:ring-app-accent cursor-pointer"
+                    className="w-4 h-4 text-theme-tab-active rounded focus:ring-2 focus:ring-blue-500 cursor-pointer"
                   />
                   לא נספר בסטטיסטיקה
                 </label>
               </div>
               <div>
-                <label className="flex items-center gap-2 text-sm font-medium text-app-text-primary mb-1" title="סוג נכס זה משמש לפיזור שטח משותף מגורים. שטח משותף יווסף כנכס משנה מסוג זה">
+                <label className="flex items-center gap-2 text-sm font-medium text-slate-700 mb-1" title="סוג נכס זה משמש לפיזור שטח משותף מגורים. שטח משותף יווסף כנכס משנה מסוג זה">
                   <input
                     type="checkbox"
                     checked={formData.use_shared_area}
                     onChange={(e) => setFormData({ ...formData, use_shared_area: e.target.checked })}
-                    className="w-4 h-4 text-app-accent rounded focus:ring-2 focus:ring-app-accent cursor-pointer"
+                    className="w-4 h-4 text-theme-tab-active rounded focus:ring-2 focus:ring-blue-500 cursor-pointer"
                   />
                   שימוש בשטח משותף
                 </label>
               </div>
               <div>
-                <label className="flex items-center gap-2 text-sm font-medium text-app-text-primary mb-1" title="סוג נכס זה משמש לשטח חניה משותף">
+                <label className="flex items-center gap-2 text-sm font-medium text-slate-700 mb-1" title="סוג נכס זה משמש לשטח חניה משותף">
                   <input
                     type="checkbox"
                     checked={formData.use_for_parking_shared_area}
                     onChange={(e) => setFormData({ ...formData, use_for_parking_shared_area: e.target.checked })}
-                    className="w-4 h-4 text-app-accent rounded focus:ring-2 focus:ring-app-accent cursor-pointer"
+                    className="w-4 h-4 text-theme-tab-active rounded focus:ring-2 focus:ring-blue-500 cursor-pointer"
                   />
                   שימוש בשטח חניה משותף
                 </label>
               </div>
               <div>
-                <label className="block text-sm font-medium text-app-text-primary mb-1">
+                <label className="block text-sm font-medium text-slate-700 mb-1">
                   שטח מ
                 </label>
                 <input
@@ -1754,12 +1760,12 @@ export function AssetTypes() {
                   step="0.01"
                   value={formData.min_size}
                   onChange={(e) => setFormData({ ...formData, min_size: e.target.value })}
-                  className="w-full px-3 py-2 border-2 border-app-input-border rounded-lg focus:ring-2 focus:ring-app-accent focus:border-app-accent hover:border-slate-400 transition-all duration-200"
+                  className="w-full px-3 py-2 border-2 border-slate-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 hover:border-slate-400 transition-all duration-200"
                   placeholder="0"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-app-text-primary mb-1">
+                <label className="block text-sm font-medium text-slate-700 mb-1">
                   שטח עד
                 </label>
                 <input
@@ -1767,7 +1773,7 @@ export function AssetTypes() {
                   step="0.01"
                   value={formData.max_size}
                   onChange={(e) => setFormData({ ...formData, max_size: e.target.value })}
-                  className="w-full px-3 py-2 border-2 border-app-input-border rounded-lg focus:ring-2 focus:ring-app-accent focus:border-app-accent hover:border-slate-400 transition-all duration-200"
+                  className="w-full px-3 py-2 border-2 border-slate-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 hover:border-slate-400 transition-all duration-200"
                   placeholder="0"
                 />
               </div>
@@ -1787,7 +1793,7 @@ export function AssetTypes() {
               </button>
               <button
                 onClick={resetForm}
-                className="flex items-center gap-2 px-4 py-2 bg-slate-200 hover:bg-slate-300 active:bg-slate-400 text-app-text-primary rounded-md transition-all duration-200 shadow-sm hover:shadow-md font-medium"
+                className="flex items-center gap-2 px-4 py-2 bg-slate-200 hover:bg-slate-300 active:bg-slate-400 text-slate-700 rounded-md transition-all duration-200 shadow-sm hover:shadow-md font-medium"
               >
                 {t('cancel')}
               </button>
@@ -1802,7 +1808,7 @@ export function AssetTypes() {
             <p className="text-lg">{t('noAssetTypes')}</p>
           </div>
         ) : (
-          <div className="bg-white rounded-xl shadow-lg hover:shadow-xl transition-shadow duration-200 overflow-hidden border-2 border-blue-400 w-full">
+          <div className="bg-white rounded-xl shadow-lg hover:shadow-xl transition-shadow duration-200 overflow-hidden border-2 border-theme-action-accent w-full">
             <div className="ag-theme-alpine" style={{ height: '60vh', width: '100%', minWidth: '100%', overflowX: 'auto', direction: 'rtl' }}>
               <AgGridReact
                 ref={gridRef}

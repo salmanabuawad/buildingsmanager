@@ -3,7 +3,6 @@ import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
 import { Asset, Building, AssetType, api } from '../lib/api';
 import { assetValidators, validateAll, inputValidators } from '../lib/validation';
-import { supabase } from '../lib/supabase';
 import { AgGridReact } from 'ag-grid-react';
 import { ColDef } from 'ag-grid-community';
 import { Building as BuildingIcon, Loader2, Save, X, AlertCircle, Copy, CheckCircle2, Download, Plus, MessageSquare } from 'lucide-react';
@@ -13,6 +12,7 @@ import { useGridPreferences } from '../lib/useGridPreferences';
 import { processColumnHeader } from '../lib/gridHeaderUtils';
 import { exportToExcel } from '../lib/excelExport';
 import { useFieldConfig } from '../lib/useFieldConfig';
+import { useUIConfig } from '../contexts/UIConfigContext';
 
 interface TransferAreasProps {
   buildingNumber: number;
@@ -29,6 +29,7 @@ export interface TransferAreasRef {
 
 export const TransferAreas = forwardRef<TransferAreasRef, TransferAreasProps>(({ buildingNumber, taxRegion, selectedAssetIds, onCloseTab, onOpenAssetsTab, onCloseAllTabsExceptEssential }, ref) => {
   const { t } = useTranslation();
+  const { shouldValidateOnBlur } = useUIConfig();
   const [assets, setAssets] = useState<Asset[]>([]);
   const [building, setBuilding] = useState<Building | null>(null);
   const [assetTypes, setAssetTypes] = useState<AssetType[]>([]);
@@ -264,7 +265,7 @@ export const TransferAreas = forwardRef<TransferAreasRef, TransferAreasProps>(({
         if (assetIdNumbers.length > 0) {
           try {
             // Batch fetch all assets at once using 'in' filter
-            const { data, error } = await supabase
+            const { data, error } = await api
               .from('assets')
               .select('*')
               .in('asset_id', assetIdNumbers);
@@ -603,42 +604,44 @@ export const TransferAreas = forwardRef<TransferAreasRef, TransferAreasProps>(({
       setDirtyAssets(updatedDirtyAssets);
       setAssets(updatedAssets);
 
-      // Wait for state updates to complete
-      await new Promise(resolve => setTimeout(resolve, 0));
+      // When "מתי להריץ אימות" is "אונליין", run validation on each cell change
+      if (shouldValidateOnBlur) {
+        // Wait for state updates to complete
+        await new Promise(resolve => setTimeout(resolve, 0));
 
-      // Validate all assets with the updated state
-      const newValidationErrors = await validateAllAssets(updatedAssets, updatedDirtyAssets, initialTotalArea);
-      
-      // Update validation errors for all assets
-      setValidationErrors(newValidationErrors);
+        // Validate all assets with the updated state
+        const newValidationErrors = await validateAllAssets(updatedAssets, updatedDirtyAssets, initialTotalArea);
+        
+        // Update validation errors for all assets
+        setValidationErrors(newValidationErrors);
 
-      // Show toast if there are validation errors
-      if (newValidationErrors.size > 0) {
-        const firstError = Array.from(newValidationErrors.values())[0];
-        setToast({ message: firstError, type: 'error' });
-        setTimeout(() => setToast(null), 5000);
-      }
+        // Show toast if there are validation errors
+        if (newValidationErrors.size > 0) {
+          const firstError = Array.from(newValidationErrors.values())[0];
+          setToast({ message: firstError, type: 'error' });
+          setTimeout(() => setToast(null), 5000);
+        }
 
-      // Refresh all cells to update styling and invalid icons
-      if (event.api) {
-        setTimeout(() => {
-          // Refresh all rows to update validation icons and styling
-          const rowNodes: any[] = [];
-          event.api.forEachNode((node) => {
-            rowNodes.push(node);
-          });
-          if (rowNodes.length > 0) {
-            // Refresh actions column for all rows to update invalid icons
-            event.api.refreshCells({ rowNodes: rowNodes, columns: ['actions'], force: true });
-            // Refresh all cells in all rows to update validation styling
-            event.api.refreshCells({ rowNodes: rowNodes, force: true });
-          }
-        }, 0);
+        // Refresh all cells to update styling and invalid icons
+        if (event.api) {
+          setTimeout(() => {
+            const rowNodes: any[] = [];
+            event.api.forEachNode((node) => {
+              rowNodes.push(node);
+            });
+            if (rowNodes.length > 0) {
+              event.api.refreshCells({ rowNodes: rowNodes, columns: ['actions'], force: true });
+              event.api.refreshCells({ rowNodes: rowNodes, force: true });
+            }
+          }, 0);
+        }
+      } else {
+        setValidationErrors(new Map());
       }
     } catch (err) {
       console.error('[TransferAreas] Validation error:', err);
     }
-  }, [assets, dirtyAssets, taxRegion, initialTotalArea, validateAllAssets]);
+  }, [assets, dirtyAssets, taxRegion, initialTotalArea, validateAllAssets, shouldValidateOnBlur]);
 
   // Ensure clearing a cell (e.g. numeric → 0) always triggers dirty when edit stops.
   const onCellEditingStopped = useCallback((event: any) => {
@@ -1320,7 +1323,7 @@ export const TransferAreas = forwardRef<TransferAreasRef, TransferAreasProps>(({
     }
 
     try {
-      const { data: existingAsset, error: existingErr } = await supabase
+      const { data: existingAsset, error: existingErr } = await api
         .from('assets')
         .select('asset_id')
         .eq('asset_id', assetIdNum)
@@ -2075,13 +2078,13 @@ export const TransferAreas = forwardRef<TransferAreasRef, TransferAreasProps>(({
   }, [t, validationErrors, getCellStyle]);
 
   // Apply field configurations from database
-  const configuredColumnDefs = useFieldConfig(columnDefs, 'transfer-areas');
+  const [configuredColumnDefs] = useFieldConfig(columnDefs, 'transfer-areas');
 
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="text-center">
-          <Loader2 className="h-12 w-12 text-app-accent animate-spin mx-auto" />
+          <Loader2 className="h-12 w-12 text-theme-tab-active animate-spin mx-auto" />
           <p className="mt-4 text-slate-700 font-medium">{t('loading')}</p>
         </div>
       </div>
@@ -2090,12 +2093,12 @@ export const TransferAreas = forwardRef<TransferAreasRef, TransferAreasProps>(({
 
   return (
     <div className="max-w-7xl mx-auto px-2 sm:px-4 py-3">
-      <div className="page-header mb-3 rounded-xl p-4">
-        <div className="relative flex items-center gap-3 flex-wrap">
+      <div className="page-header mb-2 rounded-lg px-3 py-2">
+        <div className="flex items-center gap-2">
           <div className="page-header-icon shrink-0">
-            <BuildingIcon className="w-6 h-6" />
+            <BuildingIcon className="w-5 h-5" />
           </div>
-          <h1 className="page-header-title text-lg sm:text-xl font-bold">
+          <h1 className="page-header-title text-sm sm:text-base font-bold">
             העברת שטחים - מבנה {building?.building_number}
           </h1>
         </div>
@@ -2113,7 +2116,7 @@ export const TransferAreas = forwardRef<TransferAreasRef, TransferAreasProps>(({
         </div>
       )}
 
-      <div className="action-bar mb-2 flex justify-end gap-2">
+      <div className="mb-2 action-bar flex justify-end gap-2">
         <button
           onClick={async () => {
             if (!assets || assets.length === 0) {
@@ -2152,38 +2155,38 @@ export const TransferAreas = forwardRef<TransferAreasRef, TransferAreasProps>(({
               setToast({ message: 'שגיאה בייצוא לקובץ Excel', type: 'error' });
             }
           }}
-          className="flex items-center gap-1.5 px-3 py-1.5 text-sm bg-app-accent hover:bg-app-accent-hover active:bg-app-accent-active text-white rounded-md transition-all duration-200 shadow-sm hover:shadow-md font-medium"
+          className="btn btn-action btn-export"
           title="ייצא ל-Excel"
         >
-          <Download className="h-4 w-4" />
-          ייצא ל-Excel
+          <Download className="h-5 w-5" />
+          <span>ייצא ל-Excel</span>
         </button>
         <button
           onClick={handleCancelAll}
           disabled={loading || !hasChanges}
-          className="flex items-center gap-1.5 px-3 py-1.5 text-sm bg-slate-500 hover:bg-slate-600 active:bg-slate-700 text-white rounded-md transition-all duration-200 shadow-sm hover:shadow-md disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none font-medium"
+          className="btn btn-action btn-cancel disabled:opacity-50 disabled:cursor-not-allowed"
         >
-          <X className="h-4 w-4" />
-          ביטול
+          <X className="h-5 w-5" />
+          <span>ביטול</span>
         </button>
         <button
           onClick={handleOpenSaveAsNewMeasurementModal}
           disabled={loading || !hasChanges}
-          className="flex items-center gap-1.5 px-3 py-1.5 text-sm bg-app-accent hover:bg-app-accent-hover active:bg-app-accent-active text-white rounded-md transition-all duration-200 shadow-sm hover:shadow-md disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none font-medium"
+          className="btn btn-action btn-primary disabled:opacity-50 disabled:cursor-not-allowed"
           title={!hasChanges ? 'אין שינויים לשמירה' : 'שמור כמדידות חדשות (הרשומות הישנות יעברו להיסטוריה)'}
         >
           {loading ? (
-            <Loader2 className="h-4 w-4 animate-spin" />
+            <Loader2 className="h-5 w-5 animate-spin" />
           ) : (
-            <Copy className="h-4 w-4" />
+            <Copy className="h-5 w-5" />
           )}
-          {loading ? 'שומר...' : `שמור כמדידות חדשות${hasChanges ? ` (${dirtyAssets.size})` : ''}${validationErrors.size > 0 ? ` - ${validationErrors.size} שגיאות` : ''}`}
+          <span>{loading ? 'שומר...' : `שמור כמדידות חדשות${hasChanges ? ` (${dirtyAssets.size})` : ''}${validationErrors.size > 0 ? ` - ${validationErrors.size} שגיאות` : ''}`}</span>
         </button>
       </div>
 
-      <div className="bg-white rounded-xl shadow-lg hover:shadow-xl transition-shadow duration-200 border border-blue-100">
+      <div className="bg-white rounded-xl shadow-lg hover:shadow-xl transition-shadow duration-200 border border-theme-card-border">
         <div className="p-3">
-          <div className="ag-theme-alpine" style={{ width: '100%', minWidth: '100%', height: '50vh', direction: 'ltr', overflowX: 'auto' }}>
+          <div className="ag-theme-alpine flex-1 min-h-[200px]" style={{ width: '100%', minWidth: '100%', direction: 'ltr', overflowX: 'auto' }}>
             <AgGridReact<Asset>
               ref={gridRef}
               rowData={sortedAssets}
@@ -2239,7 +2242,7 @@ export const TransferAreas = forwardRef<TransferAreasRef, TransferAreasProps>(({
             className={`px-3 py-2 border rounded-lg text-right font-semibold ${
               totalAreaChanged
                 ? 'border-red-500 bg-red-50 text-red-700'
-                : 'border-app-input-border bg-slate-50 text-slate-700'
+                : 'border-slate-300 bg-slate-50 text-slate-700'
             }`}
             style={{ minWidth: '150px' }}
             title="שטח כולל מחושב פעם אחת ולא ניתן לשינוי"
@@ -2330,7 +2333,7 @@ export const TransferAreas = forwardRef<TransferAreasRef, TransferAreasProps>(({
                   if (add999AssetPersistentError) setAdd999AssetPersistentError(null);
                 }}
                 placeholder="הזן מזהה נכס"
-                className="w-full px-3 py-2 border border-app-input-border rounded-lg focus:ring-2 focus:ring-app-accent focus:border-app-accent text-right"
+                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-theme-action-accent focus:border-transparent text-right"
                 autoFocus
               />
             </div>
@@ -2350,7 +2353,7 @@ export const TransferAreas = forwardRef<TransferAreasRef, TransferAreasProps>(({
                   if (add999AssetPersistentError) setAdd999AssetPersistentError(null);
                 }}
                 placeholder=""
-                className="w-full px-3 py-2 border border-app-input-border rounded-lg focus:ring-2 focus:ring-app-accent focus:border-app-accent text-right"
+                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-theme-action-accent focus:border-transparent text-right"
               />
               {missingSize > 0 && (
                 <p className="mt-1 text-xs text-slate-500">
@@ -2369,7 +2372,7 @@ export const TransferAreas = forwardRef<TransferAreasRef, TransferAreasProps>(({
                 onChange={(e) => setNew999AssetComment(e.target.value)}
                 placeholder="הזן הערה שתתווסף לכל הנכסים בפעולת ההעברה"
                 rows={3}
-                className="w-full px-3 py-2 border border-app-input-border rounded-lg focus:ring-2 focus:ring-app-accent focus:border-app-accent text-right resize-none"
+                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-theme-action-accent focus:border-transparent text-right resize-none"
               />
             </div>
 
@@ -2400,7 +2403,7 @@ export const TransferAreas = forwardRef<TransferAreasRef, TransferAreasProps>(({
               <button
                 onClick={handleSave999Asset}
                 disabled={!new999AssetId || !new999AssetSize}
-                className="flex items-center gap-1.5 px-3 py-1.5 text-sm bg-app-accent hover:bg-app-accent-hover text-white rounded-md transition-all shadow-sm hover:shadow disabled:opacity-50 disabled:cursor-not-allowed font-medium"
+                className="flex items-center gap-1.5 px-3 py-1.5 text-sm bg-theme-tab-active hover:bg-theme-tab-active-hover text-white rounded-md transition-all shadow-sm hover:shadow disabled:opacity-50 disabled:cursor-not-allowed font-medium"
               >
                 <Plus className="h-4 w-4" />
                 הוסף
@@ -2473,7 +2476,7 @@ export const TransferAreas = forwardRef<TransferAreasRef, TransferAreasProps>(({
                   setNewMeasurementDate(value);
                 }}
                 placeholder="DD/MM/YYYY"
-                className="w-full px-3 py-2 border border-app-input-border rounded-lg focus:ring-2 focus:ring-app-accent focus:border-app-accent text-right"
+                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-theme-action-accent focus:border-transparent text-right"
                 maxLength={10}
               />
               <p className="mt-1 text-xs text-slate-500">
@@ -2499,7 +2502,7 @@ export const TransferAreas = forwardRef<TransferAreasRef, TransferAreasProps>(({
               <button
                 onClick={handleSaveAsNewMeasurements}
                 disabled={loading}
-                className="flex items-center gap-1.5 px-3 py-1.5 text-sm bg-app-accent hover:bg-app-accent-hover active:bg-app-accent-active disabled:bg-gray-400  text-white rounded-md transition-all duration-200 shadow-sm hover:shadow-md disabled:shadow-none font-medium"
+                className="flex items-center gap-1.5 px-3 py-1.5 text-sm bg-theme-tab-active hover:bg-theme-tab-active-hover active:bg-theme-tab-active-active disabled:bg-gray-400  text-white rounded-md transition-all duration-200 shadow-sm hover:shadow-md disabled:shadow-none font-medium"
               >
                 {loading ? (
                   <Loader2 className="h-4 w-4 animate-spin" />

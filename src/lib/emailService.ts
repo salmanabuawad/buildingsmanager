@@ -1,34 +1,29 @@
 /**
  * Email Service
- * 
- * Service for sending emails via backend API. When published (e.g. Bolt/Netlify),
- * uses same-origin /api/email/* (Node serverless). Accepts Supabase Auth or users-table session.
+ * Sends emails via backend API (/api/email/*). Uses users-table session or JWT.
  */
 
 import { api } from './api';
-import { supabase } from './supabase';
 import { getSession } from './usersTableAuth';
+import { getApiBaseUrl } from './appConfig';
 
-/** Backend base URL for email API (no trailing slash). Same origin when published so Netlify functions handle /api/email/*. */
+/** Backend base URL for email API (no trailing slash). Same as rest of app: config.js / VITE_API_BASE_URL, else same origin. */
 function getEmailBackendUrl(): string {
-  if (import.meta.env.VITE_BACKEND_URL) return import.meta.env.VITE_BACKEND_URL.replace(/\/$/, '');
-  if (typeof window !== 'undefined' && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
-    return ''; // same origin: /api/email/test and /api/email/send
-  }
-  return import.meta.env.PROD ? '' : 'http://localhost:8000';
+  const base = getApiBaseUrl();
+  return base || '';
 }
 
-/** Get headers for email API: Supabase Auth JWT, or backend JWT, or users-table session (X-Users-Table-Session). */
+/** Get headers for email API: JWT or users-table session (X-Users-Table-Session). */
 async function getEmailApiHeaders(): Promise<HeadersInit> {
   const headers: HeadersInit = { 'Content-Type': 'application/json' };
   try {
-    const { data: { session } } = await supabase.auth.getSession();
-    if (session?.access_token) {
+    const { data: { session } } = await api.auth.getSession();
+    if (session?.access_token && session.access_token !== 'local') {
       (headers as Record<string, string>)['Authorization'] = `Bearer ${session.access_token}`;
       return headers;
     }
   } catch {
-    // no Supabase session
+    /* use session or token below */
   }
   const backendToken = typeof localStorage !== 'undefined' ? localStorage.getItem('auth_token') : null;
   if (backendToken) {
@@ -156,7 +151,7 @@ class EmailService {
 
       const resolvedAttachments = await Promise.all(attachments);
 
-      // Call backend API to send email (Netlify function requires Supabase Auth)
+      // Call backend API to send email
       const backendUrl = getEmailBackendUrl();
       const response = await fetch(`${backendUrl}/api/email/send`, {
         method: 'POST',
@@ -178,7 +173,7 @@ class EmailService {
         if (response.status === 401) {
           return {
             success: false,
-            error: (responseData as any).error || 'Unauthorized. Please sign in with Supabase Auth to send email.'
+            error: (responseData as any).error || 'Unauthorized. Please sign in to send email.'
           };
         }
         if (response.status === 404) {
@@ -278,7 +273,7 @@ class EmailService {
         if (response.status === 401) {
           return {
             success: false,
-            error: (testResponseData as any).error || 'Unauthorized. Please sign in with Supabase Auth to send test email.'
+            error: (testResponseData as any).error || 'Unauthorized. Please sign in to send test email.'
           };
         }
         if (response.status === 404) {

@@ -303,7 +303,7 @@ export function OperatorsManager() {
     }
   ], [isAdmin, deletedItems, isFieldDirty]);
 
-  const configuredColumnDefs = useFieldConfig(columnDefs, 'operators');
+  const [configuredColumnDefs] = useFieldConfig(columnDefs, 'operators');
 
   const getRowStyle = (params: any) => {
     if (!params.data) return null;
@@ -379,7 +379,7 @@ export function OperatorsManager() {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="text-center">
-          <Loader2 className="h-12 w-12 text-teal-600 animate-spin mx-auto" />
+          <Loader2 className="h-12 w-12 text-theme-tab-active animate-spin mx-auto" />
           <p className="mt-4 text-slate-700 font-medium">טוען מפעילים...</p>
         </div>
       </div>
@@ -397,10 +397,10 @@ export function OperatorsManager() {
         />
       )}
 
-      <div className="bg-white rounded-xl shadow-lg border border-blue-100 p-6">
+      <div className="bg-white rounded-xl shadow-lg border border-theme-card-border p-6">
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center gap-3">
-            <Users className="h-6 w-6 text-teal-600" />
+            <Users className="h-6 w-6 text-theme-tab-active" />
             <h1 className="text-2xl font-bold text-slate-800">מפעילים</h1>
           </div>
           <div className="flex items-center gap-2">
@@ -434,7 +434,7 @@ export function OperatorsManager() {
                 </label>
                 <button
                   onClick={startAdd}
-                  className="flex items-center gap-2 px-3 py-1.5 text-sm bg-teal-600 text-white rounded-lg hover:bg-teal-700 transition-colors"
+                  className="flex items-center gap-2 px-3 py-1.5 text-sm bg-theme-tab-active text-white rounded-lg hover:bg-theme-tab-active-hover transition-colors"
                 >
                   <Plus className="h-4 w-4" />
                   הוסף מפעיל
@@ -445,7 +445,7 @@ export function OperatorsManager() {
         </div>
 
         {isAdding && (
-          <div className="mb-6 p-4 bg-blue-50 rounded-lg border border-blue-200">
+          <div className="mb-6 p-4 bg-theme-highlight rounded-lg border border-theme-card-border">
             <h3 className="text-lg font-semibold text-slate-900 mb-4">הוסף מפעיל חדש</h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
               <div>
@@ -455,7 +455,7 @@ export function OperatorsManager() {
                   value={formData.name}
                   onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                   placeholder="שם המפעיל"
-                  className="w-full px-3 py-2 border-2 border-app-input-border rounded-lg focus:ring-2 focus:ring-app-accent focus:border-app-accent"
+                  className="w-full px-3 py-2 border-2 border-slate-300 rounded-lg focus:ring-2 focus:ring-theme-action-accent focus:border-theme-action-accent"
                 />
               </div>
               <div>
@@ -465,7 +465,7 @@ export function OperatorsManager() {
                   value={formData.email}
                   onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                   placeholder="example@domain.com"
-                  className="w-full px-3 py-2 border-2 border-app-input-border rounded-lg focus:ring-2 focus:ring-app-accent focus:border-app-accent"
+                  className="w-full px-3 py-2 border-2 border-slate-300 rounded-lg focus:ring-2 focus:ring-theme-action-accent focus:border-theme-action-accent"
                 />
               </div>
               <div>
@@ -475,7 +475,7 @@ export function OperatorsManager() {
                   value={formData.phone}
                   onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
                   placeholder="טלפון"
-                  className="w-full px-3 py-2 border-2 border-app-input-border rounded-lg focus:ring-2 focus:ring-app-accent focus:border-app-accent"
+                  className="w-full px-3 py-2 border-2 border-slate-300 rounded-lg focus:ring-2 focus:ring-theme-action-accent focus:border-theme-action-accent"
                 />
               </div>
             </div>
@@ -483,7 +483,7 @@ export function OperatorsManager() {
               <button
                 onClick={handleAdd}
                 disabled={isSaving}
-                className="flex items-center gap-2 px-4 py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700 transition-colors disabled:opacity-50"
+                className="flex items-center gap-2 px-4 py-2 bg-theme-tab-active text-white rounded-lg hover:bg-theme-tab-active-hover transition-colors disabled:opacity-50"
               >
                 {isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
                 שמור
@@ -512,7 +512,7 @@ export function OperatorsManager() {
             <button
               onClick={handleSaveAll}
               disabled={isSaving || (dirtyItems.size === 0 && deletedItems.size === 0)}
-              className="flex items-center gap-2 px-4 py-2 text-sm bg-teal-600 hover:bg-teal-700 text-white rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              className="flex items-center gap-2 px-4 py-2 text-sm bg-theme-tab-active hover:bg-theme-tab-active-hover text-white rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
               שמור הכל{dirtyItems.size + deletedItems.size > 0 ? ` (${dirtyItems.size + deletedItems.size})` : ''}

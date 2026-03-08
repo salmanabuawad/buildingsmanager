@@ -89,7 +89,31 @@ export const HELP_CONTENT: Record<HelpContextId, HelpEntry> = {
 תפריט ניהול → פעולות מנהל → איפוס שליחת נתונים מתאריך X → אשר. נכסים מאותו תאריך יוכלו להישלח שוב.
 
 ■ איך ליצור קישור גישה לפקח ללא התחברות?
-משימת ביקורת → לחץ על משימה → "צור קישור גישה" → העתק/שלח לינק. הפקח יוכל לפתוח בלי להתחבר.`,
+משימת ביקורת → לחץ על משימה → "צור קישור גישה" → העתק/שלח לינק. הפקח יוכל לפתוח בלי להתחבר.
+
+■ איך לפזר שטח משותף?
+רשימת נכסים → לשונית לפי אזור מס → הזן "שטח משותף מגורים" או "שטח משותף עסקים" במבנה → "פזר" → "שמור הכל". "היסטוריית פיזור" – צפייה בפרטים.
+
+■ איך לפזר שטח חניה משותף?
+הזן "שטח חניה משותף" ו"מספר יחידות חניה" במבנה. הגדר סוגי נכס עם "שימוש בשטח חניה משותף". הזן "מספר יחידות חניה" לכל נכס חניה → "פזר" → "שמור הכל".
+
+■ איך להעתיק סוג נכס בין נכסים?
+רשימת נכסים → "סמן כמקור" על נכס מקור → "העתק סוג נכס" על נכס יעד. מעתיק סוג + תת-סוגים.
+
+■ איך להעתיק ולהדביק בתאים?
+בגרידים: בחר תא → Ctrl+C להעתקה → בחר תא יעד → Ctrl+V להדבקה. עובד במבנים, נכסים, סוגי נכס.
+
+■ איך לראות היסטוריית פיזור?
+רשימת נכסים → "היסטוריית פיזור" – רשימת כל הפיזורים במבנה. לחיצה על שורה – פרטי לפני/אחרי.
+
+■ איך להוסיף נכס 999 (שטח משותף)?
+העברת שטחים → "הוסף נכס 999" → הזן מזהה, שטח, הערה → שמור.
+
+■ איך לשנות בהירות/גודל גופן?
+אייקון הגדרות בראש → בהירות (בהיר/רגיל/כהה/ניגודיות גבוהה) | גודל גופן (קטן/רגיל/גדול).
+
+■ איך לרענן נתונים?
+כפתור "רענן" בראש המסך – טוען מחדש מהשרת. מומלץ לאחר שינויים של משתמש אחר או ייבוא.`,
   },
   general: {
     title: 'עזרה - מסך הבית',
@@ -164,18 +188,20 @@ export const HELP_CONTENT: Record<HelpContextId, HelpEntry> = {
   },
   'measurement-progress-dashboard': {
     title: 'עזרה - התקדמות פעילות מדידות',
-    content: `לוח התקדמות מדידות – סקירה לפי אזורי מס ומבנים.
+    content: `לוח התקדמות מדידות – סקירה לפי טווח תאריכים.
 
 מה מוצג:
-• התקדמות – מבנים שנסרקו / סה"כ
-• מבנים שטרם נמדדו – לחיצה מעבירה לנכסים
-• מבנים שטרם נשלחו לעירייה – נכסים שנמדדו אך לא נשלחו
-• פירוט לפי אזור מס – קליק על אזור/מבנה לניווט
+• סה"כ מבנים – לחיצה מעבירה לרשימת מבנים
+• סה"כ נכסים, תאריכי מדידה, שטח
+• נשלחו לעירייה / לא נשלחו לעירייה – לחיצה על "לא נשלחו" מעבירה לנכסים שנמדדו ולא נשלחו
+• פירוט שנתי – טבלה לפי שנה
 
 שימושים:
 • מעקב התקדמות עבודה
-• זיהוי מבנים שדורשים מדידה או שליחה
-• ניווט מהיר לרשימת נכסים`,
+• זיהוי נכסים שדורשים שליחה
+• ניווט מהיר – קליק על כרטיס "סה"כ מבנים" או "לא נשלחו לעירייה"
+• סינון לפי תאריכים – הזן מתאריך/עד תאריך → חפש
+• רענן – כפתור בראש הלוח`,
   },
   'measured-not-exported-assets': {
     title: 'עזרה - נכסים שנמדדו ולא נשלחו',
@@ -337,7 +363,7 @@ export const HELP_CONTENT: Record<HelpContextId, HelpEntry> = {
 4. הזן שטח – העברה חלקית (מספר) או מלאה (כל השטח)
 5. אשר – הנכסים/שטחים מועברים; היסטוריה נשמרת
 
-מקרים: העברת נכס שלם, העברת חלק משטח נכס לנכס אחר במבנה היעד.`,
+מקרים: העברת נכס שלם, העברת חלק משטח נכס לנכס אחר במבנה היעד, הוספת נכס 999 (שטח משותף).`,
   },
   'asset-search': {
     title: 'עזרה - חיפוש נכס',
@@ -358,14 +384,12 @@ export const HELP_CONTENT: Record<HelpContextId, HelpEntry> = {
 };
 
 /** Map tab type to help context */
-export function getHelpContextForTabType(
-  tabType: string
-): HelpContextId {
+export function getHelpContextForTabType(tabType: string): HelpContextId {
   const map: Record<string, HelpContextId> = {
     general: 'general',
     'measurement-progress-dashboard': 'measurement-progress-dashboard',
-    'buildings': 'buildings',
-    'assets': 'assets',
+    buildings: 'buildings',
+    assets: 'assets',
     'asset-details': 'asset-details',
     'asset-types': 'asset-types',
     'measured-not-exported-assets': 'measured-not-exported-assets',
@@ -375,8 +399,8 @@ export function getHelpContextForTabType(
     'field-config': 'field-config',
     'user-management': 'user-management',
     'system-configuration': 'system-configuration',
-    'operators': 'operators',
-    'managers': 'managers',
+    operators: 'operators',
+    managers: 'managers',
     'building-list-import': 'building-list-import',
     'assets-file-import': 'assets-file-import',
     'assets-skeleton-import': 'assets-file-import',
@@ -384,7 +408,8 @@ export function getHelpContextForTabType(
     'transfer-areas': 'transfer-areas',
     'asset-search': 'asset-search',
     'audit-log': 'audit-log',
-    'admin': 'general',
+    admin: 'general',
+    'mobile-tasks-upload': 'inspection-tasks',
   };
   return map[tabType] ?? 'general';
 }

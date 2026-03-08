@@ -39,10 +39,10 @@ export function Toast({ message, type = 'error', onClose, duration }: ToastProps
       icon: <CheckCircle className="w-7 h-7 text-green-600" />,
     },
     info: {
-      bg: 'bg-blue-50',
-      border: 'border-blue-200',
-      text: 'text-blue-800',
-      icon: <Info className="w-7 h-7 text-app-accent" />,
+      bg: 'bg-theme-highlight',
+      border: 'border-theme-card-border',
+      text: 'text-theme-tab-active',
+      icon: <Info className="w-7 h-7 text-theme-tab-active" />,
     },
   };
 

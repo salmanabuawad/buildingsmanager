@@ -7,9 +7,18 @@
 
 import { api } from './api';
 
+/** Validation mode: off = no validation; before_save = validate only on save; online = validate as user types/blur */
+export type ValidationMode = 'off' | 'before_save' | 'online';
+
+/** Theme identifiers. ocean = deep teal/blue; mist = lighter slate, airy. */
+export type ThemeId = 'ocean' | 'mist';
+
 export interface UIConfig {
   validation_rules_enabled: boolean;
-  validate_inline: boolean;
+  /** When to run validation. Default: before_save */
+  validation_mode?: ValidationMode;
+  /** Active theme. Default: ocean */
+  theme_id?: ThemeId;
 }
 
 export interface EmailConfig {
@@ -57,7 +66,7 @@ class SystemConfigService {
       return config;
     } catch (error) {
       console.error('Error loading UI config:', error);
-      return { validation_rules_enabled: false, validate_inline: true };
+      return { validation_rules_enabled: false, validation_mode: 'before_save' };
     }
   }
 
@@ -160,7 +169,7 @@ class SystemConfigService {
   }
 
   /**
-   * Check if validation rules are enabled
+   * Check if validation rules are enabled (validation_mode !== 'off')
    */
   async isValidationRulesEnabled(): Promise<boolean> {
     const uiConfig = await this.getUIConfig();
@@ -168,11 +177,11 @@ class SystemConfigService {
   }
 
   /**
-   * Check if inline validation (after cell blur) is enabled
+   * Get validation mode: off | before_save | online
    */
-  async isValidateInlineEnabled(): Promise<boolean> {
+  async getValidationMode(): Promise<ValidationMode> {
     const uiConfig = await this.getUIConfig();
-    return uiConfig.validate_inline;
+    return uiConfig.validation_mode ?? 'before_save';
   }
 
   /**

@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
-import { FieldConfiguration, api } from '../lib/api';
+import { FieldConfiguration, api, toBoolean } from '../lib/api';
+import { useFieldConfigInvalidate } from '../contexts/FieldConfigContext';
 import { Save, X, RefreshCw, Download, Upload, Filter } from 'lucide-react';
 import { Toast } from './Toast';
 import * as XLSX from 'xlsx';
@@ -9,6 +10,7 @@ import { useGridPreferences } from '../lib/useGridPreferences';
 import { exportToExcel } from '../lib/excelExport';
 
 export function FieldConfigManager() {
+  const invalidateFieldConfig = useFieldConfigInvalidate();
   const [configurations, setConfigurations] = useState<FieldConfiguration[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -65,9 +67,8 @@ export function FieldConfigManager() {
       // Reload configurations
       await loadConfigurations();
       
-      // Clear cache so grids reload the new settings
-      const { clearFieldConfigCache } = await import('../lib/fieldConfigUtils');
-      clearFieldConfigCache();
+      // Invalidate cache so grids reload the new settings without page refresh
+      invalidateFieldConfig();
       
       // Clear dirty state for this specific config
       const key = `${gridName}-${fieldName}`;
@@ -103,9 +104,8 @@ export function FieldConfigManager() {
       await api.fieldConfigurations.delete(gridName, fieldName);
       await loadConfigurations();
       
-      // Clear cache
-      const { clearFieldConfigCache } = await import('../lib/fieldConfigUtils');
-      clearFieldConfigCache();
+      // Invalidate cache so grids reload
+      invalidateFieldConfig();
       
       setToast({ 
         message: 'הגדרות השדה נמחקו בהצלחה', 
@@ -271,9 +271,10 @@ export function FieldConfigManager() {
         const hebrewName = hebrewNameIndex !== -1 ? String(row[hebrewNameIndex] || '').trim() : undefined;
         const widthChars = widthCharsIndex !== -1 ? parseInt(String(row[widthCharsIndex] || '10')) : 10;
         const padding = paddingIndex !== -1 ? parseInt(String(row[paddingIndex] || '8')) : 8;
-        const pinned = pinnedIndex !== -1 ? (String(row[pinnedIndex] || '').trim() === 'כן' || String(row[pinnedIndex] || '').trim().toLowerCase() === 'yes' || String(row[pinnedIndex] || '').trim() === 'true') : false;
+        const pinned = pinnedIndex !== -1 ? toBoolean(String(row[pinnedIndex] || '').trim()) : false;
         const pinSide = pinSideIndex !== -1 ? (String(row[pinSideIndex] || '').trim() === 'שמאל' || String(row[pinSideIndex] || '').trim().toLowerCase() === 'left' ? 'left' : String(row[pinSideIndex] || '').trim() === 'ימין' || String(row[pinSideIndex] || '').trim().toLowerCase() === 'right' ? 'right' : null) : null;
-        const visible = visibleIndex !== -1 ? (String(row[visibleIndex] || '').trim() !== 'לא' && String(row[visibleIndex] || '').trim().toLowerCase() !== 'no' && String(row[visibleIndex] || '').trim() !== 'false') : true;
+        const visibleRaw = visibleIndex !== -1 ? String(row[visibleIndex] || '').trim() : '';
+        const visible = visibleIndex !== -1 ? (visibleRaw === '' ? true : toBoolean(visibleRaw)) : true;
         const columnOrder = columnOrderIndex !== -1 ? (row[columnOrderIndex] ? parseInt(String(row[columnOrderIndex])) : undefined) : undefined;
 
         payload.push({
@@ -297,9 +298,8 @@ export function FieldConfigManager() {
       // Reload configurations
       await loadConfigurations();
       
-      // Clear cache
-      const { clearFieldConfigCache } = await import('../lib/fieldConfigUtils');
-      clearFieldConfigCache();
+      // Invalidate cache so grids reload
+      invalidateFieldConfig();
 
       setToast({ 
         message: `יובאו ${importedCount} הגדרות שדות בהצלחה${errorCount > 0 ? `, ${errorCount} שגיאות` : ''}`, 
@@ -336,8 +336,7 @@ export function FieldConfigManager() {
       'buildings-list',
       'assets-list',
       'asset-details-main',
-      'asset-details-history',
-      'inspection-tasks'
+      'asset-details-history'
     ];
     
     // Sort grid names: priority grids first, then alphabetically
@@ -434,9 +433,8 @@ export function FieldConfigManager() {
       // Reload configurations
       await loadConfigurations();
       
-      // Clear cache
-      const { clearFieldConfigCache } = await import('../lib/fieldConfigUtils');
-      clearFieldConfigCache();
+      // Invalidate cache so grids reload
+      invalidateFieldConfig();
       
       // Clear all dirty states
       setDirtyConfigs(new Map());
@@ -683,7 +681,7 @@ export function FieldConfigManager() {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="text-center">
-          <RefreshCw className="h-12 w-12 text-app-accent animate-spin mx-auto" />
+          <RefreshCw className="h-12 w-12 text-theme-tab-active animate-spin mx-auto" />
           <p className="mt-4 text-slate-700 font-medium">טוען הגדרות שדות...</p>
         </div>
       </div>
@@ -701,13 +699,13 @@ export function FieldConfigManager() {
         />
       )}
 
-      <div className="bg-white rounded-xl shadow-lg border border-blue-100 p-6">
+      <div className="bg-white rounded-xl shadow-lg border border-theme-card-border p-6">
         <div className="flex items-center justify-between mb-6">
           <h1 className="text-2xl font-bold text-slate-800">ניהול הגדרות שדות</h1>
           <div className="flex items-center gap-2">
             <button
               onClick={handleExportToExcel}
-              className="flex items-center gap-1.5 px-3 py-1.5 text-sm bg-app-accent hover:bg-app-accent-hover active:bg-app-accent-active text-white rounded-md transition-all duration-200 shadow-sm hover:shadow-md font-medium"
+              className="flex items-center gap-1.5 px-3 py-1.5 text-sm bg-theme-tab-active hover:bg-theme-tab-active-hover active:bg-theme-tab-active-active text-white rounded-md transition-all duration-200 shadow-sm hover:shadow-md font-medium"
               title="ייצא ל-Excel"
             >
               <Download className="h-4 w-4" />
@@ -716,7 +714,7 @@ export function FieldConfigManager() {
             <button
               onClick={() => fileInputRef.current?.click()}
               disabled={saving}
-              className="flex items-center gap-1.5 px-3 py-1.5 text-sm bg-app-accent hover:bg-app-accent-hover active:bg-app-accent-active disabled:bg-gray-400  text-white rounded-md transition-all duration-200 shadow-sm hover:shadow-md disabled:shadow-none font-medium"
+              className="flex items-center gap-1.5 px-3 py-1.5 text-sm bg-cyan-500 hover:bg-cyan-600 active:bg-cyan-700 disabled:bg-gray-400  text-white rounded-md transition-all duration-200 shadow-sm hover:shadow-md disabled:shadow-none font-medium"
               title="ייבא מ-Excel"
             >
               <Upload className="h-4 w-4" />
@@ -771,7 +769,7 @@ export function FieldConfigManager() {
             <button
               onClick={handleSaveAll}
               disabled={saving || totalChanges === 0}
-              className="flex items-center gap-1.5 px-3 py-1.5 text-sm bg-app-accent hover:bg-app-accent-hover active:bg-app-accent-active disabled:bg-gray-400  text-white rounded-md transition-all duration-200 shadow-sm hover:shadow-md disabled:shadow-none font-medium"
+              className="flex items-center gap-1.5 px-3 py-1.5 text-sm bg-theme-tab-active hover:bg-theme-tab-active-hover active:bg-theme-tab-active-active disabled:bg-gray-400  text-white rounded-md transition-all duration-200 shadow-sm hover:shadow-md disabled:shadow-none font-medium"
             >
               {saving ? (
                 <RefreshCw className="h-4 w-4 animate-spin" />
@@ -787,7 +785,7 @@ export function FieldConfigManager() {
           הגדר רוחב ותפיחה לכל שדה במערכת. כל הטבלאות ישתמשו בהגדרות אלה.
         </p>
 
-        <div className="bg-white rounded-xl shadow-lg hover:shadow-xl transition-shadow duration-200 overflow-hidden border-2 border-blue-400 w-full">
+        <div className="bg-white rounded-xl shadow-lg hover:shadow-xl transition-shadow duration-200 overflow-hidden border-2 border-theme-action-accent w-full">
           <div className="ag-theme-alpine" style={{ height: '60vh', width: '100%', minWidth: '100%', overflowX: 'auto' }}>
             <AgGridReact<FieldConfiguration>
             ref={gridRef}

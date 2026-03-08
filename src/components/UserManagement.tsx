@@ -1,14 +1,17 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { api } from '../lib/api';
 import { useUserRole } from '../contexts/UserRoleContext';
 import { Loader2, User, Shield, UserX, CheckCircle2, XCircle, Save, RefreshCw, Key, X, Eye, EyeOff, Plus, Trash2, AlertCircle } from 'lucide-react';
+import { AgGridReact } from 'ag-grid-react';
+import { ColDef, CellValueChangedEvent } from 'ag-grid-community';
 
 interface User {
   user_id: number;
   auth_user_id: string | null;
   user_name: string;
   user_email: string | null;
-  full_name: string | null;
+  full_name?: string | null;
+  phone?: string | null;
   user_role: 'admin' | 'user' | 'inspector';
   active: boolean;
   created_at: string;
@@ -33,12 +36,13 @@ export function UserManagement() {
     user_name: '',
     user_email: '',
     full_name: '',
+    phone: '',
     password: '',
     confirmPassword: '',
     user_role: 'user' as 'admin' | 'user' | 'inspector',
   });
   const [creatingUser, setCreatingUser] = useState(false);
-  const [editingCell, setEditingCell] = useState<{ userId: number; field: 'user_name' | 'user_email' | 'full_name'; value: string } | null>(null);
+  const gridRef = useRef<AgGridReact<User>>(null);
 
   const fetchUsers = async () => {
     try {
@@ -58,7 +62,7 @@ export function UserManagement() {
     fetchUsers();
   }, []);
 
-  const handleUpdateUser = async (userId: number, updates: { user_role?: 'admin' | 'user' | 'inspector'; active?: boolean; user_name?: string; user_email?: string; full_name?: string | null }) => {
+  const handleUpdateUser = useCallback(async (userId: number, updates: { user_role?: 'admin' | 'user' | 'inspector'; active?: boolean; user_name?: string; user_email?: string | null; full_name?: string | null; phone?: string | null }) => {
     if (!isAdmin) {
       setError('אין לך הרשאה לעדכן משתמשים');
       return;
@@ -83,7 +87,7 @@ export function UserManagement() {
     } finally {
       setSaving(null);
     }
-  };
+  }, [isAdmin]);
 
   const handleRoleChange = (userId: number, newRole: 'admin' | 'user' | 'inspector') => {
     handleUpdateUser(userId, { user_role: newRole });
@@ -92,6 +96,92 @@ export function UserManagement() {
   const handleActiveToggle = (userId: number, currentActive: boolean) => {
     handleUpdateUser(userId, { active: !currentActive });
   };
+
+  const onCellValueChanged = useCallback((event: CellValueChangedEvent<User>) => {
+    const field = event.colDef.field as keyof User;
+    const user = event.data;
+    if (!user?.user_id || !field) return;
+    const newValue = event.newValue;
+    if (field === 'user_name') handleUpdateUser(user.user_id, { user_name: String(newValue ?? '').trim() || undefined });
+    else if (field === 'user_email') handleUpdateUser(user.user_id, { user_email: newValue != null ? String(newValue).trim() || null : null });
+    else if (field === 'full_name') handleUpdateUser(user.user_id, { full_name: newValue != null ? String(newValue).trim() || null : null });
+    else if (field === 'phone') handleUpdateUser(user.user_id, { phone: newValue != null ? String(newValue).trim() || null : null });
+    else if (field === 'user_role') handleUpdateUser(user.user_id, { user_role: newValue as 'admin' | 'user' | 'inspector' });
+    else if (field === 'active') handleUpdateUser(user.user_id, { active: !!newValue });
+  }, [handleUpdateUser]);
+
+  const columnDefs: ColDef<User>[] = useMemo(() => [
+    { field: 'user_name', headerName: 'שם משתמש', editable: true, cellEditor: 'agTextCellEditor', width: 130 },
+    { field: 'full_name', headerName: 'שם מלא', editable: true, cellEditor: 'agTextCellEditor', width: 130 },
+    { field: 'user_email', headerName: 'אימייל', editable: true, cellEditor: 'agTextCellEditor', width: 180, cellStyle: { direction: 'ltr', textAlign: 'left' } },
+    { field: 'phone', headerName: 'טלפון', editable: true, cellEditor: 'agTextCellEditor', width: 120, cellStyle: { direction: 'ltr', textAlign: 'left' } },
+    {
+      field: 'user_role',
+      headerName: 'תפקיד',
+      editable: true,
+      cellEditor: 'agSelectCellEditor',
+      cellEditorParams: { values: ['מנהל', 'פקח', 'משתמש'] },
+      width: 100,
+      valueGetter: (p) => (p.data?.user_role === 'admin' ? 'מנהל' : p.data?.user_role === 'inspector' ? 'פקח' : 'משתמש'),
+      valueParser: (p) => ({ 'מנהל': 'admin', 'פקח': 'inspector', 'משתמש': 'user' }[p.newValue as string] || 'user'),
+      valueSetter: (p) => { if (p.data) p.data.user_role = ({ 'מנהל': 'admin', 'פקח': 'inspector', 'משתמש': 'user' }[p.newValue as string] || 'user') as 'admin' | 'user' | 'inspector'; },
+    },
+    {
+      field: 'active',
+      headerName: 'פעיל',
+      editable: true,
+      cellEditor: 'agSelectCellEditor',
+      cellEditorParams: { values: ['כן', 'לא'] },
+      width: 80,
+      valueGetter: (p) => (p.data?.active ? 'כן' : 'לא'),
+      valueParser: (p) => p.newValue === 'כן',
+      valueSetter: (p) => { if (p.data) p.data.active = p.newValue === 'כן'; },
+    },
+    {
+      field: 'created_at',
+      headerName: 'תאריך יצירה',
+      editable: false,
+      width: 110,
+      valueFormatter: (p) => p.value ? new Date(p.value).toLocaleDateString('he-IL') : '',
+    },
+    {
+      headerName: 'פעולות',
+      width: 200,
+      pinned: 'left',
+      editable: false,
+      cellRenderer: (params: any) => {
+        const user = params.data as User;
+        if (!user) return null;
+        return (
+          <div className="flex items-center gap-1 justify-start h-full">
+            <button
+              onClick={() => openPasswordModal(user.user_id)}
+              disabled={saving === user.user_id || deleting === user.user_id}
+              className="px-2 py-1 text-xs rounded bg-theme-highlight text-theme-tab-active hover:bg-theme-highlight/80 disabled:opacity-50"
+              title="שנה סיסמה"
+            >
+              <Key className="h-3 w-3 inline" /> סיסמה
+            </button>
+            <button
+              onClick={() => handleActiveToggle(user.user_id, user.active)}
+              disabled={saving === user.user_id || deleting === user.user_id}
+              className={`px-2 py-1 text-xs rounded disabled:opacity-50 ${user.active ? 'bg-red-100 text-red-800' : 'bg-green-100 text-green-800'}`}
+            >
+              {saving === user.user_id ? <Loader2 className="h-3 w-3 animate-spin inline" /> : user.active ? 'השבת' : 'הפעל'}
+            </button>
+            <button
+              onClick={() => setDeleteConfirmOpen(user.user_id)}
+              disabled={saving === user.user_id || deleting === user.user_id}
+              className="px-2 py-1 text-xs rounded bg-red-100 text-red-800 hover:bg-red-200 disabled:opacity-50"
+              title="מחק"
+            >
+              <Trash2 className="h-3 w-3 inline" />
+            </button>
+          </div>
+        );
+      },
+    },
+  ], [saving, deleting]);
 
   const handleChangePassword = async (userId: number) => {
     if (!isAdmin) {
@@ -174,9 +264,10 @@ export function UserManagement() {
       const result = await api.users.create({
         user_name: newUser.user_name,
         user_email: newUser.user_email,
-        full_name: newUser.full_name || null,
         password: newUser.password,
         user_role: newUser.user_role,
+        full_name: newUser.full_name.trim() || undefined,
+        phone: newUser.phone.trim() || undefined,
       });
 
       // Refresh users list
@@ -188,6 +279,7 @@ export function UserManagement() {
         user_name: '',
         user_email: '',
         full_name: '',
+        phone: '',
         password: '',
         confirmPassword: '',
         user_role: 'user',
@@ -234,7 +326,6 @@ export function UserManagement() {
     setNewUser({
       user_name: '',
       user_email: '',
-      full_name: '',
       password: '',
       confirmPassword: '',
       user_role: 'user',
@@ -248,6 +339,7 @@ export function UserManagement() {
       user_name: '',
       user_email: '',
       full_name: '',
+      phone: '',
       password: '',
       confirmPassword: '',
       user_role: 'user',
@@ -271,7 +363,7 @@ export function UserManagement() {
     <div className="p-6 max-w-7xl mx-auto">
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-3">
-          <User className="h-6 w-6 text-app-accent" />
+          <User className="h-6 w-6 text-purple-600" />
           <h1 className="text-2xl font-bold text-slate-900">ניהול משתמשים</h1>
         </div>
         <div className="flex items-center gap-2">
@@ -285,7 +377,7 @@ export function UserManagement() {
           <button
             onClick={fetchUsers}
             disabled={loading}
-            className="flex items-center gap-2 px-4 py-2 bg-app-accent text-white rounded-lg hover:bg-app-accent-hover transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            className="flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
             רענן
@@ -301,190 +393,26 @@ export function UserManagement() {
 
       {loading ? (
         <div className="flex items-center justify-center py-12">
-          <Loader2 className="h-8 w-8 text-app-accent animate-spin" />
+          <Loader2 className="h-8 w-8 text-purple-600 animate-spin" />
         </div>
       ) : (
-        <div className="bg-white rounded-lg shadow-lg border border-slate-200 overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full" dir="rtl">
-              <thead className="bg-gradient-to-r bg-[#f0f0f0] border-b border-slate-200">
-                <tr>
-                  <th className="px-4 py-3 text-right text-sm font-semibold text-slate-700">שם משתמש</th>
-                  <th className="px-4 py-3 text-right text-sm font-semibold text-slate-700">שם מלא</th>
-                  <th className="px-4 py-3 text-right text-sm font-semibold text-slate-700">אימייל</th>
-                  <th className="px-4 py-3 text-right text-sm font-semibold text-slate-700">תפקיד</th>
-                  <th className="px-4 py-3 text-right text-sm font-semibold text-slate-700">סטטוס</th>
-                  <th className="px-4 py-3 text-right text-sm font-semibold text-slate-700">תאריך יצירה</th>
-                  <th className="px-4 py-3 text-right text-sm font-semibold text-slate-700">פעולות</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-200">
-                {users.length === 0 ? (
-                  <tr>
-                    <td colSpan={7} className="px-4 py-8 text-center text-slate-500">
-                      לא נמצאו משתמשים
-                    </td>
-                  </tr>
-                ) : (
-                  users.map((user) => (
-                    <tr key={user.user_id} className="hover:bg-slate-50/50 transition-colors">
-                      <td className="px-4 py-3">
-                        {editingCell?.userId === user.user_id && editingCell?.field === 'user_name' ? (
-                          <input
-                            type="text"
-                            value={editingCell.value}
-                            onChange={(e) => setEditingCell((c) => (c ? { ...c, value: e.target.value } : null))}
-                            onBlur={() => {
-                              const v = editingCell?.value.trim();
-                              if (editingCell && v && v !== user.user_name) {
-                                handleUpdateUser(user.user_id, { user_name: v });
-                              }
-                              setEditingCell(null);
-                            }}
-                            onKeyDown={(e) => e.key === 'Enter' && (e.target as HTMLInputElement).blur()}
-                            autoFocus
-                            className="w-full px-2 py-1 text-sm border border-app-input-border rounded focus:ring-2 focus:ring-app-accent"
-                          />
-                        ) : (
-                          <span
-                            className="text-sm text-slate-900 font-medium cursor-pointer hover:bg-slate-100 rounded px-1 -mx-1"
-                            onClick={() => setEditingCell({ userId: user.user_id, field: 'user_name', value: user.user_name })}
-                          >
-                            {user.user_name}
-                          </span>
-                        )}
-                      </td>
-                      <td className="px-4 py-3">
-                        {editingCell?.userId === user.user_id && editingCell?.field === 'full_name' ? (
-                          <input
-                            type="text"
-                            value={editingCell.value}
-                            onChange={(e) => setEditingCell((c) => (c ? { ...c, value: e.target.value } : null))}
-                            onBlur={() => {
-                              const v = editingCell?.value.trim() || null;
-                              if (editingCell && v !== (user.full_name || '')) {
-                                handleUpdateUser(user.user_id, { full_name: v || null });
-                              }
-                              setEditingCell(null);
-                            }}
-                            onKeyDown={(e) => e.key === 'Enter' && (e.target as HTMLInputElement).blur()}
-                            autoFocus
-                            className="w-full px-2 py-1 text-sm border border-app-input-border rounded focus:ring-2 focus:ring-app-accent"
-                          />
-                        ) : (
-                          <span
-                            className="text-sm text-slate-600 cursor-pointer hover:bg-slate-100 rounded px-1 -mx-1"
-                            onClick={() => setEditingCell({ userId: user.user_id, field: 'full_name', value: user.full_name || '' })}
-                          >
-                            {user.full_name || '-'}
-                          </span>
-                        )}
-                      </td>
-                      <td className="px-4 py-3">
-                        {editingCell?.userId === user.user_id && editingCell?.field === 'user_email' ? (
-                          <input
-                            type="email"
-                            value={editingCell.value}
-                            onChange={(e) => setEditingCell((c) => (c ? { ...c, value: e.target.value } : null))}
-                            onBlur={() => {
-                              if (editingCell && editingCell.value.trim() !== (user.user_email || '')) {
-                                handleUpdateUser(user.user_id, { user_email: editingCell.value.trim() || undefined });
-                              }
-                              setEditingCell(null);
-                            }}
-                            onKeyDown={(e) => e.key === 'Enter' && (e.target as HTMLInputElement).blur()}
-                            autoFocus
-                            className="w-full px-2 py-1 text-sm border border-app-input-border rounded focus:ring-2 focus:ring-app-accent"
-                          />
-                        ) : (
-                          <span
-                            className="text-sm text-slate-600 cursor-pointer hover:bg-slate-100 rounded px-1 -mx-1"
-                            onClick={() => setEditingCell({ userId: user.user_id, field: 'user_email', value: user.user_email || '' })}
-                          >
-                            {user.user_email || '-'}
-                          </span>
-                        )}
-                      </td>
-                      <td className="px-4 py-3">
-                        <select
-                          value={user.user_role}
-                          onChange={(e) => handleRoleChange(user.user_id, e.target.value as 'admin' | 'user' | 'inspector')}
-                          disabled={saving === user.user_id}
-                          className="px-3 py-1.5 text-sm border border-app-input-border rounded-lg bg-white hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-app-accent disabled:opacity-50 disabled:cursor-not-allowed"
-                        >
-                          <option value="admin">מנהל</option>
-                          <option value="user">משתמש</option>
-                          <option value="inspector">פקח</option>
-                        </select>
-                      </td>
-                      <td className="px-4 py-3">
-                        <div className="flex items-center gap-2">
-                          {user.active ? (
-                            <>
-                              <CheckCircle2 className="h-4 w-4 text-green-600" />
-                              <span className="text-sm text-green-700">פעיל</span>
-                            </>
-                          ) : (
-                            <>
-                              <XCircle className="h-4 w-4 text-red-600" />
-                              <span className="text-sm text-red-700">לא פעיל</span>
-                            </>
-                          )}
-                        </div>
-                      </td>
-                      <td className="px-4 py-3 text-sm text-slate-600">
-                        {new Date(user.created_at).toLocaleDateString('he-IL')}
-                      </td>
-                      <td className="px-4 py-3">
-                        <div className="flex items-center gap-2">
-                          <button
-                            onClick={() => openPasswordModal(user.user_id)}
-                            disabled={saving === user.user_id || deleting === user.user_id}
-                            className="px-3 py-1.5 text-sm rounded-lg bg-blue-50 text-blue-700 hover:bg-blue-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1"
-                            title="שנה סיסמה"
-                          >
-                            <Key className="h-4 w-4" />
-                            שנה סיסמה
-                          </button>
-                          <button
-                            onClick={() => handleActiveToggle(user.user_id, user.active)}
-                            disabled={saving === user.user_id || deleting === user.user_id}
-                            className={`px-3 py-1.5 text-sm rounded-lg transition-colors ${
-                              user.active
-                                ? 'bg-red-50 text-red-700 hover:bg-red-100'
-                                : 'bg-green-50 text-green-700 hover:bg-green-100'
-                            } disabled:opacity-50 disabled:cursor-not-allowed`}
-                          >
-                            {saving === user.user_id ? (
-                              <Loader2 className="h-4 w-4 animate-spin" />
-                            ) : user.active ? (
-                              <>
-                                <UserX className="h-4 w-4 inline-block ml-1" />
-                                השבת
-                              </>
-                            ) : (
-                              <>
-                                <CheckCircle2 className="h-4 w-4 inline-block ml-1" />
-                                הפעל
-                              </>
-                            )}
-                          </button>
-                          <button
-                            onClick={() => setDeleteConfirmOpen(user.user_id)}
-                            disabled={saving === user.user_id || deleting === user.user_id}
-                            className="px-3 py-1.5 text-sm rounded-lg bg-red-50 text-red-700 hover:bg-red-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1"
-                            title="מחק משתמש"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                            מחק
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
+        <div className="bg-white rounded-lg shadow-lg border border-purple-200 overflow-hidden">
+          <div className="ag-theme-alpine" style={{ height: 400, width: '100%', direction: 'rtl' }}>
+            <AgGridReact<User>
+              ref={gridRef}
+              rowData={users}
+              columnDefs={columnDefs}
+              onCellValueChanged={onCellValueChanged}
+              getRowId={(p) => String(p.data?.user_id)}
+              defaultColDef={{
+                resizable: true,
+                sortable: true,
+                cellStyle: { textAlign: 'right', direction: 'rtl' },
+              }}
+              singleClickEdit={true}
+              stopEditingWhenCellsLoseFocus={true}
+              localeText={{ noRowsToShow: 'לא נמצאו משתמשים' }}
+            />
           </div>
         </div>
       )}
@@ -521,7 +449,7 @@ export function UserManagement() {
                     value={newPassword}
                     onChange={(e) => setNewPassword(e.target.value)}
                     disabled={changingPassword}
-                    className="w-full px-3 py-2 border border-app-input-border rounded-lg focus:outline-none focus:ring-2 focus:ring-app-accent disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="w-full px-3 py-2 border border-purple-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 disabled:opacity-50 disabled:cursor-not-allowed"
                     placeholder="הזן סיסמה חדשה"
                   />
                   <button
@@ -543,7 +471,7 @@ export function UserManagement() {
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
                   disabled={changingPassword}
-                  className="w-full px-3 py-2 border border-app-input-border rounded-lg focus:outline-none focus:ring-2 focus:ring-app-accent disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="w-full px-3 py-2 border border-purple-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 disabled:opacity-50 disabled:cursor-not-allowed"
                   placeholder="הזן שוב את הסיסמה"
                 />
               </div>
@@ -565,7 +493,7 @@ export function UserManagement() {
                   }
                 }}
                 disabled={changingPassword || !newPassword || !confirmPassword}
-                className="px-4 py-2 text-sm font-medium text-white bg-app-accent hover:bg-app-accent-hover rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                className="px-4 py-2 text-sm font-medium text-white bg-purple-600 hover:bg-purple-700 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
               >
                 {changingPassword ? (
                   <>
@@ -615,22 +543,22 @@ export function UserManagement() {
                   value={newUser.user_name}
                   onChange={(e) => setNewUser({ ...newUser, user_name: e.target.value })}
                   disabled={creatingUser}
-                  className="w-full px-3 py-2 border border-app-input-border rounded-lg focus:outline-none focus:ring-2 focus:ring-app-accent disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="w-full px-3 py-2 border border-purple-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 disabled:opacity-50 disabled:cursor-not-allowed"
                   placeholder="הזן שם משתמש"
                 />
               </div>
 
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-2">
-                  שם מלא
+                  שם מלא (אופציונלי)
                 </label>
                 <input
                   type="text"
                   value={newUser.full_name}
                   onChange={(e) => setNewUser({ ...newUser, full_name: e.target.value })}
                   disabled={creatingUser}
-                  className="w-full px-3 py-2 border border-app-input-border rounded-lg focus:outline-none focus:ring-2 focus:ring-app-accent disabled:opacity-50 disabled:cursor-not-allowed"
-                  placeholder="הזן שם מלא (אופציונלי)"
+                  className="w-full px-3 py-2 border border-purple-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                  placeholder="הזן שם מלא"
                 />
               </div>
 
@@ -643,8 +571,22 @@ export function UserManagement() {
                   value={newUser.user_email}
                   onChange={(e) => setNewUser({ ...newUser, user_email: e.target.value })}
                   disabled={creatingUser}
-                  className="w-full px-3 py-2 border border-app-input-border rounded-lg focus:outline-none focus:ring-2 focus:ring-app-accent disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="w-full px-3 py-2 border border-purple-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 disabled:opacity-50 disabled:cursor-not-allowed"
                   placeholder="הזן אימייל"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-2">
+                  טלפון (אופציונלי)
+                </label>
+                <input
+                  type="tel"
+                  value={newUser.phone}
+                  onChange={(e) => setNewUser({ ...newUser, phone: e.target.value })}
+                  disabled={creatingUser}
+                  className="w-full px-3 py-2 border border-purple-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                  placeholder="הזן טלפון"
                 />
               </div>
 
@@ -656,13 +598,12 @@ export function UserManagement() {
                   value={newUser.user_role}
                   onChange={(e) => setNewUser({ ...newUser, user_role: e.target.value as 'admin' | 'user' | 'inspector' })}
                   disabled={creatingUser}
-                  className="w-full px-3 py-2 border border-app-input-border rounded-lg bg-white hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-app-accent disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="w-full px-3 py-2 border border-purple-300 rounded-lg bg-white hover:bg-purple-50 focus:outline-none focus:ring-2 focus:ring-purple-500 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <option value="user">משתמש</option>
-                  <option value="admin">מנהל</option>
                   <option value="inspector">פקח</option>
+                  <option value="admin">מנהל</option>
                 </select>
-                <p className="mt-1 text-xs text-slate-500">מנהל: גישה מלאה. משתמש: מבנים, נכסים ועריכה. פקח: משימות ביקורת בלבד.</p>
               </div>
 
               <div>
@@ -675,7 +616,7 @@ export function UserManagement() {
                     value={newUser.password}
                     onChange={(e) => setNewUser({ ...newUser, password: e.target.value })}
                     disabled={creatingUser}
-                    className="w-full px-3 py-2 border border-app-input-border rounded-lg focus:outline-none focus:ring-2 focus:ring-app-accent disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="w-full px-3 py-2 border border-purple-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 disabled:opacity-50 disabled:cursor-not-allowed"
                     placeholder="הזן סיסמה"
                   />
                   <button
@@ -697,7 +638,7 @@ export function UserManagement() {
                   value={newUser.confirmPassword}
                   onChange={(e) => setNewUser({ ...newUser, confirmPassword: e.target.value })}
                   disabled={creatingUser}
-                  className="w-full px-3 py-2 border border-app-input-border rounded-lg focus:outline-none focus:ring-2 focus:ring-app-accent disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="w-full px-3 py-2 border border-purple-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 disabled:opacity-50 disabled:cursor-not-allowed"
                   placeholder="הזן שוב את הסיסמה"
                 />
               </div>

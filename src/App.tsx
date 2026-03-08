@@ -1,3 +1,9 @@
+/**
+ * Copyright (c) 2025 Kortex Digital. All rights reserved. Proprietary.
+ * Contact: info@kortexd.com
+ * NO REVERSE ENGINEERING. Use by AI/ML tools (e.g. LLMs, code assistants,
+ * training data, or automated analysis) is prohibited. See COPYRIGHT.
+ */
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { BuildingsList, BuildingsListRef } from './components/BuildingsList';
 import { AssetsList, AssetsListRef } from './components/AssetsList';
@@ -18,20 +24,25 @@ import { OperatorsManager } from './components/OperatorsManager';
 import { ManagersManager } from './components/ManagersManager';
 import { MeasuredNotExportedAssets } from './components/MeasuredNotExportedAssets';
 import { MeasurementProgressDashboard } from './components/MeasurementProgressDashboard';
-import { InspectionTasks } from './components/InspectionTasks';
-import { X, Settings, Building, Home, Tag, Search, Plus, Building2, Upload, ChevronDown, ChevronLeft, Trash2, Database, CheckCircle2, AlertCircle, Loader2, Menu, MapPin, Edit, Square, Save, FileText, RefreshCw, Download, LogOut, Users, UserCog, BarChart3, Mail, ClipboardList, HelpCircle, Bell, User } from 'lucide-react';
+import { X, Settings, Building, Home, Tag, Search, Plus, Building2, Upload, ChevronDown, ChevronLeft, Trash2, Database, CheckCircle2, AlertCircle, Loader2, Menu, MapPin, Edit, Save, FileText, RefreshCw, Download, LogOut, Users, UserCog, BarChart3, Mail, ClipboardList, HelpCircle, User, Sun, SlidersHorizontal } from 'lucide-react';
 import { api, AssetType } from './lib/api';
 import { getSession, logoutUsersTable, loginByTaskToken } from './lib/usersTableAuth';
 import { assetValidators, validateEntity, getAssetTypes, getLatestExportDate as getCachedLatestExportDate } from './lib/validation';
-import { usePreferences } from './contexts/PreferencesContext';
 import { useUserRole } from './contexts/UserRoleContext';
+import { useUIConfig } from './contexts/UIConfigContext';
 import { useHelp } from './contexts/HelpContext';
+import { useValidationRules } from './contexts/ValidationContext';
 import { Login } from './components/Login';
 import { HelpModal } from './components/HelpModal';
+import { MobileTasksAndUpload } from './components/MobileTasksAndUpload';
+import { InspectionTasksManager } from './components/InspectionTasksManager';
+import { useIsMobile } from './hooks/useIsMobile';
+import { FontSizeProvider } from './contexts/FontSizeContext';
+import { setFontSizeStore } from './lib/fontSizeStore';
 
 interface Tab {
   id: string;
-  type: 'buildings' | 'assets' | 'admin' | 'asset-types' | 'asset-search' | 'validation-rules' | 'building-list-import' | 'assets-file-import' | 'assets-skeleton-import' | 'asset-details' | 'transfer-areas' | 'address-list' | 'field-config' | 'asset-data-entry' | 'audit-log' | 'user-management' | 'system-configuration' | 'operators' | 'managers' | 'measured-not-exported-assets' | 'measurement-progress-dashboard' | 'inspection-tasks' | 'no-tasks-access';
+  type: 'buildings' | 'assets' | 'admin' | 'asset-types' | 'asset-search' | 'validation-rules' | 'building-list-import' | 'assets-file-import' | 'assets-skeleton-import' | 'asset-details' | 'transfer-areas' | 'address-list' | 'field-config' | 'asset-data-entry' | 'audit-log' | 'user-management' | 'system-configuration' | 'operators' | 'managers' | 'measured-not-exported-assets' | 'measurement-progress-dashboard' | 'mobile-tasks-upload' | 'inspection-tasks';
   buildingNumber?: number;
   label: string;
   refreshKey?: number;
@@ -45,32 +56,25 @@ interface Tab {
 }
 
 function App() {
-  const { preferences, setEditMode } = usePreferences();
-  const { isLoading: roleLoading, isReadOnly, isAdmin, isInspector, isDev, userRole, refreshRole } = useUserRole();
-  const { setContextFromTabType, openHelp } = useHelp();
-
+  const { isLoading: roleLoading, isReadOnly, isAdmin, isInspector, userRole, refreshRole } = useUserRole();
   const roleLabel = userRole === 'admin' ? 'מנהל' : userRole === 'inspector' ? 'פקח' : 'משתמש';
   const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
   const [checkingAuth, setCheckingAuth] = useState(true);
-  
+
   const [tabs, setTabs] = useState<Tab[]>(() => {
     const s = getSession();
-    const dev = s?.user_name === 'dev';
     if (s?.user_role === 'inspector') {
-      return dev ? [{ id: 'inspection-tasks', type: 'inspection-tasks', label: 'משימות ביקורת', refreshKey: Date.now() }] : [{ id: 'no-tasks-access', type: 'no-tasks-access', label: 'אין גישה למשימות ביקורת', refreshKey: Date.now() }];
+      return [{ id: 'inspection-tasks', type: 'inspection-tasks', label: 'משימות ביקורת', refreshKey: Date.now() }];
     }
-    const base = [
+    return [
       { id: 'measurement-progress-dashboard', type: 'measurement-progress-dashboard', label: 'התקדמות פעילות מדידות', refreshKey: Date.now() },
-      { id: 'buildings', type: 'buildings', label: 'מבנים', refreshKey: Date.now() }
+      { id: 'inspection-tasks', type: 'inspection-tasks', label: 'משימות ביקורת', refreshKey: Date.now() },
+      { id: 'buildings', type: 'buildings', label: 'מבנים', refreshKey: Date.now() },
     ];
-    if (dev) base.splice(1, 0, { id: 'inspection-tasks', type: 'inspection-tasks', label: 'משימות ביקורת', refreshKey: Date.now() });
-    return base;
   });
   const [activeTabId, setActiveTabId] = useState(() => {
     const s = getSession();
-    const dev = s?.user_name === 'dev';
-    if (s?.user_role === 'inspector') return dev ? 'inspection-tasks' : 'no-tasks-access';
-    return 'measurement-progress-dashboard';
+    return s?.user_role === 'inspector' ? 'inspection-tasks' : 'measurement-progress-dashboard';
   });
   const [showCreateBuildingModal, setShowCreateBuildingModal] = useState(false);
   const [buildingsMenuOpen, setBuildingsMenuOpen] = useState(false);
@@ -78,6 +82,40 @@ function App() {
   const [adminMenuOpen, setAdminMenuOpen] = useState(false);
   const [systemConfigSubmenuOpen, setSystemConfigSubmenuOpen] = useState(false);
   const [managerActionsSubmenuOpen, setManagerActionsSubmenuOpen] = useState(false);
+  const [userMenuOpen, setUserMenuOpen] = useState(false);
+  const [settingsMenuOpen, setSettingsMenuOpen] = useState(false);
+  const settingsMenuRef = useRef<HTMLDivElement>(null);
+
+  type Brightness = 'light' | 'normal' | 'dark' | 'contrast';
+  type FontSize = 'small' | 'normal' | 'large';
+  const [brightness, setBrightness] = useState<Brightness>(() => {
+    const stored = localStorage.getItem('app-brightness');
+    if (stored === 'gray') return 'contrast'; // migrate old gray to contrast
+    return (stored as Brightness) || 'normal';
+  });
+  const [fontSize, setFontSize] = useState<FontSize>(() => (localStorage.getItem('app-font-size') as FontSize) || 'normal');
+
+  useEffect(() => {
+    if (brightness === 'normal') document.documentElement.removeAttribute('data-brightness');
+    else document.documentElement.setAttribute('data-brightness', brightness);
+    if (fontSize === 'normal') document.documentElement.removeAttribute('data-font-size');
+    else document.documentElement.setAttribute('data-font-size', fontSize);
+    if (brightness !== 'normal') localStorage.setItem('app-brightness', brightness);
+    else localStorage.removeItem('app-brightness');
+    if (fontSize !== 'normal') localStorage.setItem('app-font-size', fontSize);
+    else localStorage.removeItem('app-font-size');
+    setFontSizeStore(fontSize);
+  }, [brightness, fontSize]);
+
+  useEffect(() => {
+    const h = (e: MouseEvent) => {
+      if (settingsMenuOpen && settingsMenuRef.current && !settingsMenuRef.current.contains(e.target as Node)) {
+        setSettingsMenuOpen(false);
+      }
+    };
+    document.addEventListener('click', h);
+    return () => document.removeEventListener('click', h);
+  }, [settingsMenuOpen]);
   const [showBatchValidationModal, setShowBatchValidationModal] = useState(false);
   const [batchValidationModalClosing, setBatchValidationModalClosing] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -93,9 +131,13 @@ function App() {
     invalid: number;
     errors: Array<{ assetId: string; buildingNumber: number; errors: string[] }>;
   } | null>(null);
-  const [validationRulesEnabled, setValidationRulesEnabled] = useState<boolean>(false);
-  const [validateInline, setValidateInline] = useState<boolean>(true);
-  
+  const { validation_rules_enabled: validationRulesEnabled, loadUIConfig } = useUIConfig();
+  const { setContextFromTabType, openHelp } = useHelp();
+  const { refreshRules } = useValidationRules();
+  const isMobile = useIsMobile();
+  const mobileDefaultAppliedRef = useRef(false);
+  const inspectorDefaultAppliedRef = useRef(false);
+
   // Refs to child components for checking dirty state
   const buildingsListRef = useRef<BuildingsListRef | null>(null);
   const assetsListRef = useRef<AssetsListRef | null>(null);
@@ -114,22 +156,26 @@ function App() {
   const [resetExportLoading, setResetExportLoading] = useState(false);
   const [latestExportDate, setLatestExportDate] = useState<string | null>(null);
   
-  // Check authentication (users-table session only). Handle one-time token from email deep link.
+  // Check authentication (users-table session only) + handle one-time task token from email link
   useEffect(() => {
     (async () => {
       const hash = window.location.hash || '';
       const tokenMatch = hash.match(/[?&]token=([^&]+)/);
-      const token = tokenMatch ? decodeURIComponent(tokenMatch[1]) : null;
+      const token = tokenMatch ? decodeURIComponent(tokenMatch[1]) : new URLSearchParams(window.location.search).get('token');
 
       if (token && !getSession()) {
         const result = await loginByTaskToken(token);
         if (result.success) {
           setIsAuthenticated(true);
           await refreshRole();
-          const s = getSession();
-          const dev = s?.user_name === 'dev';
-          const cleanHash = dev ? `#inspection-tasks/${result.taskId}` : '';
-          window.history.replaceState(null, '', window.location.pathname + (window.location.search || '') + (cleanHash || '#'));
+          const cleanHash = result.taskId ? `#inspection-tasks/${result.taskId}` : '#inspection-tasks';
+          window.history.replaceState(null, '', window.location.pathname + (window.location.search || '') + cleanHash);
+          setTabs((prev) => {
+            const has = prev.some((t) => t.type === 'inspection-tasks');
+            if (!has) return [...prev, { id: 'inspection-tasks', type: 'inspection-tasks', label: 'משימות ביקורת', refreshKey: Date.now() }];
+            return prev;
+          });
+          setActiveTabId('inspection-tasks');
           setCheckingAuth(false);
           return;
         }
@@ -140,21 +186,18 @@ function App() {
     })();
   }, [refreshRole]);
 
-  // Inspector: only inspection-tasks tab when isDev; else no-tasks-access
+  // Inspector: only inspection-tasks tab; hide other pages
   useEffect(() => {
     if (!roleLoading && isAuthenticated && isInspector) {
       setTabs((prev) => {
-        if (isDev) {
-          const inspectionOnly = prev.filter((t) => t.type === 'inspection-tasks');
-          return inspectionOnly.length > 0 ? inspectionOnly : [{ id: 'inspection-tasks', type: 'inspection-tasks', label: 'משימות ביקורת', refreshKey: Date.now() }];
-        }
-        return [{ id: 'no-tasks-access', type: 'no-tasks-access', label: 'אין גישה למשימות ביקורת', refreshKey: Date.now() }];
+        const inspectionOnly = prev.filter((t) => t.type === 'inspection-tasks');
+        return inspectionOnly.length > 0 ? inspectionOnly : [{ id: 'inspection-tasks', type: 'inspection-tasks', label: 'משימות ביקורת', refreshKey: Date.now() }];
       });
-      setActiveTabId(isDev ? 'inspection-tasks' : 'no-tasks-access');
+      setActiveTabId('inspection-tasks');
     }
-  }, [roleLoading, isAuthenticated, isInspector, isDev]);
+  }, [roleLoading, isAuthenticated, isInspector]);
 
-  // Deep link: switch to inspection-tasks tab when hash is #inspection-tasks/123. Only for isDev. Strip token if present (user already logged in).
+  // Deep link: switch to inspection-tasks tab when hash is #inspection-tasks or #inspection-tasks/123
   useEffect(() => {
     if (!isAuthenticated) return;
     const hash = window.location.hash || '';
@@ -162,7 +205,7 @@ function App() {
       const cleanHash = hash.split('?')[0] || '#inspection-tasks';
       window.history.replaceState(null, '', window.location.pathname + (window.location.search || '') + cleanHash);
     }
-    if (isDev && hash.match(/#inspection-tasks\/\d+/)) {
+    if (hash.match(/#inspection-tasks\/\d+/) || hash === '#inspection-tasks') {
       setTabs((prev) => {
         const has = prev.some((t) => t.type === 'inspection-tasks');
         if (!has) return [...prev, { id: 'inspection-tasks', type: 'inspection-tasks', label: 'משימות ביקורת', refreshKey: Date.now() }];
@@ -170,53 +213,62 @@ function App() {
       });
       setActiveTabId('inspection-tasks');
     }
-  }, [isAuthenticated, isDev]);
+  }, [isAuthenticated]);
 
-  // Load UI configuration
+  // Load UI configuration (מתי להריץ אימות: off | before_save | online)
   useEffect(() => {
-    const loadUIConfig = async () => {
-      try {
-        const uiConfig = await api.systemConfiguration.getUIConfig();
-        setValidationRulesEnabled(uiConfig.validation_rules_enabled);
-        setValidateInline(uiConfig.validate_inline ?? true);
-      } catch (error) {
-        console.error('Error loading UI config:', error);
-        // Default to false if error
-        setValidationRulesEnabled(false);
-        setValidateInline(true); // Default inline validation on when config fails
-      }
-    };
-    
     if (isAuthenticated) {
       loadUIConfig();
     }
-  }, [isAuthenticated]);
+  }, [isAuthenticated, loadUIConfig]);
 
-  // Sync help context when active tab changes
+  // F1 key opens help modal
   useEffect(() => {
-    if (!isAuthenticated) {
-      setContextFromTabType('general');
-      return;
-    }
-    const activeTab = tabs.find((t) => t.id === activeTabId);
-    setContextFromTabType(activeTab?.type ?? 'general');
-  }, [isAuthenticated, tabs, activeTabId, setContextFromTabType]);
-
-  // F1 opens contextual help
-  useEffect(() => {
-    const onKeyDown = (e: KeyboardEvent) => {
+    const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'F1') {
         e.preventDefault();
         openHelp();
       }
     };
-    window.addEventListener('keydown', onKeyDown);
-    return () => window.removeEventListener('keydown', onKeyDown);
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
   }, [openHelp]);
+
+  // Sync help context when active tab changes (or general when not authenticated)
+  useEffect(() => {
+    if (!isAuthenticated) {
+      setContextFromTabType('general');
+      return;
+    }
+    const activeTab = tabs.find(t => t.id === activeTabId);
+    setContextFromTabType(activeTab?.type ?? 'general');
+  }, [isAuthenticated, activeTabId, tabs, setContextFromTabType]);
+
+  // On mobile: when user first opens app (or just logged in), focus on task list + upload
+  useEffect(() => {
+    if (!isAuthenticated || !isMobile || mobileDefaultAppliedRef.current) return;
+    mobileDefaultAppliedRef.current = true;
+    setTabs([
+      { id: 'mobile-tasks-upload', type: 'mobile-tasks-upload', label: 'משימות והעלאות', refreshKey: Date.now() },
+      { id: 'buildings', type: 'buildings', label: 'מבנים', refreshKey: Date.now() }
+    ]);
+    setActiveTabId('mobile-tasks-upload');
+  }, [isAuthenticated, isMobile]);
+
+  // Inspector: only inspection-tasks tab (aligned with ref_only)
+  useEffect(() => {
+    if (!isAuthenticated || !isInspector || inspectorDefaultAppliedRef.current || roleLoading) return;
+    inspectorDefaultAppliedRef.current = true;
+    setTabs([
+      { id: 'inspection-tasks', type: 'inspection-tasks', label: 'משימות ביקורת', refreshKey: Date.now() }
+    ]);
+    setActiveTabId('inspection-tasks');
+  }, [isAuthenticated, isInspector, roleLoading]);
 
   const handleLoginSuccess = async () => {
     setIsAuthenticated(true);
     await refreshRole();
+    await refreshRules();
   };
 
   const handleLogout = () => {
@@ -476,6 +528,9 @@ function App() {
         return transferAreasRef.current?.hasUnsavedChanges() || false;
       case 'asset-data-entry':
         return assetDataEntryRef.current?.hasUnsavedChanges() || false;
+      case 'mobile-tasks-upload':
+      case 'inspection-tasks':
+        return false;
       default:
         return false;
     }
@@ -598,12 +653,7 @@ function App() {
   }
 
   if (!isAuthenticated) {
-    return (
-      <>
-        <Login onLoginSuccess={handleLoginSuccess} />
-        <HelpModal />
-      </>
-    );
+    return <Login onLoginSuccess={handleLoginSuccess} />;
   }
 
   // Helper function to open a new tab, closing any existing tab of the same type
@@ -944,16 +994,6 @@ function App() {
     openTab(newTab);
   }
 
-  function openInspectionTasks() {
-    const inspectionTasksTabId = 'inspection-tasks-panel';
-    const newTab: Tab = {
-      id: inspectionTasksTabId,
-      type: 'inspection-tasks',
-      label: 'משימות ביקורת'
-    };
-    openTab(newTab);
-  }
-
   function openValidationRules() {
     const validationRulesTabId = 'validation-rules-panel';
 
@@ -1030,6 +1070,12 @@ function App() {
       type: 'managers',
       label: 'מנהלים',
     };
+    openTab(newTab);
+  }
+
+  function openInspectionTasks() {
+    const id = 'inspection-tasks-panel';
+    const newTab: Tab = { id, type: 'inspection-tasks', label: 'משימות ביקורת', refreshKey: Date.now() };
     openTab(newTab);
   }
 
@@ -1186,6 +1232,21 @@ function App() {
 
     // Remove all other building-list-import tabs, then add new one
     openTab(newTab);
+  }
+
+  function openMobileTasksUpload() {
+    handleNavigation(() => {
+      const id = 'mobile-tasks-upload';
+      const existing = tabs.find(t => t.id === id);
+      if (existing) {
+        setActiveTabId(id);
+        setSidebarOpen(false);
+        return;
+      }
+      const newTab: Tab = { id, type: 'mobile-tasks-upload', label: 'משימות והעלאות', refreshKey: Date.now() };
+      openTab(newTab);
+      setSidebarOpen(false);
+    });
   }
 
   function openAssetsFileImport() {
@@ -1470,10 +1531,10 @@ function App() {
     }
   }
 
-
   return (
+    <FontSizeProvider value={fontSize}>
     <div className="min-h-screen bg-app-bg flex flex-col" dir="rtl">
-      {/* Top header bar - reference style: full-width dark blue, icon strip */}
+      {/* theme_1: Dark blue header, icon strip */}
       <header className="shrink-0 h-12 bg-app-header flex items-center justify-between px-4 text-white shadow-md">
         <div className="flex items-center gap-4">
           <div className="flex items-center gap-2">
@@ -1484,27 +1545,93 @@ function App() {
           </div>
         </div>
         <div className="flex items-center gap-1">
-          <button onClick={openAssetSearch} title="חיפוש" className="p-2.5 rounded hover:bg-white/10 transition-colors">
-            <Search className="h-5 w-5" />
-          </button>
-          <div className="w-px h-6 bg-white/30 mx-0.5" />
           <button onClick={() => openHelp('manual')} title="עזרה" className="p-2.5 rounded hover:bg-white/10 transition-colors">
             <HelpCircle className="h-5 w-5" />
           </button>
-          <button title="הגדרות" className="p-2.5 rounded hover:bg-white/10 transition-colors opacity-80">
-            <Settings className="h-5 w-5" />
-          </button>
-          <button title="התראות" className="p-2.5 rounded hover:bg-white/10 transition-colors opacity-80">
-            <Bell className="h-5 w-5" />
-          </button>
-          <button title="משתמש" className="p-2.5 rounded hover:bg-white/10 transition-colors opacity-80">
-            <User className="h-5 w-5" />
-          </button>
+          <div className="relative" ref={settingsMenuRef}>
+            <button
+              onClick={() => { setSettingsMenuOpen((prev) => !prev); setUserMenuOpen(false); }}
+              title="הגדרות"
+              className={`p-2.5 rounded hover:bg-white/10 transition-colors ${settingsMenuOpen ? 'bg-white/10' : 'opacity-80'}`}
+            >
+              <SlidersHorizontal className="h-5 w-5" />
+            </button>
+            {settingsMenuOpen && (
+              <div className="absolute left-0 top-full mt-1 w-52 bg-app-sidebar border border-white/10 rounded-lg shadow-xl py-2 z-[100]">
+                <div className="px-3 py-1.5 border-b border-white/10">
+                  <span className="flex items-center gap-1.5 text-xs font-medium text-white/70">
+                    <Sun className="h-3.5 w-3.5" />
+                    בהירות
+                  </span>
+                  <div className="flex flex-wrap gap-1 mt-1">
+                    {(['light', 'normal', 'dark', 'contrast'] as const).map((b) => (
+                      <button
+                        key={b}
+                        onClick={() => setBrightness(b)}
+                        className={`flex-1 min-w-0 py-1.5 rounded text-sm ${brightness === b ? 'bg-white/20 text-white' : 'text-white/80 hover:bg-white/10'}`}
+                      >
+                        {b === 'light' ? 'בהיר' : b === 'normal' ? 'רגיל' : b === 'dark' ? 'כהה' : 'ניגודיות גבוהה'}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <div className="px-3 py-1.5">
+                  <span className="text-xs font-medium text-white/70">גודל גופן</span>
+                  <div className="flex gap-1 mt-1">
+                    {(['small', 'normal', 'large'] as const).map((f) => (
+                      <button
+                        key={f}
+                        onClick={() => setFontSize(f)}
+                        className={`flex-1 py-1.5 rounded text-sm ${fontSize === f ? 'bg-white/20 text-white' : 'text-white/80 hover:bg-white/10'}`}
+                      >
+                        {f === 'small' ? 'קטן' : f === 'normal' ? 'רגיל' : 'גדול'}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+          <div className="relative">
+            <button
+              onClick={() => setUserMenuOpen((prev) => !prev)}
+              title="משתמש"
+              className={`p-2.5 rounded hover:bg-white/10 transition-colors ${userMenuOpen ? 'bg-white/10' : 'opacity-80'}`}
+            >
+              <User className="h-5 w-5" />
+            </button>
+            {userMenuOpen && (
+              <div className="absolute left-0 top-full mt-1 w-48 bg-app-sidebar border border-white/10 rounded-lg shadow-xl py-2 z-[100]">
+                {(() => {
+                  const session = getSession();
+                  return (
+                    <>
+                      <div className="px-3 py-2 border-b border-white/10">
+                        <p className="text-sm font-medium text-white truncate">{session?.user_name || '-'}</p>
+                        <p className="text-xs text-white/80">{roleLabel}</p>
+                      </div>
+                      <button
+                        onClick={() => {
+                          setUserMenuOpen(false);
+                          handleLogout();
+                        }}
+                        className="w-full flex items-center justify-center gap-2 py-2 px-3 text-sm text-white/90 hover:bg-app-destructive/30 hover:text-white rounded-b-lg transition-colors"
+                        title="התנתק"
+                      >
+                        <LogOut className="h-4 w-4" />
+                        התנתק
+                      </button>
+                    </>
+                  );
+                })()}
+              </div>
+            )}
+          </div>
         </div>
       </header>
 
       <div className="flex-1 flex flex-col md:flex-row min-h-0">
-      {/* Mobile menu button — touch-friendly, safe-area aware */}
+      {/* theme_1: Mobile menu button - touch-friendly */}
       <button
         onClick={() => setSidebarOpen(!sidebarOpen)}
         className="md:hidden fixed z-50 min-h-[44px] min-w-[44px] p-3 left-2 bg-app-sidebar rounded-xl shadow-lg border border-app-sidebar-hover touch-manipulation"
@@ -1514,7 +1641,7 @@ function App() {
         <Menu className="h-6 w-6 text-white" />
       </button>
 
-      {/* Sidebar - reference: narrow dark teal, icon-first */}
+      {/* theme_1: Narrow icon-first sidebar - dark teal */}
       <div className={`${sidebarOpen ? 'fixed inset-0 z-40 md:relative md:z-auto' : 'hidden md:flex'} md:w-[72px] lg:w-20 bg-app-sidebar border-l border-white/10 flex flex-col shrink-0 overflow-visible`}>
         {sidebarOpen && (
           <button
@@ -1541,11 +1668,20 @@ function App() {
               <Search className="h-5 w-5 shrink-0" />
             </button>
           )}
-          {isInspector && isDev && (
+          {isInspector && (
             <button
               onClick={openInspectionTasks}
               className={`w-full flex items-center justify-center p-2.5 rounded transition-all duration-200 text-white relative ${isSidebarItemActive('inspection-tasks') ? 'bg-app-sidebar-active border-r-[3px] border-r-app-sidebar-indicator' : 'hover:bg-app-sidebar-hover'}`}
               title="משימות ביקורת"
+            >
+              <ClipboardList className="h-5 w-5 shrink-0" />
+            </button>
+          )}
+          {!isInspector && isMobile && (
+            <button
+              onClick={openMobileTasksUpload}
+              className={`w-full flex items-center justify-center p-2.5 rounded transition-all duration-200 text-white relative ${isSidebarItemActive('mobile-tasks-upload') ? 'bg-app-sidebar-active border-r-[3px] border-r-app-sidebar-indicator' : 'hover:bg-app-sidebar-hover'}`}
+              title="משימות והעלאות"
             >
               <ClipboardList className="h-5 w-5 shrink-0" />
             </button>
@@ -1642,25 +1778,6 @@ function App() {
                     >
                       ייבוא שלד
                     </button>
-                    <div className="flex items-center justify-between gap-2 py-2 px-3 mt-2 border-t border-white/10">
-                      <span className="text-xs text-white/80">מצב עריכה</span>
-                      <div className="flex gap-0.5">
-                        <button
-                          onClick={() => setEditMode('inline')}
-                          className={`p-1 rounded transition-colors ${preferences.editMode === 'inline' ? 'bg-app-accent text-white' : 'text-white/60 hover:bg-app-sidebar-hover'}`}
-                          title="עריכה ישירה בתא"
-                        >
-                          <Edit className="h-3 w-3" />
-                        </button>
-                        <button
-                          onClick={() => setEditMode('modal')}
-                          className={`p-1 rounded transition-colors ${preferences.editMode === 'modal' ? 'bg-app-accent text-white' : 'text-white/60 hover:bg-app-sidebar-hover'}`}
-                          title="עריכה בחלון נפרד"
-                        >
-                          <Square className="h-3 w-3" />
-                        </button>
-                      </div>
-                    </div>
                   </>
                 )}
               </div>
@@ -1686,33 +1803,40 @@ function App() {
                   <div>
                     <button
                       onClick={() => setManagerActionsSubmenuOpen(!managerActionsSubmenuOpen)}
-                      className="w-full flex items-center justify-between gap-2 py-2 px-3 text-right hover:bg-app-sidebar-hover rounded transition-all text-sm text-white/90"
+                      className="w-full flex items-center justify-between px-3 py-2 text-right bg-transparent hover:bg-theme-sidebar-hover rounded-lg transition-all text-xs text-white/90"
                     >
-                      <UserCog className="h-4 w-4 shrink-0" />
-                      <span className="truncate flex-1 text-right">פעולות מנהל</span>
+                      <div className="flex items-center gap-2">
+                        <span className="font-medium text-white/90">פעולות מנהל</span>
+                        <UserCog className="h-3.5 w-3.5 text-white/70" />
+                      </div>
                       {managerActionsSubmenuOpen ? (
-                        <ChevronDown className="h-3 w-3 text-white/80 shrink-0" />
+                        <ChevronDown className="h-3.5 w-3.5 text-white/70" />
                       ) : (
-                        <ChevronLeft className="h-3 w-3 text-white/80 shrink-0" />
+                        <ChevronLeft className="h-3.5 w-3.5 text-white/70" />
                       )}
                     </button>
                     {managerActionsSubmenuOpen && (
                       <div className="mr-2 mt-1 space-y-0.5 border-r-2 border-app-sidebar-indicator/50 pr-2">
-                        {isDev && (
                         <button
                           onClick={openInspectionTasks}
-                          className="w-full text-right py-2 px-3 text-sm text-white/90 hover:bg-app-sidebar-hover rounded"
+                          className="w-full flex items-center gap-2 px-3 py-2 text-right bg-transparent hover:bg-theme-sidebar-hover rounded-lg transition-all text-xs text-white/90"
                         >
-                          משימות ביקורת
+                          <span className="text-white/90">משימות ביקורת</span>
+                          <ClipboardList className="h-3 w-3 text-white/70" />
                         </button>
-                        )}
                         <button
                           onClick={openResetExportModal}
                           disabled={resetExportLoading}
-                          className="w-full flex items-center justify-between gap-2 py-2 px-3 text-right text-sm text-white/90 hover:bg-app-sidebar-hover rounded disabled:opacity-50 disabled:cursor-not-allowed"
+                          className="w-full flex items-center gap-2 px-3 py-2 text-right bg-transparent hover:bg-theme-sidebar-hover rounded-lg transition-all text-xs text-white/90 disabled:opacity-50 disabled:cursor-not-allowed"
                         >
-                          <span className="truncate">איפוס שליחת נתונים{displayLatestExportDate ? ` ${displayLatestExportDate}` : ''}</span>
-                          {resetExportLoading && <Loader2 className="h-3 w-3 animate-spin shrink-0" />}
+                          <span className="text-white/90">
+                            איפוס שליחת נתונים מתאריך{displayLatestExportDate ? ` ${displayLatestExportDate}` : ''}
+                          </span>
+                          {resetExportLoading ? (
+                            <Loader2 className="h-3 w-3 text-white/70 animate-spin" />
+                          ) : (
+                            <RefreshCw className="h-3 w-3 text-white/70" />
+                          )}
                         </button>
                       </div>
                     )}
@@ -1721,77 +1845,78 @@ function App() {
                 {isAdmin && validationRulesEnabled && (
                   <button
                     onClick={openValidationRules}
-                    className="w-full text-right py-2 px-3 text-sm text-white/90 hover:bg-app-sidebar-hover rounded"
+                    className="w-full flex items-center gap-2 px-3 py-2 text-right bg-transparent hover:bg-theme-sidebar-hover rounded-lg transition-all text-xs text-white/90"
                   >
-                    כללי תקינות
+                    <span className="font-medium text-white/90">כללי תקינות</span>
+                    <Settings className="h-3.5 w-3.5 text-white/70" />
                   </button>
-                )}
-                {false && (
-                <button
-                  onClick={openAuditLog}
-                  className="w-full flex items-center gap-2 px-3 py-2 text-right bg-app-sidebar-hover/50 hover:bg-app-sidebar-hover rounded-lg transition-all text-xs shadow-sm hover:shadow"
-                >
-                  <span className="font-medium text-white/90">יומן ביקורת</span>
-                  <FileText className="h-3.5 w-3.5 text-white/90" />
-                </button>
                 )}
                 {isAdmin && (
                   <div>
                     <button
                       onClick={() => setSystemConfigSubmenuOpen(!systemConfigSubmenuOpen)}
-                      className="w-full flex items-center justify-between gap-2 py-2 px-3 text-right hover:bg-app-sidebar-hover rounded transition-all text-sm text-white/90"
+                      className="w-full flex items-center justify-between px-3 py-2 text-right bg-transparent hover:bg-theme-sidebar-hover rounded-lg transition-all text-xs text-white/90"
                     >
-                      <Settings className="h-4 w-4 shrink-0" />
-                      <span className="truncate flex-1 text-right">הגדרות מערכת</span>
+                      <div className="flex items-center gap-2">
+                        <span className="font-medium text-white/90">הגדרות מערכת</span>
+                        <Settings className="h-3.5 w-3.5 text-white/70" />
+                      </div>
                       {systemConfigSubmenuOpen ? (
-                        <ChevronDown className="h-3 w-3 text-white/80 shrink-0" />
+                        <ChevronDown className="h-3.5 w-3.5 text-white/70" />
                       ) : (
-                        <ChevronLeft className="h-3 w-3 text-white/80 shrink-0" />
+                        <ChevronLeft className="h-3.5 w-3.5 text-white/70" />
                       )}
                     </button>
                     {systemConfigSubmenuOpen && (
                       <div className="mr-2 mt-1 space-y-0.5 border-r-2 border-app-sidebar-indicator/50 pr-2">
                         <button
                           onClick={openSystemConfiguration}
-                          className="w-full text-right py-2 px-3 text-sm text-white/90 hover:bg-app-sidebar-hover rounded"
+                          className="w-full flex items-center gap-2 px-3 py-2 text-right bg-transparent hover:bg-theme-sidebar-hover rounded-lg transition-all text-xs text-white/90"
                         >
-                          הגדרות כלליות
+                          <span className="text-white/90">הגדרות כלליות</span>
+                          <Settings className="h-3 w-3 text-white/70" />
                         </button>
                         <button
                           onClick={openAssetTypes}
-                          className="w-full text-right py-2 px-3 text-sm text-white/90 hover:bg-app-sidebar-hover rounded"
+                          className="w-full flex items-center gap-2 px-3 py-2 text-right bg-transparent hover:bg-theme-sidebar-hover rounded-lg transition-all text-xs text-white/90"
                         >
-                          סוגי נכסים
+                          <span className="text-white/90">סוגי נכסים</span>
+                          <Tag className="h-3 w-3 text-white/70" />
                         </button>
                         <button
                           onClick={openAddressList}
-                          className="w-full text-right py-2 px-3 text-sm text-white/90 hover:bg-app-sidebar-hover rounded"
+                          className="w-full flex items-center gap-2 px-3 py-2 text-right bg-transparent hover:bg-theme-sidebar-hover rounded-lg transition-all text-xs text-white/90"
                         >
-                          רשימת כתובות
+                          <span className="text-white/90">רשימת כתובות</span>
+                          <MapPin className="h-3 w-3 text-white/70" />
                         </button>
                         <button
                           onClick={openFieldConfig}
-                          className="w-full text-right py-2 px-3 text-sm text-white/90 hover:bg-app-sidebar-hover rounded"
+                          className="w-full flex items-center gap-2 px-3 py-2 text-right bg-transparent hover:bg-theme-sidebar-hover rounded-lg transition-all text-xs text-white/90"
                         >
-                          הגדרות שדות
+                          <span className="text-white/90">הגדרות שדות</span>
+                          <Settings className="h-3 w-3 text-white/70" />
                         </button>
                         <button
                           onClick={openOperators}
-                          className="w-full text-right py-2 px-3 text-sm text-white/90 hover:bg-app-sidebar-hover rounded"
+                          className="w-full flex items-center gap-2 px-3 py-2 text-right bg-transparent hover:bg-theme-sidebar-hover rounded-lg transition-all text-xs text-white/90"
                         >
-                          מפעילים
+                          <span className="text-white/90">מפעילים</span>
+                          <Users className="h-3 w-3 text-white/70" />
                         </button>
                         <button
                           onClick={openManagers}
-                          className="w-full text-right py-2 px-3 text-sm text-white/90 hover:bg-app-sidebar-hover rounded"
+                          className="w-full flex items-center gap-2 px-3 py-2 text-right bg-transparent hover:bg-theme-sidebar-hover rounded-lg transition-all text-xs text-white/90"
                         >
-                          מנהלים
+                          <span className="text-white/90">מנהלים</span>
+                          <UserCog className="h-3 w-3 text-white/70" />
                         </button>
                         <button
                           onClick={openUserManagement}
-                          className="w-full text-right py-2 px-3 text-sm text-white/90 hover:bg-app-sidebar-hover rounded"
+                          className="w-full flex items-center gap-2 px-3 py-2 text-right bg-transparent hover:bg-theme-sidebar-hover rounded-lg transition-all text-xs text-white/90"
                         >
-                          ניהול משתמשים
+                          <span className="text-white/90">ניהול משתמשים</span>
+                          <Users className="h-3 w-3 text-white/70" />
                         </button>
                       </div>
                     )}
@@ -1804,20 +1929,6 @@ function App() {
         </nav>
         
         <div className="p-2 border-t border-white/10 flex flex-col items-center gap-1">
-          <button
-            onClick={() => openHelp('manual')}
-            className="w-full flex items-center justify-center p-2 rounded hover:bg-app-sidebar-hover text-white/90"
-            title="עזרה"
-          >
-            <HelpCircle className="h-5 w-5" />
-          </button>
-          <button
-            onClick={handleLogout}
-            className="w-full flex items-center justify-center p-2 rounded hover:bg-app-destructive/30 text-white/90"
-            title="התנתק"
-          >
-            <LogOut className="h-5 w-5" />
-          </button>
           <p className="text-[9px] text-white/50 pt-1">© Kortex</p>
         </div>
         
@@ -1831,12 +1942,14 @@ function App() {
           setAdminMenuOpen(false);
           setManagerActionsSubmenuOpen(false);
           setSystemConfigSubmenuOpen(false);
+          setUserMenuOpen(false);
         }}
       >
+        {/* theme_1: Tabs bar - light gray */}
         <div className="bg-app-tabs-bg border-b border-app-input-border">
           <div className="px-2 sm:px-4 py-1.5">
-            <div className="flex items-center gap-1 overflow-x-auto scrollbar-hide min-h-[40px]">
-              {tabs.map((tab) => (
+            <div className="flex flex-row-reverse items-center justify-end gap-1 overflow-x-auto scrollbar-hide min-h-[40px]">
+              {[...tabs].reverse().map((tab) => (
                 <div
                   key={tab.id}
                   className={`flex items-center gap-2 px-4 py-2 border-b-2 transition-all duration-200 cursor-pointer group touch-manipulation flex-shrink-0 -mb-px ${
@@ -1869,8 +1982,6 @@ function App() {
                       <AlertCircle className="h-5 w-5 text-slate-600 shrink-0" />
                     ) : tab.type === 'measurement-progress-dashboard' ? (
                       <BarChart3 className="h-5 w-5 text-slate-600 shrink-0" />
-                    ) : tab.type === 'inspection-tasks' || tab.type === 'no-tasks-access' ? (
-                      <ClipboardList className="h-5 w-5 text-slate-600 shrink-0" />
                     ) : tab.type === 'validation-rules' ? (
                       <Settings className="h-5 w-5 text-slate-600 shrink-0" />
                     ) : tab.type === 'field-config' ? (
@@ -1891,6 +2002,10 @@ function App() {
                       <Settings className="h-5 w-5 text-slate-600 shrink-0" />
                     ) : tab.type === 'buildings' ? (
                       <img src="/buildings.png" alt="Buildings" className="h-5 w-5 shrink-0" />
+                    ) : tab.type === 'mobile-tasks-upload' ? (
+                      <ClipboardList className="h-5 w-5 text-slate-600 shrink-0" />
+                    ) : tab.type === 'inspection-tasks' ? (
+                      <ClipboardList className="h-5 w-5 text-slate-600 shrink-0" />
                     ) : (
                       <Building className="h-5 w-5 text-slate-600 shrink-0" />
                     )}
@@ -1900,15 +2015,15 @@ function App() {
                       {tab.label}
                     </span>
                   </div>
-                  {tab.type !== 'buildings' && tab.type !== 'measurement-progress-dashboard' && !(isInspector && tab.type === 'inspection-tasks') && tab.type !== 'no-tasks-access' && (
+                  {tab.type !== 'buildings' && tab.type !== 'measurement-progress-dashboard' && (
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
                         handleCloseTab(tab.id);
                       }}
-                      className="p-0.5 hover:bg-red-100 active:bg-red-200 rounded transition-all duration-200 hover:scale-110"
+                      className="p-0.5 text-slate-600 hover:bg-red-100 hover:text-red-600 active:bg-red-200 rounded transition-all duration-200 hover:scale-110"
                     >
-                      <X className="h-2.5 w-2.5 text-slate-600 hover:text-red-600" />
+                      <X className="h-2.5 w-2.5" />
                     </button>
                   )}
                 </div>
@@ -1917,9 +2032,9 @@ function App() {
           </div>
         </div>
 
-        <div className="flex-1 overflow-hidden flex">
-          {/* Main Content Area */}
-          <div className="flex-1 overflow-auto bg-app-bg">
+        <div className="flex-1 overflow-hidden flex flex-col min-h-0">
+          {/* Main Content Area - no scroll; grid pages fill available space */}
+          <div className="flex-1 overflow-hidden flex flex-col min-h-0 bg-app-bg">
             {activeTab?.type === 'buildings' && (
               <BuildingsList
                 ref={buildingsListRef}
@@ -1930,7 +2045,6 @@ function App() {
                 onOpenValidationRules={openValidationRules}
                 showCreateModal={showCreateBuildingModal}
                 setShowCreateModal={setShowCreateBuildingModal}
-                validateInline={validateInline}
               />
             )}
             {activeTab?.type === 'assets' && activeTab.buildingNumber && (
@@ -1939,7 +2053,6 @@ function App() {
                   key={activeTab.refreshKey}
                   buildingNumber={activeTab.buildingNumber}
                   taxRegion={activeTab.taxRegion}
-                  validateInline={validateInline}
                   onSelectAsset={handleSelectAsset}
                   onOpenTransferAreas={handleOpenTransferAreas}
                   onOpenNewAsset={handleOpenNewAsset}
@@ -1978,7 +2091,7 @@ function App() {
               <FieldConfigManager key={activeTab.refreshKey} />
             )}
             {activeTab?.type === 'asset-data-entry' && (
-              <AssetDataEntry ref={assetDataEntryRef} key={activeTab.refreshKey} validateInline={validateInline} />
+              <AssetDataEntry ref={assetDataEntryRef} key={activeTab.refreshKey} />
             )}
             {activeTab?.type === 'building-list-import' && (
               <BuildingListImport key={activeTab.refreshKey} />
@@ -1996,7 +2109,6 @@ function App() {
                 assetId={activeTab.assetId ? parseInt(activeTab.assetId) : undefined}
                 buildingNumber={activeTab.buildingNumber}
                 taxRegion={activeTab.taxRegion}
-                validateInline={validateInline}
                 onDataUpdate={handleDataUpdate}
                 onAssetCreated={(assetDbId, assetIdentifier) => {
                   // Update the current tab to show the newly created asset
@@ -2034,26 +2146,23 @@ function App() {
                 onSelectAsset={handleSelectAsset}
               />
             )}
-            {activeTab?.type === 'measurement-progress-dashboard' && (
+{activeTab?.type === 'measurement-progress-dashboard' && (
               <MeasurementProgressDashboard
                 onOpenBuildingsList={openBuildingsList}
                 onOpenMeasuredNotExportedAssets={openMeasuredNotExportedAssets}
               />
             )}
-            {activeTab?.type === 'no-tasks-access' && (
-              <div className="h-full flex items-center justify-center p-8" dir="rtl">
-                <p className="text-slate-600 text-lg">אין גישה למשימות ביקורת. גישה זו שמורה למשתמש dev.</p>
-              </div>
+            {activeTab?.type === 'mobile-tasks-upload' && (
+              <MobileTasksAndUpload />
             )}
-            {activeTab?.type === 'inspection-tasks' && isDev && (
-              <div className="h-full flex flex-col min-h-0">
-                <InspectionTasks key={activeTab.id} />
-              </div>
+            {activeTab?.type === 'inspection-tasks' && (
+              <InspectionTasksManager key={activeTab.refreshKey} />
             )}
           </div>
         </div>
       </div>
       </div>
+
 
       {showBatchValidationModal && (
         <div 
@@ -2086,7 +2195,7 @@ function App() {
             {batchValidationLoading ? (
               <div className="flex-1 flex items-center justify-center py-12">
                 <div className="text-center w-full max-w-md">
-                  <Loader2 className="h-8 w-8 text-blue-600 animate-spin mx-auto mb-4" />
+                  <Loader2 className="h-8 w-8 text-app-accent animate-spin mx-auto mb-4" />
                   <p className="text-slate-600 mb-4">מאמת את כל הנכסים במערכת...</p>
                   {batchValidationProgress && (
                     <div className="space-y-3">
@@ -2101,7 +2210,7 @@ function App() {
                       )}
                       <div className="w-full bg-slate-200 rounded-full h-2.5">
                         <div
-                          className="bg-blue-600 h-2.5 rounded-full transition-all duration-300"
+                          className="bg-theme-tab-active h-2.5 rounded-full transition-all duration-300"
                           style={{ width: `${(batchValidationProgress.current / batchValidationProgress.total) * 100}%` }}
                         ></div>
                       </div>
@@ -2128,7 +2237,7 @@ function App() {
 
                 {batchValidationResults.errors.length > 0 ? (
                   <div className="space-y-3">
-                    <h4 className="font-semibold text-app-text-primary mb-3">נכסים עם שגיאות:</h4>
+                    <h4 className="font-semibold text-slate-700 mb-3">נכסים עם שגיאות:</h4>
                     <div className="space-y-2 max-h-96 overflow-y-auto">
                       {batchValidationResults.errors.map((error, idx) => (
                         <div key={idx} className="bg-red-50 border border-red-200 rounded-lg p-4">
@@ -2170,7 +2279,7 @@ function App() {
                     setBatchValidationModalClosing(false);
                   }, 300);
                 }}
-                className="px-4 py-2 text-sm font-medium text-app-text-primary bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors"
+                className="px-4 py-2 text-sm font-medium text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors"
               >
                 סגור
               </button>
@@ -2191,7 +2300,7 @@ function App() {
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center gap-3 mb-4">
-              <AlertCircle className="h-6 w-6 text-app-destructive flex-shrink-0" />
+              <AlertCircle className="h-6 w-6 text-orange-600 flex-shrink-0" />
               <h3 className="text-lg font-bold text-slate-900">יש שינויים שלא נשמרו</h3>
             </div>
             
@@ -2202,13 +2311,13 @@ function App() {
             <div className="flex justify-end gap-3">
               <button
                 onClick={handleCancelNavigation}
-                className="px-4 py-2 text-sm font-medium text-app-text-primary bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors"
+                className="px-4 py-2 text-sm font-medium text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors"
               >
                 ביטול
               </button>
               <button
                 onClick={handleConfirmNavigation}
-                className="px-4 py-2 text-sm font-medium text-white bg-app-destructive hover:bg-red-700 rounded transition-colors"
+                className="px-4 py-2 text-sm font-medium text-white bg-orange-600 hover:bg-orange-700 rounded-lg transition-colors"
               >
                 עזוב ללא שמירה
               </button>
@@ -2229,7 +2338,7 @@ function App() {
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center gap-3 mb-4">
-              <AlertCircle className="h-6 w-6 text-app-destructive flex-shrink-0" />
+              <AlertCircle className="h-6 w-6 text-orange-600 flex-shrink-0" />
               <h3 className="text-lg font-bold text-slate-900">
                 איפוס שליחת נתונים מתאריך{displayLatestExportDate ? ` ${displayLatestExportDate}` : ''}
               </h3>
@@ -2243,14 +2352,14 @@ function App() {
               <button
                 onClick={closeResetExportModal}
                 disabled={resetExportLoading}
-                className="px-4 py-2 text-sm font-medium text-app-text-primary bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                className="px-4 py-2 text-sm font-medium text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 ביטול
               </button>
               <button
                 onClick={handleConfirmResetExport}
                 disabled={resetExportLoading}
-                className="px-4 py-2 text-sm font-medium text-white bg-app-destructive hover:bg-red-700 rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                className="px-4 py-2 text-sm font-medium text-white bg-orange-600 hover:bg-orange-700 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
               >
                 {resetExportLoading ? (
                   <>
@@ -2307,8 +2416,10 @@ function App() {
           </div>
         </div>
       )}
+
       <HelpModal />
     </div>
+    </FontSizeProvider>
   );
 }
 

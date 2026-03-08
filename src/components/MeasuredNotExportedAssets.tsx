@@ -13,9 +13,9 @@ import { useGridPreferences } from '../lib/useGridPreferences';
 import { useFieldConfig } from '../lib/useFieldConfig';
 import { processColumnHeader } from '../lib/gridHeaderUtils';
 import { useUserRole } from '../contexts/UserRoleContext';
+import { useUIConfig } from '../contexts/UIConfigContext';
 import { Toast } from './Toast';
-import { supabase } from '../lib/supabase';
-import { getAssetTypes } from '../lib/validation';
+import { getAssetTypes, setLatestExportDate } from '../lib/validation';
 import { createExcelBlob } from '../lib/excelExport';
 import { createAndDownloadZip } from '../lib/zipExport';
 import { AssetValidationHandler } from '../lib/assetValidationHandler';
@@ -71,6 +71,13 @@ const ValidationTooltipIcon = ({ message }: { message: string }) => {
   );
 };
 
+// Simple header for actions column - no checkbox (select all/clear via action bar buttons only)
+const ActionsHeader = () => (
+  <div className="flex items-center justify-center h-full w-full" style={{ direction: 'rtl' }}>
+    <span className="text-sm font-medium">פעולות</span>
+  </div>
+);
+
 interface MeasuredNotExportedAssetsProps {
   onSelectAsset: (assetId: string, assetIdentifier: string, buildingNumber: number, taxRegion?: string) => void;
 }
@@ -78,6 +85,7 @@ interface MeasuredNotExportedAssetsProps {
 export const MeasuredNotExportedAssets = ({ onSelectAsset }: MeasuredNotExportedAssetsProps) => {
   const { t } = useTranslation();
   const { isReadOnly } = useUserRole();
+  const { shouldValidateBeforeSave } = useUIConfig();
   const [assets, setAssets] = useState<Asset[]>([]);
   const [buildings, setBuildings] = useState<Map<number, Building>>(new Map());
   const [assetTypes, setAssetTypes] = useState<AssetType[]>([]);
@@ -87,6 +95,7 @@ export const MeasuredNotExportedAssets = ({ onSelectAsset }: MeasuredNotExported
   const [error, setError] = useState<string | null>(null);
   const [toast, setToast] = useState<{ message: string; type: 'error' | 'success' | 'info' } | null>(null);
   const [exportToAutomationCount, setExportToAutomationCount] = useState<number>(0);
+  const [selectedExportCount, setSelectedExportCount] = useState<number>(0);
   const [validationErrors, setValidationErrors] = useState<Map<string, string[]>>(new Map());
   const gridRef = useRef<AgGridReact<Asset>>(null);
 
@@ -298,11 +307,15 @@ export const MeasuredNotExportedAssets = ({ onSelectAsset }: MeasuredNotExported
   }, [fetchData]);
 
   // Column definitions - comprehensive set matching AssetsList, all read-only
+  // Actions column pinned right (near sidebar) - includes selection checkbox
   const columnDefs = useMemo<ColDef<Asset>[]>(() => {
     const defs: ColDef<Asset>[] = [
     {
       colId: 'actions',
       headerName: 'פעולות',
+      headerComponent: ActionsHeader,
+      pinned: 'right',
+      lockPosition: true,
       editable: false,
       suppressMovable: true,
       suppressHeaderMenuButton: true,
@@ -315,9 +328,21 @@ export const MeasuredNotExportedAssets = ({ onSelectAsset }: MeasuredNotExported
         const errors = validationErrors.get(assetId);
         const hasErrors = errors && errors.length > 0;
         const errorMessage = hasErrors ? errors.join('\n') : '';
+        const isSelected = params.node?.isSelected?.() ?? false;
 
         return (
-          <div className="flex items-center justify-center gap-1 h-full">
+          <div className="flex items-center justify-center gap-1.5 h-full">
+            <input
+              type="checkbox"
+              role="checkbox"
+              checked={isSelected}
+              onChange={(e) => {
+                e.stopPropagation();
+                params.node?.setSelected(e.target.checked);
+              }}
+              onClick={(e) => e.stopPropagation()}
+              className="h-4 w-4 cursor-pointer accent-emerald-600"
+            />
             {hasErrors && (
               <ValidationTooltipIcon message={errorMessage} />
             )}
@@ -426,7 +451,7 @@ export const MeasuredNotExportedAssets = ({ onSelectAsset }: MeasuredNotExported
       cellStyle: { textAlign: 'right' },
       cellRenderer: (params: any) => {
         if (!params || !params.data) return null;
-        const isChecked = params.value === true || params.value === 'כן';
+        const isChecked = params.value === true;
         return (
           <div className="flex items-center justify-center h-full">
             <input
@@ -743,7 +768,18 @@ export const MeasuredNotExportedAssets = ({ onSelectAsset }: MeasuredNotExported
   }, [t, assetTypes, getAreaDescriptionForTaxRegion, getAssetTypeTooltip, onSelectAsset, validationErrors]);
   
   // Apply field configurations to column definitions
-  const configuredColumnDefs = useFieldConfig(columnDefs, 'measured-not-exported-assets');
+  const [configuredColumnDefsRaw] = useFieldConfig(columnDefs, 'measured-not-exported-assets');
+
+  // Force actions to the right (near sidebar): in RTL, first columns = rightmost
+  const configuredColumnDefs = useMemo(() => {
+    const cols = [...configuredColumnDefsRaw];
+    const actionsCol = cols.find(c => (c.colId || c.field) === 'actions');
+    const rest = cols.filter(c => (c.colId || c.field) !== 'actions');
+    if (actionsCol) {
+      return [actionsCol, ...rest];
+    }
+    return cols;
+  }, [configuredColumnDefsRaw]);
 
   // Sort assets to show invalid ones first
   const sortedAssets = useMemo(() => {
@@ -781,11 +817,18 @@ export const MeasuredNotExportedAssets = ({ onSelectAsset }: MeasuredNotExported
     document.body.style.cursor = 'wait';
 
     try {
-      // STEP 1: Get assets that will be exported (measured but not exported)
-      const assetsToExport = await api.assets.getMeasuredNotExported();
-      
+      // STEP 1: Get selected rows from grid, or all if none selected
+      const apiRef = gridRef.current?.api;
+      const selectedRows = apiRef?.getSelectedRows() ?? [];
+      const assetsToExport = selectedRows.length > 0
+        ? (selectedRows as Asset[])
+        : await api.assets.getMeasuredNotExported();
+
       if (assetsToExport.length === 0) {
-        setToast({ message: 'אין נכסים לשליחה - כל הנכסים כבר נשלחו לעירייה', type: 'info' });
+        const msg = selectedRows.length === 0
+          ? 'בחר נכסים לשליחה באמצעות תיבות הסימון'
+          : 'אין נכסים לשליחה - כל הנכסים כבר נשלחו לעירייה';
+        setToast({ message: msg, type: 'info' });
         setTimeout(() => setToast(null), 5000);
         setExporting(false);
         setExportProgressMessage('');
@@ -794,123 +837,87 @@ export const MeasuredNotExportedAssets = ({ onSelectAsset }: MeasuredNotExported
         return;
       }
 
-      // STEP 2: Validate all assets before export (parallel by building for speed)
-      setExportProgressMessage('מאמת נכסים לפני שליחה...');
-
-      // Group assets by building number for validation
-      const assetsByBuilding = new Map<number, Asset[]>();
-      for (const asset of assetsToExport) {
-        const buildingNumber = asset.building_number;
-        if (!assetsByBuilding.has(buildingNumber)) {
-          assetsByBuilding.set(buildingNumber, []);
+      // When validation is on ("מתי להריץ אימות" !== כבוי), validate all assets before export
+      if (shouldValidateBeforeSave) {
+        setExportProgressMessage('מאמת נכסים לפני שליחה...');
+        const assetsByBuilding = new Map<number, Asset[]>();
+        for (const asset of assetsToExport) {
+          const buildingNumber = asset.building_number;
+          if (!assetsByBuilding.has(buildingNumber)) {
+            assetsByBuilding.set(buildingNumber, []);
+          }
+          assetsByBuilding.get(buildingNumber)!.push(asset);
         }
-        assetsByBuilding.get(buildingNumber)!.push(asset);
-      }
-
-      const buildingEntries = Array.from(assetsByBuilding.entries());
-      const typesForValidation = assetTypes.length > 0 ? assetTypes : await api.assetTypes.getAll();
-
-      // Pre-fetch missing buildings in parallel
-      const missingBuildingNumbers = buildingEntries
-        .map(([bn]) => bn)
-        .filter(bn => !buildings.get(bn));
-      const fetchedBuildings = await Promise.all(
-        missingBuildingNumbers.map(bn => api.buildings.getOne(bn))
-      );
-      const buildingsMap = new Map(buildings);
-      missingBuildingNumbers.forEach((bn, i) => buildingsMap.set(bn, fetchedBuildings[i]));
-
-      const allValidationResults: Array<{ assetId: string; buildingNumber: number; errors: string[] }> = [];
-      const VALIDATION_CONCURRENCY = 8;
-
-      for (let i = 0; i < buildingEntries.length; i += VALIDATION_CONCURRENCY) {
-        const chunk = buildingEntries.slice(i, i + VALIDATION_CONCURRENCY);
-        const batchResults = await Promise.all(
-          chunk.map(([buildingNumber, buildingAssets]) => {
-            const building = buildingsMap.get(buildingNumber)!;
-            return AssetValidationHandler.validateBuildingAssets(buildingAssets, buildingNumber, {
-              mode: 'building',
-              validateOnlyLatest: false,
-              cachedData: { assetTypes: typesForValidation, building },
-              onProgress: (progress) => {
-                setExportProgressMessage(`מאמת נכסים... ${progress.current}/${progress.total}`);
-              }
-            });
-          })
+        const buildingEntries = Array.from(assetsByBuilding.entries());
+        const typesForValidation = assetTypes.length > 0 ? assetTypes : await api.assetTypes.getAll();
+        const missingBuildingNumbers = buildingEntries
+          .map(([bn]) => bn)
+          .filter(bn => !buildings.get(bn));
+        const fetchedBuildings = await Promise.all(
+          missingBuildingNumbers.map(bn => api.buildings.getOne(bn))
         );
-        for (let j = 0; j < chunk.length; j++) {
-          const [buildingNumber] = chunk[j];
-          const batchResult = batchResults[j];
-          for (const result of batchResult.results) {
-            if (!result.valid && result.errors && result.errors.length > 0) {
-              allValidationResults.push({
-                assetId: typeof result.assetId === 'string' ? result.assetId : String(result.assetId),
-                buildingNumber,
-                errors: result.errors
+        const buildingsMap = new Map(buildings);
+        missingBuildingNumbers.forEach((bn, i) => buildingsMap.set(bn, fetchedBuildings[i]));
+        const allValidationResults: Array<{ assetId: string; buildingNumber: number; errors: string[] }> = [];
+        const VALIDATION_CONCURRENCY = 8;
+        for (let i = 0; i < buildingEntries.length; i += VALIDATION_CONCURRENCY) {
+          const chunk = buildingEntries.slice(i, i + VALIDATION_CONCURRENCY);
+          const batchResults = await Promise.all(
+            chunk.map(([buildingNumber, buildingAssets]) => {
+              const building = buildingsMap.get(buildingNumber)!;
+              return AssetValidationHandler.validateBuildingAssets(buildingAssets, buildingNumber, {
+                mode: 'building',
+                validateOnlyLatest: false,
+                cachedData: { assetTypes: typesForValidation, building },
+                onProgress: (progress) => {
+                  setExportProgressMessage(`מאמת נכסים... ${progress.current}/${progress.total}`);
+                }
               });
+            })
+          );
+          for (let j = 0; j < chunk.length; j++) {
+            const [buildingNumber] = chunk[j];
+            const batchResult = batchResults[j];
+            for (const result of batchResult.results) {
+              if (!result.valid && result.errors && result.errors.length > 0) {
+                allValidationResults.push({
+                  assetId: typeof result.assetId === 'string' ? result.assetId : String(result.assetId),
+                  buildingNumber,
+                  errors: result.errors
+                });
+              }
             }
           }
         }
+        if (allValidationResults.length > 0) {
+          const invalidCount = allValidationResults.length;
+          const errorMessages = allValidationResults
+            .slice(0, 5)
+            .map(r => `נכס ${r.assetId} (מבנה ${r.buildingNumber}): ${r.errors.join(', ')}`)
+            .join('\n');
+          const moreErrors = invalidCount > 5 ? `\nועוד ${invalidCount - 5} נכסים עם שגיאות...` : '';
+          setToast({
+            message: `לא ניתן לשלוח נכסים - נמצאו ${invalidCount} נכסים עם שגיאות אימות:\n${errorMessages}${moreErrors}\n\nיש לתקן את השגיאות לפני שליחה.`,
+            type: 'error'
+          });
+          setTimeout(() => setToast(null), 15000);
+          setExporting(false);
+          setExportProgressMessage('');
+          document.body.style.cursor = '';
+          return;
+        }
       }
 
-      // STEP 3: Check if validation passed
-      if (allValidationResults.length > 0) {
-        const invalidCount = allValidationResults.length;
-        const errorMessages = allValidationResults
-          .slice(0, 5) // Show first 5 errors
-          .map(r => `נכס ${r.assetId} (מבנה ${r.buildingNumber}): ${r.errors.join(', ')}`)
-          .join('\n');
-        
-        const moreErrors = invalidCount > 5 ? `\nועוד ${invalidCount - 5} נכסים עם שגיאות...` : '';
-        
-        setToast({ 
-          message: `לא ניתן לשלוח נכסים - נמצאו ${invalidCount} נכסים עם שגיאות אימות:\n${errorMessages}${moreErrors}\n\nיש לתקן את השגיאות לפני שליחה.`, 
-          type: 'error' 
-        });
-        setTimeout(() => setToast(null), 15000);
-        setExporting(false);
-        setExportProgressMessage('');
-        document.body.style.cursor = '';
-        return;
-      }
-
-      // STEP 4: All assets passed validation - proceed with export
+      // Proceed with export (with or without validation depending on "מתי להריץ אימות")
       setExportProgressMessage('מתחיל שליחה...');
       
-      // Call API to export assets and mark them as exported
-      const result = await api.assets.exportToAutomation();
-
-      if (!result.success) {
-        setToast({ message: result.error || 'שגיאה בשליחת נכסים לעירייה', type: 'error' });
-        setTimeout(() => setToast(null), 5000);
-        setExporting(false);
-        setExportProgressMessage('');
-        document.body.style.cursor = '';
-        return;
-      }
-
-      if (result.count === 0) {
-        setToast({ message: 'אין נכסים לשליחה - כל הנכסים כבר נשלחו לעירייה', type: 'info' });
-        setTimeout(() => setToast(null), 5000);
-        setExporting(false);
-        setExportProgressMessage('');
-        document.body.style.cursor = '';
-        setExportToAutomationCount(0);
-        return;
-      }
-
-      // Fetch the exported assets to export them to Excel
-      // Use RPC function to avoid type mismatch issues with .in() operator
-      // Ensure assetIds are numbers (not strings) for the RPC call
-      const numericAssetIdsForQuery = result.assetIds
-        .map(id => {
-          if (typeof id === 'string') {
-            const parsed = parseInt(id, 10);
-            return isNaN(parsed) ? null : parsed;
-          }
-          return typeof id === 'number' ? id : Number(id);
+      // Use asset IDs from the list we already have — do not mark as exported until after successful send
+      const numericAssetIdsForQuery = assetsToExport
+        .map(asset => {
+          const id = typeof asset.asset_id === 'string' ? parseInt(asset.asset_id, 10) : Number(asset.asset_id);
+          return !isNaN(id) && id > 0 ? id : null;
         })
-        .filter((id): id is number => id !== null && !isNaN(id) && id > 0);
+        .filter((id): id is number => id !== null);
 
       if (numericAssetIdsForQuery.length === 0) {
         setToast({ message: 'לא נמצאו נכסים לייצוא', type: 'error' });
@@ -927,14 +934,14 @@ export const MeasuredNotExportedAssets = ({ onSelectAsset }: MeasuredNotExported
         exportedAssets = await api.assets.getAssetsByIdsBatched(numericAssetIdsForQuery, { concurrency: 8 });
       } catch (fetchError: any) {
         console.error('Error fetching exported assets:', fetchError);
-        console.error('Supabase request failed', {
+        console.error('API request failed', {
           message: fetchError?.message,
           details: fetchError?.details,
           hint: fetchError?.hint,
           code: fetchError?.code,
           assetIds: numericAssetIdsForQuery
         });
-        setToast({ message: 'הנכסים סומנו כייצאו אך לא ניתן היה לייצא אותם לקובץ Excel', type: 'error' });
+        setToast({ message: 'לא ניתן היה לייצא את הנכסים לקובץ Excel', type: 'error' });
         setTimeout(() => setToast(null), 5000);
         setExporting(false);
         setExportProgressMessage('');
@@ -943,7 +950,7 @@ export const MeasuredNotExportedAssets = ({ onSelectAsset }: MeasuredNotExported
       }
 
       if (!exportedAssets || exportedAssets.length === 0) {
-        setToast({ message: `סומנו ${result.count} נכסים כייצאו בהצלחה`, type: 'success' });
+        setToast({ message: 'לא נמצאו נכסים לייצוא', type: 'info' });
         setTimeout(() => setToast(null), 5000);
         setExporting(false);
         setExportProgressMessage('');
@@ -1035,8 +1042,7 @@ export const MeasuredNotExportedAssets = ({ onSelectAsset }: MeasuredNotExported
       });
 
       // Get all files for exported assets
-      // Ensure assetIds are numbers (not strings)
-      const numericAssetIdsForFiles = result.assetIds.map(id => typeof id === 'string' ? parseInt(id, 10) : id).filter(id => !isNaN(id));
+      const numericAssetIdsForFiles = numericAssetIdsForQuery;
       const filesByAsset = await api.assets.files.getAllBulk(numericAssetIdsForFiles);
       
       // Create a map of asset_id to asset data for lookup
@@ -1190,7 +1196,7 @@ export const MeasuredNotExportedAssets = ({ onSelectAsset }: MeasuredNotExported
           const results = await Promise.all(
             batch.map(async (task) => {
               try {
-                const { data: fileData, error: downloadError } = await supabase.storage
+                const { data: fileData, error: downloadError } = await api.storage
                   .from('structure-drawings')
                   .download(task.filePath);
                 if (downloadError || !fileData) {
@@ -1211,7 +1217,7 @@ export const MeasuredNotExportedAssets = ({ onSelectAsset }: MeasuredNotExported
             if (r.kind === 'bucket_not_found') {
               if (!bucketNotFoundShown) {
                 bucketNotFoundShown = true;
-                setToast({ message: 'Storage bucket "structure-drawings" not found. Please create it in Supabase Dashboard. See CREATE_STORAGE_BUCKETS.md for instructions.', type: 'error' });
+                setToast({ message: 'Storage bucket "structure-drawings" not found. Configure backend file storage.', type: 'error' });
                 setTimeout(() => setToast(null), 10000);
               }
               continue;
@@ -1284,14 +1290,14 @@ export const MeasuredNotExportedAssets = ({ onSelectAsset }: MeasuredNotExported
         ]);
         const opData = [headers, ...opRows];
         const opExcelBlob = createExcelBlob({
-          filename: `נכסים_מפעיל_${operatorId}_${dateStr}.xlsx`,
+          filename: `נכסים_מפעיל_${operatorId}_${dateStr}_${operatorAssets.length}נכסים.xlsx`,
           sheetName: 'נכסים',
           data: opData,
           columnWidths: [{ wch: 15 }, { wch: 15 }, { wch: 20 }, { wch: 20 }, { wch: 12 }, { wch: 12 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 10 }, { wch: 12 }, { wch: 12 }, { wch: 12 }, { wch: 15 }, { wch: 15 }]
         });
         const subj = templateOp ? applyTpl(templateOp.subject, operator.name, operatorAssets.length) : `שליחת נתונים - ${dateStrHe}`;
         const body = templateOp ? applyTpl(templateOp.body, operator.name, operatorAssets.length) : `שלום ${operator.name},\n\nמצורף קובץ הנתונים.\nתאריך: ${dateStrHe}\n\nבברכה,\nמערכת ניהול נכסים`;
-        sendItems.push({ to: operator.email, recipientName: operator.name, subject: subj, body, attachmentFilename: `נכסים_מפעיל_${operator.name}_${dateStr}.xlsx`, attachmentBlob: opExcelBlob });
+        sendItems.push({ to: operator.email, recipientName: operator.name, subject: subj, body, attachmentFilename: `נכסים_מפעיל_${operator.name}_${dateStr}_${operatorAssets.length}נכסים.xlsx`, attachmentBlob: opExcelBlob });
       }
       if (sendItems.length === 0) {
         const fullRows = assetsToExport.map((asset: any) => [
@@ -1304,7 +1310,7 @@ export const MeasuredNotExportedAssets = ({ onSelectAsset }: MeasuredNotExported
           '', '', '', '', '', ''
         ]);
         const fullExcelBlob = createExcelBlob({
-          filename: `נכסים_שליחה_${dateStr}.xlsx`,
+          filename: `נכסים_שליחה_${dateStr}_${assetsToExport.length}נכסים.xlsx`,
           sheetName: 'נכסים',
           data: [headers, ...fullRows],
           columnWidths: [{ wch: 15 }, { wch: 15 }, { wch: 20 }, { wch: 20 }, { wch: 12 }, { wch: 12 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 10 }, { wch: 12 }, { wch: 12 }, { wch: 12 }, { wch: 15 }, { wch: 15 }]
@@ -1313,7 +1319,7 @@ export const MeasuredNotExportedAssets = ({ onSelectAsset }: MeasuredNotExported
           if (!operator?.email || !operator.email.includes('@')) continue;
           const subj = templateOp ? applyTpl(templateOp.subject, operator.name, assetsToExport.length) : `שליחת נתונים - ${dateStrHe}`;
           const body = templateOp ? applyTpl(templateOp.body, operator.name, assetsToExport.length) : `שלום ${operator.name},\n\nמצורף קובץ הנתונים.\nתאריך: ${dateStrHe}\n\nבברכה,\nמערכת ניהול נכסים`;
-          sendItems.push({ to: operator.email, recipientName: operator.name, subject: subj, body, attachmentFilename: `נכסים_שליחה_${dateStr}.xlsx`, attachmentBlob: fullExcelBlob });
+          sendItems.push({ to: operator.email, recipientName: operator.name, subject: subj, body, attachmentFilename: `נכסים_שליחה_${dateStr}_${assetsToExport.length}נכסים.xlsx`, attachmentBlob: fullExcelBlob });
         }
       }
       const managersList = await api.managers.getAll();
@@ -1337,14 +1343,14 @@ export const MeasuredNotExportedAssets = ({ onSelectAsset }: MeasuredNotExported
         ]);
         const mgrData = [headers, ...mgrRows];
         const mgrExcelBlob = createExcelBlob({
-          filename: `נכסים_מנהל_${manager.id}_${dateStr}.xlsx`,
+          filename: `נכסים_מנהל_${manager.id}_${dateStr}_${managerAssets.length}נכסים.xlsx`,
           sheetName: 'נכסים',
           data: mgrData,
           columnWidths: [{ wch: 15 }, { wch: 15 }, { wch: 20 }, { wch: 20 }, { wch: 12 }, { wch: 12 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 10 }, { wch: 12 }, { wch: 12 }, { wch: 12 }, { wch: 15 }, { wch: 15 }]
         });
         const subj = templateMgr ? applyTpl(templateMgr.subject, manager.name, managerAssets.length) : `שליחת נתונים - ${dateStrHe}`;
         const body = templateMgr ? applyTpl(templateMgr.body, manager.name, managerAssets.length) : `שלום ${manager.name},\n\nמצורף קובץ הנתונים.\nתאריך: ${dateStrHe}\n\nבברכה,\nמערכת ניהול נכסים`;
-        sendItems.push({ to: manager.email, recipientName: manager.name, subject: subj, body, attachmentFilename: `נכסים_מנהל_${manager.name}_${dateStr}.xlsx`, attachmentBlob: mgrExcelBlob });
+        sendItems.push({ to: manager.email, recipientName: manager.name, subject: subj, body, attachmentFilename: `נכסים_מנהל_${manager.name}_${dateStr}_${managerAssets.length}נכסים.xlsx`, attachmentBlob: mgrExcelBlob });
       }
       let sentCount = 0;
       if (sendItems.length > 0) {
@@ -1367,7 +1373,19 @@ export const MeasuredNotExportedAssets = ({ onSelectAsset }: MeasuredNotExported
       setExportProgressMessage('מוריד קובץ ZIP...');
       const { createAndDownloadZip } = await import('../lib/zipExport');
       await createAndDownloadZip(zipFilename, zipFiles);
-      let successMessage = `נשלחו ${result.count} נכסים לעירייה בהצלחה. הקובץ הורד.`;
+
+      // Mark as exported only after successful send so the count updates correctly
+      try {
+        await api.assets.markExportedByIds(numericAssetIdsForQuery);
+        const d = new Date();
+        setLatestExportDate(
+          `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`
+        );
+      } catch (markErr: any) {
+        console.error('[MeasuredNotExportedAssets] Error marking assets as exported after send:', markErr);
+      }
+
+      let successMessage = `נשלחו ${numericAssetIdsForQuery.length} נכסים לעירייה בהצלחה. הקובץ הורד.`;
       if (sentCount > 0) successMessage += ` ${sentCount} מיילים נשלחו למפעילים ולמנהלים.`;
       setToast({ message: successMessage, type: 'success' });
       setTimeout(() => setToast(null), 8000);
@@ -1375,7 +1393,6 @@ export const MeasuredNotExportedAssets = ({ onSelectAsset }: MeasuredNotExported
       await fetchExportToAutomationCount();
       // Refresh the assets list
       await fetchData();
-      // Notify App to update "איפוס שליחת נתונים מתאריך" span (cache was set by api.assets.exportToAutomation)
       window.dispatchEvent(new CustomEvent('exportToAutomationSuccess'));
     } catch (error: any) {
       console.error('Error exporting to automation:', error);
@@ -1386,7 +1403,7 @@ export const MeasuredNotExportedAssets = ({ onSelectAsset }: MeasuredNotExported
       setExportProgressMessage('');
       document.body.style.cursor = '';
     }
-  }, [fetchExportToAutomationCount, fetchData, buildings, assetTypes]);
+  }, [fetchExportToAutomationCount, fetchData, buildings, assetTypes, shouldValidateBeforeSave]);
 
   // Export to Excel
   const handleExportToExcel = useCallback(async () => {
@@ -1426,7 +1443,7 @@ export const MeasuredNotExportedAssets = ({ onSelectAsset }: MeasuredNotExported
           }
           
           if (field === 'penthouse') {
-            return value === true || value === 'כן' ? 'כן' : 'לא';
+            return value === true ? 'כן' : 'לא';
           }
           
           return value != null ? String(value) : '';
@@ -1452,7 +1469,7 @@ export const MeasuredNotExportedAssets = ({ onSelectAsset }: MeasuredNotExported
   if (loading) {
     return (
       <div className="flex items-center justify-center h-full">
-        <Loader2 className="h-8 w-8 animate-spin text-app-accent" />
+        <Loader2 className="h-8 w-8 animate-spin text-purple-600" />
       </div>
     );
   }
@@ -1464,7 +1481,7 @@ export const MeasuredNotExportedAssets = ({ onSelectAsset }: MeasuredNotExported
         <p className="text-red-600">{error}</p>
         <button
           onClick={fetchData}
-          className="px-4 py-2 bg-app-accent text-white rounded-lg hover:bg-app-accent-hover"
+          className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700"
         >
           נסה שוב
         </button>
@@ -1473,62 +1490,88 @@ export const MeasuredNotExportedAssets = ({ onSelectAsset }: MeasuredNotExported
   }
 
   return (
-    <div className="h-full flex flex-col bg-white">
+    <div className="flex flex-col flex-1 min-h-0 bg-white">
       {/* Export progress modal - progress message in modal, not toast */}
       {exporting && (
         <div className="fixed inset-0 bg-black bg-opacity-50 z-[9999] flex items-center justify-center" style={{ cursor: 'wait' }}>
           <div className="bg-white rounded-lg p-6 shadow-xl flex flex-col items-center gap-4 min-w-[280px]">
-            <Loader2 className="h-12 w-12 text-app-accent animate-spin" />
-            <p className="text-app-text-primary font-medium text-lg text-center">שולח נתונים לעירייה</p>
+            <Loader2 className="h-12 w-12 text-purple-600 animate-spin" />
+            <p className="text-slate-700 font-medium text-lg text-center">שולח נתונים לעירייה</p>
             <p className="text-slate-600 text-sm text-center">{exportProgressMessage || 'מתחיל...'}</p>
           </div>
         </div>
       )}
-      {/* Header - gradient bar */}
-      <div className="page-header flex items-center justify-between p-4 rounded-b-xl">
-        <div className="relative flex items-center gap-3 flex-wrap">
+      {/* Header */}
+      <div className="page-header rounded-lg px-4 py-2 mb-2">
+        <div className="flex items-center gap-2">
           <div className="page-header-icon shrink-0">
-            <BuildingIcon className="h-6 w-6" />
+            <BuildingIcon className="w-5 h-5" />
           </div>
-          <h2 className="page-header-title text-xl font-bold">נכסים שנמדדו ולא נשלחו לעירייה</h2>
-          <span className="page-header-pill">{assets.length} נכסים</span>
+          <h2 className="page-header-title text-lg font-bold">נכסים שנמדדו ולא נשלחו לעירייה</h2>
+          <span className="page-header-badge">{assets.length} נכסים</span>
+        </div>
+      </div>
+      <div className="action-bar mb-2">
+        <div className="flex flex-wrap justify-end items-center gap-2">
+          <span className="text-sm text-slate-600 mr-2">
+            נבחרו: <strong>{selectedExportCount}</strong> מתוך {assets.length}
+          </span>
+          <span className="text-slate-300">|</span>
+          <button
+            type="button"
+            onClick={() => {
+              gridRef.current?.api?.selectAll();
+              setSelectedExportCount(gridRef.current?.api?.getSelectedRows()?.length ?? 0);
+            }}
+            className="btn btn-action btn-secondary"
+          >
+            <span>בחר הכל</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              gridRef.current?.api?.deselectAll();
+              setSelectedExportCount(0);
+            }}
+            className="btn btn-action btn-secondary"
+          >
+            <span>נקה בחירה</span>
+          </button>
+          <span className="text-slate-300">|</span>
+          <button
+            onClick={fetchData}
+            className="btn btn-action btn-secondary"
+          >
+            <RefreshCw className="h-5 w-5" />
+            <span>רענן</span>
+          </button>
+          <button
+            onClick={handleExportToExcel}
+            className="btn btn-action btn-export"
+          >
+            <Download className="h-5 w-5" />
+            <span>ייצא ל-Excel</span>
+          </button>
+          <button
+            type="button"
+            onClick={handleExportToAutomation}
+            disabled={loading || exporting || selectedExportCount === 0}
+            className="btn btn-action btn-primary disabled:opacity-50 disabled:cursor-not-allowed"
+            title={selectedExportCount > 0 ? `שלח ${selectedExportCount} נכסים נבחרים לעירייה` : 'בחר נכסים לשליחה'}
+          >
+            {exporting ? (
+              <Loader2 className="h-5 w-5 animate-spin" />
+            ) : (
+              <Download className="h-5 w-5" />
+            )}
+            <span>שליחת נתונים לעירייה{selectedExportCount > 0 ? ` (${selectedExportCount})` : ''}</span>
+          </button>
         </div>
       </div>
 
-      <div className="action-bar flex items-center justify-end gap-2">
-        <button
-          onClick={fetchData}
-          title="רענן"
-          className="btn btn-cancel btn-md"
-        >
-          <RefreshCw className="h-5 w-5" />
-        </button>
-        <button
-          onClick={handleExportToExcel}
-          title="ייצא ל-Excel"
-          className="btn btn-export btn-md"
-        >
-          <Download className="h-5 w-5" />
-          <span className="text-sm hidden sm:inline">ייצא ל-Excel</span>
-        </button>
-        <button
-          type="button"
-          onClick={handleExportToAutomation}
-          disabled={loading || exporting}
-          className="btn btn-md bg-orange-500 hover:bg-orange-600 text-white disabled:opacity-50"
-        >
-          {exporting ? (
-            <Loader2 className="h-4 w-4 animate-spin" />
-          ) : (
-            <Download className="h-4 w-4" />
-          )}
-          שליחת נתונים לעירייה{exportToAutomationCount > 0 ? ` (${exportToAutomationCount})` : ''}
-        </button>
-      </div>
-
       {/* Grid */}
-      <div className="bg-white rounded-xl shadow-lg hover:shadow-xl transition-shadow duration-200 overflow-hidden border border-slate-200 w-full">
-        <div className="ag-theme-alpine buildings-list-grid" style={{ height: '60vh', width: '100%', minWidth: '100%', overflowX: 'auto' }}>
+      <div className="flex-1 min-h-0 flex flex-col bg-white rounded-xl shadow-lg hover:shadow-xl transition-shadow duration-200 overflow-hidden border border-slate-200 w-full">
+        <div className="ag-theme-alpine buildings-list-grid flex-1 min-h-[200px]" style={{ width: '100%', minWidth: '100%', overflowX: 'auto' }}>
           <AgGridReact
             ref={gridRef}
             rowData={sortedAssets}
@@ -1563,6 +1606,8 @@ export const MeasuredNotExportedAssets = ({ onSelectAsset }: MeasuredNotExported
           }}
           onFirstDataRendered={async (params) => {
             await gridPreferences.saveColumnState(params.api);
+            params.api.selectAll();
+            setSelectedExportCount(params.api.getSelectedRows().length);
           }}
           onColumnMoved={async (params) => {
             if (gridRef.current?.api) {
@@ -1574,23 +1619,21 @@ export const MeasuredNotExportedAssets = ({ onSelectAsset }: MeasuredNotExported
               await gridPreferences.saveColumnState(gridRef.current.api);
             }
           }}
-          onRowClicked={(event) => {
-            if (event.data) {
-              const asset = event.data as Asset;
-              onSelectAsset(
-                String(asset.asset_id),
-                String(asset.asset_id),
-                asset.building_number,
-                asset.tax_region ? String(asset.tax_region) : undefined
-              );
-            }
+          onRowClicked={() => {
+            // Only asset_id column onCellClicked opens details; row click does nothing
+          }}
+          onSelectionChanged={(e) => {
+            const selected = gridRef.current?.api?.getSelectedRows() ?? [];
+            setSelectedExportCount(selected.length);
+            e.api?.refreshCells({ columns: ['actions'], force: true });
           }}
           rowSelection={{
-            mode: 'singleRow',
-            enableClickSelection: true,
+            mode: 'multiRow',
             checkboxes: false,
-            hideDisabledCheckboxes: true
+            headerCheckbox: false,
+            enableClickSelection: false
           }}
+          getRowId={(params) => String(params.data?.asset_id)}
           animateRows={false}
           localeText={{
             noRowsToShow: 'אין נכסים להצגה',

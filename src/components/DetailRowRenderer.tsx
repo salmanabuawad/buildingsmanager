@@ -52,7 +52,7 @@ export function DetailRowRenderer(params: DetailRowParams) {
     return (
       <div className="p-4 bg-gray-50 border-t border-gray-200">
         <div className="flex items-center justify-center py-4">
-          <Loader2 className="h-6 w-6 text-app-accent animate-spin" />
+          <Loader2 className="h-6 w-6 text-theme-tab-active animate-spin" />
           <span className="mr-2 text-slate-700">טוען פרטי ביקורת...</span>
         </div>
       </div>
@@ -63,7 +63,7 @@ export function DetailRowRenderer(params: DetailRowParams) {
     return (
       <div className="p-4 bg-gray-50 border-t border-gray-200">
         <div className="flex items-center justify-center py-4">
-          <Loader2 className="h-6 w-6 text-app-accent animate-spin" />
+          <Loader2 className="h-6 w-6 text-theme-tab-active animate-spin" />
           <span className="mr-2 text-slate-700">טוען פרטי ביקורת...</span>
         </div>
       </div>
@@ -290,7 +290,7 @@ export function DetailRowRenderer(params: DetailRowParams) {
               asset.tax_region ? String(asset.tax_region) : undefined
             );
           }}
-          className="text-app-accent hover:text-app-accent-hover underline decoration-blue-600 hover:decoration-blue-800 cursor-pointer transition-colors font-semibold"
+          className="text-theme-link hover:text-theme-link-hover underline decoration-theme-link hover:decoration-theme-link-hover cursor-pointer transition-colors font-semibold"
           title="לחץ כדי לפתוח את הנכס"
         >
           {assetId}
@@ -339,7 +339,7 @@ export function DetailRowRenderer(params: DetailRowParams) {
       {/* Simple HTML Table */}
       {allDetailAssets.length > 0 && (
         <div className="flex flex-col" dir="rtl">
-          <div className="rounded-xl shadow-lg border border-blue-100 overflow-x-auto" style={{ maxHeight: '200px', direction: 'rtl' }}>
+          <div className="rounded-xl shadow-lg border border-theme-card-border overflow-x-auto" style={{ maxHeight: '200px', direction: 'rtl' }}>
             <table className="min-w-full divide-y divide-gray-200" style={{ fontSize: '11px' }}>
               <thead className="bg-gray-50 sticky top-0">
                 <tr>

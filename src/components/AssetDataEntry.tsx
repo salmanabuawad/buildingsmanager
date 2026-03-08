@@ -12,6 +12,7 @@ import { useGridPreferences } from '../lib/useGridPreferences';
 import { processColumnHeader } from '../lib/gridHeaderUtils';
 import { exportToExcel } from '../lib/excelExport';
 import { useUserRole } from '../contexts/UserRoleContext';
+import { useUIConfig } from '../contexts/UIConfigContext';
 interface AssetRow {
   id: string;
   building_number: number | null;
@@ -52,13 +53,10 @@ export interface AssetDataEntryRef {
   hasUnsavedChanges: () => boolean;
 }
 
-interface AssetDataEntryProps {
-  validateInline?: boolean;
-}
-
-export const AssetDataEntry = forwardRef<AssetDataEntryRef, AssetDataEntryProps>(({ validateInline = true }, ref) => {
+export const AssetDataEntry = forwardRef<AssetDataEntryRef, {}>((props, ref) => {
   const { t } = useTranslation();
   const { isReadOnly } = useUserRole();
+  const { shouldValidateOnBlur } = useUIConfig();
   const gridRef = useRef<AgGridReact>(null);
 
   // Grid preferences hook for saving/loading column state
@@ -201,21 +199,8 @@ export const AssetDataEntry = forwardRef<AssetDataEntryRef, AssetDataEntryProps>
     updatedRow._isDirty = true;
     updatedRow._validationErrors.clear();
 
-    // Skip inline validation when validateInline is false (validate before save only)
-    if (!validateInline) {
-      setRowData(prev => {
-        const newData = prev.map(row => {
-          if (row.id === updatedRow.id) return { ...updatedRow };
-          return row;
-        });
-        return newData;
-      });
-      if (gridRef.current) {
-        setTimeout(() => gridRef.current?.api.refreshCells({ force: true }), 0);
-      }
-      return;
-    }
-
+    // When "מתי להריץ אימות" is "אונליין", run validation on cell change
+    if (shouldValidateOnBlur) {
     // Only validate sub-assets if main type is 199 or 299
     const shouldValidateSubAssets = updatedRow.main_asset_type === '199' || updatedRow.main_asset_type === '299';
     const validations = [
@@ -330,6 +315,7 @@ export const AssetDataEntry = forwardRef<AssetDataEntryRef, AssetDataEntryProps>
     } else {
       updatedRow._validationErrors.delete('_row');
     }
+    }
     setRowData(prev => {
       const newData = prev.map(row => {
         if (row.id === updatedRow.id) {
@@ -344,7 +330,7 @@ export const AssetDataEntry = forwardRef<AssetDataEntryRef, AssetDataEntryProps>
         gridRef.current?.api.refreshCells({ force: true });
       }, 0);
     }
-  }, [validateInline]);
+  }, [shouldValidateOnBlur]);
   const handleSaveAll = async () => {
     setLoading(true);
     setError(null);
@@ -873,7 +859,7 @@ export const AssetDataEntry = forwardRef<AssetDataEntryRef, AssetDataEntryProps>
                   className={`px-2 py-1 text-xs rounded transition-colors font-medium whitespace-nowrap ${
                     loading
                       ? 'bg-gray-300 text-gray-500 '
-                      : 'bg-app-accent hover:bg-app-accent-hover text-white'
+                      : 'bg-blue-600 hover:bg-blue-700 text-white'
                   }`}
                   title="הוסף מדידה חדשה"
                 >
@@ -926,7 +912,7 @@ export const AssetDataEntry = forwardRef<AssetDataEntryRef, AssetDataEntryProps>
       headerName: 'דירת גג',
       editable: false,
       cellRenderer: (params: any) => {
-        const isChecked = params.value === true || params.value === 'כן';
+        const isChecked = params.value === true;
         return (
           <div className="flex items-center justify-center h-full">
             <input
@@ -936,7 +922,7 @@ export const AssetDataEntry = forwardRef<AssetDataEntryRef, AssetDataEntryProps>
                 const newValue = e.target.checked ? true : false;
                 params.setValue(newValue);
               }}
-              className="w-4 h-4 text-app-accent rounded focus:ring-2 focus:ring-app-accent cursor-pointer"
+              className="w-4 h-4 text-blue-600 rounded focus:ring-2 focus:ring-blue-500 cursor-pointer"
             />
           </div>
         );
@@ -944,12 +930,12 @@ export const AssetDataEntry = forwardRef<AssetDataEntryRef, AssetDataEntryProps>
       valueGetter: (params: any) => {
         const value = params.data?.penthouse;
         // Convert to boolean: true if checked, false otherwise
-        return (value === true || value === 'כן') ? true : false;
+        return value === true;
       },
       valueSetter: (params: any) => {
         // Always set as boolean: true or false
         const newValue = params.newValue;
-        params.data.penthouse = (newValue === true || newValue === 'כן') ? true : false;
+        params.data.penthouse = newValue === true;
         return true;
       },
       cellStyle: (params) => {
@@ -1403,7 +1389,7 @@ export const AssetDataEntry = forwardRef<AssetDataEntryRef, AssetDataEntryProps>
       {loading && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg p-6 shadow-2xl flex flex-col items-center gap-4">
-            <Loader2 className="h-12 w-12 text-app-accent animate-spin" />
+            <Loader2 className="h-12 w-12 text-blue-600 animate-spin" />
             <p className="text-gray-700 font-medium text-lg">מעבד נתונים...</p>
           </div>
         </div>
@@ -1441,7 +1427,7 @@ export const AssetDataEntry = forwardRef<AssetDataEntryRef, AssetDataEntryProps>
                   }
                 }}
                 placeholder="כל המבנים"
-                className="w-full md:w-64 px-2 py-1 text-xs border border-gray-300 rounded-lg focus:ring-2 focus:ring-app-accent focus:border-app-accent bg-white"
+                className="w-full md:w-64 px-2 py-1 text-xs border border-gray-300 rounded-lg focus:ring-2 focus:ring-theme-action-accent focus:border-theme-action-accent bg-white"
               />
               <datalist id="building-list">
                 {buildings.map(building => (
@@ -1545,7 +1531,7 @@ export const AssetDataEntry = forwardRef<AssetDataEntryRef, AssetDataEntryProps>
                     showToast('שגיאה בייצוא לקובץ Excel', 'error');
                   }
                 }}
-                className="flex items-center gap-1 px-3 py-1 text-xs bg-app-accent hover:bg-app-accent-hover active:bg-app-accent-active text-white rounded-md transition-all duration-200 shadow-sm hover:shadow-md font-semibold"
+                className="flex items-center gap-1 px-3 py-1 text-xs bg-theme-action-accent hover:bg-theme-action-accent-hover active:bg-theme-action-accent-active text-white rounded-md transition-all duration-200 shadow-sm hover:shadow-md font-semibold"
                 title="ייצא ל-Excel"
               >
                 <Download className="h-3.5 w-3.5" />
@@ -1555,7 +1541,7 @@ export const AssetDataEntry = forwardRef<AssetDataEntryRef, AssetDataEntryProps>
                 <button
                   onClick={handleSaveAll}
                   disabled={loading}
-                  className="flex items-center gap-1 px-3 py-1 text-xs bg-app-accent hover:bg-app-accent-hover active:bg-app-accent-active text-white rounded-md transition-all duration-200 shadow-sm hover:shadow-md disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none font-semibold"
+                  className="flex items-center gap-1 px-3 py-1 text-xs bg-theme-tab-active hover:bg-theme-tab-active-hover active:bg-theme-tab-active-active text-white rounded-md transition-all duration-200 shadow-sm hover:shadow-md disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none font-semibold"
                 >
                   {loading ? (
                     <Loader2 className="h-3.5 w-3.5 animate-spin" />

@@ -1,3 +1,10 @@
+/**
+ * Copyright (c) 2025 Kortex Digital. All rights reserved. Proprietary.
+ * Contact: info@kortexd.com
+ * NO REVERSE ENGINEERING. Use by AI/ML tools (e.g. LLMs, code assistants,
+ * training data, or automated analysis) is prohibited. See COPYRIGHT.
+ */
+
 // IMPORTANT: Set up error suppression BEFORE any other imports to catch errors early
 // Suppress console errors and warnings from external scripts FIRST
 const originalConsoleError = console.error;
@@ -96,9 +103,11 @@ import App from './App.tsx';
 import './index.css';
 import './i18n/i18n';
 import { ValidationProvider } from './contexts/ValidationContext';
+import { UIConfigProvider } from './contexts/UIConfigContext';
 import { PreferencesProvider } from './contexts/PreferencesContext';
 import { UserRoleProvider } from './contexts/UserRoleContext';
 import { HelpProvider } from './contexts/HelpContext';
+import { FieldConfigProvider } from './contexts/FieldConfigContext';
 
 // Helper function to check if an error is from external scripts
 const isExternalScriptError = (event: ErrorEvent | Event): boolean => {
@@ -176,43 +185,25 @@ window.addEventListener('unhandledrejection', (event) => {
 
 ModuleRegistry.registerModules([AllCommunityModule]);
 
-// Preload field configurations on application startup and persist in memory
-import('./lib/fieldConfigUtils').then(({ loadFieldConfigurations }) => {
-  loadFieldConfigurations()
-    .then(() => {
-    })
-    .catch(error => {
-      console.warn('[main] Failed to preload field configurations:', error);
-    });
-});
-
-// Hide "Made in Bolt" badge if Bolt hosting injects it
-const hideBoltBadge = () => {
-  const selectors = [
-    'a.badge[href="https://bolt.new"]',
-    'a[href="https://bolt.new"]',
-    'a[href*="bolt.new"].badge',
-    'div[style*="position: fixed"][style*="bottom: 1rem"][style*="right: 1rem"][style*="z-index: 2147483647"]'
-  ];
-  document.querySelectorAll(selectors.join(', ')).forEach((el) => {
-    (el as HTMLElement).style.display = 'none';
-    (el as HTMLElement).style.visibility = 'hidden';
-  });
-};
-hideBoltBadge();
-const boltBadgeObserver = new MutationObserver(hideBoltBadge);
-boltBadgeObserver.observe(document.body, { childList: true, subtree: true });
-
-createRoot(document.getElementById('root')!).render(
+// Defer field config load to first use (after login) - they require Bearer auth
+async function bootstrap() {
+  createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <UserRoleProvider>
-      <PreferencesProvider>
-        <HelpProvider>
+      <HelpProvider>
+        <PreferencesProvider>
           <ValidationProvider>
-            <App />
+            <FieldConfigProvider>
+              <UIConfigProvider>
+                <App />
+              </UIConfigProvider>
+            </FieldConfigProvider>
           </ValidationProvider>
-        </HelpProvider>
-      </PreferencesProvider>
+        </PreferencesProvider>
+      </HelpProvider>
     </UserRoleProvider>
   </StrictMode>
-);
+  );
+}
+
+bootstrap();

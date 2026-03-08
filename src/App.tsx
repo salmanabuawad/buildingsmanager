@@ -1626,7 +1626,7 @@ function App() {
                     {(['light', 'normal', 'dark', 'contrast'] as const).map((b) => (
                       <button
                         key={b}
-                        onClick={() => setBrightness(b)}
+                        onClick={() => { setBrightness(b); setSettingsMenuOpen(false); }}
                         className={`flex-1 min-w-0 py-1.5 rounded text-sm ${brightness === b ? 'bg-white/20 text-white' : 'text-white/80 hover:bg-white/10'}`}
                       >
                         {b === 'light' ? 'בהיר' : b === 'normal' ? 'רגיל' : b === 'dark' ? 'כהה' : 'ניגודיות גבוהה'}
@@ -1640,7 +1640,7 @@ function App() {
                     {(['small', 'normal', 'large'] as const).map((f) => (
                       <button
                         key={f}
-                        onClick={() => setFontSize(f)}
+                        onClick={() => { setFontSize(f); setSettingsMenuOpen(false); }}
                         className={`flex-1 py-1.5 rounded text-sm ${fontSize === f ? 'bg-white/20 text-white' : 'text-white/80 hover:bg-white/10'}`}
                       >
                         {f === 'small' ? 'קטן' : f === 'normal' ? 'רגיל' : 'גדול'}

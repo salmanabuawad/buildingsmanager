@@ -1,5 +1,4 @@
-import { FieldConfiguration } from './api';
-import { supabase } from './supabase';
+import { FieldConfiguration, api } from './api';
 
 // Cache for field configurations - key format: "grid_name:field_name"
 let fieldConfigCache: Map<string, FieldConfiguration> | null = null;
@@ -12,7 +11,7 @@ function createConfigKey(gridName: string, fieldName: string): string {
 
 /**
  * Load all field configurations from the database and cache them in memory.
- * Uses Supabase client directly to fetch from field_configurations table.
+ * Uses api.fieldConfigurations.getAll() (origin pattern) - goes through api layer which uses Supabase.
  */
 export async function loadFieldConfigurations(gridName?: string): Promise<Map<string, FieldConfiguration>> {
   if (isCacheLoaded && fieldConfigCache) {
@@ -44,24 +43,9 @@ export async function loadFieldConfigurations(gridName?: string): Promise<Map<st
 
   fieldConfigCachePromise = (async () => {
     try {
-      let query = supabase
-        .from('field_configurations')
-        .select('*')
-        .order('grid_name')
-        .order('column_order', { ascending: true, nullsFirst: false })
-        .order('field_name')
-        .limit(5000);
-
-      if (gridName) {
-        query = query.eq('grid_name', gridName);
-      }
-
-      const { data, error } = await query;
-
-      if (error) throw error;
-      const configs = (data || []) as FieldConfiguration[];
+      const configs = await api.fieldConfigurations.getAll();
       if (process.env.NODE_ENV === 'development' && configs.length > 0) {
-        console.log('[fieldConfigUtils] Loaded', configs.length, 'field configs from DB, sample:', configs[0]?.grid_name, configs[0]?.field_name, configs[0]?.hebrew_name);
+        console.log('[fieldConfigUtils] Loaded', configs.length, 'field configs, sample:', configs[0]?.grid_name, configs[0]?.field_name, configs[0]?.hebrew_name);
       }
       const configMap = new Map<string, FieldConfiguration>();
       for (const config of configs) {
@@ -86,7 +70,6 @@ export async function loadFieldConfigurations(gridName?: string): Promise<Map<st
       console.error('[fieldConfigUtils] Error loading field configurations:', error);
       const emptyMap = new Map<string, FieldConfiguration>();
       fieldConfigCache = emptyMap;
-      // Don't cache 403 - allow retry after login
       const msg = error instanceof Error ? error.message : String(error);
       if (!msg.includes('403')) isCacheLoaded = true;
       return emptyMap;

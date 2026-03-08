@@ -1,6 +1,5 @@
 import { FieldConfiguration } from './api';
-import { getApiBaseUrl } from './appConfig';
-import { getAccessToken } from './usersTableAuth';
+import { supabase } from './supabase';
 
 // Cache for field configurations - key format: "grid_name:field_name"
 let fieldConfigCache: Map<string, FieldConfiguration> | null = null;
@@ -13,7 +12,7 @@ function createConfigKey(gridName: string, fieldName: string): string {
 
 /**
  * Load all field configurations from the database and cache them in memory.
- * Uses direct fetch to /api/data/field_configurations (avoids api layer / circular deps).
+ * Uses Supabase client directly to fetch from field_configurations table.
  */
 export async function loadFieldConfigurations(gridName?: string): Promise<Map<string, FieldConfiguration>> {
   if (isCacheLoaded && fieldConfigCache) {
@@ -45,17 +44,24 @@ export async function loadFieldConfigurations(gridName?: string): Promise<Map<st
 
   fieldConfigCachePromise = (async () => {
     try {
-      const base = getApiBaseUrl() || '';
-      const url = `${base}/api/data/field_configurations?select=*&limit=5000&offset=0`;
-      const headers: Record<string, string> = {};
-      const token = getAccessToken();
-      if (token) headers['Authorization'] = `Bearer ${token}`;
-      const res = await fetch(url, { credentials: 'include', headers });
-      if (!res.ok) throw new Error(`field_configurations fetch failed: ${res.status} ${res.statusText}`);
-      const raw = await res.json();
-      const configs = Array.isArray(raw) ? (raw as FieldConfiguration[]) : [];
+      let query = supabase
+        .from('field_configurations')
+        .select('*')
+        .order('grid_name')
+        .order('column_order', { ascending: true, nullsFirst: false })
+        .order('field_name')
+        .limit(5000);
+
+      if (gridName) {
+        query = query.eq('grid_name', gridName);
+      }
+
+      const { data, error } = await query;
+
+      if (error) throw error;
+      const configs = (data || []) as FieldConfiguration[];
       if (process.env.NODE_ENV === 'development' && configs.length > 0) {
-        console.log('[fieldConfigUtils] Loaded', configs.length, 'field configs, sample:', configs[0]?.grid_name, configs[0]?.field_name, configs[0]?.hebrew_name);
+        console.log('[fieldConfigUtils] Loaded', configs.length, 'field configs from DB, sample:', configs[0]?.grid_name, configs[0]?.field_name, configs[0]?.hebrew_name);
       }
       const configMap = new Map<string, FieldConfiguration>();
       for (const config of configs) {

@@ -2,7 +2,6 @@ import { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { X, Trash2, Eye, FileText, Image as ImageIcon, File, AlertTriangle } from 'lucide-react';
 import { api, AssetFile } from '../lib/api';
-import { getApiBaseUrl } from '../lib/appConfig';
 import { FileViewer } from './FileViewer';
 import { PdfThumbnail } from './PdfThumbnail';
 
@@ -142,29 +141,13 @@ export function AssetFilesModal({ isOpen, onClose, assetId, measurementDate, onF
     setCurrentViewingIndex(0);
   };
 
-  /** URL to load the file (for FileViewer). Use file_url when it's a full URL; else build from file_path or file_url as storage path. */
-  const getFileViewUrl = (file: AssetFile): string => {
-    const url = file.file_url?.trim();
-    if (url && (url.startsWith('http') || url.startsWith('/'))) {
-      return url;
-    }
-    const path = file.file_path?.trim() || (url && !url.startsWith('http') ? url : '');
-    if (path) {
-      const base = getApiBaseUrl();
-      return `${base ? base : ''}/api/files/download?path=${encodeURIComponent(path)}`;
-    }
-    return url || '';
-  };
+  /** URL to load the file (for FileViewer). Use file_url directly (ref: origin). */
+  const getFileViewUrl = (file: AssetFile): string => file.file_url?.trim() || '';
 
-  /** Like ref_only: use file_name from record; only when missing use basename of file_path or file_url. */
+  /** Use file_name from record; when missing derive from file_url (ref: origin). */
   const getDisplayFileName = (file: AssetFile): string => {
     const name = file.file_name?.trim();
     if (name) return name;
-    const path = file.file_path?.trim();
-    if (path) {
-      const base = path.replace(/\\/g, '/').split('/').pop()?.split('?')[0]?.trim();
-      if (base) return base;
-    }
     const url = file.file_url || '';
     const fromPath = url.match(/[?&]path=([^&]+)/)?.[1];
     const decodedPath = fromPath ? decodeURIComponent(fromPath) : url.replace(/\\/g, '/');

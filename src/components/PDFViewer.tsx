@@ -30,8 +30,8 @@ export function PDFViewer({ fileUrl, fileName }: PDFViewerProps) {
       setIsPreparingUrl(true);
       setLoadError(null);
 
-      // Check if URL is already a signed URL
-      if (fileUrl.includes('/storage/v1/object/sign/') || fileUrl.includes('/api/')) {
+      // Check if URL is already a signed URL (ref: origin)
+      if (fileUrl.includes('.supabase.co/storage/v1/object/sign/')) {
         if (!cancelled) setActualFileUrl(fileUrl);
         setIsPreparingUrl(false);
         return;

@@ -121,6 +121,14 @@ function App() {
   const [showBatchValidationModal, setShowBatchValidationModal] = useState(false);
   const [batchValidationModalClosing, setBatchValidationModalClosing] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const closeSidebarAndMenus = useCallback(() => {
+    setSidebarOpen(false);
+    setBuildingsMenuOpen(false);
+    setAssetsMenuOpen(false);
+    setAdminMenuOpen(false);
+    setManagerActionsSubmenuOpen(false);
+    setSystemConfigSubmenuOpen(false);
+  }, []);
   const [batchValidationLoading, setBatchValidationLoading] = useState(false);
   const [batchValidationProgress, setBatchValidationProgress] = useState<{
     current: number;
@@ -268,14 +276,47 @@ function App() {
     setActiveTabId('inspection-tasks');
   }, [isAuthenticated, isInspector, roleLoading]);
 
+  const getDefaultTabsForSession = useCallback((): Tab[] => {
+    const s = getSession();
+    const isDevUser = s?.user_name?.toLowerCase().trim() === 'dev';
+    if (s?.user_role === 'inspector') {
+      return [{ id: 'inspection-tasks', type: 'inspection-tasks', label: 'משימות ביקורת', refreshKey: Date.now() }];
+    }
+    return [
+      { id: 'measurement-progress-dashboard', type: 'measurement-progress-dashboard', label: 'התקדמות פעילות מדידות', refreshKey: Date.now() },
+      ...(isDevUser ? [{ id: 'inspection-tasks', type: 'inspection-tasks' as const, label: 'משימות ביקורת', refreshKey: Date.now() }] : []),
+      { id: 'buildings', type: 'buildings', label: 'מבנים', refreshKey: Date.now() },
+    ];
+  }, []);
+
+  const getDefaultActiveTabId = useCallback((): string => {
+    const s = getSession();
+    return s?.user_role === 'inspector' ? 'inspection-tasks' : 'measurement-progress-dashboard';
+  }, []);
+
   const handleLoginSuccess = async () => {
     setIsAuthenticated(true);
     await refreshRole();
     await refreshRules();
+    // Reset tabs to fresh defaults for the newly logged-in user (don't remember previous session's tabs)
+    const freshTabs = getDefaultTabsForSession();
+    const freshActiveTabId = getDefaultActiveTabId();
+    setTabs(freshTabs);
+    setActiveTabId(freshActiveTabId);
+    mobileDefaultAppliedRef.current = false;
+    inspectorDefaultAppliedRef.current = false;
   };
 
   const handleLogout = () => {
     logoutUsersTable();
+    // Reset to fresh defaults (session is cleared, so getSession() returns null)
+    setTabs([
+      { id: 'measurement-progress-dashboard', type: 'measurement-progress-dashboard', label: 'התקדמות פעילות מדידות', refreshKey: Date.now() },
+      { id: 'buildings', type: 'buildings', label: 'מבנים', refreshKey: Date.now() },
+    ]);
+    setActiveTabId('measurement-progress-dashboard');
+    mobileDefaultAppliedRef.current = false;
+    inspectorDefaultAppliedRef.current = false;
     setIsAuthenticated(false);
   };
 
@@ -1665,7 +1706,7 @@ function App() {
         <nav className="flex-1 p-2 space-y-0.5 overflow-visible min-h-0">
           {!isInspector && (
             <button
-              onClick={openAssetSearch}
+              onClick={() => { closeSidebarAndMenus(); openAssetSearch(); }}
               className={`w-full flex items-center justify-center p-2.5 rounded transition-all duration-200 text-white relative mb-1 ${isSidebarItemActive('asset-search') ? 'bg-app-sidebar-active border-r-[3px] border-r-app-sidebar-indicator' : 'hover:bg-app-sidebar-hover'}`}
               title="חיפוש נכס"
             >
@@ -1674,7 +1715,7 @@ function App() {
           )}
           {isInspector && (
             <button
-              onClick={openInspectionTasks}
+              onClick={() => { closeSidebarAndMenus(); openInspectionTasks(); }}
               className={`w-full flex items-center justify-center p-2.5 rounded transition-all duration-200 text-white relative ${isSidebarItemActive('inspection-tasks') ? 'bg-app-sidebar-active border-r-[3px] border-r-app-sidebar-indicator' : 'hover:bg-app-sidebar-hover'}`}
               title="משימות ביקורת"
             >
@@ -1683,7 +1724,7 @@ function App() {
           )}
           {!isInspector && isMobile && (
             <button
-              onClick={openMobileTasksUpload}
+              onClick={() => { closeSidebarAndMenus(); openMobileTasksUpload(); }}
               className={`w-full flex items-center justify-center p-2.5 rounded transition-all duration-200 text-white relative ${isSidebarItemActive('mobile-tasks-upload') ? 'bg-app-sidebar-active border-r-[3px] border-r-app-sidebar-indicator' : 'hover:bg-app-sidebar-hover'}`}
               title="משימות והעלאות"
             >
@@ -1709,11 +1750,11 @@ function App() {
               <div className="absolute right-full top-0 mr-1 w-48 bg-app-sidebar border-l border-white/10 rounded-l-lg shadow-xl py-2 z-[100] max-h-[70vh] overflow-y-auto">
                 <button
                   onClick={() => {
+                    closeSidebarAndMenus();
                     const dashboardTab: Tab = { id: 'measurement-progress-dashboard', type: 'measurement-progress-dashboard', label: 'התקדמות פעילות מדידות', refreshKey: Date.now() };
                     const buildingsTab: Tab = { id: 'buildings', type: 'buildings', label: 'מבנים', refreshKey: Date.now() };
                     setTabs([dashboardTab, buildingsTab]);
                     setActiveTabId('buildings');
-                    setBuildingsMenuOpen(true);
                   }}
                   className="w-full text-right py-2 px-3 text-sm text-white/90 hover:bg-app-sidebar-hover rounded"
                 >
@@ -1722,13 +1763,13 @@ function App() {
                 {!isReadOnly && (
                   <>
                     <button
-                      onClick={() => setShowCreateBuildingModal(true)}
+                      onClick={() => { closeSidebarAndMenus(); setShowCreateBuildingModal(true); }}
                       className="w-full text-right py-2 px-3 text-sm text-white/90 hover:bg-app-sidebar-hover rounded"
                     >
                       צור מבנה חדש
                     </button>
                     <button
-                      onClick={openFileImport}
+                      onClick={() => { closeSidebarAndMenus(); openFileImport(); }}
                       className="w-full text-right py-2 px-3 text-sm text-white/90 hover:bg-app-sidebar-hover rounded"
                     >
                       ייבוא File
@@ -1757,13 +1798,13 @@ function App() {
             {assetsMenuOpen && (
               <div className="absolute right-full top-0 mr-1 w-52 bg-app-sidebar border-l border-white/10 rounded-l-lg shadow-xl py-2 z-[100] max-h-[70vh] overflow-y-auto">
                 <button
-                  onClick={openAssetSearch}
+                  onClick={() => { closeSidebarAndMenus(); openAssetSearch(); }}
                   className="w-full text-right py-2 px-3 text-sm text-white/90 hover:bg-app-sidebar-hover rounded"
                 >
                   חיפוש נכס
                 </button>
                 <button
-                  onClick={openMeasuredNotExportedAssets}
+                  onClick={() => { closeSidebarAndMenus(); openMeasuredNotExportedAssets(); }}
                   className="w-full text-right py-2 px-3 text-sm text-white/90 hover:bg-app-sidebar-hover rounded"
                 >
                   נכסים שנמדדו ולא נשלחו
@@ -1771,13 +1812,13 @@ function App() {
                 {!isReadOnly && (
                   <>
                     <button
-                      onClick={openAssetsFileImport}
+                      onClick={() => { closeSidebarAndMenus(); openAssetsFileImport(); }}
                       className="w-full text-right py-2 px-3 text-sm text-white/90 hover:bg-app-sidebar-hover rounded"
                     >
                       ייבוא מלא
                     </button>
                     <button
-                      onClick={openAssetsSkeletonImport}
+                      onClick={() => { closeSidebarAndMenus(); openAssetsSkeletonImport(); }}
                       className="w-full text-right py-2 px-3 text-sm text-white/90 hover:bg-app-sidebar-hover rounded"
                     >
                       ייבוא שלד
@@ -1823,7 +1864,7 @@ function App() {
                       <div className="mr-2 mt-1 space-y-0.5 border-r-2 border-app-sidebar-indicator/50 pr-2">
                         {isDev && (
                         <button
-                          onClick={openInspectionTasks}
+                          onClick={() => { closeSidebarAndMenus(); openInspectionTasks(); }}
                           className="w-full flex items-center gap-2 px-3 py-2 text-right bg-transparent hover:bg-theme-sidebar-hover rounded-lg transition-all text-xs text-white/90"
                         >
                           <span className="text-white/90">משימות ביקורת</span>
@@ -1831,7 +1872,7 @@ function App() {
                         </button>
                         )}
                         <button
-                          onClick={openResetExportModal}
+                          onClick={() => { closeSidebarAndMenus(); openResetExportModal(); }}
                           disabled={resetExportLoading}
                           className="w-full flex items-center gap-2 px-3 py-2 text-right bg-transparent hover:bg-theme-sidebar-hover rounded-lg transition-all text-xs text-white/90 disabled:opacity-50 disabled:cursor-not-allowed"
                         >
@@ -1850,7 +1891,7 @@ function App() {
                 )}
                 {isAdmin && validationRulesEnabled && (
                   <button
-                    onClick={openValidationRules}
+                    onClick={() => { closeSidebarAndMenus(); openValidationRules(); }}
                     className="w-full flex items-center gap-2 px-3 py-2 text-right bg-transparent hover:bg-theme-sidebar-hover rounded-lg transition-all text-xs text-white/90"
                   >
                     <span className="font-medium text-white/90">כללי תקינות</span>
@@ -1876,49 +1917,49 @@ function App() {
                     {systemConfigSubmenuOpen && (
                       <div className="mr-2 mt-1 space-y-0.5 border-r-2 border-app-sidebar-indicator/50 pr-2">
                         <button
-                          onClick={openSystemConfiguration}
+                          onClick={() => { closeSidebarAndMenus(); openSystemConfiguration(); }}
                           className="w-full flex items-center gap-2 px-3 py-2 text-right bg-transparent hover:bg-theme-sidebar-hover rounded-lg transition-all text-xs text-white/90"
                         >
                           <span className="text-white/90">הגדרות כלליות</span>
                           <Settings className="h-3 w-3 text-white/70" />
                         </button>
                         <button
-                          onClick={openAssetTypes}
+                          onClick={() => { closeSidebarAndMenus(); openAssetTypes(); }}
                           className="w-full flex items-center gap-2 px-3 py-2 text-right bg-transparent hover:bg-theme-sidebar-hover rounded-lg transition-all text-xs text-white/90"
                         >
                           <span className="text-white/90">סוגי נכסים</span>
                           <Tag className="h-3 w-3 text-white/70" />
                         </button>
                         <button
-                          onClick={openAddressList}
+                          onClick={() => { closeSidebarAndMenus(); openAddressList(); }}
                           className="w-full flex items-center gap-2 px-3 py-2 text-right bg-transparent hover:bg-theme-sidebar-hover rounded-lg transition-all text-xs text-white/90"
                         >
                           <span className="text-white/90">רשימת כתובות</span>
                           <MapPin className="h-3 w-3 text-white/70" />
                         </button>
                         <button
-                          onClick={openFieldConfig}
+                          onClick={() => { closeSidebarAndMenus(); openFieldConfig(); }}
                           className="w-full flex items-center gap-2 px-3 py-2 text-right bg-transparent hover:bg-theme-sidebar-hover rounded-lg transition-all text-xs text-white/90"
                         >
                           <span className="text-white/90">הגדרות שדות</span>
                           <Settings className="h-3 w-3 text-white/70" />
                         </button>
                         <button
-                          onClick={openOperators}
+                          onClick={() => { closeSidebarAndMenus(); openOperators(); }}
                           className="w-full flex items-center gap-2 px-3 py-2 text-right bg-transparent hover:bg-theme-sidebar-hover rounded-lg transition-all text-xs text-white/90"
                         >
                           <span className="text-white/90">מפעילים</span>
                           <Users className="h-3 w-3 text-white/70" />
                         </button>
                         <button
-                          onClick={openManagers}
+                          onClick={() => { closeSidebarAndMenus(); openManagers(); }}
                           className="w-full flex items-center gap-2 px-3 py-2 text-right bg-transparent hover:bg-theme-sidebar-hover rounded-lg transition-all text-xs text-white/90"
                         >
                           <span className="text-white/90">מנהלים</span>
                           <UserCog className="h-3 w-3 text-white/70" />
                         </button>
                         <button
-                          onClick={openUserManagement}
+                          onClick={() => { closeSidebarAndMenus(); openUserManagement(); }}
                           className="w-full flex items-center gap-2 px-3 py-2 text-right bg-transparent hover:bg-theme-sidebar-hover rounded-lg transition-all text-xs text-white/90"
                         >
                           <span className="text-white/90">ניהול משתמשים</span>

@@ -3,6 +3,7 @@ import { ColDef } from 'ag-grid-community';
 import { loadFieldConfigurations, applyFieldConfigToColumn, getFieldConfigCache, isFieldConfigCacheLoaded } from './fieldConfigUtils';
 import { FieldConfiguration } from './api';
 import { useFieldConfigVersion } from '../contexts/FieldConfigContext';
+import { useFontSize } from '../contexts/FontSizeContext';
 import { subscribeFontSize, getFontSizeWidthMultiplier } from './fontSizeStore';
 
 /**
@@ -15,9 +16,10 @@ import { subscribeFontSize, getFontSizeWidthMultiplier } from './fontSizeStore';
  */
 export function useFieldConfig<T = any>(columnDefs: ColDef<T>[], gridName?: string): [ColDef<T>[], boolean] {
   const configVersion = useFieldConfigVersion();
-  const [fontSizeVersion, setFontSizeVersion] = useState(0);
+  const fontSize = useFontSize(); // Ref pattern: context triggers re-render + useMemo recompute
+  const [, forceUpdate] = useState(0);
   useEffect(() => {
-    return subscribeFontSize(() => setFontSizeVersion((n) => n + 1));
+    return subscribeFontSize(() => forceUpdate((n) => n + 1));
   }, []);
 
   // Initialize from cache immediately if available (synchronous)
@@ -174,7 +176,7 @@ export function useFieldConfig<T = any>(columnDefs: ColDef<T>[], gridName?: stri
     });
 
     return sortedColumnDefs;
-  }, [columnDefs, fieldConfigs, loading, gridName, fontSizeVersion]);
+  }, [columnDefs, fieldConfigs, loading, gridName, fontSize]);
 
   return [configuredColumnDefs, loading];
 }

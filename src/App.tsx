@@ -32,6 +32,7 @@ import { useUserRole } from './contexts/UserRoleContext';
 import { useUIConfig } from './contexts/UIConfigContext';
 import { useHelp } from './contexts/HelpContext';
 import { useValidationRules } from './contexts/ValidationContext';
+import { loadFieldConfigurations } from './lib/fieldConfigUtils';
 import { Login } from './components/Login';
 import { HelpModal } from './components/HelpModal';
 import { MobileTasksAndUpload } from './components/MobileTasksAndUpload';
@@ -232,6 +233,15 @@ function App() {
       loadUIConfig();
     }
   }, [isAuthenticated, loadUIConfig]);
+
+  // Load field configurations after login (require Bearer auth)
+  useEffect(() => {
+    if (isAuthenticated) {
+      loadFieldConfigurations().catch((err) => {
+        console.warn('[App] Failed to load field configurations:', err);
+      });
+    }
+  }, [isAuthenticated]);
 
   // F1 key opens help modal
   useEffect(() => {

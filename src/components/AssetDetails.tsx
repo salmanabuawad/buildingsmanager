@@ -197,11 +197,12 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
   }, [isAssetTypeNotAccountable]);
 
   // Helper function to check if a field should be editable
-  // For non-accountable assets, all fields are readonly (main_asset_type is readonly in all tabs except TransferAreas)
+  // Grid is always editable for the latest measurement row (regardless of modal/inline preference)
+  // For non-accountable assets, all fields are readonly
   const isFieldEditable = useCallback((params: any, fieldName: string): boolean => {
     if (!params || !params.data) return false;
     const asset = params.data as Asset;
-    const baseEditable = asset.is_latest === true && editMode === 'inline';
+    const baseEditable = asset.is_latest === true;
     
     // For non-accountable assets, all fields are readonly (including main_asset_type)
     if (isAssetNotAccountable(asset)) {
@@ -209,7 +210,7 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
     }
     
     return baseEditable;
-  }, [isAssetNotAccountable, editMode]);
+  }, [isAssetNotAccountable]);
 
   // Get area description for tab based on main asset type
   const areaDescriptionForTab = useMemo(() => {
@@ -2581,7 +2582,7 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
       editable: false,
       cellRenderer: (params: any) => {
         const isChecked = params.value === true;
-        const isEditable = params.data.is_latest === true && editMode === 'inline';
+        const isEditable = params.data.is_latest === true;
         return (
           <div className="flex items-center justify-center h-full">
             {isEditable ? (
@@ -3061,7 +3062,7 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
       }
       return colDef;
     });
-  }, [t, assetTypes, editMode, isFieldEditable, getCellStyle, structureDrawingCellRenderer, actionsCellRenderer, asset, isBusinessAsset, isBusinessContext, operators]);
+  }, [t, assetTypes, isFieldEditable, getCellStyle, structureDrawingCellRenderer, actionsCellRenderer, asset, isBusinessAsset, isBusinessContext, operators]);
 
   // Apply field configurations to column definitions for main grid
   const [configuredColumnDefs] = useFieldConfig(columnDefs, 'asset-details-main');
@@ -3879,6 +3880,7 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
                   debounceVerticalScrollbar: true,
                   rowSelection: { mode: 'singleRow', enableClickSelection: true, checkboxes: false },
                   enableCellTextSelection: false, // Disable text selection for better performance
+                  singleClickEdit: true, // Single-click to start editing (grid is editable)
                 }}
                 suppressHorizontalScroll={false}
                 onGridReady={async (params) => {

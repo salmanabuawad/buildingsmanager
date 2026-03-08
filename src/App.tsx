@@ -2150,6 +2150,7 @@ function App() {
             {activeTab?.type === 'measured-not-exported-assets' && (
               <MeasuredNotExportedAssets
                 onSelectAsset={handleSelectAsset}
+                onOpenAssetsTab={handleOpenAssetsTab}
               />
             )}
 {activeTab?.type === 'measurement-progress-dashboard' && (

@@ -80,9 +80,10 @@ const ActionsHeader = () => (
 
 interface MeasuredNotExportedAssetsProps {
   onSelectAsset: (assetId: string, assetIdentifier: string, buildingNumber: number, taxRegion?: string) => void;
+  onOpenAssetsTab?: (buildingNumber: number, taxRegion: string) => void;
 }
 
-export const MeasuredNotExportedAssets = ({ onSelectAsset }: MeasuredNotExportedAssetsProps) => {
+export const MeasuredNotExportedAssets = ({ onSelectAsset, onOpenAssetsTab }: MeasuredNotExportedAssetsProps) => {
   const { t } = useTranslation();
   const { isReadOnly } = useUserRole();
   const { shouldValidateBeforeSave } = useUIConfig();
@@ -356,7 +357,37 @@ export const MeasuredNotExportedAssets = ({ onSelectAsset }: MeasuredNotExported
       headerName: 'מספר מבנה',
       editable: false,
       headerClass: 'ag-right-aligned-header',
-      cellStyle: { textAlign: 'right' }
+      cellStyle: (params: any) => {
+        const base: Record<string, unknown> = { textAlign: 'right' };
+        if (onOpenAssetsTab) {
+          Object.assign(base, {
+            color: '#2563eb',
+            fontWeight: '600',
+            textDecoration: 'underline',
+            cursor: 'pointer'
+          });
+        }
+        return base;
+      },
+      cellRenderer: (params: any) => {
+        if (!params?.data || !onOpenAssetsTab) return params.value != null ? String(params.value) : '';
+        return (
+          <span
+            className="hover:text-blue-700"
+            title="לחץ לפתיחת רשימת נכסי המבנה"
+          >
+            {params.value != null ? String(params.value) : ''}
+          </span>
+        );
+      },
+      onCellClicked: (params: any) => {
+        if (!onOpenAssetsTab) return;
+        const asset = params.data as Asset;
+        if (asset?.building_number != null) {
+          const taxRegion = asset.tax_region != null ? String(asset.tax_region) : '';
+          onOpenAssetsTab(asset.building_number, taxRegion);
+        }
+      }
     },
     {
       field: 'asset_id',
@@ -765,7 +796,7 @@ export const MeasuredNotExportedAssets = ({ onSelectAsset }: MeasuredNotExported
       }
       return colDef;
     });
-  }, [t, assetTypes, getAreaDescriptionForTaxRegion, getAssetTypeTooltip, onSelectAsset, validationErrors]);
+  }, [t, assetTypes, getAreaDescriptionForTaxRegion, getAssetTypeTooltip, onSelectAsset, onOpenAssetsTab, validationErrors]);
   
   // Apply field configurations to column definitions
   const [configuredColumnDefsRaw] = useFieldConfig(columnDefs, 'measured-not-exported-assets');

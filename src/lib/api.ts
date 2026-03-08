@@ -4088,6 +4088,9 @@ export const api = {
       }
     }
 
+    // Delete the building itself (assets were deleted above)
+    await api.buildings.delete(buildingNumber);
+
     return { message: 'Assets deleted successfully' };
   },
   fieldConfigurations: {

@@ -1,4 +1,4 @@
-import { authSessionLogin, authSessionByTaskToken } from './restClient';
+import { supabase } from './supabase';
 
 const STORAGE_KEY = 'buildingsmanager_users_table_session';
 const FILE_SESSION_COOKIE = 'file_session';
@@ -80,13 +80,16 @@ export async function loginUsersTable(
   password: string
 ): Promise<{ success: true; session: UsersTableSession } | { success: false; error: string }> {
   try {
-    const { data, error } = await authSessionLogin(user_name.trim(), password);
+    const { data, error } = await supabase.rpc('auth_login', {
+      p_user_name: user_name.trim(),
+      p_password: password,
+    });
 
     if (error) {
       return { success: false, error: authLoginErrorToHebrew(error.message) };
     }
 
-    const d = data;
+    const d = data as { user_id: number; user_name: string; user_role: string } | null;
     if (!d?.user_id || !d?.user_name) {
       return { success: false, error: 'שגיאה בהתחברות.' };
     }
@@ -96,7 +99,6 @@ export async function loginUsersTable(
       user_id: d.user_id,
       user_name: d.user_name,
       user_role: role,
-      access_token: d.access_token,
     };
     setSession(session);
     return { success: true, session };
@@ -107,7 +109,7 @@ export async function loginUsersTable(
         success: false,
         error:
           'לא ניתן להגיע לשרת.\n' +
-          'בדוק חיבור לאינטרנט וודא שהשרת (Backend) פועל וכתובת ה-API נכונה.',
+          'בדוק חיבור לאינטרנט, וודא שכתובת Supabase והמפתח בסביבת הבנייה נכונים.',
       };
     }
     return { success: false, error: authLoginErrorToHebrew(msg) || 'שגיאה בהתחברות.' };
@@ -123,13 +125,15 @@ export async function loginByTaskToken(
   token: string
 ): Promise<{ success: true; session: UsersTableSession; taskId: number } | { success: false; error: string }> {
   try {
-    const { data, error } = await authSessionByTaskToken(token.trim());
+    const { data, error } = await supabase.rpc('auth_login_by_task_token', {
+      p_token: token.trim(),
+    });
 
     if (error) {
       return { success: false, error: error.message || 'טוקן לא תקף או שפג תוקפו' };
     }
 
-    const d = data;
+    const d = data as { user_id: number; user_name: string; user_role: string; task_id: number } | null;
     if (!d?.user_id || !d?.user_name || d.task_id == null) {
       return { success: false, error: 'טוקן לא תקף או שפג תוקפו.' };
     }
@@ -139,7 +143,6 @@ export async function loginByTaskToken(
       user_id: d.user_id,
       user_name: d.user_name,
       user_role: role,
-      access_token: d.access_token,
     };
     setSession(session);
     return { success: true, session, taskId: d.task_id };

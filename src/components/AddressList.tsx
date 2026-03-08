@@ -6,6 +6,7 @@ import * as XLSX from 'xlsx';
 import { AgGridReact } from 'ag-grid-react';
 import { ColDef } from 'ag-grid-community';
 import { useGridPreferences } from '../lib/useGridPreferences';
+import { useFieldConfig } from '../lib/useFieldConfig';
 import { processColumnHeader } from '../lib/gridHeaderUtils';
 import { exportToExcel } from '../lib/excelExport';
 
@@ -332,6 +333,8 @@ export function AddressListComponent() {
       return colDef;
     });
   }, [dirtyAddresses, deletedAddresses]);
+
+  const [configuredColumnDefs] = useFieldConfig(columnDefs, 'address-list');
 
   async function handleFileImport(event: React.ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
@@ -773,7 +776,7 @@ export function AddressListComponent() {
             <AgGridReact<AddressList>
             ref={gridRef}
             rowData={addresses}
-            columnDefs={columnDefs}
+            columnDefs={configuredColumnDefs}
             defaultColDef={{
               resizable: true,
               wrapHeaderText: true,

@@ -9,6 +9,7 @@ import { AgGridReact } from 'ag-grid-react';
 import { ColDef, CellValueChangedEvent } from 'ag-grid-community';
 import { Toast } from './Toast';
 import { useGridPreferences } from '../lib/useGridPreferences';
+import { useFieldConfig } from '../lib/useFieldConfig';
 import { processColumnHeader } from '../lib/gridHeaderUtils';
 import { exportToExcel } from '../lib/excelExport';
 import { useUserRole } from '../contexts/UserRoleContext';
@@ -1350,6 +1351,9 @@ export const AssetDataEntry = forwardRef<AssetDataEntryRef, {}>((props, ref) => 
       return colDef;
     });
   }, [t, buildings, assetTypes, getCellStyle, isReadOnly, loading, handleAddNewMeasurement, handleDeleteRow, isFieldEditable, deletedRows]);
+
+  const [configuredColumnDefs] = useFieldConfig(columnDefs, 'asset-data-entry');
+
   // Store original row data for cancel functionality - update when rowData is initially loaded or after save
   const [originalRowData, setOriginalRowData] = useState<AssetRow[]>([]);
   
@@ -1564,7 +1568,7 @@ export const AssetDataEntry = forwardRef<AssetDataEntryRef, {}>((props, ref) => 
             <AgGridReact
             ref={gridRef}
             rowData={filteredRowData}
-            columnDefs={columnDefs}
+            columnDefs={configuredColumnDefs}
             getRowStyle={(params) => {
               // Style deleted rows with strikethrough and gray background
               if (params.data && deletedRows.has(params.data.id)) {

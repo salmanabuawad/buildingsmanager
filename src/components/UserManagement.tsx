@@ -4,6 +4,7 @@ import { useUserRole } from '../contexts/UserRoleContext';
 import { Loader2, User, Shield, UserX, CheckCircle2, XCircle, Save, RefreshCw, Key, X, Eye, EyeOff, Plus, Trash2, AlertCircle } from 'lucide-react';
 import { AgGridReact } from 'ag-grid-react';
 import { ColDef, CellValueChangedEvent } from 'ag-grid-community';
+import { useFieldConfig } from '../lib/useFieldConfig';
 
 interface User {
   user_id: number;
@@ -182,6 +183,8 @@ export function UserManagement() {
       },
     },
   ], [saving, deleting]);
+
+  const [configuredColumnDefs] = useFieldConfig(columnDefs, 'user-management');
 
   const handleChangePassword = async (userId: number) => {
     if (!isAdmin) {
@@ -401,7 +404,7 @@ export function UserManagement() {
             <AgGridReact<User>
               ref={gridRef}
               rowData={users}
-              columnDefs={columnDefs}
+              columnDefs={configuredColumnDefs}
               onCellValueChanged={onCellValueChanged}
               getRowId={(p) => String(p.data?.user_id)}
               defaultColDef={{

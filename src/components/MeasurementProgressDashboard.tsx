@@ -2,6 +2,7 @@ import { useEffect, useState, useMemo } from 'react';
 import { api } from '../lib/api';
 import { AgGridReact } from 'ag-grid-react';
 import { ColDef } from 'ag-grid-community';
+import { useFieldConfig } from '../lib/useFieldConfig';
 import 'ag-grid-community/styles/ag-theme-alpine.css';
 import { BarChart3, Calendar, Loader2, AlertCircle, RefreshCw } from 'lucide-react';
 import { formatDateToDDMMYYYY, parseDateFromDDMMYYYY } from '../lib/dateUtils';
@@ -176,6 +177,8 @@ export const MeasurementProgressDashboard = ({ onOpenBuildingsList, onOpenMeasur
     }
   ], []);
 
+  const [configuredColumnDefs] = useFieldConfig(columnDefs, 'measurement-progress-dashboard');
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-full">
@@ -317,7 +320,7 @@ export const MeasurementProgressDashboard = ({ onOpenBuildingsList, onOpenMeasur
             <div className="ag-theme-alpine buildings-list-grid flex-1 min-h-[200px]" style={{ width: '100%', minWidth: '100%', overflowX: 'auto' }}>
               <AgGridReact
                 rowData={data.yearly}
-                columnDefs={columnDefs}
+                columnDefs={configuredColumnDefs}
                 defaultColDef={{
                   resizable: false,
                   wrapHeaderText: true,

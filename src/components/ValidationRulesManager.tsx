@@ -7,6 +7,7 @@ import * as XLSX from 'xlsx';
 import { AgGridReact } from 'ag-grid-react';
 import { ColDef } from 'ag-grid-community';
 import { useGridPreferences } from '../lib/useGridPreferences';
+import { useFieldConfig } from '../lib/useFieldConfig';
 import { processColumnHeader } from '../lib/gridHeaderUtils';
 import { exportToExcel } from '../lib/excelExport';
 
@@ -642,6 +643,8 @@ export function ValidationRulesManager() {
     });
   }, [editingId, editValues]);
 
+  const [configuredColumnDefs] = useFieldConfig(columnDefs, 'validation-rules');
+
   const gridRef = useRef<AgGridReact<ValidationRule>>(null);
   
   // Grid preferences hook for saving/loading column state
@@ -941,7 +944,7 @@ export function ValidationRulesManager() {
                 <AgGridReact
                 ref={gridRef}
                 rowData={rules}
-                columnDefs={columnDefs}
+                columnDefs={configuredColumnDefs}
                 defaultColDef={defaultColDef}
                 gridOptions={gridOptions}
                 suppressHorizontalScroll={false}

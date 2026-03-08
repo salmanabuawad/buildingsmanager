@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Manager, api } from '../lib/api';
 import { useUserRole } from '../contexts/UserRoleContext';
+import { useFieldConfig } from '../lib/useFieldConfig';
 import { Loader2, UserCog, Plus, Trash2, Check, Save, X } from 'lucide-react';
 import { Toast } from './Toast';
 import { AgGridReact } from 'ag-grid-react';
@@ -185,6 +186,8 @@ export function ManagersManager() {
     },
   ];
 
+  const [configuredColumnDefs] = useFieldConfig(columnDefs, 'managers');
+
   const getRowStyle = (params: any) => {
     if (params.data && deletedItems.has(params.data.id)) {
       return { backgroundColor: '#fee2e2', textDecoration: 'line-through' };
@@ -270,7 +273,7 @@ export function ManagersManager() {
             email: getCurrentValue(item, 'email'),
             phone: getCurrentValue(item, 'phone'),
           }))}
-          columnDefs={columnDefs}
+          columnDefs={configuredColumnDefs}
           onCellValueChanged={onCellValueChanged}
           getRowStyle={getRowStyle}
           domLayout="normal"

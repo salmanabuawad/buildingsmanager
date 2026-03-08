@@ -374,7 +374,7 @@ export function InspectionTasks() {
     ];
   }, [allUsers]);
 
-  const configuredTaskListColumnDefs = useFieldConfig(taskListColumnDefs, 'inspection-tasks');
+  const [configuredTaskListColumnDefs] = useFieldConfig(taskListColumnDefs, 'inspection-tasks');
 
   const fetchTasks = async () => {
     try {

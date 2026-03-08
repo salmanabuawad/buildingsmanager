@@ -1521,7 +1521,7 @@ export const MeasuredNotExportedAssets = ({ onSelectAsset, onOpenAssetsTab }: Me
   }
 
   return (
-    <div className="flex flex-col flex-1 min-h-0 bg-white">
+    <div className="flex flex-col flex-1 min-h-0 w-full px-2 sm:px-4 md:px-6 py-1.5 sm:py-2">
       {/* Export progress modal - progress message in modal, not toast */}
       {exporting && (
         <div className="fixed inset-0 bg-black bg-opacity-50 z-[9999] flex items-center justify-center" style={{ cursor: 'wait' }}>

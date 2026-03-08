@@ -689,7 +689,7 @@ export function FieldConfigManager() {
   }
 
   return (
-    <div className="w-full mx-auto px-4 py-6">
+    <div className="flex flex-col flex-1 min-h-0 w-full px-2 sm:px-4 md:px-6 py-1.5 sm:py-2">
       {toast && (
         <Toast
           message={toast.message}

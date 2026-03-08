@@ -214,7 +214,7 @@ export function MobileTasksAndUpload() {
   };
 
   return (
-    <div className="p-4 max-w-lg mx-auto space-y-6" dir="rtl">
+    <div className="flex flex-col flex-1 min-h-0 w-full px-2 sm:px-4 md:px-6 py-1.5 sm:py-2 overflow-y-auto space-y-6" dir="rtl">
       <h1 className="text-xl font-semibold text-slate-800 border-b border-slate-200 pb-2">
         משימות והעלאות
       </h1>

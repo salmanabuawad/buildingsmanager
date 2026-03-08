@@ -676,7 +676,8 @@ export function ValidationRulesManager() {
   }, [rules]);
 
   return (
-    <div className="w-full h-full flex flex-col bg-white rounded-lg shadow-lg">
+    <div className="flex flex-col flex-1 min-h-0 w-full px-2 sm:px-4 md:px-6 py-1.5 sm:py-2">
+    <div className="flex flex-col flex-1 min-h-0 w-full bg-white rounded-lg shadow-lg overflow-hidden">
       <div className="flex items-center justify-between p-3 border-b border-slate-200">
         <div className="flex items-center gap-2">
           <Settings className="h-5 w-5 text-teal-600" />
@@ -1003,6 +1004,7 @@ export function ValidationRulesManager() {
           </div>
         )}
       </div>
+    </div>
     </div>
   );
 }

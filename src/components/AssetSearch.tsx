@@ -53,7 +53,7 @@ export function AssetSearch({ onSelectAsset }: AssetSearchProps) {
   }
 
   return (
-    <div className="max-w-7xl mx-auto px-2 sm:px-4 py-4 sm:py-8 md:py-12">
+    <div className="flex flex-col flex-1 min-h-0 w-full px-2 sm:px-4 md:px-6 py-1.5 sm:py-2">
       <div className="page-header mb-6 sm:mb-8 rounded-xl p-4 w-full" dir="rtl">
         <div className="relative flex items-center gap-3 flex-wrap w-full">
           <div className="page-header-icon shrink-0">

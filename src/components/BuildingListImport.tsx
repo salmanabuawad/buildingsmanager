@@ -250,7 +250,7 @@ export function BuildingListImport() {
   }
 
   return (
-    <div className="max-w-4xl mx-auto px-4 py-8">
+    <div className="flex flex-col flex-1 min-h-0 w-full px-2 sm:px-4 md:px-6 py-1.5 sm:py-2 overflow-y-auto">
       <div className="mb-8 page-header rounded-xl px-4 py-3 w-full">
         <div className="flex items-center gap-3 flex-wrap w-full">
           <div className="page-header-icon shrink-0">

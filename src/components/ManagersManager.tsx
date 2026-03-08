@@ -204,7 +204,7 @@ export function ManagersManager() {
   }
 
   return (
-    <div className="p-4 max-w-6xl mx-auto">
+    <div className="flex flex-col flex-1 min-h-0 w-full px-2 sm:px-4 md:px-6 py-1.5 sm:py-2">
       <div className="flex items-center justify-between mb-4">
         <h1 className="text-xl font-bold text-slate-800 flex items-center gap-2">
           <UserCog className="h-6 w-6 text-theme-tab-active" />

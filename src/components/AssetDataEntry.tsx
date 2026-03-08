@@ -1394,7 +1394,7 @@ export const AssetDataEntry = forwardRef<AssetDataEntryRef, {}>((props, ref) => 
       .map(x => x.row);
   }, [rowData, selectedBuilding]);
   return (
-    <div className="max-w-[95vw] mx-auto px-4 py-2 relative">
+    <div className="flex flex-col flex-1 min-h-0 w-full px-2 sm:px-4 md:px-6 py-1.5 sm:py-2 relative">
       {loading && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg p-6 shadow-2xl flex flex-col items-center gap-4">

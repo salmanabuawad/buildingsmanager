@@ -375,7 +375,7 @@ export function AuditLog() {
   }
 
   return (
-    <div className="w-full h-full flex flex-col p-4 gap-4">
+    <div className="flex flex-col flex-1 min-h-0 w-full px-2 sm:px-4 md:px-6 py-1.5 sm:py-2 gap-4">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold text-slate-800">יומן ביקורת</h1>
         <button

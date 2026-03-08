@@ -625,7 +625,7 @@ export function AddressListComponent() {
   }
 
   return (
-    <div className="max-w-5xl mx-auto px-4 py-3">
+    <div className="flex flex-col flex-1 min-h-0 w-full px-2 sm:px-4 md:px-6 py-1.5 sm:py-2">
       <div className="page-header mb-2 rounded-lg px-3 py-2 w-full">
         <div className="flex items-center justify-between w-full">
           <div className="flex items-center gap-2">

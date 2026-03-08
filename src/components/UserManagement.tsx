@@ -363,7 +363,7 @@ export function UserManagement() {
   }
 
   return (
-    <div className="p-6 max-w-7xl mx-auto">
+    <div className="flex flex-col flex-1 min-h-0 w-full px-2 sm:px-4 md:px-6 py-1.5 sm:py-2">
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-3">
           <User className="h-6 w-6 text-purple-600" />

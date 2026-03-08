@@ -3666,7 +3666,7 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
         </div>
       )}
 
-      <div className="w-full mx-auto px-1 sm:px-2 py-1 sm:py-2">
+      <div className="flex flex-col flex-1 min-h-0 w-full px-2 sm:px-4 md:px-6 py-1.5 sm:py-2">
       <div className="page-header mb-2 rounded-lg px-3 py-2 w-full">
         <div className="flex items-center gap-2 flex-wrap w-full">
           <div className="page-header-icon shrink-0">

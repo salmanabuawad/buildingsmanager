@@ -1103,8 +1103,9 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
 
       const assetsToUpdate: any[] = [];
       for (const [dbId, changes] of dirtyAssets.entries()) {
-        // Find the asset by asset_id (not database id) to get its full data
-        const asset = allMeasurements.find(a => a.asset_id === dbId);
+        // Find the asset by asset_id (prefer latest row for edits)
+        const asset = allMeasurements.find(a => a.asset_id === dbId && a.is_latest === true)
+          || allMeasurements.find(a => a.asset_id === dbId);
         if (!asset) {
           console.error(`[AssetDetails] Could not find asset with asset_id ${dbId}`);
           continue;
@@ -1120,11 +1121,23 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
           }
         }
 
-        // Send full asset data merged with changes to ensure all required fields are present
-        assetsToUpdate.push({
-          ...asset,
-          ...changes
-        });
+        let merged = { ...asset, ...changes };
+
+        // Normalize main_asset_type to canonical asset_types.name (match Assets List) so DB receives exact match
+        if (changes.main_asset_type !== undefined && assetTypes?.length && merged.main_asset_type) {
+          const raw = String(merged.main_asset_type).trim();
+          const found = assetTypes.find((at: any) => String(at.name).trim() === raw)
+            || assetTypes.find((at: any) => !isNaN(parseInt(String(at.name), 10)) && parseInt(String(at.name), 10) === parseInt(raw, 10));
+          if (found) merged = { ...merged, main_asset_type: String(found.name).trim() };
+        }
+
+        // Explicit tax_region from tab when available (match Assets List)
+        if (validationTaxRegion && validationTaxRegion.trim() !== '' && !validationTaxRegion.includes(',')) {
+          const tr = parseInt(validationTaxRegion.trim(), 10);
+          if (!isNaN(tr)) merged = { ...merged, tax_region: tr };
+        }
+
+        assetsToUpdate.push(merged);
       }
 
       const result = await api.assets.saveBulkTransactional(assetsToUpdate, 'manual_update', undefined, undefined, undefined, isBusinessContext);

@@ -2684,31 +2684,27 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
       let isDistributionSave = false;
       let distributionType: 'residence' | 'business' | null = null;
       
-      // Check for distribution: look for business_distribution_area changes
-      // Need to determine if it's business or residence based on asset types
+      // Check for distribution: look for business_distribution_area changes (actual allocation, not clearing to 0)
+      // When user changes type to non_accountable we auto-set business_distribution_area=0 - that is NOT a distribution save
       for (const [assetId, changes] of dirtyAssets.entries()) {
         if (deletedAssets.has(assetId)) continue;
         if (changes.business_distribution_area !== undefined) {
-          isDistributionSave = true;
-          // Determine type by checking asset's business_residence type
-          const asset = assets.find(a => String(a.asset_id) === String(assetId));
-          if (asset && asset.main_asset_type) {
-            const assetType = assetTypes.find(at => String(at.name) === String(asset.main_asset_type));
-            if (assetType?.business_residence === 'עסקים') {
-              distributionType = 'business';
-            } else if (assetType?.business_residence === 'מגורים') {
-              distributionType = 'residence';
+          const newArea = Number(changes.business_distribution_area) || 0;
+          if (newArea > 0) {
+            // Actual distribution (allocating area), not clearing
+            isDistributionSave = true;
+            const asset = assets.find(a => String(a.asset_id) === String(assetId));
+            if (asset && asset.main_asset_type) {
+              const assetType = assetTypes.find(at => String(at.name) === String(asset.main_asset_type));
+              if (assetType?.business_residence === 'עסקים') distributionType = 'business';
+              else if (assetType?.business_residence === 'מגורים') distributionType = 'residence';
             }
-          }
-          // If type not determined yet, check building flags as fallback
-          if (!distributionType && building) {
-            if (building.need_business_distribution) {
-              distributionType = 'business';
-            } else if (building.need_residence_distribution) {
-              distributionType = 'residence';
+            if (!distributionType && building) {
+              if (building.need_business_distribution) distributionType = 'business';
+              else if (building.need_residence_distribution) distributionType = 'residence';
             }
+            if (distributionType) break;
           }
-          if (distributionType) break;
         }
       }
       
@@ -2727,6 +2723,24 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
           }
         }
       }
+
+      // MIXED BATCH: If ANY asset has main_asset_type or asset_size change, we must use manual_update
+      // so the DB runs set_distribution_flags_for_asset_type_change for those assets.
+      // Using distribution actionType would pass p_set_distribution_flags_on_type_or_size_change=false
+      // and skip flag logic for ALL assets in the batch - including the one that needs it.
+      let hasTypeOrSizeChange = false;
+      for (const [assetId, changes] of dirtyAssets.entries()) {
+        if (deletedAssets.has(assetId)) continue;
+        if (changes.main_asset_type !== undefined || changes.asset_size !== undefined) {
+          hasTypeOrSizeChange = true;
+          break;
+        }
+      }
+      if (hasTypeOrSizeChange && isDistributionSave) {
+        // Prefer manual_update so type-change assets get their flags; skip distribution actionType
+        isDistributionSave = false;
+        distributionType = null;
+      }
       
       // Do NOT use building flags as fallback for isDistributionSave.
       // When user changes asset type (accountable↔non_accountable), the DB sets need_business_distribution.
@@ -2742,8 +2756,16 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
           const asset = assets.find(a => String(a.asset_id) === String(assetId));
           if (!asset) continue;
 
-          const updatedData = { ...asset, ...changes };
+          let updatedData = { ...asset, ...changes };
           const isNewAsset = String(assetId).startsWith('temp-') || newAssets.has(String(assetId));
+
+          // Normalize main_asset_type to canonical asset_types.name so DB set_distribution_flags_for_asset_type_change receives exact match
+          if (changes.main_asset_type !== undefined && assetTypes?.length && updatedData.main_asset_type) {
+            const raw = String(updatedData.main_asset_type).trim();
+            const found = assetTypes.find(at => String(at.name).trim() === raw)
+              || assetTypes.find(at => !isNaN(parseInt(String(at.name), 10)) && parseInt(String(at.name), 10) === parseInt(raw, 10));
+            if (found) updatedData = { ...updatedData, main_asset_type: String(found.name).trim() };
+          }
 
           // Ensure building_number is always present
           // Try multiple sources: updatedData, asset, changes, building object, or component prop
@@ -2816,7 +2838,7 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
           newTaxRegionForTab = String(assetWithTaxRegion.tax_region);
         }
         
-        // Use 'business_distribution' or 'residence_distribution' action type if this is a distribution save
+        // Use 'business_distribution' or 'residence_distribution' action type only when actually distributing
         let actionType: string = 'manual_update';
         if (isDistributionSave && distributionType) {
           actionType = distributionType === 'business' ? 'business_distribution' : 'residence_distribution';

@@ -5,7 +5,7 @@ import { Building, AddressList, api } from '../lib/api';
 import { buildingValidators, getAssetTypes, setLatestExportDate } from '../lib/validation';
 import { AgGridReact } from 'ag-grid-react';
 import { ColDef, ICellEditorParams } from 'ag-grid-community';
-import { Search, AlertCircle, Plus, Loader2, Save, X, Trash2, CheckCircle2, Download, Building2 } from 'lucide-react';
+import { Search, AlertCircle, Plus, Loader2, Save, X, Trash2, Check, CheckCircle2, Download, Building2 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { useGridPreferences } from '../lib/useGridPreferences';
 import { useFieldConfig } from '../lib/useFieldConfig';
@@ -2910,7 +2910,7 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
             {!isReadOnly && (
               <button
                 onClick={() => handleDeleteBuilding(building.building_number)}
-                className={`p-1 transition-colors hover:scale-110 ${
+                className={`p-1 transition-colors hover:scale-110 relative inline-flex ${
                   markedForDeletion
                     ? 'text-red-800 bg-red-100 rounded'
                     : 'text-red-600 hover:text-red-700'
@@ -2918,6 +2918,11 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
                 title={markedForDeletion ? 'מסומן למחיקה' : 'מחק מבנה'}
               >
                 <Trash2 className="h-4 w-4" />
+                {markedForDeletion && (
+                  <span className="absolute -bottom-0.5 -right-0.5 flex h-3 w-3 items-center justify-center rounded-full bg-red-600">
+                    <Check className="h-1.5 w-1.5 text-white" strokeWidth={3} />
+                  </span>
+                )}
               </button>
             )}
           </div>

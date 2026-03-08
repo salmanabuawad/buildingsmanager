@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Manager, api } from '../lib/api';
 import { useUserRole } from '../contexts/UserRoleContext';
-import { Loader2, UserCog, Plus, Trash2, Save, X } from 'lucide-react';
+import { Loader2, UserCog, Plus, Trash2, Check, Save, X } from 'lucide-react';
 import { Toast } from './Toast';
 import { AgGridReact } from 'ag-grid-react';
 import { ColDef, CellValueChangedEvent } from 'ag-grid-community';
@@ -169,10 +169,15 @@ export function ManagersManager() {
             <button
               type="button"
               onClick={() => handleDelete(item.id)}
-              className={isDeleted ? 'px-2 py-1 text-xs rounded bg-green-100 text-green-800' : 'px-2 py-1 text-xs rounded bg-red-100 text-red-800'}
+              className={`relative inline-flex ${isDeleted ? 'px-2 py-1 text-xs rounded bg-green-100 text-green-800' : 'px-2 py-1 text-xs rounded bg-red-100 text-red-800'}`}
               title={isDeleted ? 'בטל מחיקה' : 'מחק'}
             >
               <Trash2 className="h-3 w-3" />
+              {isDeleted && (
+                <span className="absolute -bottom-0.5 -right-0.5 flex h-2.5 w-2.5 items-center justify-center rounded-full bg-red-600">
+                  <Check className="h-1.5 w-1.5 text-white" strokeWidth={3} />
+                </span>
+              )}
             </button>
           </div>
         );

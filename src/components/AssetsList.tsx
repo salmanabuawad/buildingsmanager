@@ -6,7 +6,7 @@ import { assetValidators, validateAll, inputValidators, validateEntity } from '.
 import { AssetValidationHandler } from '../lib/assetValidationHandler';
 import { AgGridReact } from 'ag-grid-react';
 import { ColDef, IDetailCellRendererParams, ICellEditorParams } from 'ag-grid-community';
-import { Building as BuildingIcon, AlertCircle, ChevronDown, ChevronRight, Loader2, Save, X, Plus, Trash2, CheckCircle2, Download, MoveLeft, Upload, FileSpreadsheet, History, Share2, MapPin, MessageSquare, FileText, BarChart3, Copy } from 'lucide-react';
+import { Building as BuildingIcon, AlertCircle, ChevronDown, ChevronRight, Loader2, Save, X, Plus, Trash2, Check, CheckCircle2, Download, MoveLeft, Upload, FileSpreadsheet, History, Share2, MapPin, MessageSquare, FileText, BarChart3, Copy } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { ValidationResultModal, BatchValidationResults, ValidationProgress } from './ValidationResultModal';
 import { DistributionHistoryModal } from './DistributionHistoryModal';
@@ -5215,7 +5215,7 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
                   e.stopPropagation();
                   toggleDelete(assetId);
                 }}
-                className={`flex items-center justify-center w-8 h-8 rounded-full transition-colors duration-200 ${
+                className={`flex items-center justify-center w-8 h-8 rounded-full transition-colors duration-200 relative ${
                   isDeleted
                     ? 'bg-red-200 hover:bg-red-300 text-red-700'
                     : 'hover:bg-red-100 text-red-500 hover:text-red-700'
@@ -5223,6 +5223,11 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
                 title={isDeleted ? 'בטל מחיקה' : 'סמן למחיקה'}
               >
                 <Trash2 className="w-4 h-4" />
+                {isDeleted && (
+                  <span className="absolute bottom-1 right-1 flex h-3 w-3 items-center justify-center rounded-full bg-red-600">
+                    <Check className="h-1.5 w-1.5 text-white" strokeWidth={3} />
+                  </span>
+                )}
               </button>
             )}
           </div>

@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { Operator, api } from '../lib/api';
 import { useUserRole } from '../contexts/UserRoleContext';
-import { Loader2, Users, Plus, Trash2, Save, X, RefreshCw, Download, Upload } from 'lucide-react';
+import { Loader2, Users, Plus, Trash2, Check, Save, X, RefreshCw, Download, Upload } from 'lucide-react';
 import { Toast } from './Toast';
 import { AgGridReact } from 'ag-grid-react';
 import { ColDef, CellValueChangedEvent, GridReadyEvent } from 'ag-grid-community';
@@ -287,7 +287,7 @@ export function OperatorsManager() {
           <div className="flex items-center justify-center gap-1 h-full">
             <button
               onClick={() => handleDelete(item.id)}
-              className={`px-2 py-1 text-xs rounded transition-colors ${
+              className={`relative inline-flex px-2 py-1 text-xs rounded transition-colors ${
                 isDeleted
                   ? 'bg-green-100 text-green-800 hover:bg-green-200'
                   : 'bg-red-100 text-red-800 hover:bg-red-200'
@@ -295,6 +295,11 @@ export function OperatorsManager() {
               title={isDeleted ? 'בטל מחיקה' : 'מחק'}
             >
               <Trash2 className="h-3 w-3" />
+              {isDeleted && (
+                <span className="absolute -bottom-0.5 -right-0.5 flex h-2.5 w-2.5 items-center justify-center rounded-full bg-red-600">
+                  <Check className="h-1.5 w-1.5 text-white" strokeWidth={3} />
+                </span>
+              )}
             </button>
           </div>
         );

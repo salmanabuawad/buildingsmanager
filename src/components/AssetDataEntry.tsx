@@ -3,7 +3,7 @@ import { ValidationTooltipIcon } from './ValidationTooltipIcon';
 import { useTranslation } from 'react-i18next';
 import { api, Asset, Building, AssetType } from '../lib/api';
 import { assetValidators, validateAll, inputValidators } from '../lib/validation';
-import { Save, Plus, Trash2, FileText, AlertCircle, Loader2, X, Download, MessageSquare } from 'lucide-react';
+import { Save, Plus, Trash2, Check, FileText, AlertCircle, Loader2, X, Download, MessageSquare } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { AgGridReact } from 'ag-grid-react';
 import { ColDef, CellValueChangedEvent } from 'ag-grid-community';
@@ -872,10 +872,15 @@ export const AssetDataEntry = forwardRef<AssetDataEntryRef, {}>((props, ref) => 
                     e.stopPropagation();
                     handleDeleteRow(params.data.id);
                   }}
-                  className="p-1 hover:bg-red-100 rounded transition-colors"
+                  className="relative inline-flex p-1 hover:bg-red-100 rounded transition-colors"
                   title="מחק שורה"
                 >
                   <Trash2 className="h-4 w-4 text-red-600" />
+                  {deletedRows.has(params.data.id) && (
+                    <span className="absolute -bottom-0.5 -right-0.5 flex h-2.5 w-2.5 items-center justify-center rounded-full bg-red-600">
+                      <Check className="h-1.5 w-1.5 text-white" strokeWidth={3} />
+                    </span>
+                  )}
                 </button>
               </>
             )}
@@ -1344,7 +1349,7 @@ export const AssetDataEntry = forwardRef<AssetDataEntryRef, {}>((props, ref) => 
       }
       return colDef;
     });
-  }, [t, buildings, assetTypes, getCellStyle, isReadOnly, loading, handleAddNewMeasurement, handleDeleteRow, isFieldEditable]);
+  }, [t, buildings, assetTypes, getCellStyle, isReadOnly, loading, handleAddNewMeasurement, handleDeleteRow, isFieldEditable, deletedRows]);
   // Store original row data for cancel functionality - update when rowData is initially loaded or after save
   const [originalRowData, setOriginalRowData] = useState<AssetRow[]>([]);
   

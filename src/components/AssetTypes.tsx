@@ -7,7 +7,7 @@ function toBooleanFromInput(v: unknown): boolean | undefined {
   return toBoolean(v);
 }
 import { assetTypeValidators, inputValidators } from '../lib/validation';
-import { Plus, Tag, Upload, Save, X, Loader2, Download, Trash2, ArrowUpDown, ArrowUp, ArrowDown, Filter, FileText } from 'lucide-react';
+import { Plus, Tag, Upload, Save, X, Loader2, Download, Trash2, Check, ArrowUpDown, ArrowUp, ArrowDown, Filter, FileText } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { useValidationRules } from '../contexts/ValidationContext';
 import { AgGridReact } from 'ag-grid-react';
@@ -900,7 +900,7 @@ export function AssetTypes() {
           <div className="flex items-center justify-center gap-1 h-full">
             <button
               onClick={() => handleDelete(assetType.id)}
-              className={`p-1.5 rounded transition-colors ${
+              className={`relative inline-flex p-1.5 rounded transition-colors ${
                 isDeleted
                   ? 'text-red-700 hover:bg-red-100 bg-red-50'
                   : 'text-red-600 hover:bg-red-50'
@@ -908,6 +908,11 @@ export function AssetTypes() {
               title={isDeleted ? 'בטל מחיקה' : 'סמן למחיקה'}
             >
               <Trash2 className="h-4 w-4" />
+              {isDeleted && (
+                <span className="absolute -bottom-0.5 -right-0.5 flex h-2.5 w-2.5 items-center justify-center rounded-full bg-red-600">
+                  <Check className="h-1.5 w-1.5 text-white" strokeWidth={3} />
+                </span>
+              )}
             </button>
           </div>
         );

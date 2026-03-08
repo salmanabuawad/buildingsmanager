@@ -71,6 +71,7 @@ export function useGridPreferences<T = any>(
         setTimeout(async () => {
           try {
             const { loadFieldConfigurations, calculateWidthFromChars } = await import('./fieldConfigUtils');
+            const { getFontSizeWidthMultiplier } = await import('./fontSizeStore');
             const fieldConfigs = await loadFieldConfigurations();
             
             // Get current column state to preserve order
@@ -84,7 +85,6 @@ export function useGridPreferences<T = any>(
               
               if (fieldConfig) {
                 const baseWidth = calculateWidthFromChars(fieldConfig.width_chars, fieldConfig.padding);
-                const { getFontSizeWidthMultiplier } = await import('./fontSizeStore');
                 const multiplier = 1.65 * getFontSizeWidthMultiplier();
                 const width = Math.round(baseWidth * multiplier);
                 return {

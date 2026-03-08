@@ -4,6 +4,29 @@ export default {
   theme: {
     extend: {
       colors: {
+        /* Theme colors - use CSS vars from index.css (data-theme) */
+        'theme-header': 'rgb(var(--theme-header) / <alpha-value>)',
+        'theme-header-border': 'rgb(var(--theme-header-border) / <alpha-value>)',
+        'theme-sidebar': 'rgb(var(--theme-sidebar) / <alpha-value>)',
+        'theme-sidebar-hover': 'rgb(var(--theme-sidebar-hover) / <alpha-value>)',
+        'theme-sidebar-active': 'rgb(var(--theme-sidebar-active) / <alpha-value>)',
+        'theme-sidebar-active-stripe': 'rgb(var(--theme-sidebar-active-stripe) / <alpha-value>)',
+        'theme-tab-active': 'rgb(var(--theme-tab-active) / <alpha-value>)',
+        'theme-tab-active-hover': 'rgb(var(--theme-tab-active-hover) / <alpha-value>)',
+        'theme-tab-active-active': 'rgb(var(--theme-tab-active-active) / <alpha-value>)',
+        'theme-nav-bg': 'rgb(var(--theme-nav-bg) / <alpha-value>)',
+        'theme-tab-inactive': 'rgb(var(--theme-tab-inactive) / <alpha-value>)',
+        'theme-action-accent': 'rgb(var(--theme-action-accent) / <alpha-value>)',
+        'theme-action-accent-hover': 'rgb(var(--theme-action-accent-hover) / <alpha-value>)',
+        'theme-action-accent-active': 'rgb(var(--theme-action-accent-active) / <alpha-value>)',
+        'theme-table-header': 'rgb(var(--theme-table-header) / <alpha-value>)',
+        'theme-highlight': 'rgb(var(--theme-highlight) / <alpha-value>)',
+        'theme-content': 'rgb(var(--theme-content) / <alpha-value>)',
+        'theme-link': 'rgb(var(--theme-link) / <alpha-value>)',
+        'theme-link-hover': 'rgb(var(--theme-link-hover) / <alpha-value>)',
+        'theme-text-primary': 'rgb(var(--theme-text-primary) / <alpha-value>)',
+        'theme-text-muted': 'rgb(var(--theme-text-muted) / <alpha-value>)',
+        'theme-card-border': 'rgb(var(--theme-card-border) / <alpha-value>)',
         /* Reference palette - exact match to styling images */
         'app-header': '#2E62A2',
         'app-sidebar': '#2F4D52',
@@ -21,6 +44,26 @@ export default {
         'app-input-border': '#CED4DA',
         'app-text-primary': '#333333',
         'app-text-muted': '#6C757D',
+      },
+      fontFamily: {
+        sans: ['-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'Helvetica Neue', 'Arial', 'sans-serif'],
+      },
+      fontSize: {
+        'theme-base': ['var(--theme-font-size-base)', { lineHeight: '1.5' }],
+        'theme-sm': ['var(--theme-font-size-sm)', { lineHeight: '1.4' }],
+        'theme-xs': ['var(--theme-font-size-xs)', { lineHeight: '1.3' }],
+      },
+      width: {
+        'theme-sidebar': 'var(--theme-sidebar-width)',
+      },
+      minWidth: {
+        'theme-sidebar': 'var(--theme-sidebar-width)',
+      },
+      borderRadius: {
+        'theme-btn': 'var(--theme-btn-radius)',
+      },
+      spacing: {
+        'theme-icon': 'var(--theme-icon-size)',
       },
     },
   },

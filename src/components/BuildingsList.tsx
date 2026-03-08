@@ -10,6 +10,7 @@ import * as XLSX from 'xlsx';
 import { useGridPreferences } from '../lib/useGridPreferences';
 import { useFieldConfig } from '../lib/useFieldConfig';
 import { useFieldConfigVersion } from '../contexts/FieldConfigContext';
+import { useFontSize } from '../contexts/FontSizeContext';
 import { processColumnHeader } from '../lib/gridHeaderUtils';
 import { useFillHandle } from '../lib/useFillHandle';
 import { exportToExcel, createExcelBlob } from '../lib/excelExport';
@@ -3626,6 +3627,7 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
 
   // Apply field configurations to column definitions (ref_only pattern: rely on columnDefs prop only)
   const configVersion = useFieldConfigVersion();
+  const fontSize = useFontSize();
   const [configuredColumnDefs, fieldConfigLoading] = useFieldConfig(columnDefs, 'buildings-list');
 
   // Handle create building modal
@@ -3782,7 +3784,7 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
           ) : (
           <div className="ag-theme-alpine buildings-list-grid flex-1 min-h-[300px]" style={{ width: '100%', minWidth: '100%', overflowX: 'auto' }}>
             <AgGridReact
-              key={`buildings-grid-${configVersion}`}
+              key={`buildings-grid-${configVersion}-${fontSize}`}
               ref={gridRef}
               rowData={sortedBuildings}
               columnDefs={configuredColumnDefs}

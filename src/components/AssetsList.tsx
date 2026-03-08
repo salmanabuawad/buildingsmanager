@@ -22,6 +22,7 @@ import { numericValueParser, numericValueParserInt } from '../lib/numberUtils';
 import { useGridPreferences } from '../lib/useGridPreferences';
 import { useFieldConfig } from '../lib/useFieldConfig';
 import { useFieldConfigVersion } from '../contexts/FieldConfigContext';
+import { useFontSize } from '../contexts/FontSizeContext';
 import { processColumnHeader } from '../lib/gridHeaderUtils';
 import { exportToExcel } from '../lib/excelExport';
 import { useUserRole } from '../contexts/UserRoleContext';
@@ -5910,6 +5911,7 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
 
   // Apply field configurations to column definitions (ref_only pattern: rely on columnDefs prop only)
   const configVersion = useFieldConfigVersion();
+  const fontSize = useFontSize();
   const [configuredColumnDefs, fieldConfigLoading] = useFieldConfig(columnDefs, 'assets-list');
 
   // Check if all visible assets are residential assets (מגורים)
@@ -6434,7 +6436,7 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
             ) : (
             <div className="ag-theme-alpine flex-1 min-h-[200px]" style={{ width: '100%', minWidth: '100%', overflowX: 'auto' }}>
               <AgGridReact
-            key={`assets-grid-${configVersion}`}
+            key={`assets-grid-${configVersion}-${fontSize}`}
             ref={gridRef}
             rowData={sortedAssets}
             columnDefs={configuredColumnDefs}

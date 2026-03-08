@@ -15,6 +15,7 @@ import { useUserRole } from '../contexts/UserRoleContext';
 import { getSession } from '../lib/usersTableAuth';
 import { useFieldConfig } from '../lib/useFieldConfig';
 import { useFieldConfigVersion } from '../contexts/FieldConfigContext';
+import { useFontSize } from '../contexts/FontSizeContext';
 import { processColumnHeader } from '../lib/gridHeaderUtils';
 import {
   ListTodo,
@@ -312,6 +313,7 @@ export function InspectionTasksManager() {
   const fmtDate = (v: string | null | undefined) => (v ? new Date(v).toLocaleDateString('he-IL') : '-');
 
   const configVersion = useFieldConfigVersion();
+  const fontSize = useFontSize();
   const columnDefs: ColDef<TaskRow>[] = useMemo(() => [
     { field: 'id', colId: 'id', ...processColumnHeader('מזהה'), editable: false },
     { field: 'title', colId: 'title', ...processColumnHeader('כותרת'), editable: false },
@@ -630,7 +632,7 @@ export function InspectionTasksManager() {
       ) : (
         <div className="ag-theme-alpine buildings-list-grid bg-white rounded-xl border border-slate-200 overflow-hidden flex-1 min-h-[300px]" style={{ width: '100%', minWidth: '100%', overflowX: 'auto', direction: 'rtl' }}>
           <AgGridReact<TaskRow>
-            key={`inspection-tasks-grid-${configVersion}`}
+            key={`inspection-tasks-grid-${configVersion}-${fontSize}`}
             rowData={rowData}
             columnDefs={configuredColumnDefs}
             enableRtl={true}

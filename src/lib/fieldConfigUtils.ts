@@ -123,20 +123,19 @@ export function calculateWidthFromChars(chars: number, padding: number = 8): num
 
 /**
  * Apply field configuration to a column definition
- * @param options.fontSizeMultiplier Scale factor for font size (small=0.85, normal=1, large=1.55). Base is 1.65.
+ * @param isLargeFont When true (גדול selected), multiplies width by 1.5 on the fly without updating DB
  */
 export function applyFieldConfigToColumn(
   colDef: any,
   fieldConfig: FieldConfiguration | null,
-  options?: { isLargeFont?: boolean; fontSizeMultiplier?: number }
+  options?: { isLargeFont?: boolean }
 ): any {
   if (!fieldConfig) {
     return colDef;
   }
 
   const baseWidth = calculateWidthFromChars(fieldConfig.width_chars, fieldConfig.padding);
-  const fontSizeMult = options?.fontSizeMultiplier ?? (options?.isLargeFont ? 1.55 : 1);
-  const multiplier = 1.65 * fontSizeMult;
+  const multiplier = options?.isLargeFont ? 1.65 * 1.55 : 1.65;
   const width = Math.round(baseWidth * multiplier);
   
   const result: any = {

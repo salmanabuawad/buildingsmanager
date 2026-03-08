@@ -9,6 +9,7 @@ interface UserRoleContextType {
   isAdmin: boolean;
   isReadOnly: boolean;
   isInspector: boolean;
+  isDev: boolean;
   refreshRole: () => Promise<void>;
 }
 
@@ -40,6 +41,7 @@ export function UserRoleProvider({ children }: { children: ReactNode }) {
   const isAdmin = userRole === 'admin';
   const isReadOnly = userRole === 'user';
   const isInspector = userRole === 'inspector';
+  const isDev = process.env.NODE_ENV === 'development';
 
   return (
     <UserRoleContext.Provider value={{
@@ -48,6 +50,7 @@ export function UserRoleProvider({ children }: { children: ReactNode }) {
       isAdmin,
       isReadOnly,
       isInspector,
+      isDev,
       refreshRole,
     }}>
       {children}

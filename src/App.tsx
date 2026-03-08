@@ -56,21 +56,23 @@ interface Tab {
 }
 
 function App() {
-  const { isLoading: roleLoading, isReadOnly, isAdmin, isInspector, userRole, refreshRole } = useUserRole();
+  const { isLoading: roleLoading, isReadOnly, isAdmin, isInspector, isDev, userRole, refreshRole } = useUserRole();
   const roleLabel = userRole === 'admin' ? 'מנהל' : userRole === 'inspector' ? 'פקח' : 'משתמש';
   const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
   const [checkingAuth, setCheckingAuth] = useState(true);
 
   const [tabs, setTabs] = useState<Tab[]>(() => {
     const s = getSession();
+    const isDevEnv = process.env.NODE_ENV === 'development';
     if (s?.user_role === 'inspector') {
       return [{ id: 'inspection-tasks', type: 'inspection-tasks', label: 'משימות ביקורת', refreshKey: Date.now() }];
     }
-    return [
+    const defaultTabs = [
       { id: 'measurement-progress-dashboard', type: 'measurement-progress-dashboard', label: 'התקדמות פעילות מדידות', refreshKey: Date.now() },
-      { id: 'inspection-tasks', type: 'inspection-tasks', label: 'משימות ביקורת', refreshKey: Date.now() },
+      ...(isDevEnv ? [{ id: 'inspection-tasks', type: 'inspection-tasks' as const, label: 'משימות ביקורת', refreshKey: Date.now() }] : []),
       { id: 'buildings', type: 'buildings', label: 'מבנים', refreshKey: Date.now() },
     ];
+    return defaultTabs;
   });
   const [activeTabId, setActiveTabId] = useState(() => {
     const s = getSession();
@@ -198,6 +200,7 @@ function App() {
   }, [roleLoading, isAuthenticated, isInspector]);
 
   // Deep link: switch to inspection-tasks tab when hash is #inspection-tasks or #inspection-tasks/123
+  // Only for dev or inspector (tasks hidden for non-dev non-inspector)
   useEffect(() => {
     if (!isAuthenticated) return;
     const hash = window.location.hash || '';
@@ -205,7 +208,7 @@ function App() {
       const cleanHash = hash.split('?')[0] || '#inspection-tasks';
       window.history.replaceState(null, '', window.location.pathname + (window.location.search || '') + cleanHash);
     }
-    if (hash.match(/#inspection-tasks\/\d+/) || hash === '#inspection-tasks') {
+    if ((isDev || isInspector) && (hash.match(/#inspection-tasks\/\d+/) || hash === '#inspection-tasks')) {
       setTabs((prev) => {
         const has = prev.some((t) => t.type === 'inspection-tasks');
         if (!has) return [...prev, { id: 'inspection-tasks', type: 'inspection-tasks', label: 'משימות ביקורת', refreshKey: Date.now() }];
@@ -213,7 +216,7 @@ function App() {
       });
       setActiveTabId('inspection-tasks');
     }
-  }, [isAuthenticated]);
+  }, [isAuthenticated, isDev, isInspector]);
 
   // Load UI configuration (מתי להריץ אימות: off | before_save | online)
   useEffect(() => {
@@ -1074,6 +1077,7 @@ function App() {
   }
 
   function openInspectionTasks() {
+    if (!isDev && !isInspector) return;
     const id = 'inspection-tasks-panel';
     const newTab: Tab = { id, type: 'inspection-tasks', label: 'משימות ביקורת', refreshKey: Date.now() };
     openTab(newTab);
@@ -1817,6 +1821,7 @@ function App() {
                     </button>
                     {managerActionsSubmenuOpen && (
                       <div className="mr-2 mt-1 space-y-0.5 border-r-2 border-app-sidebar-indicator/50 pr-2">
+                        {isDev && (
                         <button
                           onClick={openInspectionTasks}
                           className="w-full flex items-center gap-2 px-3 py-2 text-right bg-transparent hover:bg-theme-sidebar-hover rounded-lg transition-all text-xs text-white/90"
@@ -1824,6 +1829,7 @@ function App() {
                           <span className="text-white/90">משימות ביקורת</span>
                           <ClipboardList className="h-3 w-3 text-white/70" />
                         </button>
+                        )}
                         <button
                           onClick={openResetExportModal}
                           disabled={resetExportLoading}

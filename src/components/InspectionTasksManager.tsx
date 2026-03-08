@@ -72,7 +72,8 @@ const PRIORITY_LABELS: Record<string, string> = {
 };
 
 export function InspectionTasksManager() {
-  const { isAdmin, isInspector } = useUserRole();
+  const { isAdmin, isInspector, isDev } = useUserRole();
+  const showTasks = isDev || isInspector;
   const [tasks, setTasks] = useState<InspectionTask[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -545,6 +546,14 @@ export function InspectionTasksManager() {
       setUpdatingTask(false);
     }
   };
+
+  if (!showTasks) {
+    return (
+      <div className="h-full flex items-center justify-center p-8" dir="rtl">
+        <p className="text-slate-600 text-lg">אין גישה למשימות ביקורת. גישה זו שמורה למשתמש dev.</p>
+      </div>
+    );
+  }
 
   if (!isAdmin && !isInspector) {
     return (

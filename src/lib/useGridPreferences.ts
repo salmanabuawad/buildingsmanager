@@ -71,8 +71,11 @@ export function useGridPreferences<T = any>(
         setTimeout(async () => {
           try {
             const { loadFieldConfigurations, calculateWidthFromChars } = await import('./fieldConfigUtils');
-            const { getFontSizeWidthMultiplier } = await import('./fontSizeStore');
             const fieldConfigs = await loadFieldConfigurations();
+            
+            // Font size multiplier (matches reference: read from DOM, same as fontSizeStore)
+            const fontSize = (typeof document !== 'undefined' && document.documentElement?.getAttribute?.('data-font-size')) || 'normal';
+            const fontSizeMult = fontSize === 'small' ? 0.85 : fontSize === 'large' ? 1.55 : 1;
             
             // Get current column state to preserve order
             const currentState = agGridApi.getColumnState();
@@ -85,7 +88,7 @@ export function useGridPreferences<T = any>(
               
               if (fieldConfig) {
                 const baseWidth = calculateWidthFromChars(fieldConfig.width_chars, fieldConfig.padding);
-                const multiplier = 1.65 * getFontSizeWidthMultiplier();
+                const multiplier = 1.65 * fontSizeMult;
                 const width = Math.round(baseWidth * multiplier);
                 return {
                   ...col,

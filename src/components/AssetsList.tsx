@@ -2767,20 +2767,31 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
             continue;
           }
 
+          // When in single tax-region tab (like Asset Details), ensure tax_region is set so payload matches DB expectations
+          const taxRegionValue =
+            taxRegion && taxRegion.trim() !== '' && !taxRegion.includes(',')
+              ? parseInt(taxRegion.trim(), 10)
+              : undefined;
+          const taxRegionToSend =
+            taxRegionValue != null && !isNaN(taxRegionValue) ? taxRegionValue : (updatedData.tax_region ?? asset.tax_region);
+
           if (isNewAsset) {
             const { id, _isMasterRow, created_at, ...assetData } = updatedData;
             // Ensure building_number is set
             assetData.building_number = buildingNumberValue;
+            if (taxRegionToSend != null) assetData.tax_region = taxRegionToSend;
             assetsToSave.push(assetData);
           } else {
             // For updates, send full asset data merged with changes to ensure all fields (including sub_asset_type fields) are present
             // Note: is_new_measurement should only be set for explicit "save as new measurement" operations,
             // not for distribution saves. Distribution saves update assets in place without creating history.
-            assetsToSave.push({
+            const toPush: any = {
               ...updatedData,
               asset_id: assetId,
               building_number: buildingNumberValue
-            });
+            };
+            if (taxRegionToSend != null) toPush.tax_region = taxRegionToSend;
+            assetsToSave.push(toPush);
           }
         } catch (err) {
           const asset = assets.find(a => String(a.id) === String(assetId));

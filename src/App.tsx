@@ -63,13 +63,13 @@ function App() {
 
   const [tabs, setTabs] = useState<Tab[]>(() => {
     const s = getSession();
-    const isDevEnv = process.env.NODE_ENV === 'development';
+    const isDevUser = s?.user_name?.toLowerCase().trim() === 'dev';
     if (s?.user_role === 'inspector') {
       return [{ id: 'inspection-tasks', type: 'inspection-tasks', label: 'משימות ביקורת', refreshKey: Date.now() }];
     }
     const defaultTabs = [
       { id: 'measurement-progress-dashboard', type: 'measurement-progress-dashboard', label: 'התקדמות פעילות מדידות', refreshKey: Date.now() },
-      ...(isDevEnv ? [{ id: 'inspection-tasks', type: 'inspection-tasks' as const, label: 'משימות ביקורת', refreshKey: Date.now() }] : []),
+      ...(isDevUser ? [{ id: 'inspection-tasks', type: 'inspection-tasks' as const, label: 'משימות ביקורת', refreshKey: Date.now() }] : []),
       { id: 'buildings', type: 'buildings', label: 'מבנים', refreshKey: Date.now() },
     ];
     return defaultTabs;

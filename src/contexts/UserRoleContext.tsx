@@ -19,14 +19,18 @@ export function UserRoleProvider({ children }: { children: ReactNode }) {
   const [userRole, setUserRole] = useState<UserRole | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
+  const [userName, setUserName] = useState<string | null>(null);
+
   const fetchUserRole = useCallback(() => {
     const s = getSession();
     if (!s) {
       setUserRole('user');
+      setUserName(null);
       setIsLoading(false);
       return;
     }
     setUserRole((s.user_role === 'admin' ? 'admin' : s.user_role === 'inspector' ? 'inspector' : 'user') as UserRole);
+    setUserName(s.user_name ?? null);
     setIsLoading(false);
   }, []);
 
@@ -41,7 +45,7 @@ export function UserRoleProvider({ children }: { children: ReactNode }) {
   const isAdmin = userRole === 'admin';
   const isReadOnly = userRole === 'user';
   const isInspector = userRole === 'inspector';
-  const isDev = process.env.NODE_ENV === 'development';
+  const isDev = (userName?.toLowerCase().trim() === 'dev');
 
   return (
     <UserRoleContext.Provider value={{

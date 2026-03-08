@@ -6108,7 +6108,7 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
             <div className="page-header-icon shrink-0">
               <BuildingIcon className="w-5 h-5" />
             </div>
-            <div className="page-header-spread">
+            <div className="flex items-center gap-1.5 flex-wrap">
               {((building?.address ?? building?.building_address) || building?.building_number_in_street != null) && (
                 <span className="page-header-badge page-header-badge-address">
                   <BuildingIcon className="w-4 h-4" />

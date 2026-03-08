@@ -56,7 +56,7 @@ export function AssetSearchByRange({ onSelectAsset }: AssetSearchProps) {
   return (
     <div className="max-w-7xl mx-auto px-2 sm:px-4 py-4 sm:py-8 md:py-12">
       <div className="page-header mb-6 sm:mb-8 rounded-xl p-4 w-full" dir="rtl">
-        <div className="relative flex items-center gap-3 flex-wrap w-full page-header-spread">
+        <div className="relative flex items-center gap-3 flex-wrap w-full">
           <div className="page-header-icon shrink-0">
             <Search className="w-6 h-6" strokeWidth={2} />
           </div>

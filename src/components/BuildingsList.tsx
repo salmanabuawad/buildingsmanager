@@ -3688,7 +3688,7 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
       )}
       <div className="flex flex-col flex-1 min-h-0 w-full px-2 sm:px-4 md:px-6 py-1.5 sm:py-2">
         <div className="page-header mb-1.5 rounded-md px-2 py-1.5 flex-shrink-0 w-full">
-          <div className="relative flex items-center gap-1.5 flex-wrap w-full page-header-spread">
+          <div className="relative flex items-center gap-1.5 flex-wrap w-full">
             <div className="page-header-icon shrink-0">
               <img src="/buildings.png" alt="Buildings" className="w-4 h-4" />
             </div>

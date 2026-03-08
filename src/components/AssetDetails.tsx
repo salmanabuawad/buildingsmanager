@@ -3676,7 +3676,7 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
               {t('assetId')}: {asset.asset_id}
             </h1>
             {building && (
-              <div className="page-header-spread mt-0.5">
+              <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
                 <span className="page-header-label">מבנה {building.building_number}</span>
                 <span className="page-header-label">גוש: {building?.gosh || '-'}</span>
                 <span className="page-header-label">חלקה: {building?.helka || '-'}</span>

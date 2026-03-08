@@ -2728,16 +2728,10 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
         }
       }
       
-      // Fallback: check building flags if we couldn't determine from changes
-      if (!isDistributionSave && building) {
-        if (building.need_residence_distribution === true) {
-          isDistributionSave = true;
-          distributionType = 'residence';
-        } else if (building.need_business_distribution === true) {
-          isDistributionSave = true;
-          distributionType = 'business';
-        }
-      }
+      // Do NOT use building flags as fallback for isDistributionSave.
+      // When user changes asset type (accountable↔non_accountable), the DB sets need_business_distribution.
+      // If we treated that as a "distribution save" we would pass p_set_distribution_flags_on_type_or_size_change=false,
+      // causing the DB to skip set_distribution_flags_for_asset_type_change. That breaks the flag for Assets List.
 
       // Debug logging
 

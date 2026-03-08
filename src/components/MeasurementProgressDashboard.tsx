@@ -138,18 +138,6 @@ export const MeasurementProgressDashboard = ({ onOpenBuildingsList, onOpenMeasur
       headerStyle: { fontSize: '11px', textAlign: 'right', fontWeight: 'normal' }
     },
     {
-      field: 'uniqueMeasurementDates',
-      headerName: 'מספר תאריכי מדידה',
-      width: 150,
-      type: 'numericColumn',
-      valueFormatter: (params: any) => {
-        return params.value != null ? Number(params.value).toLocaleString('he-IL') : '0';
-      },
-      cellStyle: { textAlign: 'right', fontSize: '16px' },
-      headerClass: 'buildings-list-header',
-      headerStyle: { fontSize: '11px', textAlign: 'right', fontWeight: 'normal' }
-    },
-    {
       field: 'totalArea',
       headerName: 'סה"כ שטח (מ"ר)',
       width: 150,
@@ -278,7 +266,7 @@ export const MeasurementProgressDashboard = ({ onOpenBuildingsList, onOpenMeasur
       {/* Summary Cards */}
       {data && (
         <div className="p-3 border-b border-theme-card-border bg-gradient-to-r from-theme-highlight/30 to-theme-highlight/50">
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
             <div 
               className={`bg-white rounded-lg p-3 shadow-sm border border-theme-card-border ${onOpenBuildingsList ? 'cursor-pointer hover:shadow-md transition-shadow' : ''}`}
               onClick={onOpenBuildingsList}
@@ -293,12 +281,6 @@ export const MeasurementProgressDashboard = ({ onOpenBuildingsList, onOpenMeasur
               <p className="text-xs text-slate-600 mb-1">סה"כ נכסים</p>
               <p className="text-xl font-bold text-theme-action-accent">
                 {data.total.totalAssets.toLocaleString('he-IL')}
-              </p>
-            </div>
-            <div className="bg-white rounded-lg p-3 shadow-sm border border-theme-card-border">
-              <p className="text-xs text-slate-600 mb-1">תאריכי מדידה</p>
-              <p className="text-xl font-bold text-blue-700">
-                {data.total.uniqueMeasurementDates.toLocaleString('he-IL')}
               </p>
             </div>
             <div className="bg-white rounded p-2 shadow-sm border border-theme-card-border">

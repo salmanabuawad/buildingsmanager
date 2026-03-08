@@ -1049,4 +1049,10 @@ input[type="submit"]:disabled {
   @apply text-theme-tab-active;
 }
 
+/* Hide "Made in Bolt" badge if injected by Bolt.new hosting */
+div[style*="z-index: 2147483647"][style*="position: fixed"][style*="bottom"],
+div[style*="color-scheme: initial"][style*="forced-color-adjust: initial"][style*="position-anchor: initial"],
+a.badge[href="https://bolt.new"] {
+  display: none !important;
+}
 

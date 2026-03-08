@@ -185,6 +185,44 @@ window.addEventListener('unhandledrejection', (event) => {
 
 ModuleRegistry.registerModules([AllCommunityModule]);
 
+/** Remove "Made in Bolt" badge if injected by Bolt.new hosting */
+function removeBoltBadge() {
+  // Remove outer fixed container
+  document.querySelectorAll('div').forEach((el) => {
+    const s = (el as HTMLElement).style;
+    if (
+      s.position === 'fixed' &&
+      s.bottom === '1rem' &&
+      s.right === '1rem' &&
+      s.zIndex === '2147483647'
+    ) {
+      const hasShadow = el.querySelector('template[shadowrootmode="open"]');
+      if (hasShadow || el.textContent?.includes('Made in Bolt')) {
+        el.remove();
+      }
+    }
+  });
+  // Remove inner wrapper div (color-scheme: initial; forced-color-adjust: initial; ...)
+  document.querySelectorAll('div').forEach((el) => {
+    const style = (el as HTMLElement).getAttribute('style') || '';
+    if (
+      style.includes('color-scheme: initial') &&
+      style.includes('forced-color-adjust: initial') &&
+      (el.textContent?.includes('Made in Bolt') || el.querySelector('a[href="https://bolt.new"]'))
+    ) {
+      el.remove();
+    }
+  });
+  // Remove bolt.new badge links and their parents
+  document.querySelectorAll('a[href="https://bolt.new"]').forEach((a) => {
+    if (a.textContent?.includes('Made in Bolt') || a.querySelector('span')) {
+      const parent = (a as HTMLElement).closest('div');
+      if (parent) parent.remove();
+      else a.remove();
+    }
+  });
+}
+
 // Defer field config load to first use (after login) - they require Bearer auth
 async function bootstrap() {
   createRoot(document.getElementById('root')!).render(
@@ -207,3 +245,8 @@ async function bootstrap() {
 }
 
 bootstrap();
+
+// Remove Bolt badge when present (injected by Bolt.new hosting). CSS also hides it.
+removeBoltBadge();
+setTimeout(removeBoltBadge, 500);
+setTimeout(removeBoltBadge, 1500);

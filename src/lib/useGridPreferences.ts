@@ -84,8 +84,8 @@ export function useGridPreferences<T = any>(
               
               if (fieldConfig) {
                 const baseWidth = calculateWidthFromChars(fieldConfig.width_chars, fieldConfig.padding);
-                const isLarge = typeof document !== 'undefined' && document.documentElement?.getAttribute?.('data-font-size') === 'large';
-                const multiplier = isLarge ? 1.65 * 1.55 : 1.65;
+                const { getFontSizeWidthMultiplier } = await import('./fontSizeStore');
+                const multiplier = 1.65 * getFontSizeWidthMultiplier();
                 const width = Math.round(baseWidth * multiplier);
                 return {
                   ...col,

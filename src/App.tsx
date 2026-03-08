@@ -33,6 +33,7 @@ import { useUIConfig } from './contexts/UIConfigContext';
 import { useHelp } from './contexts/HelpContext';
 import { useValidationRules } from './contexts/ValidationContext';
 import { loadFieldConfigurations } from './lib/fieldConfigUtils';
+import { useFieldConfigBumpVersion } from './contexts/FieldConfigContext';
 import { Login } from './components/Login';
 import { HelpModal } from './components/HelpModal';
 import { MobileTasksAndUpload } from './components/MobileTasksAndUpload';
@@ -143,6 +144,7 @@ function App() {
     errors: Array<{ assetId: string; buildingNumber: number; errors: string[] }>;
   } | null>(null);
   const { validation_rules_enabled: validationRulesEnabled, loadUIConfig } = useUIConfig();
+  const bumpFieldConfigVersion = useFieldConfigBumpVersion();
   const { setContextFromTabType, openHelp } = useHelp();
   const { refreshRules } = useValidationRules();
   const isMobile = useIsMobile();
@@ -237,11 +239,13 @@ function App() {
   // Load field configurations after login (require Bearer auth)
   useEffect(() => {
     if (isAuthenticated) {
-      loadFieldConfigurations().catch((err) => {
-        console.warn('[App] Failed to load field configurations:', err);
-      });
+      loadFieldConfigurations()
+        .then(() => bumpFieldConfigVersion())
+        .catch((err) => {
+          console.warn('[App] Failed to load field configurations:', err);
+        });
     }
-  }, [isAuthenticated]);
+  }, [isAuthenticated, bumpFieldConfigVersion]);
 
   // F1 key opens help modal
   useEffect(() => {

@@ -29,6 +29,15 @@ export function isLargeFont(): boolean {
   return currentFontSize === 'large';
 }
 
+/** Multiplier for column width by font size (small=0.85, normal=1, large=1.55). Base 1.65 applied separately. */
+export function getFontSizeWidthMultiplier(): number {
+  switch (currentFontSize) {
+    case 'small': return 0.85;
+    case 'large': return 1.55;
+    default: return 1;
+  }
+}
+
 export function subscribeFontSize(listener: () => void): () => void {
   listeners.add(listener);
   return () => listeners.delete(listener);

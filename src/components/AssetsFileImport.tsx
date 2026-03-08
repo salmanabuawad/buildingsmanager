@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
 import { Upload, FileText, Download, AlertCircle, CheckCircle, Loader2, X, Save, CheckCircle2, Trash2, RotateCcw, MessageSquare } from 'lucide-react';
 import { api, Asset, AssetType, Building, AddressList } from '../lib/api';
-import { buildingsUpdateTotalArea } from '../lib/restClient';
+import { supabase } from '../lib/supabase';
 import { AssetValidationHandler } from '../lib/assetValidationHandler';
 import { ValidationResultModal, BatchValidationResults, ValidationProgress } from './ValidationResultModal';
 import { useValidationRules } from '../contexts/ValidationContext';
@@ -1181,7 +1181,7 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
         setAllAssets(allAssets);
       }
 
-      const { api } = await import('../lib/apiClient');
+      const { api } = await import('../lib/api');
 
       // Filter assets that passed validation (no validation errors)
       const validatedSkeletonAssets = importedAssets.filter(asset => {
@@ -1496,7 +1496,7 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
         // Update total area for each affected building
         for (const buildingNum of affectedBuildingNumbers) {
           try {
-            await buildingsUpdateTotalArea(buildingNum);
+            await supabase.rpc('update_building_total_area', { p_building_number: buildingNum });
           } catch (areaError) {
             console.warn(`Failed to update building total area for building ${buildingNum} after skeleton import:`, areaError);
             // Don't fail the operation if area update fails
@@ -1986,7 +1986,7 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
       });
 
       // Use bulk insert via API
-      const { api } = await import('../lib/apiClient');
+      const { api } = await import('../lib/api');
       
       // Check which assets already exist and their building numbers (for both save and save as new)
       const assetIds = assetsToInsert.map(a => a.asset_id).filter(id => id != null);
@@ -2321,7 +2321,7 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
                   // Update total area for each affected building
                   for (const buildingNum of affectedBuildingNumbers) {
                     try {
-                      await buildingsUpdateTotalArea(buildingNum);
+                      await supabase.rpc('update_building_total_area', { p_building_number: buildingNum });
                     } catch (areaError) {
                       console.warn(`Failed to update building total area for building ${buildingNum} after import:`, areaError);
                       // Don't fail the operation if area update fails
@@ -2387,7 +2387,7 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
         // Update total area for each affected building
         for (const buildingNum of affectedBuildingNumbers) {
           try {
-            await buildingsUpdateTotalArea(buildingNum);
+            await supabase.rpc('update_building_total_area', { p_building_number: buildingNum });
           } catch (areaError) {
             console.warn(`Failed to update building total area for building ${buildingNum} after import:`, areaError);
             // Don't fail the operation if area update fails

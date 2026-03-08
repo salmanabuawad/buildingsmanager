@@ -67,7 +67,7 @@ export function setValidationData(data: { buildings: any[]; assetTypes: any[]; a
  */
 export async function refreshAssetTypesCache(): Promise<void> {
   try {
-    const { api } = await import('./apiClient');
+    const { api } = await import('./api');
     // Explicitly select all fields including business_residence
     const { data, error } = await api
       .from('asset_types')
@@ -1889,7 +1889,7 @@ export const assetValidators = {
     if (!building) {
       // If not found in memory, try querying the database as a fallback
       try {
-        const { api } = await import('./apiClient');
+        const { api } = await import('./api');
         const buildingNumberNum = typeof buildingNumber === 'string' ? parseInt(buildingNumber, 10) : buildingNumber;
         const { data, error } = await api
           .from('buildings')

@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { Document, Page, pdfjs } from 'react-pdf';
 import { ZoomIn, ZoomOut, Download, RotateCw, ChevronLeft, ChevronRight } from 'lucide-react';
 import { sanitizeFilename } from '../lib/sanitize';
-import { api } from '../lib/apiClient';
+import { api } from '../lib/api';
 import 'react-pdf/dist/Page/AnnotationLayer.css';
 import 'react-pdf/dist/Page/TextLayer.css';
 

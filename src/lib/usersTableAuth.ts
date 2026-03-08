@@ -56,6 +56,9 @@ export function getAuthUserIdForBackend(): string | null {
   return s ? `uid:${s.user_id}` : null;
 }
 
+/** Alias for getAuthUserIdForBackend - used by api.ts (origin pattern). */
+export const getAuthUserIdForRpc = getAuthUserIdForBackend;
+
 /** Access token for Bearer auth on API requests. */
 export function getAccessToken(): string | null {
   const s = getSession();

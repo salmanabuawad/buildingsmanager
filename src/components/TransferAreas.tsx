@@ -2093,8 +2093,8 @@ export const TransferAreas = forwardRef<TransferAreasRef, TransferAreasProps>(({
 
   return (
     <div className="max-w-7xl mx-auto px-2 sm:px-4 py-3">
-      <div className="page-header mb-2 rounded-lg px-3 py-2">
-        <div className="flex items-center gap-2">
+      <div className="page-header mb-2 rounded-lg px-3 py-2 w-full">
+        <div className="flex items-center gap-2 flex-wrap w-full page-header-spread">
           <div className="page-header-icon shrink-0">
             <BuildingIcon className="w-5 h-5" />
           </div>

@@ -6103,12 +6103,12 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
         );
       })()}
       <div className="flex flex-col flex-1 min-h-0 w-full py-2" style={{ maxWidth: '100vw', width: '100%', paddingLeft: '0.5rem', paddingRight: '0.5rem' }}>
-        <div className="page-header mb-2 rounded-lg px-3 py-2">
-          <div className="relative flex items-center gap-2 flex-wrap">
+        <div className="page-header mb-2 rounded-lg px-3 py-2 w-full">
+          <div className="relative flex items-center gap-2 flex-wrap w-full">
             <div className="page-header-icon shrink-0">
               <BuildingIcon className="w-5 h-5" />
             </div>
-            <div className="flex items-center gap-1.5 flex-wrap">
+            <div className="page-header-spread">
               {((building?.address ?? building?.building_address) || building?.building_number_in_street != null) && (
                 <span className="page-header-badge page-header-badge-address">
                   <BuildingIcon className="w-4 h-4" />

@@ -214,7 +214,7 @@ export const MeasurementProgressDashboard = ({ onOpenBuildingsList, onOpenMeasur
   return (
     <div className="flex flex-col flex-1 min-h-0 bg-white">
       {/* Header */}
-      <div className="page-header rounded-t-lg px-2 py-1 flex items-center justify-between min-h-0">
+      <div className="page-header rounded-t-lg px-2 py-1 flex items-center justify-between min-h-0 w-full">
         <div className="flex items-center gap-1.5">
           <div className="page-header-icon shrink-0 p-0">
             <BarChart3 className="w-3.5 h-3.5" />

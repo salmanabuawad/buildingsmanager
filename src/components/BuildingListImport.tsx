@@ -251,8 +251,8 @@ export function BuildingListImport() {
 
   return (
     <div className="max-w-4xl mx-auto px-4 py-8">
-      <div className="mb-8 page-header rounded-xl px-4 py-3">
-        <div className="flex items-center gap-3">
+      <div className="mb-8 page-header rounded-xl px-4 py-3 w-full">
+        <div className="flex items-center justify-between flex-wrap gap-3 w-full">
           <div className="page-header-icon shrink-0">
             <Upload className="w-6 h-6" />
           </div>

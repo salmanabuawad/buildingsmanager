@@ -623,8 +623,8 @@ export function AddressListComponent() {
 
   return (
     <div className="max-w-5xl mx-auto px-4 py-3">
-      <div className="page-header mb-2 rounded-lg px-3 py-2">
-        <div className="flex items-center justify-between">
+      <div className="page-header mb-2 rounded-lg px-3 py-2 w-full">
+        <div className="flex items-center justify-between w-full">
           <div className="flex items-center gap-2">
             <div className="page-header-icon shrink-0">
               <MapPin className="w-5 h-5" />

@@ -3666,8 +3666,8 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
       )}
 
       <div className="w-full mx-auto px-1 sm:px-2 py-1 sm:py-2">
-      <div className="page-header mb-2 rounded-lg px-3 py-2">
-        <div className="flex items-center gap-2 flex-wrap">
+      <div className="page-header mb-2 rounded-lg px-3 py-2 w-full">
+        <div className="flex items-center gap-2 flex-wrap w-full">
           <div className="page-header-icon shrink-0">
             <Home className="w-5 h-5" strokeWidth={1.5} />
           </div>
@@ -3676,7 +3676,7 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
               {t('assetId')}: {asset.asset_id}
             </h1>
             {building && (
-              <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
+              <div className="page-header-spread mt-0.5">
                 <span className="page-header-label">מבנה {building.building_number}</span>
                 <span className="page-header-label">גוש: {building?.gosh || '-'}</span>
                 <span className="page-header-label">חלקה: {building?.helka || '-'}</span>

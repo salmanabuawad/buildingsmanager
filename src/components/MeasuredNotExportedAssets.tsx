@@ -1502,8 +1502,8 @@ export const MeasuredNotExportedAssets = ({ onSelectAsset }: MeasuredNotExported
         </div>
       )}
       {/* Header */}
-      <div className="page-header rounded-lg px-4 py-2 mb-2">
-        <div className="flex items-center gap-2">
+      <div className="page-header rounded-lg px-4 py-2 mb-2 w-full">
+        <div className="flex items-center justify-between flex-wrap gap-2 w-full">
           <div className="page-header-icon shrink-0">
             <BuildingIcon className="w-5 h-5" />
           </div>

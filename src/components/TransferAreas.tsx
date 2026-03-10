@@ -2184,9 +2184,8 @@ export const TransferAreas = forwardRef<TransferAreasRef, TransferAreasProps>(({
         </button>
       </div>
 
-      <div className="bg-white rounded-xl shadow-lg hover:shadow-xl transition-shadow duration-200 overflow-hidden border-2 border-theme-action-accent">
-        <div className="p-3">
-          <div className="ag-theme-alpine flex-1 min-h-[200px]" style={{ width: '100%', minWidth: '100%', overflowX: 'auto' }}>
+      <div className="flex-1 min-h-0 flex flex-col bg-white rounded-xl shadow-lg hover:shadow-xl transition-shadow duration-200 overflow-hidden border-2 border-theme-action-accent w-full">
+        <div className="ag-theme-alpine buildings-list-grid flex-1 min-h-[200px]" style={{ width: '100%', minWidth: '100%', overflowX: 'auto' }}>
             <AgGridReact<Asset>
               ref={gridRef}
               rowData={sortedAssets}
@@ -2227,7 +2226,6 @@ export const TransferAreas = forwardRef<TransferAreasRef, TransferAreasProps>(({
               enableRtl={true}
               animateRows={false}
             />
-          </div>
         </div>
       </div>
 

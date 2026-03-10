@@ -42,11 +42,19 @@ async function sendNotification(
       return;
     }
     let token: string | null = null;
+    let otpCode: string | null = null;
     try {
       const res = await inspectionTasksApi.createAccessToken(taskId, assignedToUserId);
       token = res?.token ?? null;
     } catch (e) {
       console.warn('[inspectionTaskNotifications] Failed to create token:', e);
+    }
+    if (kind === 'assigned') {
+      try {
+        otpCode = await inspectionTasksApi.createOtp(assignedToUserId, taskId);
+      } catch (e) {
+        console.warn('[inspectionTaskNotifications] Failed to create OTP:', e);
+      }
     }
     const taskLink = getTaskDeepLink(taskId, token);
     const action = kind === 'assigned' ? 'הוקצתה אליך' : 'הוחזרה אליך לתיקון';
@@ -56,6 +64,7 @@ async function sendNotification(
       taskId: String(taskId),
       taskLink,
       action,
+      otpCode: otpCode || '',
     };
     let subject: string;
     let body: string;
@@ -72,7 +81,10 @@ async function sendNotification(
         kind === 'assigned'
           ? `משימת ביקורת הוקצתה אליך: ${taskTitle}`
           : `משימה הוחזרה אליך: ${taskTitle}`;
-      body = `שלום ${vars.inspectorName},\n\nמשימת ביקורת ${action}.\nכותרת: ${taskTitle}\nמזהה משימה: #${taskId}\n\nלפתיחת המשימה ישירות (ללא צורך בהתחברות): ${taskLink}\n\nהקישור הוא חד-פעמי ותקף ל־7 ימים.\n\nבברכה,\nמערכת ניהול נכסים`;
+      const otpSection = kind === 'assigned' && vars.otpCode
+        ? `\nקוד התחברות חד-פעמי (תקף 30 דקות): ${vars.otpCode}\nניתן להזין את הקוד בעמוד ההתחברות במקום סיסמה.\n`
+        : '';
+      body = `שלום ${vars.inspectorName},\n\nמשימת ביקורת ${action}.\nכותרת: ${taskTitle}\nמזהה משימה: #${taskId}\n${otpSection}\nלפתיחת המשימה ישירות (ללא צורך בהתחברות): ${taskLink}\n\nהקישור הוא חד-פעמי ותקף ל־7 ימים.\n\nבברכה,\nמערכת ניהול נכסים`;
     }
     const result = await emailService.sendEmail({
       to: [user.user_email],

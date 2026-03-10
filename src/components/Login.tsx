@@ -1,6 +1,6 @@
 import { useState, FormEvent } from 'react';
-import { loginUsersTable } from '../lib/usersTableAuth';
-import { Building2, Loader2, AlertCircle } from 'lucide-react';
+import { loginUsersTable, loginByOtp } from '../lib/usersTableAuth';
+import { Building2, Loader2, AlertCircle, Mail } from 'lucide-react';
 
 interface LoginProps {
   onLoginSuccess: () => void;
@@ -9,6 +9,8 @@ interface LoginProps {
 export function Login({ onLoginSuccess }: LoginProps) {
   const [userName, setUserName] = useState('');
   const [password, setPassword] = useState('');
+  const [otpMode, setOtpMode] = useState(false);
+  const [otp, setOtp] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showPassword, setShowPassword] = useState(false);
@@ -18,17 +20,40 @@ export function Login({ onLoginSuccess }: LoginProps) {
     setError(null);
     setLoading(true);
     try {
-      const result = await loginUsersTable(userName.trim(), password);
-      if (result.success) {
-        onLoginSuccess();
-        return;
+      if (otpMode) {
+        const result = await loginByOtp(otp.trim());
+        if (result.success) {
+          if (result.taskId) {
+            window.location.hash = `#inspection-tasks/${result.taskId}`;
+          }
+          onLoginSuccess();
+          return;
+        }
+        setError(result.error);
+      } else {
+        const result = await loginUsersTable(userName.trim(), password);
+        if (result.success) {
+          onLoginSuccess();
+          return;
+        }
+        setError(result.error);
       }
-      setError(result.error);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'שגיאה בהתחברות. אנא נסה שוב.');
     } finally {
       setLoading(false);
     }
+  };
+
+  const switchToOtp = () => {
+    setOtpMode(true);
+    setError(null);
+    setOtp('');
+  };
+
+  const switchToPassword = () => {
+    setOtpMode(false);
+    setError(null);
   };
 
   return (
@@ -44,51 +69,95 @@ export function Login({ onLoginSuccess }: LoginProps) {
 
         <div className="bg-white rounded-2xl shadow-xl p-8 border border-theme-card-border">
           <form onSubmit={handleSubmit} className="space-y-6">
-            <div>
-              <label htmlFor="username" className="block text-sm font-medium text-theme-text-primary mb-2 text-right">
-                שם משתמש
-              </label>
-              <input
-                id="username"
-                type="text"
-                value={userName}
-                onChange={(e) => setUserName(e.target.value)}
-                required
-                disabled={loading}
-                className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-theme-tab-active focus:border-theme-tab-active outline-none transition-all text-right disabled:bg-slate-100 disabled:cursor-not-allowed"
-                placeholder="הזן שם משתמש"
-                dir="rtl"
-                autoComplete="username"
-              />
-            </div>
-
-            <div>
-              <label htmlFor="password" className="block text-sm font-medium text-theme-text-primary mb-2 text-right">
-                סיסמה
-              </label>
-              <div className="relative">
-                <input
-                  id="password"
-                  type={showPassword ? 'text' : 'password'}
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  required
-                  disabled={loading}
-                  className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-theme-tab-active focus:border-theme-tab-active outline-none transition-all text-right disabled:bg-slate-100 disabled:cursor-not-allowed"
-                  placeholder="הזן סיסמה"
-                  dir="rtl"
-                  autoComplete="current-password"
-                />
+            {otpMode ? (
+              <>
+                <div>
+                  <label htmlFor="otp" className="block text-sm font-medium text-theme-text-primary mb-2 text-right">
+                    קוד מהמייל
+                  </label>
+                  <input
+                    id="otp"
+                    type="text"
+                    inputMode="numeric"
+                    pattern="[0-9]*"
+                    maxLength={6}
+                    value={otp}
+                    onChange={(e) => setOtp(e.target.value.replace(/\D/g, ''))}
+                    disabled={loading}
+                    className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-theme-tab-active focus:border-theme-tab-active outline-none transition-all text-center text-2xl tracking-widest disabled:bg-slate-100 disabled:cursor-not-allowed"
+                    placeholder="000000"
+                    dir="ltr"
+                    autoComplete="one-time-code"
+                  />
+                  <p className="text-xs text-theme-text-muted mt-1 text-right">
+                    הזן את הקוד בן 6 הספרות שנשלח אליך במייל
+                  </p>
+                </div>
                 <button
                   type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  className="absolute left-3 top-1/2 -translate-y-1/2 text-theme-text-muted hover:text-theme-text-primary focus:outline-none"
-                  tabIndex={-1}
+                  onClick={switchToPassword}
+                  className="w-full text-sm text-theme-tab-active hover:underline"
                 >
-                  {showPassword ? 'הסתר' : 'הצג'}
+                  התחבר עם שם משתמש וסיסמה
                 </button>
-              </div>
-            </div>
+              </>
+            ) : (
+              <>
+                <div>
+                  <label htmlFor="username" className="block text-sm font-medium text-theme-text-primary mb-2 text-right">
+                    שם משתמש
+                  </label>
+                  <input
+                    id="username"
+                    type="text"
+                    value={userName}
+                    onChange={(e) => setUserName(e.target.value)}
+                    required
+                    disabled={loading}
+                    className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-theme-tab-active focus:border-theme-tab-active outline-none transition-all text-right disabled:bg-slate-100 disabled:cursor-not-allowed"
+                    placeholder="הזן שם משתמש"
+                    dir="rtl"
+                    autoComplete="username"
+                  />
+                </div>
+
+                <div>
+                  <label htmlFor="password" className="block text-sm font-medium text-theme-text-primary mb-2 text-right">
+                    סיסמה
+                  </label>
+                  <div className="relative">
+                    <input
+                      id="password"
+                      type={showPassword ? 'text' : 'password'}
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      required
+                      disabled={loading}
+                      className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-theme-tab-active focus:border-theme-tab-active outline-none transition-all text-right disabled:bg-slate-100 disabled:cursor-not-allowed"
+                      placeholder="הזן סיסמה"
+                      dir="rtl"
+                      autoComplete="current-password"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="absolute left-3 top-1/2 -translate-y-1/2 text-theme-text-muted hover:text-theme-text-primary focus:outline-none"
+                      tabIndex={-1}
+                    >
+                      {showPassword ? 'הסתר' : 'הצג'}
+                    </button>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={switchToOtp}
+                  className="w-full flex items-center justify-center gap-2 text-sm text-theme-tab-active hover:underline"
+                >
+                  <Mail className="w-4 h-4" />
+                  התחבר עם קוד מהמייל
+                </button>
+              </>
+            )}
 
             {error && (
               <div className="flex items-start gap-2 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
@@ -99,7 +168,10 @@ export function Login({ onLoginSuccess }: LoginProps) {
 
             <button
               type="submit"
-              disabled={loading || !userName.trim() || !password}
+              disabled={
+                loading ||
+                (otpMode ? otp.trim().length < 6 : !userName.trim() || !password)
+              }
               className="w-full py-3 px-4 bg-theme-tab-active hover:bg-theme-tab-active-hover text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none flex items-center justify-center gap-2"
             >
               {loading ? (

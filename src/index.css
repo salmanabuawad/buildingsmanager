@@ -1049,6 +1049,11 @@ input[type="submit"]:disabled {
   @apply text-theme-tab-active;
 }
 
+/* Safe area inset for mobile notch/home indicator */
+.pb-safe {
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
 /* Hide "Made in Bolt" badge if injected by Bolt.new hosting */
 div[style*="z-index: 2147483647"][style*="position: fixed"][style*="bottom"],
 div[style*="color-scheme: initial"][style*="forced-color-adjust: initial"][style*="position-anchor: initial"],

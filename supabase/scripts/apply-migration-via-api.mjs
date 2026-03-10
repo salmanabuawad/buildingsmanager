@@ -17,14 +17,16 @@ const PROJECT_REF = 'mmqnrwjjxewrgwczezzf';
 
 function loadEnv() {
   const root = resolve(__dirname, '../..');
-  const envPath = resolve(root, '.env');
-  if (existsSync(envPath)) {
-    const content = readFileSync(envPath, 'utf8');
-    for (const line of content.split('\n')) {
-      const m = line.match(/^\s*([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.*)$/);
-      if (m && !process.env[m[1]]) {
-        const val = m[2].replace(/^["']|["']$/g, '').trim();
-        process.env[m[1]] = val;
+  for (const f of ['.env', '.env.local']) {
+    const envPath = resolve(root, f);
+    if (existsSync(envPath)) {
+      const content = readFileSync(envPath, 'utf8');
+      for (const line of content.split('\n')) {
+        const m = line.match(/^\s*([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.*)$/);
+        if (m && !process.env[m[1]]) {
+          const val = m[2].replace(/^["']|["']$/g, '').trim();
+          process.env[m[1]] = val;
+        }
       }
     }
   }
@@ -33,7 +35,7 @@ loadEnv();
 
 const token = process.env.SUPABASE_ACCESS_TOKEN;
 const ref = process.env.SUPABASE_PROJECT_REF || (() => {
-  const u = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL || '';
+  const u = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL || '';
   const m = u.match(/https:\/\/([^.]+)\.supabase\.co/);
   return m ? m[1] : PROJECT_REF;
 })();

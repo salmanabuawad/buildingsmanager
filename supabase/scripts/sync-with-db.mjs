@@ -17,14 +17,16 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 
 function loadEnv() {
   const root = resolve(__dirname, '../..');
-  const envPath = resolve(root, '.env');
-  if (existsSync(envPath)) {
-    const content = readFileSync(envPath, 'utf8');
-    for (const line of content.split('\n')) {
-      const m = line.match(/^\s*([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.*)$/);
-      if (m && !process.env[m[1]]) {
-        const val = m[2].replace(/^["']|["']$/g, '').trim();
-        process.env[m[1]] = val;
+  for (const f of ['.env', '.env.local']) {
+    const envPath = resolve(root, f);
+    if (existsSync(envPath)) {
+      const content = readFileSync(envPath, 'utf8');
+      for (const line of content.split('\n')) {
+        const m = line.match(/^\s*([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.*)$/);
+        if (m && !process.env[m[1]]) {
+          const val = m[2].replace(/^["']|["']$/g, '').trim();
+          process.env[m[1]] = val;
+        }
       }
     }
   }
@@ -32,11 +34,12 @@ function loadEnv() {
 
 loadEnv();
 
-const url = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL;
-const key = process.env.VITE_SUPABASE_ANON_KEY || process.env.SUPABASE_ANON_KEY;
+// DB sync: prefer NEXT_PUBLIC_* for sync-only creds
+const url = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL;
+const key = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY || process.env.VITE_SUPABASE_ANON_KEY || process.env.SUPABASE_ANON_KEY;
 
 if (!url || !key) {
-  console.error('Missing VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY (or SUPABASE_*) in env or .env');
+  console.error('For db:sync, add to .env: NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY (or VITE_* / SUPABASE_*)');
   process.exit(1);
 }
 

@@ -1690,7 +1690,8 @@ function App() {
       </header>
 
       <div className="flex-1 flex flex-col md:flex-row min-h-0">
-      {/* theme_1: Mobile menu button - touch-friendly */}
+      {/* Mobile menu button - hidden for inspector on mobile (task-only full-screen) */}
+      {!(isMobile && isInspector) && (
       <button
         onClick={() => setSidebarOpen(!sidebarOpen)}
         className="md:hidden fixed z-50 min-h-[44px] min-w-[44px] p-3 left-2 bg-app-sidebar rounded-xl shadow-lg border border-app-sidebar-hover touch-manipulation"
@@ -1699,8 +1700,10 @@ function App() {
       >
         <Menu className="h-6 w-6 text-white" />
       </button>
+      )}
 
-      {/* theme_1: Narrow icon-first sidebar - dark teal */}
+      {/* Sidebar - hidden on mobile for inspector (task management only, full-screen) */}
+      {!(isMobile && isInspector) && (
       <div className={`${sidebarOpen ? 'fixed inset-0 z-40 md:relative md:z-auto' : 'hidden md:flex'} md:w-[72px] lg:w-20 bg-app-sidebar border-l border-white/10 flex flex-col shrink-0 overflow-visible`}>
         {sidebarOpen && (
           <button
@@ -1994,9 +1997,10 @@ function App() {
         </div>
         
       </div>
+      )}
 
       <div
-        className="flex-1 flex flex-col min-w-0 pt-[52px] md:pt-0"
+        className={`flex-1 flex flex-col min-w-0 ${isMobile && isInspector ? 'pt-0' : 'pt-[52px] md:pt-0'}`}
         onClick={() => {
           setBuildingsMenuOpen(false);
           setAssetsMenuOpen(false);
@@ -2006,7 +2010,8 @@ function App() {
           setUserMenuOpen(false);
         }}
       >
-        {/* theme_1: Tabs bar - light gray */}
+        {/* Tabs bar - hidden for inspector on mobile (task-only full-screen) */}
+        {!(isMobile && isInspector) && (
         <div className="bg-app-tabs-bg border-b border-app-input-border">
           <div className="px-2 sm:px-4 py-1.5">
             <div className="flex flex-row-reverse items-center justify-end gap-1 overflow-x-auto scrollbar-hide min-h-[40px]">
@@ -2092,6 +2097,7 @@ function App() {
             </div>
           </div>
         </div>
+        )}
 
         <div className="flex-1 overflow-hidden flex flex-col min-h-0">
           {/* Main Content Area - no scroll; grid pages fill available space */}

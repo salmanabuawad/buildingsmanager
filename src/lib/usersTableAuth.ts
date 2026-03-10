@@ -123,6 +123,38 @@ export function logoutUsersTable(): void {
   clearSession();
 }
 
+/** Login using one-time OTP from email (6-digit code). No password required. */
+export async function loginByOtp(
+  otp: string
+): Promise<{ success: true; session: UsersTableSession; taskId?: number } | { success: false; error: string }> {
+  try {
+    const { data, error } = await supabase.rpc('auth_login_by_otp', {
+      p_otp: otp.trim(),
+    });
+
+    if (error) {
+      return { success: false, error: error.message || 'קוד לא תקף או שפג תוקפו' };
+    }
+
+    const d = data as { user_id: number; user_name: string; user_role: string; task_id?: number } | null;
+    if (!d?.user_id || !d?.user_name) {
+      return { success: false, error: 'קוד לא תקף או שפג תוקפו.' };
+    }
+
+    const role = (d.user_role === 'admin' ? 'admin' : d.user_role === 'inspector' ? 'inspector' : 'user') as 'admin' | 'user' | 'inspector';
+    const session: UsersTableSession = {
+      user_id: d.user_id,
+      user_name: d.user_name,
+      user_role: role,
+    };
+    setSession(session);
+    return { success: true, session, taskId: d.task_id ?? undefined };
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
+    return { success: false, error: msg || 'שגיאה בהתחברות עם הקוד.' };
+  }
+}
+
 /** Login using one-time task access token (from email deep link). No password required. */
 export async function loginByTaskToken(
   token: string

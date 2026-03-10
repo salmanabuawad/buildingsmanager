@@ -35,6 +35,7 @@ import {
   FileUp,
   Camera,
   Video,
+  PlayCircle,
 } from 'lucide-react';
 
 function fileDownloadUrl(filePath: string): string {
@@ -103,7 +104,7 @@ export function InspectionTasksManager() {
   const [detailReportText, setDetailReportText] = useState('');
   const [savingDetailReport, setSavingDetailReport] = useState(false);
   const [uploadingDetailFile, setUploadingDetailFile] = useState(false);
-  const [detailUploadAssetIds, setDetailUploadAssetIds] = useState<number[]>([]);
+  const [detailUploadAssetId, setDetailUploadAssetId] = useState<number | ''>('');
   const [detailAssetsForUpload, setDetailAssetsForUpload] = useState<Array<{ asset_id: number; main_asset_type?: string; asset_size?: number }>>([]);
   const [detailAssetsLoading, setDetailAssetsLoading] = useState(false);
 
@@ -114,7 +115,7 @@ export function InspectionTasksManager() {
       setEditTitle((detailTask.title ?? '').toString());
       setEditNote(detailTask.note ?? '');
       setDetailReportText(detailTask.report?.report_text ?? '');
-      setDetailUploadAssetIds([]);
+      setDetailUploadAssetId('');
       return () => { document.body.style.overflow = prev; };
     }
   }, [detailTask]);
@@ -149,11 +150,6 @@ export function InspectionTasksManager() {
     }
   }, [detailTask?.id, detailTask?.status, detailTask?.asset_ids, isInspector]);
 
-  const toggleDetailUploadAsset = (assetId: number) => {
-    setDetailUploadAssetIds((prev) =>
-      prev.includes(assetId) ? prev.filter((id) => id !== assetId) : [...prev, assetId]
-    );
-  };
 
   const saveDetailReport = async () => {
     if (!detailTask) return;
@@ -170,6 +166,21 @@ export function InspectionTasksManager() {
     }
   };
 
+  const handleTakeTask = async () => {
+    if (!detailTask) return;
+    try {
+      setActioningId(detailTask.id);
+      setError(null);
+      const updated = await api.inspectionTasks.takeTask(detailTask.id);
+      setDetailTask(updated);
+      loadTasks();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'שגיאה בהתחלת המשימה');
+    } finally {
+      setActioningId(null);
+    }
+  };
+
   const uploadDetailFile = async (file: File) => {
     if (!detailTask) return;
     let reportId = detailTask.report?.id;
@@ -180,10 +191,13 @@ export function InspectionTasksManager() {
       reportId = updated.report?.id;
       if (!reportId) return;
     }
+    if (detailUploadAssetId === '' || detailUploadAssetId === null) {
+      setError('יש לבחור נכס לפני העלאת תמונה או וידאו');
+      return;
+    }
     try {
       setUploadingDetailFile(true);
-      const aids = detailUploadAssetIds.length > 0 ? detailUploadAssetIds : undefined;
-      await inspectionReportsApi.uploadFile(reportId, file, aids);
+      await inspectionReportsApi.uploadFile(reportId, file, [detailUploadAssetId]);
       const updated = await inspectionTasksApi.get(detailTask.id);
       setDetailTask(updated);
       loadTasks();
@@ -566,10 +580,10 @@ export function InspectionTasksManager() {
   }
 
   return (
-    <div className="flex flex-col flex-1 min-h-0 p-4 space-y-4" dir="rtl">
-      <h1 className="text-xl font-semibold text-slate-800 border-b border-slate-200 pb-2 flex items-center gap-2 flex-shrink-0">
-        <ListTodo className="h-6 w-6 text-theme-tab-active" />
-        ניהול משימות ביקורת
+    <div className="flex flex-col flex-1 min-h-0 p-4 sm:p-6 pb-safe space-y-4" dir="rtl">
+      <h1 className="text-lg sm:text-xl font-semibold text-slate-800 border-b border-slate-200 pb-2 flex items-center gap-2 flex-shrink-0 min-h-[44px] items-center">
+        <ListTodo className="h-6 w-6 text-theme-tab-active shrink-0" />
+        <span>ניהול משימות ביקורת</span>
       </h1>
 
       {error && (
@@ -579,14 +593,14 @@ export function InspectionTasksManager() {
       )}
 
       <div className="flex flex-wrap items-center gap-3 flex-shrink-0">
-        <span className="flex items-center gap-2 text-slate-600">
-          <Filter className="h-4 w-4" />
+        <span className="flex items-center gap-2 text-slate-600 text-sm sm:text-base">
+          <Filter className="h-4 w-4 shrink-0" />
           סטטוס:
         </span>
         <select
           value={filterStatus}
           onChange={(e) => setFilterStatus(e.target.value)}
-          className="border border-slate-300 rounded-lg px-3 py-1.5 text-sm"
+          className="min-h-[44px] px-3 py-2 sm:py-1.5 border border-slate-300 rounded-lg text-sm touch-manipulation"
         >
           <option value="">הכל</option>
           {Object.entries(STATUS_LABELS).map(([k, v]) => (
@@ -599,7 +613,7 @@ export function InspectionTasksManager() {
             <select
               value={filterAssignedTo === '' ? '' : String(filterAssignedTo)}
               onChange={(e) => setFilterAssignedTo(e.target.value === '' ? '' : Number(e.target.value))}
-              className="border border-slate-300 rounded-lg px-3 py-1.5 text-sm"
+              className="min-h-[44px] px-3 py-2 sm:py-1.5 border border-slate-300 rounded-lg text-sm touch-manipulation"
             >
               <option value="">הכל</option>
               {inspectors.map((u) => (
@@ -613,14 +627,14 @@ export function InspectionTasksManager() {
                 setCreateAssetIds([]);
                 setCreateOpen(true);
               }}
-              className="flex items-center gap-2 px-4 py-2 bg-theme-tab-active hover:bg-theme-tab-active-hover text-white rounded-lg text-sm font-medium"
+              className="flex items-center justify-center gap-2 min-h-[44px] px-4 py-3 sm:py-2 bg-theme-tab-active hover:bg-theme-tab-active-hover text-white rounded-lg text-sm font-medium touch-manipulation"
             >
-              <Plus className="h-4 w-4" />
+              <Plus className="h-4 w-4 shrink-0" />
               משימה חדשה
             </button>
           </>
         )}
-        <button type="button" onClick={loadTasks} className="p-2 border border-slate-300 rounded-lg hover:bg-slate-50">
+        <button type="button" onClick={loadTasks} className="min-h-[44px] min-w-[44px] p-2 border border-slate-300 rounded-lg hover:bg-slate-50 touch-manipulation flex items-center justify-center">
           <Loader2 className={`h-4 w-4 text-slate-600 ${loading ? 'animate-spin' : ''}`} />
         </button>
       </div>
@@ -656,15 +670,15 @@ export function InspectionTasksManager() {
       )}
 
       {createOpen && (
-        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4" onClick={() => setCreateOpen(false)}>
-          <div className="bg-white rounded-xl shadow-xl max-w-md w-full p-4" dir="rtl" onClick={(e) => e.stopPropagation()}>
-            <h2 className="text-lg font-semibold mb-3">משימת ביקורת חדשה</h2>
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4 overflow-y-auto" style={{ paddingTop: 'env(safe-area-inset-top)', paddingBottom: 'env(safe-area-inset-bottom)' }} onClick={() => setCreateOpen(false)}>
+          <div className="bg-white rounded-xl shadow-xl max-w-md w-full p-4 my-4" dir="rtl" onClick={(e) => e.stopPropagation()}>
+            <h2 className="text-lg font-semibold mb-4">משימת ביקורת חדשה</h2>
             <div className="space-y-2">
               <label className="block text-sm text-slate-600">בניין *</label>
               <select
                 value={createBuildingNumber}
                 onChange={(e) => setCreateBuildingNumber(e.target.value)}
-                className="w-full border border-slate-300 rounded-lg px-3 py-2"
+                className="w-full min-h-[44px] border border-slate-300 rounded-lg px-3 py-2 touch-manipulation"
                 disabled={buildingsLoading}
               >
                 <option value="">
@@ -747,11 +761,11 @@ export function InspectionTasksManager() {
                 rows={2}
               />
             </div>
-            <div className="flex justify-end gap-2 mt-4">
-              <button type="button" onClick={() => setCreateOpen(false)} className="px-3 py-2 border border-slate-300 rounded-lg">
+            <div className="flex justify-end gap-3 mt-6">
+              <button type="button" onClick={() => setCreateOpen(false)} className="min-h-[44px] px-4 py-3 border border-slate-300 rounded-lg touch-manipulation font-medium">
                 ביטול
               </button>
-              <button type="button" onClick={handleCreate} disabled={creating} className="px-4 py-2 bg-theme-tab-active text-white rounded-lg disabled:opacity-50">
+              <button type="button" onClick={handleCreate} disabled={creating} className="min-h-[44px] px-5 py-3 bg-theme-tab-active text-white rounded-lg disabled:opacity-50 touch-manipulation font-medium">
                 {creating ? 'יוצר...' : 'צור משימה'}
               </button>
             </div>
@@ -761,27 +775,27 @@ export function InspectionTasksManager() {
 
       {detailTask && createPortal(
         <div 
-          className="fixed z-50 flex items-center justify-center bg-black/40" 
-          style={{ inset: 0, overflow: 'hidden' }} 
+          className="fixed z-50 flex items-end sm:items-center justify-center bg-black/40" 
+          style={{ inset: 0, overflow: 'hidden', paddingTop: 'env(safe-area-inset-top)', paddingBottom: 'env(safe-area-inset-bottom)' }} 
           onClick={() => setDetailTask(null)}
         >
           <div 
-            className="bg-white rounded-xl shadow-xl max-w-lg w-full grid overflow-hidden" 
+            className="bg-white rounded-t-2xl sm:rounded-xl shadow-xl max-w-lg w-full grid overflow-hidden flex-1 sm:flex-none sm:max-h-[80vh]" 
             style={{ 
-              height: '80vh', 
-              maxHeight: '80vh',
+              height: '92vh',
+              maxHeight: '92vh',
               gridTemplateRows: 'auto 1fr' 
             }} 
             dir="rtl" 
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="flex justify-between items-start p-4 pb-2 border-b border-slate-100">
+            <div className="flex justify-between items-center p-4 pb-2 border-b border-slate-100 min-h-[56px]">
               <h2 className="text-lg font-semibold">משימה #{detailTask.id}</h2>
-              <button type="button" onClick={() => setDetailTask(null)} className="p-1 text-slate-500 hover:text-slate-700">
+              <button type="button" onClick={() => setDetailTask(null)} className="min-h-[44px] min-w-[44px] p-2 -m-2 flex items-center justify-center text-slate-500 hover:text-slate-700 hover:bg-slate-100 rounded-lg touch-manipulation">
                 <X className="h-5 w-5" />
               </button>
             </div>
-            <div className="overflow-y-auto px-4 pb-4 min-h-0">
+            <div className="overflow-y-auto overscroll-contain px-4 pb-6 sm:pb-4 min-h-0" style={{ paddingBottom: 'max(1.5rem, env(safe-area-inset-bottom))' }}>
             {(detailTask.status === 'new' || detailTask.status === 'in_progress' || detailTask.status === 'pending_approval') && (isAdmin || isInspector) && (
               <div className="mb-4 p-3 bg-slate-50 rounded-lg border border-slate-200 space-y-3">
                 <h3 className="text-sm font-medium text-slate-700">עריכת משימה</h3>
@@ -817,26 +831,40 @@ export function InspectionTasksManager() {
             )}
             <p><Building2 className="inline h-4 w-4 ml-1" /> בניין: {detailTask.building_number}</p>
             <p><User className="inline h-4 w-4 ml-1" /> סטטוס: {STATUS_LABELS[detailTask.status] ?? detailTask.status}</p>
+            {isInspector && detailTask.status === 'new' && detailTask.assigned_to === getSession()?.user_id && (
+              <div className="mt-4 p-4 bg-amber-50 border border-amber-200 rounded-lg">
+                <p className="text-sm text-amber-800 mb-3">התחל לעבוד על המשימה כדי להוסיף דיווח, תמונות ווידאו.</p>
+                <button
+                  type="button"
+                  onClick={handleTakeTask}
+                  disabled={actioningId === detailTask.id}
+                  className="flex items-center justify-center gap-2 min-h-[44px] px-4 py-3 bg-amber-500 hover:bg-amber-600 text-white rounded-lg text-sm font-medium disabled:opacity-50 touch-manipulation"
+                >
+                  {actioningId === detailTask.id ? <Loader2 className="h-4 w-4 shrink-0 animate-spin" /> : <PlayCircle className="h-4 w-4 shrink-0" />}
+                  התחל משימה
+                </button>
+              </div>
+            )}
             {isInspector && (detailTask.status === 'in_progress' || detailTask.status === 'pending_approval') && (
               <div className="mt-4 p-3 bg-slate-50 rounded-lg border border-slate-200 space-y-3">
                 <label className="block text-sm font-medium text-slate-700">דיווח ביקורת</label>
                 <textarea
                   value={detailReportText}
                   onChange={(e) => setDetailReportText(e.target.value)}
-                  className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm min-h-[80px]"
+                  className="w-full border border-slate-300 rounded-lg px-3 py-3 text-sm min-h-[100px] touch-manipulation"
                   placeholder="תאר את ממצאי הביקורת..."
                 />
                 <button
                   type="button"
                   onClick={saveDetailReport}
                   disabled={savingDetailReport}
-                  className="px-3 py-2 bg-slate-200 hover:bg-slate-300 rounded-lg text-sm disabled:opacity-50"
+                  className="min-h-[44px] px-4 py-3 bg-slate-200 hover:bg-slate-300 rounded-lg text-sm disabled:opacity-50 touch-manipulation font-medium"
                 >
                   {savingDetailReport ? 'שומר...' : 'שמור דיווח'}
                 </button>
                 <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-2">קשר לנכסים (לפני העלאה)</label>
-                  <p className="text-xs text-slate-500 mb-1">בחר נכסים — הקבצים שיועלו ישתפו לכל הנכסים שבחרת</p>
+                  <label className="block text-sm font-medium text-slate-700 mb-2">נכס (חובה להעלאה)</label>
+                  <p className="text-xs text-slate-500 mb-2">בחר נכס לפני העלאת תמונה או וידאו — הקבצים יועתקו לנכס באישור</p>
                   {detailAssetsLoading ? (
                     <div className="flex items-center gap-2 text-slate-500 text-sm py-2">
                       <Loader2 className="h-4 w-4 animate-spin" /> טוען...
@@ -844,28 +872,25 @@ export function InspectionTasksManager() {
                   ) : detailAssetsForUpload.length === 0 ? (
                     <p className="text-slate-500 text-sm py-1">אין נכסים במשימה / בבניין</p>
                   ) : (
-                    <div className="max-h-24 overflow-y-auto border border-slate-200 rounded-lg p-2 space-y-1 bg-white">
+                    <select
+                      value={detailUploadAssetId === '' ? '' : String(detailUploadAssetId)}
+                      onChange={(e) => setDetailUploadAssetId(e.target.value === '' ? '' : Number(e.target.value))}
+                      className="w-full min-h-[44px] px-3 py-2 border border-slate-300 rounded-lg text-sm touch-manipulation"
+                    >
+                      <option value="">בחר נכס</option>
                       {detailAssetsForUpload.map((a) => (
-                        <label key={a.asset_id} className="flex items-center gap-2 cursor-pointer hover:bg-slate-50 rounded px-2 py-1">
-                          <input
-                            type="checkbox"
-                            checked={detailUploadAssetIds.includes(a.asset_id)}
-                            onChange={() => toggleDetailUploadAsset(a.asset_id)}
-                            className="rounded border-slate-300"
-                          />
-                          <span className="text-sm">
-                            נכס {a.asset_id}
-                            {a.main_asset_type != null ? ` (${a.main_asset_type})` : ''}
-                            {a.asset_size != null ? ` — ${a.asset_size} מ"ר` : ''}
-                          </span>
-                        </label>
+                        <option key={a.asset_id} value={a.asset_id}>
+                          נכס {a.asset_id}
+                          {a.main_asset_type != null ? ` (${a.main_asset_type})` : ''}
+                          {a.asset_size != null ? ` — ${a.asset_size} מ"ר` : ''}
+                        </option>
                       ))}
-                    </div>
+                    </select>
                   )}
                 </div>
-                <div className="flex flex-wrap gap-2">
-                  <label className="px-3 py-2 bg-theme-highlight hover:bg-theme-highlight/80 rounded-lg text-sm cursor-pointer flex items-center gap-1">
-                    <FileUp className="h-4 w-4" />
+                <div className="flex flex-wrap gap-3">
+                  <label className="min-h-[44px] px-4 py-3 bg-theme-highlight hover:bg-theme-highlight/80 rounded-lg text-sm cursor-pointer flex items-center justify-center gap-2 touch-manipulation flex-1 min-w-[140px]">
+                    <FileUp className="h-4 w-4 shrink-0" />
                     {uploadingDetailFile ? 'מעלה...' : 'מגלריה / קבצים'}
                     <input
                       type="file"
@@ -882,8 +907,8 @@ export function InspectionTasksManager() {
                       disabled={uploadingDetailFile}
                     />
                   </label>
-                  <label className="px-3 py-2 bg-emerald-100 hover:bg-emerald-200 rounded-lg text-sm cursor-pointer flex items-center gap-1">
-                    <Camera className="h-4 w-4" />
+                  <label className="min-h-[44px] px-4 py-3 bg-emerald-100 hover:bg-emerald-200 rounded-lg text-sm cursor-pointer flex items-center justify-center gap-2 touch-manipulation flex-1 min-w-[140px]">
+                    <Camera className="h-4 w-4 shrink-0" />
                     צלם תמונה
                     <input
                       type="file"
@@ -898,8 +923,8 @@ export function InspectionTasksManager() {
                       disabled={uploadingDetailFile}
                     />
                   </label>
-                  <label className="px-3 py-2 bg-amber-100 hover:bg-amber-200 rounded-lg text-sm cursor-pointer flex items-center gap-1">
-                    <Video className="h-4 w-4" />
+                  <label className="min-h-[44px] px-4 py-3 bg-amber-100 hover:bg-amber-200 rounded-lg text-sm cursor-pointer flex items-center justify-center gap-2 touch-manipulation flex-1 min-w-[140px]">
+                    <Video className="h-4 w-4 shrink-0" />
                     הקלט וידאו
                     <input
                       type="file"
@@ -929,10 +954,10 @@ export function InspectionTasksManager() {
                         const url = fileDownloadUrl(f.file_path);
                         const name = f.file_name ?? `קובץ ${f.id}`;
                         return (
-                          <li key={f.id} className="flex items-start gap-2 p-2 bg-slate-50 rounded-lg border border-slate-200">
+                          <li key={f.id} className="flex items-start gap-3 p-3 bg-slate-50 rounded-lg border border-slate-200">
                             <button
                               type="button"
-                              className="flex-shrink-0 w-16 h-16 rounded overflow-hidden bg-slate-200 flex items-center justify-center p-0 border-0 cursor-pointer focus:ring-2 focus:ring-theme-action-accent focus:ring-offset-1"
+                              className="flex-shrink-0 w-20 h-20 sm:w-16 sm:h-16 rounded-lg overflow-hidden bg-slate-200 flex items-center justify-center p-0 border-0 cursor-pointer focus:ring-2 focus:ring-theme-action-accent focus:ring-offset-1 touch-manipulation min-w-[80px] min-h-[80px]"
                               onClick={() => setPreviewModal({ url, name, isVideo: isVideoFile(f) })}
                             >
                               {isVideoFile(f) ? (
@@ -978,9 +1003,9 @@ export function InspectionTasksManager() {
                       type="button"
                       onClick={() => handleApprove(detailTask.id)}
                       disabled={actioningId === detailTask.id}
-                      className="flex items-center gap-2 px-3 py-2 bg-green-600 text-white rounded-lg text-sm disabled:opacity-50"
+                      className="flex items-center justify-center gap-2 min-h-[44px] px-4 py-3 bg-green-600 text-white rounded-lg text-sm disabled:opacity-50 touch-manipulation font-medium"
                     >
-                      <CheckCircle2 className="h-4 w-4" /> אישור והעברה לאוטומציה
+                      <CheckCircle2 className="h-4 w-4 shrink-0" /> אישור והעברה לאוטומציה
                     </button>
                     <div className="flex flex-col gap-2 w-full">
                       <label className="text-sm text-slate-600">הערה להחזרה (אופציונלי)</label>
@@ -995,9 +1020,9 @@ export function InspectionTasksManager() {
                         type="button"
                         onClick={() => handleReturn(detailTask.id, returnComment.trim() || undefined)}
                         disabled={actioningId === detailTask.id}
-                        className="flex items-center gap-2 px-3 py-2 bg-amber-100 text-amber-800 rounded-lg text-sm disabled:opacity-50 w-fit"
+                        className="flex items-center justify-center gap-2 min-h-[44px] px-4 py-3 bg-amber-100 text-amber-800 rounded-lg text-sm disabled:opacity-50 w-fit touch-manipulation font-medium"
                       >
-                        <RotateCcw className="h-4 w-4" /> החזר לפקח
+                        <RotateCcw className="h-4 w-4 shrink-0" /> החזר לפקח
                       </button>
                     </div>
                   </>
@@ -1006,9 +1031,9 @@ export function InspectionTasksManager() {
                   type="button"
                   onClick={() => handleCancel(detailTask.id)}
                   disabled={actioningId === detailTask.id}
-                  className="flex items-center gap-2 px-3 py-2 bg-slate-100 text-slate-700 rounded-lg text-sm hover:bg-slate-200 disabled:opacity-50"
+                  className="flex items-center justify-center gap-2 min-h-[44px] px-4 py-3 bg-slate-100 text-slate-700 rounded-lg text-sm hover:bg-slate-200 disabled:opacity-50 touch-manipulation font-medium"
                 >
-                  <Ban className="h-4 w-4" /> ביטול משימה
+                  <Ban className="h-4 w-4 shrink-0" /> ביטול משימה
                 </button>
               </div>
             )}
@@ -1021,13 +1046,14 @@ export function InspectionTasksManager() {
       {previewModal && (
         <div
           className="fixed inset-0 z-[60] bg-black/90 flex items-center justify-center p-4"
+          style={{ paddingTop: 'env(safe-area-inset-top)', paddingBottom: 'env(safe-area-inset-bottom)' }}
           onClick={() => setPreviewModal(null)}
         >
           <div className="relative max-w-full max-h-full w-full h-full flex items-center justify-center" onClick={(e) => e.stopPropagation()}>
             <button
               type="button"
               onClick={() => setPreviewModal(null)}
-              className="absolute top-2 left-2 z-10 p-2 rounded-full bg-white/20 hover:bg-white/30 text-white"
+              className="absolute top-2 left-2 z-10 min-h-[44px] min-w-[44px] p-2 rounded-full bg-white/20 hover:bg-white/30 text-white flex items-center justify-center touch-manipulation"
               aria-label="סגור"
             >
               <X className="h-6 w-6" />

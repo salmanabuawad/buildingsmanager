@@ -191,8 +191,21 @@ export const inspectionTasksApi = {
       p_caller_user_id: s.user_id,
     });
     if (error) throw new Error(error.message);
-    const row = Array.isArray(data) ? data[0] : data;
-    return { token: row?.token ?? '', expires_in_days: 7 };
+    const token = typeof data === 'string' ? data : (Array.isArray(data) ? data[0] : data)?.token ?? '';
+    return { token, expires_in_days: 7 };
+  },
+
+  /** Create OTP for inspector (sent in task assignment email). Returns 6-digit code. */
+  createOtp: async (userId: number, taskId: number) => {
+    const s = getSession();
+    if (!s?.user_id) throw new Error('User id required');
+    const { data, error } = await supabase.rpc('inspector_create_otp', {
+      p_user_id: userId,
+      p_task_id: taskId,
+      p_caller_user_id: s.user_id,
+    });
+    if (error) throw new Error(error.message);
+    return typeof data === 'string' ? data : String(data ?? '');
   },
 };
 

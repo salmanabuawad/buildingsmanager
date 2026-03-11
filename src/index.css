@@ -900,21 +900,28 @@ input:focus, textarea:focus, select:focus {
 
 @media (max-width: 640px) {
   .ag-theme-alpine {
-    --ag-font-size: 10px;
-    --ag-row-height: 32px;
-    --ag-header-height: 48px;
+    --ag-font-size: 11px;
+    --ag-row-height: 36px;
+    --ag-header-height: 40px;
   }
 
-  .ag-theme-alpine.buildings-list-grid .ag-header {
-    font-size: 8px !important;
-  }
-
+  .ag-theme-alpine.buildings-list-grid .ag-header,
   .ag-theme-alpine.buildings-list-grid .ag-header-cell-label {
-    font-size: 8px !important;
+    font-size: 11px !important;
   }
 
   .ag-theme-alpine.buildings-list-grid .ag-cell {
-    font-size: 12px !important;
+    font-size: 13px !important;
+  }
+
+  /* Ensure grid body is visible on mobile - fix for collapsed/invisible data */
+  .ag-theme-alpine .ag-body-viewport {
+    min-height: 120px !important;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .ag-theme-alpine .ag-center-cols-viewport {
+    min-height: 120px !important;
   }
 }
 

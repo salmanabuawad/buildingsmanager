@@ -644,7 +644,8 @@ export function InspectionTasksManager() {
           <Loader2 className="h-8 w-8 text-theme-tab-active animate-spin" />
         </div>
       ) : (
-        <div className="ag-theme-alpine buildings-list-grid bg-white rounded-xl border border-slate-200 overflow-hidden flex-1 min-h-[300px]" style={{ width: '100%', minWidth: '100%', overflowX: 'auto', direction: 'rtl' }}>
+        <div className="flex-1 min-h-[50vh] sm:min-h-[300px] min-w-0 flex flex-col" style={{ overflow: 'hidden' }}>
+          <div className="ag-theme-alpine buildings-list-grid bg-white rounded-xl border border-slate-200 flex-1 w-full" style={{ minWidth: '100%', direction: 'rtl' }}>
           <AgGridReact<TaskRow>
             key={`inspection-tasks-grid-${configVersion}-${fontSize}`}
             rowData={rowData}
@@ -666,6 +667,7 @@ export function InspectionTasksManager() {
             onRowClicked={(e) => e.data && openDetail(e.data)}
             getRowId={(p) => String(p.data?.id ?? '')}
           />
+          </div>
         </div>
       )}
 

@@ -10,16 +10,15 @@ async def update_total_area(building_number: int) -> dict:
     pool = get_pool()
     async with pool.acquire() as conn:
         async with conn.transaction():
-            # Sum net areas from assets for this building
+            # Sum asset_size from assets for this building
             area = await conn.fetchval(
-                """SELECT COALESCE(SUM(net_area), 0)
+                """SELECT COALESCE(SUM(asset_size), 0)
                    FROM assets
                    WHERE building_number = $1""",
                 building_number,
             )
             await conn.execute(
-                "UPDATE buildings SET total_building_area = $1, updated_at = now() "
-                "WHERE building_number = $2",
+                "UPDATE buildings SET total_building_area = $1 WHERE building_number = $2",
                 area,
                 building_number,
             )
@@ -59,7 +58,7 @@ async def bulk_update_flags(buildings_data: list) -> list:
                 vals = list(updates.values())
                 set_parts = ", ".join(f"{c} = ${i+2}" for i, c in enumerate(cols))
                 row = await conn.fetchrow(
-                    f"UPDATE buildings SET {set_parts}, updated_at = now() "
+                    f"UPDATE buildings SET {set_parts} "
                     f"WHERE building_number = $1 RETURNING *",
                     building_number, *vals,
                 )

@@ -1,6 +1,10 @@
 """
 Generic PostgREST-compatible repository.
 Translates PostgREST-style query params to SQL.
+
+Filter values are inlined as SQL literals (not $N params) to avoid
+asyncpg type-mismatch errors when column types differ from inferred types.
+Column names and table names are validated strictly; values are escaped.
 """
 import re
 from typing import Any
@@ -40,31 +44,47 @@ def _cast_value(raw: str) -> Any:
         return raw
 
 
-def _parse_filter(col: str, expr: str) -> tuple[str, list]:
-    """Parse a single filter like 'eq.123' or 'in.(1,2,3)' or 'not.is.null'."""
+def _format_literal(val: Any) -> str:
+    """Format a Python value as a safe SQL literal (inlined, not parameterised).
+
+    Numbers are formatted as quoted string constants (e.g. '123') rather than
+    bare numeric literals. PostgreSQL treats untyped string constants as "unknown"
+    and casts them to the column type — so '123' works for both TEXT and BIGINT
+    columns without requiring knowledge of the column type.
+    """
+    if val is None:
+        return "NULL"
+    if isinstance(val, bool):
+        return "TRUE" if val else "FALSE"
+    # Quote everything (including numbers) as untyped string constants
+    escaped = str(val).replace("'", "''")
+    return f"'{escaped}'"
+
+
+def _parse_filter(col: str, expr: str) -> str:
+    """Return a SQL fragment for one filter (values inlined as literals)."""
     col = _safe_col(col)
 
     if expr.startswith("not."):
-        rest = expr[4:]
-        inner_sql, inner_params = _parse_filter(col, rest)
-        return f"NOT ({inner_sql})", inner_params
+        return f"NOT ({_parse_filter(col, expr[4:])})"
 
     if expr.startswith("is."):
         val = expr[3:]
         if val.lower() == "null":
-            return f"{col} IS NULL", []
+            return f"{col} IS NULL"
         if val.lower() == "true":
-            return f"{col} IS TRUE", []
+            return f"{col} IS TRUE"
         if val.lower() == "false":
-            return f"{col} IS FALSE", []
+            return f"{col} IS FALSE"
 
     if expr.startswith("in.(") and expr.endswith(")"):
         inner = expr[4:-1]
         values = [_cast_value(v.strip()) for v in inner.split(",") if v.strip()]
         if not values:
-            return "FALSE", []
-        placeholders = ", ".join(f"${i+1}" for i in range(len(values)))
-        return f"{col} = ANY(ARRAY[{placeholders}])", values
+            return "FALSE"
+        # Use IN (...) not ANY(ARRAY[...]) to avoid explicit array type binding
+        literals = ", ".join(_format_literal(v) for v in values)
+        return f"{col} IN ({literals})"
 
     parts = expr.split(".", 1)
     if len(parts) != 2:
@@ -77,20 +97,12 @@ def _parse_filter(col: str, expr: str) -> tuple[str, list]:
     if op not in op_map:
         raise ValueError(f"Unknown operator: {op}")
     if val is None:
-        return f"{col} IS NULL", []
-    return f"{col} {op_map[op]} $1", [val]
+        return f"{col} IS NULL"
+    return f"{col} {op_map[op]} {_format_literal(val)}"
 
 
-def _renum(sql: str, params: list, offset: int) -> tuple[str, list]:
-    """Renumber $1..$n placeholders in sql starting at offset+1."""
-    for i in range(len(params), 0, -1):
-        sql = sql.replace(f"${i}", f"__P{offset+i}__")
-    sql = re.sub(r'__P(\d+)__', lambda m: f"${m.group(1)}", sql)
-    return sql, params
-
-
-def _parse_or(or_expr: str) -> tuple[str, list]:
-    """Parse or=(col.op.val,...) expression."""
+def _parse_or(or_expr: str) -> str:
+    """Parse or=(col.op.val,...) into a SQL OR fragment."""
     parts = []
     depth = 0
     current = ""
@@ -108,48 +120,32 @@ def _parse_or(or_expr: str) -> tuple[str, list]:
         parts.append(current.strip())
 
     clauses = []
-    all_params: list = []
-    param_offset = 0
     for part in parts:
         dot1 = part.index(".")
         col = part[:dot1]
-        rest = part[dot1+1:]
-        inner_sql, inner_params = _parse_filter(col, rest)
-        inner_sql, _ = _renum(inner_sql, inner_params, param_offset)
-        param_offset += len(inner_params)
-        all_params.extend(inner_params)
-        clauses.append(inner_sql)
-    return f"({' OR '.join(clauses)})", all_params
+        rest = part[dot1 + 1:]
+        clauses.append(_parse_filter(col, rest))
+    return f"({' OR '.join(clauses)})"
 
 
-def _build_where(params: dict) -> tuple[str, list]:
+def _build_where(params: dict) -> str:
+    """Build a WHERE clause string with all values inlined as literals."""
     where_parts: list[str] = []
-    all_params: list = []
-    offset = 0
 
     if "or" in params:
         or_val = params["or"][0] if isinstance(params["or"], list) else params["or"]
         if or_val.startswith("(") and or_val.endswith(")"):
             or_val = or_val[1:-1]
-        or_sql, or_params = _parse_or(or_val)
-        or_sql, _ = _renum(or_sql, or_params, offset)
-        offset += len(or_params)
-        all_params.extend(or_params)
-        where_parts.append(or_sql)
+        where_parts.append(_parse_or(or_val))
 
     for key, values in params.items():
         if key in RESERVED_PARAMS:
             continue
         vals = values if isinstance(values, list) else [values]
         for val_expr in vals:
-            inner_sql, inner_params = _parse_filter(key, str(val_expr))
-            inner_sql, _ = _renum(inner_sql, inner_params, offset)
-            offset += len(inner_params)
-            all_params.extend(inner_params)
-            where_parts.append(inner_sql)
+            where_parts.append(_parse_filter(key, str(val_expr)))
 
-    where_sql = f" WHERE {' AND '.join(where_parts)}" if where_parts else ""
-    return where_sql, all_params
+    return f" WHERE {' AND '.join(where_parts)}" if where_parts else ""
 
 
 def _build_order(params: dict) -> str:
@@ -185,7 +181,7 @@ async def generic_select(table: str, query_params: dict) -> list[dict]:
     else:
         cols_sql = ", ".join(_safe_col(c.strip()) for c in select_cols.split(","))
 
-    where_sql, where_params = _build_where(query_params)
+    where_sql = _build_where(query_params)
     order_sql = _build_order(query_params)
 
     limit_sql = ""
@@ -202,7 +198,7 @@ async def generic_select(table: str, query_params: dict) -> list[dict]:
     sql = f"SELECT {cols_sql} FROM {table}{where_sql}{order_sql}{limit_sql}{offset_sql}"
     pool = get_pool()
     async with pool.acquire() as conn:
-        rows = await conn.fetch(sql, *where_params)
+        rows = await conn.fetch(sql)
         return [dict(r) for r in rows]
 
 
@@ -234,19 +230,20 @@ async def generic_update(table: str, data: dict, query_params: dict) -> list[dic
     if not data:
         return []
 
-    if "updated_at" not in data:
+    TABLES_WITH_UPDATED_AT = {
+        "address_list", "asset_types", "assets", "assets_history",
+        "field_configurations", "inspection_reports", "inspection_tasks",
+        "managers", "operators", "system_configuration", "users", "validation_rules",
+    }
+    if table in TABLES_WITH_UPDATED_AT and "updated_at" not in data:
         data = {**data, "updated_at": datetime.now(timezone.utc)}
 
     cols = list(data.keys())
     params_list = list(data.values())
     set_sql = ", ".join(f"{_safe_col(c)} = ${i+1}" for i, c in enumerate(cols))
-    offset = len(cols)
 
-    where_sql, where_params = _build_where(query_params)
-    # Renumber where params after SET params
-    for i in range(len(where_params), 0, -1):
-        where_sql = where_sql.replace(f"${i}", f"__W{offset+i}__")
-    where_sql = re.sub(r'__W(\d+)__', lambda m: f"${m.group(1)}", where_sql)
+    # WHERE uses inlined literals (no params) to avoid type mismatches
+    where_sql = _build_where(query_params)
 
     select_cols = (query_params.get("select", ["*"]) or ["*"])
     if isinstance(select_cols, list):
@@ -257,16 +254,16 @@ async def generic_update(table: str, data: dict, query_params: dict) -> list[dic
     sql = f"UPDATE {table} SET {set_sql}{where_sql} RETURNING {return_cols}"
     pool = get_pool()
     async with pool.acquire() as conn:
-        rows = await conn.fetch(sql, *(params_list + where_params))
+        rows = await conn.fetch(sql, *params_list)
         return [dict(r) for r in rows]
 
 
 async def generic_delete(table: str, query_params: dict) -> list[dict]:
     if table not in ALLOWED_TABLES:
         raise ValueError(f"Table not allowed: {table}")
-    where_sql, where_params = _build_where(query_params)
+    where_sql = _build_where(query_params)
     sql = f"DELETE FROM {table}{where_sql} RETURNING *"
     pool = get_pool()
     async with pool.acquire() as conn:
-        rows = await conn.fetch(sql, *where_params)
+        rows = await conn.fetch(sql)
         return [dict(r) for r in rows]

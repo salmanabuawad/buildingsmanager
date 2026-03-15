@@ -114,28 +114,36 @@ async def log_audit_for_building(payload: dict) -> list:
 
 
 async def log_change(payload: dict) -> dict:
+    """Insert a change_log row.
+
+    Maps legacy field-level params (field_name/old_value/new_value) to the
+    actual schema (before_data jsonb, after_data jsonb, changed_fields text[]).
+    """
+    import json as _json
     user_id = parse_user_id(payload.get("p_user_id"))
     table_name = payload.get("p_table_name") or payload.get("table_name", "")
     record_id = payload.get("p_record_id") or payload.get("record_id")
     field_name = payload.get("p_field_name") or payload.get("field_name")
     old_value = payload.get("p_old_value") or payload.get("old_value")
     new_value = payload.get("p_new_value") or payload.get("new_value")
-    changed_by = payload.get("p_changed_by") or payload.get("changed_by")
+
+    before_data = _json.dumps({field_name: old_value}) if field_name else None
+    after_data = _json.dumps({field_name: new_value}) if field_name else None
+    changed_fields = [field_name] if field_name else []
 
     pool = get_pool()
     async with pool.acquire() as conn:
         row = await conn.fetchrow(
             """INSERT INTO change_log
-               (table_name, record_id, field_name, old_value, new_value,
-                changed_by, user_id, created_at)
-               VALUES ($1,$2,$3,$4,$5,$6,$7,now())
-               RETURNING id""",
+               (table_name, record_id, operation, before_data, after_data,
+                changed_fields, user_id, created_at)
+               VALUES ($1,$2,'UPDATE',$3,$4,$5,$6,now())
+               RETURNING log_id""",
             table_name,
             str(record_id) if record_id is not None else None,
-            field_name,
-            str(old_value) if old_value is not None else None,
-            str(new_value) if new_value is not None else None,
-            changed_by,
+            before_data,
+            after_data,
+            changed_fields,
             user_id,
         )
-    return {"id": row["id"]} if row else {}
+    return {"id": row["log_id"]} if row else {}

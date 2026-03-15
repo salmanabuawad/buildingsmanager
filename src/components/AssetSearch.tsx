@@ -1,4 +1,4 @@
-import { useState, useMemo, useRef } from 'react';
+import { useState, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Search, Home } from 'lucide-react';
 import { supabase } from '../lib/supabase';
@@ -8,7 +8,7 @@ import { ColDef } from 'ag-grid-community';
 import { useFieldConfig } from '../lib/useFieldConfig';
 import { processColumnHeader } from '../lib/gridHeaderUtils';
 
-interface SearchResult extends Asset {}
+type SearchResult = Asset;
 
 interface AssetSearchProps {
   onSelectAsset: (assetId: number, assetIdStr: string, buildingNumber: number, taxRegion?: string) => void;
@@ -21,8 +21,6 @@ export function AssetSearch({ onSelectAsset }: AssetSearchProps) {
   const [results, setResults] = useState<SearchResult[]>([]);
   const [loading, setLoading] = useState(false);
   const [hasSearched, setHasSearched] = useState(false);
-  const gridRef = useRef<AgGridReact<SearchResult>>(null);
-
   async function handleSearch(e: React.FormEvent) {
     e.preventDefault();
 
@@ -197,7 +195,6 @@ export function AssetSearch({ onSelectAsset }: AssetSearchProps) {
           ) : (
             <div className="ag-theme-alpine" style={{ height: '55vh', width: '100%' }}>
               <AgGridReact<SearchResult>
-                ref={gridRef}
                 rowData={results}
                 columnDefs={columnDefs}
                 defaultColDef={{

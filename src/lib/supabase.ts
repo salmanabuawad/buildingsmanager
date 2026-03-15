@@ -59,7 +59,7 @@ class QueryBuilder {
 
   constructor(table: string) { this._table = table; }
 
-  select(cols: string = "*"): this { this._params.set("select", cols); this._method = "GET"; return this; }
+  select(cols: string = "*"): this { this._params.set("select", cols); return this; }
   eq(col: string, val: unknown): this { this._params.append(col, `eq.${val}`); return this; }
   neq(col: string, val: unknown): this { this._params.append(col, `neq.${val}`); return this; }
   gt(col: string, val: unknown): this { this._params.append(col, `gt.${val}`); return this; }

@@ -1,0 +1,22 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(jq .tables[].name C:productionboltbuildingsmanager.claudeworktreesjovial-noetherdb_structurecomplete_structure.json)",
+      "Bash(jq .functions[].name C:productionboltbuildingsmanager.claudeworktreesjovial-noetherdb_structurecomplete_structure.json)",
+      "Bash(jq .triggers[].name C:productionboltbuildingsmanager.claudeworktreesjovial-noetherdb_structurecomplete_structure.json)",
+      "Bash(python3:*)",
+      "Bash(\"C:/production/bolt/buildingsmanager/.claude/worktrees/jovial-noether/backend/requirements.txt\":*)",
+      "Bash(\"C:/production/bolt/buildingsmanager/.claude/worktrees/jovial-noether/backend/app/database.py\":*)",
+      "Bash(\"C:/production/bolt/buildingsmanager/.claude/worktrees/jovial-noether/backend/app/repositories/__init__.py\":*)",
+      "Bash(__NEW_LINE_82b50a0efb55f1eb__ cat:*)",
+      "Bash(\"C:/production/bolt/buildingsmanager/.claude/worktrees/jovial-noether/backend/app/services/__init__.py\":*)",
+      "Bash(\"C:/production/bolt/buildingsmanager/.claude/worktrees/jovial-noether/backend/.env.example\":*)",
+      "Bash(ssh -o ConnectTimeout=10 -o BatchMode=yes profilegroup@185.229.226.37 \"echo OK\")",
+      "Bash(ssh -o ConnectTimeout=10 -o PreferredAuthentications=password -o PubkeyAuthentication=no profilegroup@185.229.226.37 \"echo connected\")",
+      "Bash(SSHPASS='KortexDigital1342#' sshpass -e ssh -o StrictHostKeyChecking=no -o ConnectTimeout=10 profilegroup@185.229.226.37 \"echo connected && whoami && id\")",
+      "Bash(pip install:*)",
+      "Bash(pip3 install:*)",
+      "Bash(npm --version)"
+    ]
+  }
+}

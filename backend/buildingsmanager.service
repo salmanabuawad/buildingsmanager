@@ -1,0 +1,22 @@
+[Unit]
+Description=BuildingsManager FastAPI Backend
+After=network.target postgresql.service
+Wants=postgresql.service
+
+[Service]
+Type=simple
+User=profilegroup
+WorkingDirectory=/home/profilegroup/app/backend
+ExecStart=/home/profilegroup/app/backend/venv/bin/uvicorn app.main:app --host 127.0.0.1 --port 8002 --workers 2
+Restart=always
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=buildingsmanager
+
+# Environment
+Environment=PYTHONPATH=/home/profilegroup/app/backend
+EnvironmentFile=/home/profilegroup/app/backend/.env
+
+[Install]
+WantedBy=multi-user.target

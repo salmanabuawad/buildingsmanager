@@ -1,12 +1,26 @@
+"""
+BuildingsManager FastAPI application.
+Replaces Supabase (PostgREST + Auth + Storage + Edge Functions).
+"""
+from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.config import settings
-from app.routers import auth, buildings, assets, asset_types, files, audit, email
+from app.database import init_pool, close_pool
+from app.routers import rest, rpc, auth, files, email
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    await init_pool()
+    yield
+    await close_pool()
+
 
 app = FastAPI(
-    title="AssetFlow API",
-    description="Backend API for AssetFlow - Building and Asset Management System",
-    version="1.0.0"
+    title="BuildingsManager API",
+    version="1.0.0",
+    lifespan=lifespan,
 )
 
 app.add_middleware(
@@ -17,24 +31,24 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-app.include_router(auth.router, prefix="/api/auth", tags=["Authentication"])
-app.include_router(buildings.router, prefix="/api/buildings", tags=["Buildings"])
-app.include_router(assets.router, prefix="/api/assets", tags=["Assets"])
-app.include_router(asset_types.router, prefix="/api/asset-types", tags=["Asset Types"])
+app.include_router(auth.router, prefix="/api/auth", tags=["Auth"])
+app.include_router(rest.router, prefix="/api/rest", tags=["REST"])
+app.include_router(rpc.router, prefix="/api/rpc", tags=["RPC"])
 app.include_router(files.router, prefix="/api/files", tags=["Files"])
-app.include_router(audit.router, prefix="/api/audit", tags=["Audit"])
 app.include_router(email.router, prefix="/api/email", tags=["Email"])
 
 
 @app.get("/")
 def root():
-    return {
-        "message": "AssetFlow API",
-        "version": "1.0.0",
-        "environment": settings.ENVIRONMENT
-    }
+    return {"status": "ok", "version": "1.0.0"}
 
 
 @app.get("/health")
-def health_check():
-    return {"status": "healthy"}
+async def health():
+    from app.database import fetch_val
+    try:
+        await fetch_val("SELECT 1")
+        db_ok = True
+    except Exception:
+        db_ok = False
+    return {"status": "healthy" if db_ok else "degraded", "db": db_ok}

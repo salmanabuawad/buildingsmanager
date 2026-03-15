@@ -3,22 +3,18 @@ from typing import List
 
 
 class Settings(BaseSettings):
-    DATABASE_URL: str
-    SECRET_KEY: str
-    ALGORITHM: str = "HS256"
-    ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
-    AZURE_STORAGE_CONNECTION_STRING: str
-    AZURE_STORAGE_CONTAINER_NAME: str = "assetflow-files"
-    ALLOWED_ORIGINS: str = "http://localhost:5173"
-    ENVIRONMENT: str = "development"
+    DATABASE_URL: str = "postgresql://bm_user:bm_pass_2024@localhost:5432/buildings_manager"
+    SECRET_KEY: str = "change-me-in-production-32-char-key!!"
+    FILES_BASE_PATH: str = "/home/profilegroup/app/files"
+    ALLOWED_ORIGINS: str = "https://profile.wavelync.com,http://localhost:5173"
+    ENVIRONMENT: str = "production"
+    PORT: int = 8002
 
     @property
     def cors_origins(self) -> List[str]:
-        return [origin.strip() for origin in self.ALLOWED_ORIGINS.split(",")]
+        return [o.strip() for o in self.ALLOWED_ORIGINS.split(",")]
 
-    class Config:
-        env_file = ".env"
-        case_sensitive = True
+    model_config = {"env_file": ".env"}
 
 
 settings = Settings()

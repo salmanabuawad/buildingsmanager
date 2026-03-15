@@ -1,23 +1,53 @@
-from sqlalchemy import create_engine
-from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import sessionmaker
+import asyncpg
 from app.config import settings
 
-engine = create_engine(
-    settings.DATABASE_URL,
-    pool_pre_ping=True,
-    pool_size=10,
-    max_overflow=20
-)
-
-SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
-
-Base = declarative_base()
+_pool: asyncpg.Pool | None = None
 
 
-def get_db():
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
+async def init_pool():
+    global _pool
+    _pool = await asyncpg.create_pool(
+        dsn=settings.DATABASE_URL,
+        min_size=2,
+        max_size=20,
+        command_timeout=60,
+    )
+
+
+async def close_pool():
+    global _pool
+    if _pool:
+        await _pool.close()
+        _pool = None
+
+
+def get_pool() -> asyncpg.Pool:
+    if _pool is None:
+        raise RuntimeError("Database pool not initialized")
+    return _pool
+
+
+async def fetch_all(query: str, *args) -> list[dict]:
+    pool = get_pool()
+    async with pool.acquire() as conn:
+        rows = await conn.fetch(query, *args)
+        return [dict(r) for r in rows]
+
+
+async def fetch_one(query: str, *args) -> dict | None:
+    pool = get_pool()
+    async with pool.acquire() as conn:
+        row = await conn.fetchrow(query, *args)
+        return dict(row) if row else None
+
+
+async def execute(query: str, *args) -> str:
+    pool = get_pool()
+    async with pool.acquire() as conn:
+        return await conn.execute(query, *args)
+
+
+async def fetch_val(query: str, *args):
+    pool = get_pool()
+    async with pool.acquire() as conn:
+        return await conn.fetchval(query, *args)

@@ -1,67 +1,45 @@
-from datetime import datetime, timedelta
-from typing import Optional
-from jose import JWTError, jwt
+"""
+Auth utilities: passlib bcrypt + session parsing.
+The frontend stores sessions in sessionStorage as { user_id, user_name, user_role }
+and sends the user_id as uid:{user_id} in RPC payloads (p_user_id).
+File endpoints accept a base64-encoded 'file_session' cookie.
+"""
+import base64
+import json
 from passlib.context import CryptContext
-from fastapi import Depends, HTTPException, status
-from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
-from sqlalchemy.orm import Session
-from app.config import settings
-from app.database import get_db
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
-security = HTTPBearer()
 
 
-def verify_password(plain_password: str, hashed_password: str) -> bool:
-    return pwd_context.verify(plain_password, hashed_password)
-
-
-def get_password_hash(password: str) -> str:
+def hash_password(password: str) -> str:
     return pwd_context.hash(password)
 
 
-def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
-    to_encode = data.copy()
-    if expires_delta:
-        expire = datetime.utcnow() + expires_delta
-    else:
-        expire = datetime.utcnow() + timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
-    to_encode.update({"exp": expire})
-    encoded_jwt = jwt.encode(to_encode, settings.SECRET_KEY, algorithm=settings.ALGORITHM)
-    return encoded_jwt
+def verify_password(plain: str, hashed: str) -> bool:
+    return pwd_context.verify(plain, hashed)
 
 
-def decode_token(token: str) -> dict:
+def parse_user_id(p_user_id: str | None) -> int | None:
+    """Extract integer user_id from uid:{user_id} format."""
+    if not p_user_id:
+        return None
+    if p_user_id.startswith("uid:"):
+        try:
+            return int(p_user_id[4:])
+        except ValueError:
+            return None
     try:
-        payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
-        return payload
-    except JWTError:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Could not validate credentials",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
+        return int(p_user_id)
+    except (ValueError, TypeError):
+        return None
 
 
-def get_current_user(
-    credentials: HTTPAuthorizationCredentials = Depends(security),
-    db: Session = Depends(get_db)
-):
-    token = credentials.credentials
-    payload = decode_token(token)
-    user_id: str = payload.get("sub")
-    if user_id is None:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Could not validate credentials",
-        )
-
-    # Query user from database
-    from app.models import User
-    user = db.query(User).filter(User.id == user_id).first()
-    if user is None:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="User not found",
-        )
-    return user
+def parse_file_session(cookie_value: str | None) -> dict | None:
+    """Decode base64 file_session cookie → {user_id, user_name, user_role}."""
+    if not cookie_value:
+        return None
+    try:
+        raw = base64.b64decode(cookie_value + "==").decode("utf-8")
+        return json.loads(raw)
+    except Exception:
+        return None

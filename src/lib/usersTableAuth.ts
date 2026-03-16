@@ -92,7 +92,7 @@ export async function loginUsersTable(
       return { success: false, error: authLoginErrorToHebrew(error.message) };
     }
 
-    const d = data as { user_id: number; user_name: string; user_role: string } | null;
+    const d = data as { user_id: number; user_name: string; user_role: string; access_token?: string } | null;
     if (!d?.user_id || !d?.user_name) {
       return { success: false, error: 'שגיאה בהתחברות.' };
     }
@@ -102,6 +102,7 @@ export async function loginUsersTable(
       user_id: d.user_id,
       user_name: d.user_name,
       user_role: role,
+      access_token: d.access_token,
     };
     setSession(session);
     return { success: true, session };
@@ -136,7 +137,7 @@ export async function loginByOtp(
       return { success: false, error: error.message || 'קוד לא תקף או שפג תוקפו' };
     }
 
-    const d = data as { user_id: number; user_name: string; user_role: string; task_id?: number } | null;
+    const d = data as { user_id: number; user_name: string; user_role: string; task_id?: number; access_token?: string } | null;
     if (!d?.user_id || !d?.user_name) {
       return { success: false, error: 'קוד לא תקף או שפג תוקפו.' };
     }
@@ -146,6 +147,7 @@ export async function loginByOtp(
       user_id: d.user_id,
       user_name: d.user_name,
       user_role: role,
+      access_token: d.access_token,
     };
     setSession(session);
     return { success: true, session, taskId: d.task_id ?? undefined };
@@ -168,7 +170,7 @@ export async function loginByTaskToken(
       return { success: false, error: error.message || 'טוקן לא תקף או שפג תוקפו' };
     }
 
-    const d = data as { user_id: number; user_name: string; user_role: string; task_id: number } | null;
+    const d = data as { user_id: number; user_name: string; user_role: string; task_id: number; access_token?: string } | null;
     if (!d?.user_id || !d?.user_name || d.task_id == null) {
       return { success: false, error: 'טוקן לא תקף או שפג תוקפו.' };
     }
@@ -178,6 +180,7 @@ export async function loginByTaskToken(
       user_id: d.user_id,
       user_name: d.user_name,
       user_role: role,
+      access_token: d.access_token,
     };
     setSession(session);
     return { success: true, session, taskId: d.task_id };

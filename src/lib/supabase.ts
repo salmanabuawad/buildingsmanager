@@ -9,8 +9,11 @@ function sessionHeaders(): Record<string, string> {
   try {
     const raw = sessionStorage.getItem("buildingsmanager_users_table_session");
     if (raw) {
-      const s = JSON.parse(raw) as { user_id?: number };
-      if (s?.user_id) return { "X-User-Id": String(s.user_id) };
+      const s = JSON.parse(raw) as { user_id?: number; access_token?: string };
+      const headers: Record<string, string> = {};
+      if (s?.user_id) headers["X-User-Id"] = String(s.user_id);
+      if (s?.access_token) headers["Authorization"] = `Bearer ${s.access_token}`;
+      if (Object.keys(headers).length > 0) return headers;
     }
   } catch { /* ignore */ }
   return {};

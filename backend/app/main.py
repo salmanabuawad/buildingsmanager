@@ -5,15 +5,22 @@ Replaces Supabase (PostgREST + Auth + Storage + Edge Functions).
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from slowapi import _rate_limit_exceeded_handler
+from slowapi.errors import RateLimitExceeded
 from app.config import settings
 from app.database import init_pool, close_pool
+from app.limiter import limiter
+from app.queue_worker import start_queue_worker, stop_queue_worker
 from app.routers import rest, rpc, auth, files, email
+from app.routers import inspection_tasks, export_to_automation, export_zip
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     await init_pool()
+    start_queue_worker()
     yield
+    stop_queue_worker()
     await close_pool()
 
 
@@ -22,6 +29,9 @@ app = FastAPI(
     version="1.0.0",
     lifespan=lifespan,
 )
+
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
 app.add_middleware(
     CORSMiddleware,
@@ -36,6 +46,10 @@ app.include_router(rest.router, prefix="/api/rest", tags=["REST"])
 app.include_router(rpc.router, prefix="/api/rpc", tags=["RPC"])
 app.include_router(files.router, prefix="/api/files", tags=["Files"])
 app.include_router(email.router, prefix="/api/email", tags=["Email"])
+app.include_router(inspection_tasks.router, prefix="/api/inspection", tags=["Inspection"])
+app.include_router(inspection_tasks.reports_router, prefix="/api/inspection-reports", tags=["Inspection Reports"])
+app.include_router(export_to_automation.router, prefix="/api/export", tags=["Export"])
+app.include_router(export_zip.router, prefix="/api/export", tags=["Export ZIP"])
 
 
 @app.get("/")

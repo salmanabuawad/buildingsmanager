@@ -3,7 +3,7 @@ Generic PostgREST-compatible REST router.
 GET/POST/PATCH/DELETE /api/rest/{table}
 Handles PostgREST-style query params: col=eq.value, order=col.asc, limit=n, or=(...), select=col1,col2
 """
-from fastapi import APIRouter, Request, HTTPException
+from fastapi import APIRouter, Depends, Request, HTTPException
 from app.repositories.base import (
     generic_select,
     generic_insert,
@@ -11,6 +11,7 @@ from app.repositories.base import (
     generic_delete,
     ALLOWED_TABLES,
 )
+from app.users_table import get_current_user_users_table, CurrentUser
 
 router = APIRouter()
 
@@ -37,7 +38,11 @@ def _query_params(request: Request) -> dict:
 
 
 @router.get("/{table}")
-async def rest_select(table: str, request: Request):
+async def rest_select(
+    table: str,
+    request: Request,
+    _user: CurrentUser = Depends(get_current_user_users_table),
+):
     _table_or_404(table)
     try:
         rows = await generic_select(table, _query_params(request))
@@ -47,7 +52,11 @@ async def rest_select(table: str, request: Request):
 
 
 @router.post("/{table}")
-async def rest_insert(table: str, request: Request):
+async def rest_insert(
+    table: str,
+    request: Request,
+    _user: CurrentUser = Depends(get_current_user_users_table),
+):
     _table_or_404(table)
     body = await request.json()
     try:
@@ -56,14 +65,15 @@ async def rest_insert(table: str, request: Request):
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
-    # PostgREST returns list for POST
-    if request.headers.get("Prefer", "").startswith("return=representation"):
-        return rows
     return rows
 
 
 @router.patch("/{table}")
-async def rest_update(table: str, request: Request):
+async def rest_update(
+    table: str,
+    request: Request,
+    _user: CurrentUser = Depends(get_current_user_users_table),
+):
     _table_or_404(table)
     body = await request.json()
     params = _query_params(request)
@@ -77,7 +87,11 @@ async def rest_update(table: str, request: Request):
 
 
 @router.delete("/{table}")
-async def rest_delete(table: str, request: Request):
+async def rest_delete(
+    table: str,
+    request: Request,
+    _user: CurrentUser = Depends(get_current_user_users_table),
+):
     _table_or_404(table)
     params = _query_params(request)
     try:

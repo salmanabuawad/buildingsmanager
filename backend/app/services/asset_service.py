@@ -313,6 +313,22 @@ async def save_bulk(
                 for bn in affected_buildings:
                     await _recompute_distribution_flags(conn, bn)
 
+            # ── Clear distribution flag after distribution save ──────────
+            # When action_type is a distribution type, clear the corresponding
+            # flag in the building so the UI warning turns off.
+            if action_type in ("business_distribution", "distribute_shared"):
+                for bn in affected_buildings:
+                    await conn.execute(
+                        "UPDATE buildings SET need_business_distribution = false WHERE building_number = $1",
+                        bn,
+                    )
+            if action_type in ("residence_distribution", "distribute_shared"):
+                for bn in affected_buildings:
+                    await conn.execute(
+                        "UPDATE buildings SET need_residence_distribution = false WHERE building_number = $1",
+                        bn,
+                    )
+
     return {
         "success": True,
         "updated": updated,

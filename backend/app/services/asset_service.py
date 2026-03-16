@@ -223,7 +223,7 @@ async def save_bulk(
     - Distribution flags recompute on manual_update (auto_set_distribution_flags_on_change)
     """
     if not assets_data:
-        return {"success": True, "updated": 0, "inserted": 0}
+        return {"success": True, "updated": 0, "inserted": 0, "affected_asset_ids": [], "count": 0}
 
     parse_user_id(p_user_id)  # validate user_id format
     pool = get_pool()
@@ -231,6 +231,7 @@ async def save_bulk(
     updated = 0
     inserted = 0
     affected_buildings: set[int] = set()
+    affected_asset_ids: list[int] = []
 
     async with pool.acquire() as conn:
         async with conn.transaction():
@@ -281,6 +282,7 @@ async def save_bulk(
                     )
                     if row:
                         updated += 1
+                        affected_asset_ids.append(int(row["asset_id"]))
                         if row["building_number"] is not None:
                             affected_buildings.add(int(row["building_number"]))
                 else:
@@ -295,6 +297,7 @@ async def save_bulk(
                     )
                     if row:
                         inserted += 1
+                        affected_asset_ids.append(int(row["asset_id"]))
                         if row["building_number"] is not None:
                             affected_buildings.add(int(row["building_number"]))
 
@@ -310,7 +313,13 @@ async def save_bulk(
                 for bn in affected_buildings:
                     await _recompute_distribution_flags(conn, bn)
 
-    return {"success": True, "updated": updated, "inserted": inserted}
+    return {
+        "success": True,
+        "updated": updated,
+        "inserted": inserted,
+        "affected_asset_ids": affected_asset_ids,
+        "count": updated + inserted,
+    }
 
 
 async def delete(asset_id: int, p_user_id: str | None = None, description: str | None = None) -> dict:
@@ -338,7 +347,7 @@ async def delete(asset_id: int, p_user_id: str | None = None, description: str |
 async def delete_bulk(asset_ids: list, p_user_id: str | None = None, description: str | None = None) -> dict:
     """Delete multiple assets (copy to history, recompute totals/flags)."""
     if not asset_ids:
-        return {"success": True, "deleted": 0}
+        return {"success": True, "deleted": 0, "count": 0}
 
     pool = get_pool()
     affected_buildings: set[int] = set()
@@ -359,7 +368,7 @@ async def delete_bulk(asset_ids: list, p_user_id: str | None = None, description
                 await _update_building_total_area(conn, bn)
                 await _recompute_distribution_flags(conn, bn)
     deleted = int(result.split()[-1]) if result else 0
-    return {"success": True, "deleted": deleted}
+    return {"success": True, "deleted": deleted, "count": deleted}
 
 
 async def get_by_ids(asset_ids: list) -> list:

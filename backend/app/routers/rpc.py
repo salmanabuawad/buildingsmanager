@@ -356,10 +356,9 @@ async def _dispatch(fn: str, p: dict):  # noqa: C901
                WHERE table_schema = 'public'
                ORDER BY table_name, ordinal_position"""
         )
-        result: dict = {}
-        for r in rows:
-            t = r["table_name"]
-            result.setdefault(t, {})[r["column_name"]] = r["data_type"]
-        return result
+        return [
+            {"table_name": r["table_name"], "field_name": r["column_name"], "field_type": r["data_type"]}
+            for r in rows
+        ]
 
     raise HTTPException(status_code=404, detail=f"RPC not found: {fn}")

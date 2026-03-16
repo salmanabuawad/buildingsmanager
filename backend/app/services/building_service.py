@@ -87,14 +87,36 @@ async def update_total_area(building_number: int) -> dict:
     return dict(row) if row else {}
 
 
+def _to_float(val) -> float | None:
+    if val is None or val == "":
+        return None
+    try:
+        return float(val)
+    except (TypeError, ValueError):
+        return None
+
+
 async def bulk_update_flags(buildings_data: list) -> dict:
     """
-    Bulk update buildings with distribution flags.
-    After update, recompute distribution flags for each building.
-    buildings_data: list of dicts with building fields to update.
+    Bulk update buildings.
+    Sets need_*_distribution = True ONLY when the corresponding shared area value changes.
+    Respects explicit need_*_distribution values passed in updates (e.g. False after distribution).
     """
     if not buildings_data:
-        return []
+        return {"success": True, "buildings": [], "count": 0}
+
+    # All updatable columns (excludes PK, action_id, created_at)
+    ALLOWED_FIELDS = {
+        "total_building_area", "tax_region", "elevator", "single_double_family",
+        "condo", "townhouses", "residence_shared_area", "business_shared_area",
+        "area_for_control", "building_address", "address", "gosh", "helka",
+        "building_number_in_street", "overload_ratio", "need_residence_distribution",
+        "need_business_distribution", "note", "net_area", "asset_count",
+        "shared_parking_area", "number_of_parking_units",
+        # legacy aliases some frontend versions send
+        "distribution_flag", "storage_area", "pergola_area", "balcony_area",
+        "building_name", "city",
+    }
 
     pool = get_pool()
     results = []
@@ -104,25 +126,38 @@ async def bulk_update_flags(buildings_data: list) -> dict:
                 building_number = b.get("building_number")
                 if building_number is None:
                     continue
+                building_number = int(building_number)
+
                 # Support both {building_number, updates: {...}} and flat {building_number, field: val}
                 raw_updates = b.get("updates") if isinstance(b.get("updates"), dict) else {
                     k: v for k, v in b.items() if k != "building_number"
                 }
-                # All updatable columns (excludes PK, action_id, created_at)
-                allowed_fields = {
-                    "total_building_area", "tax_region", "elevator", "single_double_family",
-                    "condo", "townhouses", "residence_shared_area", "business_shared_area",
-                    "area_for_control", "building_address", "address", "gosh", "helka",
-                    "building_number_in_street", "overload_ratio", "need_residence_distribution",
-                    "need_business_distribution", "note", "net_area", "asset_count",
-                    "shared_parking_area", "number_of_parking_units",
-                    # legacy aliases some frontend versions send
-                    "distribution_flag", "storage_area", "pergola_area", "balcony_area",
-                    "building_name", "city",
-                }
-                updates = {k: v for k, v in raw_updates.items() if k in allowed_fields}
+                updates = {k: v for k, v in raw_updates.items() if k in ALLOWED_FIELDS}
                 if not updates:
                     continue
+
+                # ── Read old values to detect shared-area changes ─────────
+                old = await conn.fetchrow(
+                    "SELECT business_shared_area, residence_shared_area, shared_parking_area "
+                    "FROM buildings WHERE building_number = $1",
+                    building_number,
+                )
+                if old:
+                    old_biz = _to_float(old["business_shared_area"])
+                    old_res = _to_float(old["residence_shared_area"])
+                    old_park = _to_float(old["shared_parking_area"])
+                    new_biz = _to_float(updates.get("business_shared_area", old_biz))
+                    new_res = _to_float(updates.get("residence_shared_area", old_res))
+                    new_park = _to_float(updates.get("shared_parking_area", old_park))
+
+                    # Only set True if area changed AND caller didn't explicitly provide the flag
+                    if "need_business_distribution" not in updates:
+                        if old_biz != new_biz or old_park != new_park:
+                            updates["need_business_distribution"] = True
+                    if "need_residence_distribution" not in updates:
+                        if old_res != new_res:
+                            updates["need_residence_distribution"] = True
+
                 cols = list(updates.keys())
                 vals = list(updates.values())
                 set_parts = ", ".join(f"{c} = ${i + 2}" for i, c in enumerate(cols))
@@ -133,12 +168,6 @@ async def bulk_update_flags(buildings_data: list) -> dict:
                 )
                 if row:
                     results.append(dict(row))
-
-            # ── Trigger: auto_set_distribution_flags_on_building_change ──
-            for b in buildings_data:
-                bn = b.get("building_number")
-                if bn:
-                    await _recompute_distribution_flags(conn, int(bn))
 
     return {"success": True, "buildings": results, "count": len(results)}
 

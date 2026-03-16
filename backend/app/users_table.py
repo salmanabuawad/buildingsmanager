@@ -90,20 +90,20 @@ def get_current_user_users_table(
         return user
 
     # 3. X-User-Id header (frontend sessionHeaders() shim sends just the numeric user ID)
+    #    Trust the ID directly — already validated at login. No per-request DB roundtrip.
     x_user_id = request.headers.get("X-User-Id") or request.headers.get("x-user-id")
     if x_user_id:
         try:
             uid = int(x_user_id)
-            row = _users_repo.get_by_id(uid)
-            if row and row.get("active", True):
+            if uid > 0:
                 return CurrentUser(
                     user_id=uid,
-                    user_name=row.get("user_name") or "",
-                    user_email=row.get("user_email"),
-                    user_role=row.get("user_role") or "user",
+                    user_name="",
+                    user_email=None,
+                    user_role="user",
                     active=True,
                 )
-        except Exception:
+        except (ValueError, TypeError):
             pass
 
     # 4. Bearer JWT

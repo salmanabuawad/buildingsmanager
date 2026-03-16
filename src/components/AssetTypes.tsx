@@ -1472,23 +1472,21 @@ export function AssetTypes() {
 
   return (
     <div className="flex flex-col flex-1 min-h-0 w-full px-2 sm:px-4 md:px-6 py-1.5 sm:py-2">
-      <div className="page-header mb-2 rounded-lg px-3 py-2 w-full">
-        <div className="flex items-center justify-between w-full">
-          <div className="flex items-center gap-2">
-            <div className="page-header-icon shrink-0">
-              <Tag className="w-5 h-5" />
-            </div>
-            <h1 className="page-header-title text-sm sm:text-base font-bold">{t('assetTypes')}</h1>
+      <div className="page-header mb-1.5 rounded-md px-2 py-1.5 flex-shrink-0 w-full">
+        <div className="relative flex items-center gap-1.5 flex-wrap w-full">
+          <div className="page-header-icon shrink-0">
+            <Tag className="w-4 h-4" />
           </div>
+          <h1 className="page-header-title text-sm sm:text-base font-bold">{t('assetTypes')}</h1>
           <span className="page-header-badge">{assetTypes.length} רשומות</span>
         </div>
       </div>
 
       {message && (
         <div
-          className={`mb-6 p-4 rounded-lg ${
-            message.type === 'success' ? 'bg-green-50 text-green-800' : 
-            message.type === 'error' ? 'bg-red-50 text-red-800' : 
+          className={`mb-2 px-3 py-2 rounded-md text-sm ${
+            message.type === 'success' ? 'bg-green-50 text-green-800' :
+            message.type === 'error' ? 'bg-red-50 text-red-800' :
             'bg-blue-50 text-blue-800'
           }`}
         >
@@ -1496,96 +1494,92 @@ export function AssetTypes() {
         </div>
       )}
 
-      <div className="bg-white rounded-xl shadow-lg hover:shadow-xl transition-shadow duration-200 border border-theme-card-border p-6 mb-6">
-        <div className="flex items-center justify-between mb-6">
-          <div className="flex items-center gap-3">
-            <h2 className="text-xl font-bold text-slate-900">{t('assetTypes')}</h2>
-          </div>
-          {!isAdding && (
-            <div className="action-bar flex justify-end gap-2">
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept=".csv,.xlsx,.xls"
-                onChange={handleFileImport}
-                className="hidden"
-              />
-              <button
-                type="button"
-                onClick={() => downloadTemplate('excel')}
-                className="btn btn-action btn-secondary"
-                title="הורד תבנית Excel"
-              >
-                <Download className="h-5 w-5" />
-                <span className="hidden sm:inline">הורד תבנית Excel</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => downloadTemplate('csv')}
-                className="btn btn-action btn-secondary"
-                title="הורד תבנית CSV"
-              >
-                <Download className="h-5 w-5" />
-                <span className="hidden sm:inline">הורד תבנית CSV</span>
-              </button>
-              <button
-                type="button"
-                onClick={exportAssetTypes}
-                disabled={assetTypes.length === 0}
-                className="btn btn-action btn-export disabled:opacity-50 disabled:cursor-not-allowed"
-                title="ייצא את כל סוגי הנכסים"
-              >
-                <FileText className="h-5 w-5" />
-                <span className="hidden sm:inline">ייצא נתונים</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => fileInputRef.current?.click()}
-                disabled={isImporting}
-                className="btn btn-action btn-primary disabled:opacity-50 disabled:shadow-none"
-              >
-                <Upload className="h-5 w-5" />
-                <span className="hidden sm:inline">{isImporting ? t('loading') : t('importCSV')}</span>
-              </button>
-              <button
-                type="button"
-                onClick={startAdd}
-                className="btn btn-action btn-primary"
-              >
-                <Plus className="h-5 w-5" />
-                <span>{t('addAssetType')}</span>
-              </button>
-            </div>
-          )}
-        </div>
-
-        {/* Save All / Cancel buttons - always visible */}
+      <div className="mb-1.5 flex flex-wrap items-center gap-2 sm:gap-3 flex-shrink-0">
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept=".csv,.xlsx,.xls"
+          onChange={handleFileImport}
+          className="hidden"
+        />
         {!isAdding && (
-          <div className="mb-4 action-bar flex flex-col sm:flex-row justify-end gap-2 sm:gap-3">
-            <button
-              type="button"
-              onClick={handleCancelAll}
-              disabled={isSaving || (dirtyAssetTypes.size === 0 && deletedAssetTypes.size === 0)}
-              className="btn btn-action btn-cancel disabled:opacity-50 disabled:cursor-not-allowed w-full sm:w-auto"
-            >
-              <X className="h-5 w-5" />
-              <span>{t('cancel')}</span>
-            </button>
-            <button
-              type="button"
-              onClick={handleSaveAll}
-              disabled={isSaving || (dirtyAssetTypes.size === 0 && deletedAssetTypes.size === 0)}
-              className="btn btn-action btn-primary disabled:opacity-50 disabled:cursor-not-allowed w-full sm:w-auto"
-            >
-              {isSaving ? (
-                <Loader2 className="h-5 w-5 animate-spin" />
-              ) : (
-                <Save className="h-5 w-5" />
-              )}
-              <span>{isSaving ? 'שומר...' : `שמור הכל${dirtyAssetTypes.size + deletedAssetTypes.size > 0 ? ` (${dirtyAssetTypes.size + deletedAssetTypes.size})` : ''}`}</span>
-            </button>
+          <div className="action-bar flex-1 min-w-0 py-1 px-2">
+            <div className="flex flex-wrap justify-end gap-1.5 sm:gap-2">
+              <div className="flex gap-1.5">
+                <button
+                  type="button"
+                  onClick={() => downloadTemplate('excel')}
+                  className="btn btn-action btn-secondary"
+                  title="הורד תבנית Excel"
+                >
+                  <Download className="h-5 w-5" />
+                  <span className="hidden sm:inline">הורד תבנית Excel</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => downloadTemplate('csv')}
+                  className="btn btn-action btn-secondary"
+                  title="הורד תבנית CSV"
+                >
+                  <Download className="h-5 w-5" />
+                  <span className="hidden sm:inline">הורד תבנית CSV</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={exportAssetTypes}
+                  disabled={assetTypes.length === 0}
+                  className="btn btn-action btn-export disabled:opacity-50 disabled:cursor-not-allowed"
+                  title="ייצא את כל סוגי הנכסים"
+                >
+                  <FileText className="h-5 w-5" />
+                  <span className="hidden sm:inline">ייצא נתונים</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={isImporting}
+                  className="btn btn-action btn-primary disabled:opacity-50 disabled:shadow-none"
+                >
+                  <Upload className="h-5 w-5" />
+                  <span className="hidden sm:inline">{isImporting ? t('loading') : t('importCSV')}</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={startAdd}
+                  className="btn btn-action btn-primary"
+                >
+                  <Plus className="h-5 w-5" />
+                  <span>{t('addAssetType')}</span>
+                </button>
+              </div>
+              <div className="flex gap-1.5">
+                <button
+                  type="button"
+                  onClick={handleCancelAll}
+                  disabled={isSaving || (dirtyAssetTypes.size === 0 && deletedAssetTypes.size === 0)}
+                  className="btn btn-action btn-cancel disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <X className="h-5 w-5" />
+                  <span>{t('cancel')}</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={handleSaveAll}
+                  disabled={isSaving || (dirtyAssetTypes.size === 0 && deletedAssetTypes.size === 0)}
+                  className="btn btn-action btn-primary disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {isSaving ? (
+                    <Loader2 className="h-5 w-5 animate-spin" />
+                  ) : (
+                    <Save className="h-5 w-5" />
+                  )}
+                  <span>{isSaving ? 'שומר...' : `שמור הכל${dirtyAssetTypes.size + deletedAssetTypes.size > 0 ? ` (${dirtyAssetTypes.size + deletedAssetTypes.size})` : ''}`}</span>
+                </button>
+              </div>
+            </div>
           </div>
         )}
+      </div>
 
         {isAdding && (
           <div className="mb-6 p-4 bg-blue-50 rounded-lg border border-blue-200">
@@ -1813,8 +1807,8 @@ export function AssetTypes() {
             <p className="text-lg">{t('noAssetTypes')}</p>
           </div>
         ) : (
-          <div className="bg-white rounded-xl shadow-lg hover:shadow-xl transition-shadow duration-200 overflow-hidden border-2 border-theme-action-accent w-full">
-            <div className="ag-theme-alpine" style={{ height: '60vh', width: '100%', minWidth: '100%', overflowX: 'auto', direction: 'rtl' }}>
+          <div className="flex-1 min-h-0 flex flex-col bg-white rounded-xl shadow-lg hover:shadow-xl transition-shadow duration-200 overflow-hidden border-2 border-theme-action-accent w-full">
+            <div className="ag-theme-alpine flex-1 min-h-[300px]" style={{ width: '100%', minWidth: '100%', overflowX: 'auto', direction: 'rtl' }}>
               <AgGridReact
                 ref={gridRef}
                 rowData={assetTypes}
@@ -1874,7 +1868,6 @@ export function AssetTypes() {
             </div>
           </div>
         )}
-      </div>
     </div>
   );
 }

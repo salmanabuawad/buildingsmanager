@@ -1497,12 +1497,12 @@ export function AssetTypes() {
       )}
 
       <div className="bg-white rounded-xl shadow-lg hover:shadow-xl transition-shadow duration-200 border border-theme-card-border p-6 mb-6">
-        <div className="flex items-center justify-between mb-6">
-          <div className="flex items-center gap-3">
+        <div className="flex items-center justify-between mb-4 gap-2 flex-wrap">
+          <div className="flex items-center gap-3 shrink-0">
             <h2 className="text-xl font-bold text-slate-900">{t('assetTypes')}</h2>
           </div>
           {!isAdding && (
-            <div className="action-bar flex justify-end gap-2">
+            <div className="action-bar flex flex-row flex-wrap justify-end gap-2">
               <input
                 ref={fileInputRef}
                 type="file"
@@ -1555,37 +1555,31 @@ export function AssetTypes() {
                 <Plus className="h-5 w-5" />
                 <span>{t('addAssetType')}</span>
               </button>
+              <button
+                type="button"
+                onClick={handleCancelAll}
+                disabled={isSaving || (dirtyAssetTypes.size === 0 && deletedAssetTypes.size === 0)}
+                className="btn btn-action btn-cancel disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <X className="h-5 w-5" />
+                <span>{t('cancel')}</span>
+              </button>
+              <button
+                type="button"
+                onClick={handleSaveAll}
+                disabled={isSaving || (dirtyAssetTypes.size === 0 && deletedAssetTypes.size === 0)}
+                className="btn btn-action btn-primary disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {isSaving ? (
+                  <Loader2 className="h-5 w-5 animate-spin" />
+                ) : (
+                  <Save className="h-5 w-5" />
+                )}
+                <span>{isSaving ? 'שומר...' : `שמור הכל${dirtyAssetTypes.size + deletedAssetTypes.size > 0 ? ` (${dirtyAssetTypes.size + deletedAssetTypes.size})` : ''}`}</span>
+              </button>
             </div>
           )}
         </div>
-
-        {/* Save All / Cancel buttons - always visible */}
-        {!isAdding && (
-          <div className="mb-4 action-bar flex flex-col sm:flex-row justify-end gap-2 sm:gap-3">
-            <button
-              type="button"
-              onClick={handleCancelAll}
-              disabled={isSaving || (dirtyAssetTypes.size === 0 && deletedAssetTypes.size === 0)}
-              className="btn btn-action btn-cancel disabled:opacity-50 disabled:cursor-not-allowed w-full sm:w-auto"
-            >
-              <X className="h-5 w-5" />
-              <span>{t('cancel')}</span>
-            </button>
-            <button
-              type="button"
-              onClick={handleSaveAll}
-              disabled={isSaving || (dirtyAssetTypes.size === 0 && deletedAssetTypes.size === 0)}
-              className="btn btn-action btn-primary disabled:opacity-50 disabled:cursor-not-allowed w-full sm:w-auto"
-            >
-              {isSaving ? (
-                <Loader2 className="h-5 w-5 animate-spin" />
-              ) : (
-                <Save className="h-5 w-5" />
-              )}
-              <span>{isSaving ? 'שומר...' : `שמור הכל${dirtyAssetTypes.size + deletedAssetTypes.size > 0 ? ` (${dirtyAssetTypes.size + deletedAssetTypes.size})` : ''}`}</span>
-            </button>
-          </div>
-        )}
 
         {isAdding && (
           <div className="mb-6 p-4 bg-blue-50 rounded-lg border border-blue-200">

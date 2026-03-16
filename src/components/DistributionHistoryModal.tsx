@@ -131,10 +131,12 @@ export function DistributionHistoryModal({
 
   // True when before_data.assets and after_data.assets are effectively the same (no changes to show)
   const isBeforeAfterAssetsSame = (record: DistributionAudit): boolean => {
+    // If we have no before_data snapshot, we can't compare → always show the record
+    if (!record.before_data) return false;
     const beforeAssets = record.before_data?.assets ?? [];
     const afterAssets = record.after_data?.assets ?? [];
     if (beforeAssets.length !== afterAssets.length) return false;
-    if (beforeAssets.length === 0) return true; // no assets to compare -> hide
+    if (beforeAssets.length === 0) return true; // had before_data but no assets to compare -> hide
     const beforeMap = new Map<number, Asset>();
     beforeAssets.forEach((a: Asset) => beforeMap.set(a.asset_id, a));
     const afterMap = new Map<number, Asset>();

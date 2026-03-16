@@ -5,21 +5,41 @@ Replaces: update_asset_type_with_distribution_reset,
 """
 from app.database import get_pool
 
+# All updatable columns on asset_types (excludes PK and timestamps)
+ALLOWED_FIELDS = {
+    "name", "description", "tax_region",
+    "area_description_for_tab", "elevator", "single_double_family",
+    "penthouse", "condo", "townhouses", "business_residence", "active",
+    "non_accountable_for_total_area", "non_accountable_for_distribution",
+    "not_accountable_for_statistics", "use_shared_area",
+    "use_for_parking_shared_area", "min_size", "max_size",
+}
+
 
 async def update_with_reset(payload: dict) -> dict:
     """
     Update a single asset type and reset distribution flags on related assets.
+    Frontend sends: {p_id: <id>, p_updates: {field: value, ...}}
+    Returns: {after_data: {...row...}, affected_buildings: []}
     """
-    type_id = payload.get("p_type_id") or payload.get("type_id")
+    # Support p_id (frontend) or p_type_id / type_id (legacy)
+    type_id = (
+        payload.get("p_id")
+        or payload.get("p_type_id")
+        or payload.get("type_id")
+    )
     if type_id is None:
-        raise ValueError("update_asset_type_with_distribution_reset: type_id required")
+        raise ValueError("update_asset_type_with_distribution_reset: id required")
 
-    allowed = {
-        "type_name", "type_description", "default_net_area",
-        "default_gross_area", "is_distributed", "distribution_method",
-        "category", "sub_category",
-    }
-    updates = {k: v for k, v in payload.items() if k in allowed}
+    # Updates may be nested under p_updates or flat in the payload root
+    raw_updates = payload.get("p_updates")
+    if not isinstance(raw_updates, dict):
+        raw_updates = {
+            k: v for k, v in payload.items()
+            if k not in ("p_id", "p_type_id", "type_id", "p_updates")
+        }
+
+    updates = {k: v for k, v in raw_updates.items() if k in ALLOWED_FIELDS}
 
     pool = get_pool()
     async with pool.acquire() as conn:
@@ -27,65 +47,79 @@ async def update_with_reset(payload: dict) -> dict:
             if updates:
                 cols = list(updates.keys())
                 vals = list(updates.values())
-                set_parts = ", ".join(f"{c} = ${i+2}" for i, c in enumerate(cols))
+                set_parts = ", ".join(f"{c} = ${i + 2}" for i, c in enumerate(cols))
                 row = await conn.fetchrow(
                     f"UPDATE asset_types SET {set_parts}, updated_at = now() "
-                    f"WHERE type_id = $1 RETURNING *",
+                    f"WHERE id = $1 RETURNING *",
                     type_id, *vals,
                 )
             else:
                 row = await conn.fetchrow(
-                    "SELECT * FROM asset_types WHERE type_id = $1", type_id
+                    "SELECT * FROM asset_types WHERE id = $1", type_id
                 )
 
-            # Reset distribution on related assets
+            # Reset distribution flag on assets using this type
             await conn.execute(
                 "UPDATE assets SET distribution_flag = false, updated_at = now() "
-                "WHERE type_id = $1",
+                "WHERE main_asset_type = (SELECT name FROM asset_types WHERE id = $1)",
                 type_id,
             )
 
-    return dict(row) if row else {}
+    after = dict(row) if row else {}
+    return {"after_data": after, "affected_buildings": []}
 
 
-async def bulk_update_reset(payload: dict) -> list:
+async def bulk_update_reset(payload: dict) -> dict:
     """
     Bulk update asset types and reset distribution flags.
-    payload: {p_asset_types_data: [...]} or {asset_types_data: [...]}
+    Frontend sends: {p_asset_types_data: [{id: <id>, updates: {field: val}}, ...]}
+    Returns: {success: True, count: N, affected_buildings: []}
     """
-    items = payload.get("p_asset_types_data") or payload.get("asset_types_data") or []
+    items = (
+        payload.get("p_asset_types_data")
+        or payload.get("asset_types_data")
+        or []
+    )
     if not items:
-        return []
+        return {"success": True, "count": 0, "affected_buildings": []}
 
-    allowed = {
-        "type_name", "type_description", "default_net_area",
-        "default_gross_area", "is_distributed", "distribution_method",
-        "category", "sub_category",
-    }
     pool = get_pool()
     results = []
     async with pool.acquire() as conn:
         async with conn.transaction():
             for item in items:
-                type_id = item.get("type_id")
+                # Support id (frontend) or type_id (legacy)
+                type_id = item.get("id") or item.get("type_id")
                 if type_id is None:
                     continue
-                updates = {k: v for k, v in item.items() if k in allowed}
+
+                # Updates may be nested under "updates" key or flat in item root
+                raw_updates = item.get("updates")
+                if not isinstance(raw_updates, dict):
+                    raw_updates = {
+                        k: v for k, v in item.items()
+                        if k not in ("id", "type_id", "updates")
+                    }
+
+                updates = {k: v for k, v in raw_updates.items() if k in ALLOWED_FIELDS}
+
                 if updates:
                     cols = list(updates.keys())
                     vals = list(updates.values())
-                    set_parts = ", ".join(f"{c} = ${i+2}" for i, c in enumerate(cols))
+                    set_parts = ", ".join(f"{c} = ${i + 2}" for i, c in enumerate(cols))
                     row = await conn.fetchrow(
                         f"UPDATE asset_types SET {set_parts}, updated_at = now() "
-                        f"WHERE type_id = $1 RETURNING *",
+                        f"WHERE id = $1 RETURNING *",
                         type_id, *vals,
                     )
                     if row:
                         results.append(dict(row))
 
+                # Reset distribution flag on assets using this type
                 await conn.execute(
                     "UPDATE assets SET distribution_flag = false, updated_at = now() "
-                    "WHERE type_id = $1",
+                    "WHERE main_asset_type = (SELECT name FROM asset_types WHERE id = $1)",
                     type_id,
                 )
-    return results
+
+    return {"success": True, "count": len(results), "affected_buildings": []}

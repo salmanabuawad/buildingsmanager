@@ -67,9 +67,20 @@ def get_current_user_users_table(
 ) -> CurrentUser:
     """
     FastAPI dependency: require authenticated user.
-    Checks X-Users-Table-Session header (base64 JSON) or Bearer token (JWT).
+
+    Auth sources checked in order:
+    1. file_session cookie  (base64 JSON {user_id, user_name, user_role}) — set by frontend on login
+    2. X-Users-Table-Session header (same base64 JSON format)
+    3. X-User-Id header     (numeric user ID sent by the frontend apiFetch shim)
+    4. Authorization: Bearer <jwt>
     """
-    # 1. Check session header
+    # 1. file_session cookie (base64 JSON, same format as session header)
+    file_session = request.cookies.get("file_session")
+    user = _parse_session_header(file_session)
+    if user is not None:
+        return user
+
+    # 2. X-Users-Table-Session header
     raw_session = (
         request.headers.get("X-Users-Table-Session")
         or request.headers.get("x-users-table-session")
@@ -78,7 +89,24 @@ def get_current_user_users_table(
     if user is not None:
         return user
 
-    # 2. Check Bearer token
+    # 3. X-User-Id header (frontend sessionHeaders() shim sends just the numeric user ID)
+    x_user_id = request.headers.get("X-User-Id") or request.headers.get("x-user-id")
+    if x_user_id:
+        try:
+            uid = int(x_user_id)
+            row = _users_repo.get_by_id(uid)
+            if row and row.get("active", True):
+                return CurrentUser(
+                    user_id=uid,
+                    user_name=row.get("user_name") or "",
+                    user_email=row.get("user_email"),
+                    user_role=row.get("user_role") or "user",
+                    active=True,
+                )
+        except Exception:
+            pass
+
+    # 4. Bearer JWT
     if credentials and credentials.credentials:
         try:
             from app.auth import decode_token

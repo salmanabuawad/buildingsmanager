@@ -27,24 +27,45 @@ def _check_auth(function_name: str, request: Request) -> None:
     if function_name in _AUTH_BYPASS_RPCS:
         return
     import base64, json
-    raw_session = (
-        request.headers.get("X-Users-Table-Session")
-        or request.headers.get("x-users-table-session")
-    )
-    if raw_session:
+
+    def _decode_b64_session(raw: str) -> bool:
+        """Return True if raw decodes to a valid base64 JSON session with user_id."""
         try:
-            pad = raw_session + "=" * (4 - len(raw_session) % 4) if len(raw_session) % 4 else raw_session
+            pad = raw + "=" * (4 - len(raw) % 4) if len(raw) % 4 else raw
             for decoder in (base64.b64decode, base64.urlsafe_b64decode):
                 try:
-                    decoded = decoder(pad).decode("utf-8")
-                    payload = json.loads(decoded)
+                    payload = json.loads(decoder(pad).decode("utf-8"))
                     if payload.get("user_id") is not None:
-                        return  # authenticated
+                        return True
                 except Exception:
                     continue
         except Exception:
             pass
-    # Check Bearer token
+        return False
+
+    # 1. file_session cookie (base64 JSON set by frontend on login)
+    file_session = request.cookies.get("file_session")
+    if file_session and _decode_b64_session(file_session):
+        return
+
+    # 2. X-Users-Table-Session header
+    raw_session = (
+        request.headers.get("X-Users-Table-Session")
+        or request.headers.get("x-users-table-session")
+    )
+    if raw_session and _decode_b64_session(raw_session):
+        return
+
+    # 3. X-User-Id header (frontend apiFetch shim sends numeric user ID)
+    x_user_id = request.headers.get("X-User-Id") or request.headers.get("x-user-id")
+    if x_user_id:
+        try:
+            int(x_user_id)
+            return  # authenticated
+        except (ValueError, TypeError):
+            pass
+
+    # 4. Bearer JWT
     auth_header = request.headers.get("Authorization") or request.headers.get("authorization")
     if auth_header and auth_header.startswith("Bearer "):
         token = auth_header[7:]
@@ -56,6 +77,7 @@ def _check_auth(function_name: str, request: Request) -> None:
                     return  # authenticated
             except Exception:
                 pass
+
     raise HTTPException(status_code=401, detail="Not authenticated")
 
 

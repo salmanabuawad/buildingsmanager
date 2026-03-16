@@ -7,7 +7,7 @@ function toBooleanFromInput(v: unknown): boolean | undefined {
   return toBoolean(v);
 }
 import { assetTypeValidators, inputValidators } from '../lib/validation';
-import { Plus, Tag, Upload, Save, X, Loader2, Download, Trash2, Check, ArrowUpDown, ArrowUp, ArrowDown, Filter, FileText, Search } from 'lucide-react';
+import { Plus, Tag, Upload, Save, X, Loader2, Download, Trash2, Check, ArrowUpDown, ArrowUp, ArrowDown, Filter, FileText } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { useValidationRules } from '../contexts/ValidationContext';
 import { AgGridReact } from 'ag-grid-react';
@@ -69,20 +69,8 @@ export function AssetTypes() {
   const [isImporting, setIsImporting] = useState(false);
   const [dirtyAssetTypes, setDirtyAssetTypes] = useState<Map<number, Partial<AssetType>>>(new Map());
   const [deletedAssetTypes, setDeletedAssetTypes] = useState<Set<number>>(new Set());
-  const [assetTypeFilter, setAssetTypeFilter] = useState<string>('');
   const fileInputRef = useRef<HTMLInputElement>(null);
   const gridRef = useRef<AgGridReact<AssetType>>(null);
-
-  // Filtered list for display (match BuildingsList behavior)
-  const filteredAssetTypes = useMemo(() => {
-    if (!assetTypeFilter.trim()) return assetTypes;
-    const q = assetTypeFilter.trim().toLowerCase();
-    return assetTypes.filter(
-      (at) =>
-        String(at.name ?? '').toLowerCase().includes(q) ||
-        String(at.description ?? '').toLowerCase().includes(q)
-    );
-  }, [assetTypes, assetTypeFilter]);
   
   // Grid preferences hook for saving/loading column state
   const gridPreferences = useGridPreferences(
@@ -1475,7 +1463,7 @@ export function AssetTypes() {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="text-center">
-          <Loader2 className="h-12 w-12 text-theme-tab-active animate-spin mx-auto" />
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-theme-tab-active mx-auto"></div>
           <p className="mt-4 text-slate-700 font-medium">{t('loading')}</p>
         </div>
       </div>
@@ -1484,19 +1472,21 @@ export function AssetTypes() {
 
   return (
     <div className="flex flex-col flex-1 min-h-0 w-full px-2 sm:px-4 md:px-6 py-1.5 sm:py-2">
-      <div className="page-header mb-1.5 rounded-md px-2 py-1.5 flex-shrink-0 w-full">
-        <div className="relative flex items-center gap-1.5 flex-wrap w-full">
-          <div className="page-header-icon shrink-0">
-            <Tag className="w-4 h-4" />
+      <div className="page-header mb-2 rounded-lg px-3 py-2 w-full">
+        <div className="flex items-center justify-between w-full">
+          <div className="flex items-center gap-2">
+            <div className="page-header-icon shrink-0">
+              <Tag className="w-5 h-5" />
+            </div>
+            <h1 className="page-header-title text-sm sm:text-base font-bold">{t('assetTypes')}</h1>
           </div>
-          <h1 className="page-header-title text-sm sm:text-base font-bold">{t('assetTypes')}</h1>
-          <span className="page-header-badge">סה"כ סוגי נכס: {filteredAssetTypes.length}</span>
+          <span className="page-header-badge">{assetTypes.length} רשומות</span>
         </div>
       </div>
 
       {message && (
         <div
-          className={`mb-2 p-3 rounded-lg flex-shrink-0 ${
+          className={`mb-6 p-4 rounded-lg ${
             message.type === 'success' ? 'bg-green-50 text-green-800' : 
             message.type === 'error' ? 'bg-red-50 text-red-800' : 
             'bg-blue-50 text-blue-800'
@@ -1506,81 +1496,77 @@ export function AssetTypes() {
         </div>
       )}
 
-      {/* Single toolbar row: search + all actions (match BuildingsList) */}
-      <div className="mb-1.5 flex flex-wrap items-center gap-2 sm:gap-3 flex-shrink-0">
-        <div className="relative w-full sm:w-auto sm:min-w-[14rem] sm:max-w-[20rem]">
-          <input
-            type="text"
-            value={assetTypeFilter}
-            onChange={(e) => setAssetTypeFilter(e.target.value)}
-            placeholder="חיפוש לפי קוד או תיאור"
-            className="w-full px-2.5 py-1.5 pr-8 border border-app-input-border rounded-md focus:ring-2 focus:ring-app-accent focus:border-app-accent text-right text-sm bg-white"
-          />
-          <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 h-3.5 w-3.5 text-slate-400" />
+      <div className="bg-white rounded-xl shadow-lg hover:shadow-xl transition-shadow duration-200 border border-theme-card-border p-6 mb-6">
+        <div className="flex items-center justify-between mb-6">
+          <div className="flex items-center gap-3">
+            <h2 className="text-xl font-bold text-slate-900">{t('assetTypes')}</h2>
+          </div>
+          {!isAdding && (
+            <div className="action-bar flex justify-end gap-2">
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept=".csv,.xlsx,.xls"
+                onChange={handleFileImport}
+                className="hidden"
+              />
+              <button
+                type="button"
+                onClick={() => downloadTemplate('excel')}
+                className="btn btn-action btn-secondary"
+                title="הורד תבנית Excel"
+              >
+                <Download className="h-5 w-5" />
+                <span className="hidden sm:inline">הורד תבנית Excel</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => downloadTemplate('csv')}
+                className="btn btn-action btn-secondary"
+                title="הורד תבנית CSV"
+              >
+                <Download className="h-5 w-5" />
+                <span className="hidden sm:inline">הורד תבנית CSV</span>
+              </button>
+              <button
+                type="button"
+                onClick={exportAssetTypes}
+                disabled={assetTypes.length === 0}
+                className="btn btn-action btn-export disabled:opacity-50 disabled:cursor-not-allowed"
+                title="ייצא את כל סוגי הנכסים"
+              >
+                <FileText className="h-5 w-5" />
+                <span className="hidden sm:inline">ייצא נתונים</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={isImporting}
+                className="btn btn-action btn-primary disabled:opacity-50 disabled:shadow-none"
+              >
+                <Upload className="h-5 w-5" />
+                <span className="hidden sm:inline">{isImporting ? t('loading') : t('importCSV')}</span>
+              </button>
+              <button
+                type="button"
+                onClick={startAdd}
+                className="btn btn-action btn-primary"
+              >
+                <Plus className="h-5 w-5" />
+                <span>{t('addAssetType')}</span>
+              </button>
+            </div>
+          )}
         </div>
-        <div className="action-bar flex-1 min-w-0 py-1 px-2">
-          <div className="flex flex-wrap items-center justify-end gap-1.5 sm:gap-2">
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept=".csv,.xlsx,.xls"
-              onChange={handleFileImport}
-              className="hidden"
-            />
-            {!isAdding && (
-              <>
-                <button
-                  type="button"
-                  onClick={() => downloadTemplate('excel')}
-                  className="btn btn-action btn-secondary"
-                  title="הורד תבנית Excel"
-                >
-                  <Download className="h-5 w-5" />
-                  <span>הורד תבנית Excel</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => downloadTemplate('csv')}
-                  className="btn btn-action btn-secondary"
-                  title="הורד תבנית CSV"
-                >
-                  <Download className="h-5 w-5" />
-                  <span>הורד תבנית CSV</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={exportAssetTypes}
-                  disabled={assetTypes.length === 0}
-                  className="btn btn-action btn-export disabled:opacity-50 disabled:cursor-not-allowed"
-                  title="ייצא את כל סוגי הנכסים"
-                >
-                  <FileText className="h-5 w-5" />
-                  <span>ייצא נתונים</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => fileInputRef.current?.click()}
-                  disabled={isImporting}
-                  className="btn btn-action btn-primary disabled:opacity-50 disabled:shadow-none"
-                >
-                  <Upload className="h-5 w-5" />
-                  <span>{isImporting ? t('loading') : t('importCSV')}</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={startAdd}
-                  className="btn btn-action btn-primary"
-                >
-                  <Plus className="h-5 w-5" />
-                  <span>{t('addAssetType')}</span>
-                </button>
-              </>
-            )}
+
+        {/* Save All / Cancel buttons - always visible */}
+        {!isAdding && (
+          <div className="mb-4 action-bar flex flex-col sm:flex-row justify-end gap-2 sm:gap-3">
             <button
               type="button"
               onClick={handleCancelAll}
               disabled={isSaving || (dirtyAssetTypes.size === 0 && deletedAssetTypes.size === 0)}
-              className="btn btn-action btn-cancel disabled:opacity-50 disabled:cursor-not-allowed"
+              className="btn btn-action btn-cancel disabled:opacity-50 disabled:cursor-not-allowed w-full sm:w-auto"
             >
               <X className="h-5 w-5" />
               <span>{t('cancel')}</span>
@@ -1589,7 +1575,7 @@ export function AssetTypes() {
               type="button"
               onClick={handleSaveAll}
               disabled={isSaving || (dirtyAssetTypes.size === 0 && deletedAssetTypes.size === 0)}
-              className="btn btn-action btn-primary disabled:opacity-50 disabled:cursor-not-allowed"
+              className="btn btn-action btn-primary disabled:opacity-50 disabled:cursor-not-allowed w-full sm:w-auto"
             >
               {isSaving ? (
                 <Loader2 className="h-5 w-5 animate-spin" />
@@ -1599,12 +1585,10 @@ export function AssetTypes() {
               <span>{isSaving ? 'שומר...' : `שמור הכל${dirtyAssetTypes.size + deletedAssetTypes.size > 0 ? ` (${dirtyAssetTypes.size + deletedAssetTypes.size})` : ''}`}</span>
             </button>
           </div>
-        </div>
-      </div>
+        )}
 
-      <div className="flex-1 min-h-0 flex flex-col bg-white rounded-xl shadow-lg hover:shadow-xl transition-shadow duration-200 overflow-hidden border-2 border-theme-action-accent w-full">
         {isAdding && (
-          <div className="p-4 sm:p-6 bg-blue-50 rounded-lg border border-blue-200 m-2 sm:m-4">
+          <div className="mb-6 p-4 bg-blue-50 rounded-lg border border-blue-200">
             <h3 className="text-lg font-semibold text-slate-900 mb-4">
               {t('addAssetType')}
             </h3>
@@ -1824,17 +1808,16 @@ export function AssetTypes() {
 
 
         {assetTypes.length === 0 ? (
-          <div className="flex-1 min-h-[300px] flex items-center justify-center text-slate-500">
-            <div className="text-center">
-              <Tag className="h-16 w-16 mx-auto mb-4 text-slate-300" />
-              <p className="text-lg">{t('noAssetTypes')}</p>
-            </div>
+          <div className="text-center py-12 text-slate-500">
+            <Tag className="h-16 w-16 mx-auto mb-4 text-slate-300" />
+            <p className="text-lg">{t('noAssetTypes')}</p>
           </div>
         ) : (
-          <div className="ag-theme-alpine buildings-list-grid flex-1 min-h-[300px]" style={{ width: '100%', minWidth: '100%', overflowX: 'auto' }}>
-            <AgGridReact
+          <div className="bg-white rounded-xl shadow-lg hover:shadow-xl transition-shadow duration-200 overflow-hidden border-2 border-theme-action-accent w-full">
+            <div className="ag-theme-alpine" style={{ height: '60vh', width: '100%', minWidth: '100%', overflowX: 'auto', direction: 'rtl' }}>
+              <AgGridReact
                 ref={gridRef}
-                rowData={filteredAssetTypes}
+                rowData={assetTypes}
                 columnDefs={configuredColumnDefs}
                 defaultColDef={{
                   resizable: false, // Disabled - use field configurations instead
@@ -1843,7 +1826,7 @@ export function AssetTypes() {
                   wrapText: true,
                   autoHeight: false,
                   cellStyle: { textAlign: 'right', direction: 'rtl' },
-                  headerClass: 'buildings-list-header ag-right-aligned-header',
+                  headerClass: 'ag-right-aligned-header',
                   headerStyle: { fontSize: '11px', textAlign: 'right', fontWeight: 'normal', WebkitFontSmoothing: 'antialiased', MozOsxFontSmoothing: 'grayscale' },
                   minWidth: 40,
                   sortable: true,
@@ -1888,6 +1871,7 @@ export function AssetTypes() {
                 }}
                 stopEditingWhenCellsLoseFocus={true}
               />
+            </div>
           </div>
         )}
       </div>

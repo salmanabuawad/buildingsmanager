@@ -87,7 +87,7 @@ async def update_total_area(building_number: int) -> dict:
     return dict(row) if row else {}
 
 
-async def bulk_update_flags(buildings_data: list) -> list:
+async def bulk_update_flags(buildings_data: list) -> dict:
     """
     Bulk update buildings with distribution flags.
     After update, recompute distribution flags for each building.
@@ -104,14 +104,23 @@ async def bulk_update_flags(buildings_data: list) -> list:
                 building_number = b.get("building_number")
                 if building_number is None:
                     continue
-                allowed_fields = {
-                    "distribution_flag", "storage_area", "pergola_area",
-                    "balcony_area", "total_building_area", "building_name",
-                    "address", "city", "business_shared_area", "residence_shared_area",
-                    "shared_parking_area", "need_business_distribution",
-                    "need_residence_distribution",
+                # Support both {building_number, updates: {...}} and flat {building_number, field: val}
+                raw_updates = b.get("updates") if isinstance(b.get("updates"), dict) else {
+                    k: v for k, v in b.items() if k != "building_number"
                 }
-                updates = {k: v for k, v in b.items() if k in allowed_fields}
+                # All updatable columns (excludes PK, action_id, created_at)
+                allowed_fields = {
+                    "total_building_area", "tax_region", "elevator", "single_double_family",
+                    "condo", "townhouses", "residence_shared_area", "business_shared_area",
+                    "area_for_control", "building_address", "address", "gosh", "helka",
+                    "building_number_in_street", "overload_ratio", "need_residence_distribution",
+                    "need_business_distribution", "note", "net_area", "asset_count",
+                    "shared_parking_area", "number_of_parking_units",
+                    # legacy aliases some frontend versions send
+                    "distribution_flag", "storage_area", "pergola_area", "balcony_area",
+                    "building_name", "city",
+                }
+                updates = {k: v for k, v in raw_updates.items() if k in allowed_fields}
                 if not updates:
                     continue
                 cols = list(updates.keys())
@@ -131,7 +140,7 @@ async def bulk_update_flags(buildings_data: list) -> list:
                 if bn:
                     await _recompute_distribution_flags(conn, int(bn))
 
-    return results
+    return {"success": True, "buildings": results, "count": len(results)}
 
 
 async def set_distribution_flags_for_asset_type_change(asset_type_name: str) -> dict:

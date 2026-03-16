@@ -580,63 +580,73 @@ export function InspectionTasksManager() {
   }
 
   return (
-    <div className="flex flex-col flex-1 min-h-0 p-4 sm:p-6 pb-safe space-y-4" dir="rtl">
-      <h1 className="text-lg sm:text-xl font-semibold text-slate-800 border-b border-slate-200 pb-2 flex items-center gap-2 flex-shrink-0 min-h-[44px] items-center">
-        <ListTodo className="h-6 w-6 text-theme-tab-active shrink-0" />
-        <span>ניהול משימות ביקורת</span>
-      </h1>
+    <div className="flex flex-col flex-1 min-h-0 w-full py-2" style={{ maxWidth: '100vw', width: '100%', paddingLeft: '0.5rem', paddingRight: '0.5rem' }} dir="rtl">
+      <div className="page-header mb-1.5 rounded-md px-2 py-1.5 flex-shrink-0 w-full">
+        <div className="relative flex items-center gap-1.5 flex-wrap w-full">
+          <div className="page-header-icon shrink-0">
+            <ListTodo className="w-4 h-4" />
+          </div>
+          <h1 className="page-header-title text-sm sm:text-base font-bold">ניהול משימות ביקורת</h1>
+        </div>
+      </div>
 
       {error && (
-        <div className="bg-red-50 border border-red-200 text-red-800 px-3 py-2 rounded-lg text-sm">
+        <div className="mb-2 px-3 py-2 rounded-md text-sm bg-red-50 text-red-800 border border-red-200">
           {error}
         </div>
       )}
 
-      <div className="flex flex-wrap items-center gap-3 flex-shrink-0">
-        <span className="flex items-center gap-2 text-slate-600 text-sm sm:text-base">
-          <Filter className="h-4 w-4 shrink-0" />
-          סטטוס:
-        </span>
-        <select
-          value={filterStatus}
-          onChange={(e) => setFilterStatus(e.target.value)}
-          className="min-h-[44px] px-3 py-2 sm:py-1.5 border border-slate-300 rounded-lg text-sm touch-manipulation"
-        >
-          <option value="">הכל</option>
-          {Object.entries(STATUS_LABELS).map(([k, v]) => (
-            <option key={k} value={k}>{v}</option>
-          ))}
-        </select>
-        {isAdmin && (
-          <>
-            <span className="text-slate-600">פקח:</span>
-            <select
-              value={filterAssignedTo === '' ? '' : String(filterAssignedTo)}
-              onChange={(e) => setFilterAssignedTo(e.target.value === '' ? '' : Number(e.target.value))}
-              className="min-h-[44px] px-3 py-2 sm:py-1.5 border border-slate-300 rounded-lg text-sm touch-manipulation"
-            >
-              <option value="">הכל</option>
-              {inspectors.map((u) => (
-                <option key={u.user_id} value={u.user_id}>{u.user_name}</option>
-              ))}
-            </select>
-            <button
-              type="button"
-              onClick={() => {
-                setCreateBuildingNumber('');
-                setCreateAssetIds([]);
-                setCreateOpen(true);
-              }}
-              className="flex items-center justify-center gap-2 min-h-[44px] px-4 py-3 sm:py-2 bg-theme-tab-active hover:bg-theme-tab-active-hover text-white rounded-lg text-sm font-medium touch-manipulation"
-            >
-              <Plus className="h-4 w-4 shrink-0" />
-              משימה חדשה
-            </button>
-          </>
-        )}
-        <button type="button" onClick={loadTasks} className="min-h-[44px] min-w-[44px] p-2 border border-slate-300 rounded-lg hover:bg-slate-50 touch-manipulation flex items-center justify-center">
-          <Loader2 className={`h-4 w-4 text-slate-600 ${loading ? 'animate-spin' : ''}`} />
-        </button>
+      <div className="mb-1.5 flex flex-wrap items-center gap-2 flex-shrink-0">
+        <div className="action-bar flex-1 min-w-0 py-1 px-2">
+          <div className="flex flex-wrap items-center justify-between gap-1.5">
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="flex items-center gap-1 text-slate-600 text-sm">
+                <Filter className="h-4 w-4 shrink-0" />סטטוס:
+              </span>
+              <select
+                value={filterStatus}
+                onChange={(e) => setFilterStatus(e.target.value)}
+                className="px-2 py-1 border border-slate-300 rounded-md text-sm"
+              >
+                <option value="">הכל</option>
+                {Object.entries(STATUS_LABELS).map(([k, v]) => (
+                  <option key={k} value={k}>{v}</option>
+                ))}
+              </select>
+              {isAdmin && (
+                <>
+                  <span className="text-slate-600 text-sm">פקח:</span>
+                  <select
+                    value={filterAssignedTo === '' ? '' : String(filterAssignedTo)}
+                    onChange={(e) => setFilterAssignedTo(e.target.value === '' ? '' : Number(e.target.value))}
+                    className="px-2 py-1 border border-slate-300 rounded-md text-sm"
+                  >
+                    <option value="">הכל</option>
+                    {inspectors.map((u) => (
+                      <option key={u.user_id} value={u.user_id}>{u.user_name}</option>
+                    ))}
+                  </select>
+                </>
+              )}
+            </div>
+            <div className="flex flex-wrap gap-1.5">
+              {isAdmin && (
+                <button
+                  type="button"
+                  onClick={() => { setCreateBuildingNumber(''); setCreateAssetIds([]); setCreateOpen(true); }}
+                  className="btn btn-action btn-primary"
+                >
+                  <Plus className="h-5 w-5" />
+                  <span>משימה חדשה</span>
+                </button>
+              )}
+              <button type="button" onClick={loadTasks} className="btn btn-action btn-secondary">
+                <Loader2 className={`h-5 w-5 ${loading ? 'animate-spin' : ''}`} />
+                <span>רענן</span>
+              </button>
+            </div>
+          </div>
+        </div>
       </div>
 
       {loading || fieldConfigLoading ? (
@@ -644,8 +654,8 @@ export function InspectionTasksManager() {
           <Loader2 className="h-8 w-8 text-theme-tab-active animate-spin" />
         </div>
       ) : (
-        <div className="flex-1 min-h-[50vh] sm:min-h-[300px] min-w-0 flex flex-col" style={{ overflow: 'hidden' }}>
-          <div className="ag-theme-alpine buildings-list-grid bg-white rounded-xl border border-slate-200 flex-1 w-full" style={{ minWidth: '100%', direction: 'rtl' }}>
+        <div className="flex-1 min-h-0 flex flex-col bg-white rounded-xl shadow-lg hover:shadow-xl transition-shadow duration-200 overflow-hidden border-2 border-theme-action-accent w-full">
+          <div className="ag-theme-alpine flex-1 min-h-[300px]" style={{ minWidth: '100%', direction: 'rtl' }}>
           <AgGridReact<TaskRow>
             key={`inspection-tasks-grid-${configVersion}-${fontSize}`}
             rowData={rowData}

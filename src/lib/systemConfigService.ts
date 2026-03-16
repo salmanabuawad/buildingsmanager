@@ -1,6 +1,6 @@
 /**
  * System Configuration Service
- * 
+ *
  * Helper service for accessing system configuration values
  * Provides typed accessors for common configuration types
  */

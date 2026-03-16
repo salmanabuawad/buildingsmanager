@@ -1,19 +1,16 @@
 /**
  * Email Service
  * Sends emails via backend API (/api/email/*). Uses users-table session or JWT.
- * Ref: C:\production\bolt\origin\buildingsmanager
  */
 
 import { api } from './api';
 import { getSession } from './usersTableAuth';
+import { getApiBaseUrl } from './appConfig';
 
-/** Backend base URL for email API (no trailing slash). Same origin when published; VITE_BACKEND_URL or localhost:8000 in dev. */
+/** Backend base URL for email API (no trailing slash). Same as rest of app: config.js / VITE_API_BASE_URL, else same origin. */
 function getEmailBackendUrl(): string {
-  if (import.meta.env.VITE_BACKEND_URL) return String(import.meta.env.VITE_BACKEND_URL).replace(/\/$/, '');
-  if (typeof window !== 'undefined' && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
-    return ''; // same origin: /api/email/test and /api/email/send
-  }
-  return import.meta.env.PROD ? '' : 'http://localhost:8000';
+  const base = getApiBaseUrl();
+  return base || '';
 }
 
 /** Get headers for email API: JWT or users-table session (X-Users-Table-Session). */
@@ -90,13 +87,13 @@ class EmailService {
     try {
       const config = await api.systemConfiguration.getEmailConfig();
       if (!config) return null;
-      
+
       // Validate required fields
       if (!config.smtp_host || !config.smtp_port || !config.from_email) {
         console.error('Email config missing required fields');
         return null;
       }
-      
+
       return {
         smtp_host: config.smtp_host,
         smtp_port: config.smtp_port,

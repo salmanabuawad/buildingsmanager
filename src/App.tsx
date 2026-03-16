@@ -89,6 +89,7 @@ function App() {
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const [settingsMenuOpen, setSettingsMenuOpen] = useState(false);
   const settingsMenuRef = useRef<HTMLDivElement>(null);
+  const userMenuRef = useRef<HTMLDivElement>(null);
 
   type Brightness = 'light' | 'normal' | 'dark' | 'contrast';
   type FontSize = 'small' | 'normal' | 'large';
@@ -116,10 +117,13 @@ function App() {
       if (settingsMenuOpen && settingsMenuRef.current && !settingsMenuRef.current.contains(e.target as Node)) {
         setSettingsMenuOpen(false);
       }
+      if (userMenuOpen && userMenuRef.current && !userMenuRef.current.contains(e.target as Node)) {
+        setUserMenuOpen(false);
+      }
     };
     document.addEventListener('click', h);
     return () => document.removeEventListener('click', h);
-  }, [settingsMenuOpen]);
+  }, [settingsMenuOpen, userMenuOpen]);
   const [showBatchValidationModal, setShowBatchValidationModal] = useState(false);
   const [batchValidationModalClosing, setBatchValidationModalClosing] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -545,10 +549,11 @@ function App() {
     }
   };
 
-  // Fetch latest export date on component mount
+  // Fetch latest export date only after authenticated
   useEffect(() => {
+    if (!isAuthenticated) return;
     fetchLatestExportDate();
-  }, []);
+  }, [isAuthenticated]);
 
   // Sync state with cache periodically to ensure UI updates when cache changes
   // This ensures the button and modal always reflect the latest cached value
@@ -1596,7 +1601,7 @@ function App() {
     <FontSizeProvider value={fontSize}>
     <div className="min-h-screen bg-app-bg flex flex-col" dir="rtl">
       {/* theme_1: Dark blue header, icon strip */}
-      <header className="shrink-0 h-12 bg-app-header flex items-center justify-between px-4 text-white shadow-md">
+      <header className="shrink-0 h-12 bg-app-header flex items-center justify-between px-4 text-white shadow-md" onClick={closeSidebarAndMenus}>
         <div className="flex items-center gap-4">
           <div className="flex items-center gap-2">
             <div className="w-9 h-9 rounded-full bg-white/20 flex items-center justify-center">
@@ -1611,7 +1616,7 @@ function App() {
           </button>
           <div className="relative" ref={settingsMenuRef}>
             <button
-              onClick={() => { setSettingsMenuOpen((prev) => !prev); setUserMenuOpen(false); }}
+              onClick={(e) => { e.stopPropagation(); setSettingsMenuOpen((prev) => !prev); setUserMenuOpen(false); }}
               title="הגדרות"
               className={`p-2.5 rounded hover:bg-white/10 transition-colors ${settingsMenuOpen ? 'bg-white/10' : 'opacity-80'}`}
             >
@@ -1653,9 +1658,9 @@ function App() {
               </div>
             )}
           </div>
-          <div className="relative">
+          <div className="relative" ref={userMenuRef}>
             <button
-              onClick={() => setUserMenuOpen((prev) => !prev)}
+              onClick={(e) => { e.stopPropagation(); setUserMenuOpen((prev) => !prev); setSettingsMenuOpen(false); }}
               title="משתמש"
               className={`p-2.5 rounded hover:bg-white/10 transition-colors ${userMenuOpen ? 'bg-white/10' : 'opacity-80'}`}
             >
@@ -2003,14 +2008,7 @@ function App() {
 
       <div
         className={`flex-1 flex flex-col min-w-0 ${isMobile && isInspector ? 'pt-0' : 'pt-[52px] md:pt-0'}`}
-        onClick={() => {
-          setBuildingsMenuOpen(false);
-          setAssetsMenuOpen(false);
-          setAdminMenuOpen(false);
-          setManagerActionsSubmenuOpen(false);
-          setSystemConfigSubmenuOpen(false);
-          setUserMenuOpen(false);
-        }}
+        onClick={closeSidebarAndMenus}
       >
         {/* Tabs bar - hidden for inspector on mobile (task-only full-screen) */}
         {!(isMobile && isInspector) && (

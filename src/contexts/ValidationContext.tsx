@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 import { ValidationRule, Building, AssetType, api } from '../lib/api';
 import { setValidationRules, setValidationData } from '../lib/validation';
+import { getSession } from '../lib/usersTableAuth';
 
 interface ValidationContextType {
   validationRules: ValidationRule[];
@@ -53,6 +54,7 @@ export function ValidationProvider({ children }: { children: ReactNode }) {
   };
 
   useEffect(() => {
+    if (!getSession()) return; // not logged in yet — App.tsx calls refreshRules() after login
     loadAllData();
   }, []);
 

@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Search, Home, Building as BuildingIcon } from 'lucide-react';
-import { supabase } from '../lib/supabase';
+import { api } from '../lib/apiClient';
 import { Asset } from '../lib/api';
 
 interface SearchResult extends Asset {
@@ -28,7 +28,7 @@ export function AssetSearchByRange({ onSelectAsset }: AssetSearchProps) {
     setHasSearched(true);
 
     try {
-      const { data, error } = await supabase
+      const { data, error } = await api
         .from('assets')
         .select('*')
         .gte('asset_id', fromNumber)
@@ -55,18 +55,18 @@ export function AssetSearchByRange({ onSelectAsset }: AssetSearchProps) {
 
   return (
     <div className="max-w-7xl mx-auto px-2 sm:px-4 py-4 sm:py-8 md:py-12">
-      <div className="page-header mb-6 sm:mb-8 rounded-xl p-4 w-full" dir="rtl">
-        <div className="relative flex items-center gap-3 flex-wrap w-full">
+      <div className="mb-6 sm:mb-8 page-header rounded-xl px-4 py-3">
+        <div className="flex items-center gap-3">
           <div className="page-header-icon shrink-0">
-            <Search className="w-6 h-6" strokeWidth={2} />
+            <Search className="w-6 h-6" strokeWidth={1.5} />
           </div>
           <h1 className="page-header-title text-xl sm:text-2xl font-bold">
-            {t('assetSearch') || 'חיפוש נכסים'}
+            {t('assetSearch') || 'Asset Search'}
           </h1>
         </div>
       </div>
 
-      <div className="bg-white rounded-xl shadow-lg border border-blue-100 p-6 mb-6">
+      <div className="bg-white rounded-xl shadow-lg border border-theme-card-border p-6 mb-6">
         <form onSubmit={handleSearch} className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
@@ -78,7 +78,7 @@ export function AssetSearchByRange({ onSelectAsset }: AssetSearchProps) {
                 value={fromNumber}
                 onChange={(e) => setFromNumber(e.target.value)}
                 placeholder="826812801"
-                className="w-full px-4 py-2 border border-app-input-border rounded-lg focus:outline-none focus:ring-2 focus:ring-app-accent"
+                className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-theme-action-accent"
                 required
               />
             </div>
@@ -91,17 +91,17 @@ export function AssetSearchByRange({ onSelectAsset }: AssetSearchProps) {
                 value={toNumber}
                 onChange={(e) => setToNumber(e.target.value)}
                 placeholder="826812899"
-                className="w-full px-4 py-2 border border-app-input-border rounded-lg focus:outline-none focus:ring-2 focus:ring-app-accent"
+                className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-theme-action-accent"
                 required
               />
             </div>
           </div>
 
-          <div className="action-bar mt-4 flex gap-2">
+          <div className="flex gap-2">
             <button
               type="submit"
               disabled={loading || !fromNumber || !toNumber}
-              className="btn btn-primary"
+              className="flex items-center gap-2 px-6 py-2 bg-theme-tab-active hover:bg-theme-tab-active-hover active:bg-theme-tab-active-hover text-white rounded-md transition-all duration-200 shadow-sm hover:shadow-md disabled:opacity-50  disabled:shadow-none"
             >
               <Search className="h-5 w-5" />
               {loading ? (t('loading') || 'Loading...') : (t('search') || 'Search')}
@@ -109,7 +109,7 @@ export function AssetSearchByRange({ onSelectAsset }: AssetSearchProps) {
             <button
               type="button"
               onClick={handleReset}
-              className="btn btn-cancel"
+              className="px-6 py-2 bg-slate-200 hover:bg-slate-300 active:bg-slate-400 text-slate-700 rounded-md transition-all duration-200 shadow-sm hover:shadow-md"
             >
               {t('reset') || 'Reset'}
             </button>
@@ -118,7 +118,7 @@ export function AssetSearchByRange({ onSelectAsset }: AssetSearchProps) {
       </div>
 
       {hasSearched && (
-        <div className="bg-white rounded-xl shadow-lg border border-blue-100 p-6">
+        <div className="bg-white rounded-xl shadow-lg border border-theme-card-border p-6">
           <h2 className="text-xl font-bold text-slate-900 mb-4">
             {t('searchResults') || 'Search Results'} ({results.length})
           </h2>
@@ -160,12 +160,12 @@ export function AssetSearchByRange({ onSelectAsset }: AssetSearchProps) {
                   {results.map((asset) => (
                     <tr
                       key={asset.asset_id}
-                      className="border-b border-slate-100 hover:bg-blue-50/50 transition-colors"
+                      className="border-b border-slate-100 hover:bg-theme-highlight/50 transition-colors"
                     >
                       <td className="px-4 py-3">
                         <button
                           onClick={() => onSelectAsset(String(asset.asset_id), String(asset.asset_id), asset.building_number)}
-                          className="px-4 py-1.5 bg-app-header text-white rounded-lg hover:opacity-90 transition-all shadow-md hover:shadow-lg text-sm font-semibold whitespace-nowrap"
+                          className="px-4 py-1.5 bg-gradient-to-r from-theme-tab-active to-theme-action-accent text-white rounded-lg hover:from-theme-tab-active-hover hover:to-theme-action-accent-hover transition-all shadow-md hover:shadow-lg hover:scale-105 text-sm font-semibold whitespace-nowrap"
                         >
                           {t('viewDetails') || 'View Details'}
                         </button>
@@ -173,7 +173,7 @@ export function AssetSearchByRange({ onSelectAsset }: AssetSearchProps) {
                       <td className="px-4 py-3">
                         <button
                           onClick={() => onSelectAsset(String(asset.asset_id), String(asset.asset_id), asset.building_number)}
-                          className="text-app-accent hover:text-app-accent-hover underline cursor-pointer transition-colors font-semibold"
+                          className="text-theme-link hover:text-theme-link-hover underline decoration-theme-link hover:decoration-theme-link-hover cursor-pointer transition-colors font-semibold"
                           title="לחץ כדי לפתוח את הנכס"
                         >
                           {asset.asset_id}
@@ -184,7 +184,7 @@ export function AssetSearchByRange({ onSelectAsset }: AssetSearchProps) {
                       </td>
                       <td className="px-4 py-3 text-slate-700">
                         <div className="flex items-center gap-2">
-                          <BuildingIcon className="h-4 w-4 text-app-accent" />
+                          <BuildingIcon className="h-4 w-4 text-theme-tab-active" />
                           {asset.building_number}
                         </div>
                       </td>

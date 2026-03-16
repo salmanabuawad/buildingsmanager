@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
 import { Upload, FileText, Download, AlertCircle, CheckCircle, Loader2, X, Save, CheckCircle2, Trash2, RotateCcw, MessageSquare } from 'lucide-react';
 import { api, Asset, AssetType, Building, AddressList } from '../lib/api';
-import { supabase } from '../lib/supabase';
+import { buildingsUpdateTotalArea } from '../lib/restClient';
 import { AssetValidationHandler } from '../lib/assetValidationHandler';
 import { ValidationResultModal, BatchValidationResults, ValidationProgress } from './ValidationResultModal';
 import { useValidationRules } from '../contexts/ValidationContext';
@@ -1181,7 +1181,7 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
         setAllAssets(allAssets);
       }
 
-      const { api } = await import('../lib/api');
+      const { api } = await import('../lib/apiClient');
 
       // Filter assets that passed validation (no validation errors)
       const validatedSkeletonAssets = importedAssets.filter(asset => {
@@ -1496,7 +1496,7 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
         // Update total area for each affected building
         for (const buildingNum of affectedBuildingNumbers) {
           try {
-            await supabase.rpc('update_building_total_area', { p_building_number: buildingNum });
+            await buildingsUpdateTotalArea(buildingNum);
           } catch (areaError) {
             console.warn(`Failed to update building total area for building ${buildingNum} after skeleton import:`, areaError);
             // Don't fail the operation if area update fails
@@ -1986,7 +1986,7 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
       });
 
       // Use bulk insert via API
-      const { api } = await import('../lib/api');
+      const { api } = await import('../lib/apiClient');
       
       // Check which assets already exist and their building numbers (for both save and save as new)
       const assetIds = assetsToInsert.map(a => a.asset_id).filter(id => id != null);
@@ -2321,7 +2321,7 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
                   // Update total area for each affected building
                   for (const buildingNum of affectedBuildingNumbers) {
                     try {
-                      await supabase.rpc('update_building_total_area', { p_building_number: buildingNum });
+                      await buildingsUpdateTotalArea(buildingNum);
                     } catch (areaError) {
                       console.warn(`Failed to update building total area for building ${buildingNum} after import:`, areaError);
                       // Don't fail the operation if area update fails
@@ -2387,7 +2387,7 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
         // Update total area for each affected building
         for (const buildingNum of affectedBuildingNumbers) {
           try {
-            await supabase.rpc('update_building_total_area', { p_building_number: buildingNum });
+            await buildingsUpdateTotalArea(buildingNum);
           } catch (areaError) {
             console.warn(`Failed to update building total area for building ${buildingNum} after import:`, areaError);
             // Don't fail the operation if area update fails
@@ -3375,9 +3375,9 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
   }
 
   return (
-    <div className="flex flex-col flex-1 min-h-0 w-full px-2 sm:px-4 md:px-6 py-1.5 sm:py-2 overflow-y-auto">
-      <div className="mb-6 page-header rounded-lg px-3 py-2 w-full">
-        <div className="flex items-center gap-2 flex-wrap w-full">
+    <div className="max-w-[95vw] mx-auto px-4 py-6">
+      <div className="mb-6 page-header rounded-lg px-3 py-2">
+        <div className="flex items-center gap-2">
           <div className="page-header-icon shrink-0">
             <Upload className="w-5 h-5" />
           </div>

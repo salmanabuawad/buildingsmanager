@@ -676,68 +676,63 @@ export function ValidationRulesManager() {
   }, [rules]);
 
   return (
-    <div className="flex flex-col flex-1 min-h-0 w-full px-2 sm:px-4 md:px-6 py-1.5 sm:py-2">
-      <div className="page-header mb-2 rounded-lg px-3 py-2 w-full">
-        <div className="flex items-center justify-between w-full">
-          <div className="flex items-center gap-2">
-            <div className="page-header-icon shrink-0">
-              <Settings className="w-5 h-5" />
-            </div>
-            <h1 className="page-header-title text-sm sm:text-base font-bold">{t('validationRules')}</h1>
+    <div className="flex flex-col flex-1 min-h-0 w-full py-2" style={{ maxWidth: '100vw', width: '100%', paddingLeft: '0.5rem', paddingRight: '0.5rem' }}>
+      <div className="page-header mb-1.5 rounded-md px-2 py-1.5 flex-shrink-0 w-full">
+        <div className="relative flex items-center gap-1.5 flex-wrap w-full">
+          <div className="page-header-icon shrink-0">
+            <Settings className="w-4 h-4" />
           </div>
+          <h1 className="page-header-title text-sm sm:text-base font-bold">{t('validationRules')}</h1>
           <span className="page-header-badge">{rules.length} רשומות</span>
         </div>
       </div>
 
       {message && (
-        <div className={`mb-6 p-4 rounded-lg ${message.type === 'success' ? 'bg-green-50 text-green-800' : 'bg-red-50 text-red-800'}`}>
+        <div className={`mb-2 px-3 py-2 rounded-md text-sm ${message.type === 'success' ? 'bg-green-50 text-green-800' : 'bg-red-50 text-red-800'}`}>
           {message.text}
         </div>
       )}
 
-      <div className="bg-white rounded-xl shadow-lg hover:shadow-xl transition-shadow duration-200 border border-theme-card-border p-6 mb-6">
-        <div className="flex items-center justify-between mb-6">
-          <div className="flex items-center gap-2">
-            <Settings className="h-5 w-5 text-teal-600" />
-            <h2 className="text-xl font-bold text-slate-800">{t('validationRules')}</h2>
+      <div className="mb-1.5 flex flex-wrap items-center gap-2 flex-shrink-0">
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept=".xlsx,.xls,.csv"
+          onChange={handleFileImport}
+          className="hidden"
+        />
+        <div className="action-bar flex-1 min-w-0 py-1 px-2">
+          <div className="flex flex-wrap justify-end gap-1.5">
+            <button
+              onClick={() => fileInputRef.current?.click()}
+              disabled={isImporting}
+              className="btn btn-action btn-primary disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <Upload className="h-5 w-5" />
+              <span>{isImporting ? 'מייבא...' : 'ייבא'}</span>
+            </button>
+            <button
+              onClick={handleExportToExcel}
+              className="btn btn-action btn-export"
+            >
+              <Download className="h-5 w-5" />
+              <span>ייצא</span>
+            </button>
+            <button
+              onClick={handleRefreshCache}
+              className="btn btn-action btn-secondary"
+            >
+              <RefreshCw className="h-5 w-5" />
+              <span>{t('refreshCache')}</span>
+            </button>
+            <button
+              onClick={handleAdd}
+              className="btn btn-action btn-primary"
+            >
+              <Plus className="h-5 w-5" />
+              <span>{t('addRule')}</span>
+            </button>
           </div>
-          <div className="flex gap-2">
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept=".xlsx,.xls,.csv"
-            onChange={handleFileImport}
-            className="hidden"
-          />
-          <button
-            onClick={() => fileInputRef.current?.click()}
-            disabled={isImporting}
-            className="flex items-center gap-2 px-3 py-1.5 text-sm bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            <Upload className="h-4 w-4" />
-            {isImporting ? 'מייבא...' : 'ייבא מ-Excel'}
-          </button>
-          <button
-            onClick={handleExportToExcel}
-            className="flex items-center gap-2 px-3 py-1.5 text-sm bg-theme-action-accent text-white rounded-lg hover:bg-theme-action-accent-hover transition-colors"
-          >
-            <Download className="h-4 w-4" />
-            ייצא ל-Excel
-          </button>
-          <button
-            onClick={handleRefreshCache}
-            className="flex items-center gap-2 px-3 py-1.5 text-sm bg-slate-600 text-white rounded-lg hover:bg-slate-700 transition-colors"
-          >
-            <RefreshCw className="h-4 w-4" />
-            {t('refreshCache')}
-          </button>
-          <button
-            onClick={handleAdd}
-            className="flex items-center gap-2 px-3 py-1.5 text-sm bg-theme-tab-active text-white rounded-lg hover:bg-theme-tab-active-hover transition-colors"
-          >
-            <Plus className="h-4 w-4" />
-            {t('addRule')}
-          </button>
         </div>
       </div>
 
@@ -948,8 +943,8 @@ export function ValidationRulesManager() {
           </div>
         ) : (
           <>
-            <div className="bg-white rounded-xl shadow-lg hover:shadow-xl transition-shadow duration-200 overflow-hidden border-2 border-theme-action-accent w-full">
-              <div className="ag-theme-alpine" style={{ height: '60vh', width: '100%', minWidth: '100%', overflowX: 'auto', direction: 'rtl' }}>
+            <div className="flex-1 min-h-0 flex flex-col bg-white rounded-xl shadow-lg hover:shadow-xl transition-shadow duration-200 overflow-hidden border-2 border-theme-action-accent w-full">
+              <div className="ag-theme-alpine flex-1 min-h-[300px]" style={{ width: '100%', minWidth: '100%', overflowX: 'auto', direction: 'rtl' }}>
                 <AgGridReact
                 ref={gridRef}
                 rowData={rules}
@@ -1011,7 +1006,6 @@ export function ValidationRulesManager() {
             </div>
           </>
         )}
-      </div>
     </div>
   );
 }

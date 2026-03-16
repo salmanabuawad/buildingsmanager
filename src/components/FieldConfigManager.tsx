@@ -689,7 +689,7 @@ export function FieldConfigManager() {
   }
 
   return (
-    <div className="flex flex-col flex-1 min-h-0 w-full px-2 sm:px-4 md:px-6 py-1.5 sm:py-2">
+    <div className="flex flex-col flex-1 min-h-0 w-full py-2" style={{ maxWidth: '100vw', width: '100%', paddingLeft: '0.5rem', paddingRight: '0.5rem' }}>
       {toast && (
         <Toast
           message={toast.message}
@@ -699,65 +699,33 @@ export function FieldConfigManager() {
         />
       )}
 
-      <div className="page-header mb-2 rounded-lg px-3 py-2 w-full">
-        <div className="flex items-center justify-between w-full">
-          <div className="flex items-center gap-2">
-            <div className="page-header-icon shrink-0">
-              <Settings className="w-5 h-5" />
-            </div>
-            <h1 className="page-header-title text-sm sm:text-base font-bold">הגדרות שדות</h1>
+      <div className="page-header mb-1.5 rounded-md px-2 py-1.5 flex-shrink-0 w-full">
+        <div className="relative flex items-center gap-1.5 flex-wrap w-full">
+          <div className="page-header-icon shrink-0">
+            <Settings className="w-4 h-4" />
           </div>
+          <h1 className="page-header-title text-sm sm:text-base font-bold">הגדרות שדות</h1>
           <span className="page-header-badge">{configurations.length} רשומות</span>
         </div>
       </div>
 
-      <div className="bg-white rounded-xl shadow-lg hover:shadow-xl transition-shadow duration-200 border border-theme-card-border p-6 mb-6">
-        <div className="flex items-center justify-between mb-6">
-          <h2 className="text-xl font-bold text-slate-800">ניהול הגדרות שדות</h2>
-          <div className="flex items-center gap-2">
-            <button
-              onClick={handleExportToExcel}
-              className="flex items-center gap-1.5 px-3 py-1.5 text-sm bg-theme-tab-active hover:bg-theme-tab-active-hover active:bg-theme-tab-active-active text-white rounded-md transition-all duration-200 shadow-sm hover:shadow-md font-medium"
-              title="ייצא ל-Excel"
-            >
-              <Download className="h-4 w-4" />
-              ייצא
-            </button>
-            <button
-              onClick={() => fileInputRef.current?.click()}
-              disabled={saving}
-              className="flex items-center gap-1.5 px-3 py-1.5 text-sm bg-cyan-500 hover:bg-cyan-600 active:bg-cyan-700 disabled:bg-gray-400  text-white rounded-md transition-all duration-200 shadow-sm hover:shadow-md disabled:shadow-none font-medium"
-              title="ייבא מ-Excel"
-            >
-              <Upload className="h-4 w-4" />
-              ייבא
-            </button>
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept=".xlsx,.xls"
-              onChange={handleImportFromExcel}
-              className="hidden"
-            />
-            <button
-              onClick={loadConfigurations}
-              className="flex items-center gap-1.5 px-3 py-1.5 text-sm bg-slate-500 hover:bg-slate-600 active:bg-slate-700 text-white rounded-md transition-all duration-200 shadow-sm hover:shadow-md font-medium"
-            >
-              <RefreshCw className="h-4 w-4" />
-              רענן
-            </button>
-          </div>
-        </div>
-
-        <div className="flex items-center justify-between mb-6">
-          <div className="flex items-center gap-4">
+      <div className="mb-1.5 flex flex-wrap items-center gap-2 flex-shrink-0">
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept=".xlsx,.xls"
+          onChange={handleImportFromExcel}
+          className="hidden"
+        />
+        <div className="action-bar flex-1 min-w-0 py-1 px-2">
+          <div className="flex flex-wrap items-center justify-between gap-1.5">
             <div className="flex items-center gap-2">
-              <Filter className="h-5 w-5 text-slate-600" />
-              <label className="text-slate-700 font-medium">סינון לפי גריד:</label>
+              <Filter className="h-4 w-4 text-slate-600" />
+              <label className="text-slate-700 font-medium text-sm">סינון לפי גריד:</label>
               <select
                 value={selectedGridName}
                 onChange={(e) => setSelectedGridName(e.target.value)}
-                className="px-3 py-1.5 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+                className="px-2 py-1 border border-gray-300 rounded-md text-sm"
               >
                 <option value="all">הכל</option>
                 {uniqueGridNames.map(gridName => (
@@ -765,40 +733,58 @@ export function FieldConfigManager() {
                 ))}
               </select>
             </div>
+            <div className="flex flex-wrap gap-1.5">
+              {totalChanges > 0 && (
+                <>
+                  <button
+                    onClick={handleCancelAll}
+                    disabled={saving}
+                    className="btn btn-action btn-cancel disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    <X className="h-5 w-5" />
+                    <span>ביטול ({totalChanges})</span>
+                  </button>
+                  <button
+                    onClick={handleSaveAll}
+                    disabled={saving || totalChanges === 0}
+                    className="btn btn-action btn-primary disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {saving ? <RefreshCw className="h-5 w-5 animate-spin" /> : <Save className="h-5 w-5" />}
+                    <span>{saving ? 'שומר...' : `שמור הכל (${totalChanges})`}</span>
+                  </button>
+                </>
+              )}
+              <button
+                onClick={handleExportToExcel}
+                className="btn btn-action btn-export"
+                title="ייצא ל-Excel"
+              >
+                <Download className="h-5 w-5" />
+                <span>ייצא</span>
+              </button>
+              <button
+                onClick={() => fileInputRef.current?.click()}
+                disabled={saving}
+                className="btn btn-action btn-primary disabled:opacity-50 disabled:shadow-none"
+                title="ייבא מ-Excel"
+              >
+                <Upload className="h-5 w-5" />
+                <span>ייבא</span>
+              </button>
+              <button
+                onClick={loadConfigurations}
+                className="btn btn-action btn-secondary"
+              >
+                <RefreshCw className="h-5 w-5" />
+                <span>רענן</span>
+              </button>
+            </div>
           </div>
         </div>
+      </div>
 
-        {totalChanges > 0 && (
-          <div className="flex items-center justify-end gap-2 mb-4">
-            <button
-              onClick={handleCancelAll}
-              disabled={saving}
-              className="flex items-center gap-1.5 px-3 py-1.5 text-sm bg-slate-500 hover:bg-slate-600 active:bg-slate-700 disabled:bg-gray-400  text-white rounded-md transition-all duration-200 shadow-sm hover:shadow-md disabled:shadow-none font-medium"
-            >
-              <X className="h-4 w-4" />
-              ביטול ({totalChanges})
-            </button>
-            <button
-              onClick={handleSaveAll}
-              disabled={saving || totalChanges === 0}
-              className="flex items-center gap-1.5 px-3 py-1.5 text-sm bg-theme-tab-active hover:bg-theme-tab-active-hover active:bg-theme-tab-active-active disabled:bg-gray-400  text-white rounded-md transition-all duration-200 shadow-sm hover:shadow-md disabled:shadow-none font-medium"
-            >
-              {saving ? (
-                <RefreshCw className="h-4 w-4 animate-spin" />
-              ) : (
-                <Save className="h-4 w-4" />
-              )}
-              {saving ? 'שומר...' : `שמור הכל (${totalChanges})`}
-            </button>
-          </div>
-        )}
-
-        <p className="text-slate-600 mb-6">
-          הגדר רוחב ותפיחה לכל שדה במערכת. כל הטבלאות ישתמשו בהגדרות אלה.
-        </p>
-
-        <div className="bg-white rounded-xl shadow-lg hover:shadow-xl transition-shadow duration-200 overflow-hidden border-2 border-theme-action-accent w-full">
-          <div className="ag-theme-alpine" style={{ height: '60vh', width: '100%', minWidth: '100%', overflowX: 'auto', direction: 'rtl' }}>
+      <div className="flex-1 min-h-0 flex flex-col bg-white rounded-xl shadow-lg hover:shadow-xl transition-shadow duration-200 overflow-hidden border-2 border-theme-action-accent w-full">
+          <div className="ag-theme-alpine flex-1 min-h-[300px]" style={{ width: '100%', minWidth: '100%', overflowX: 'auto', direction: 'rtl' }}>
             <AgGridReact<FieldConfiguration>
             ref={gridRef}
             rowData={filteredConfigurations}
@@ -840,13 +826,6 @@ export function FieldConfigManager() {
           />
           </div>
         </div>
-
-        {filteredConfigurations.length === 0 && (
-          <div className="text-center py-12 text-slate-500">
-            אין הגדרות שדות. הוסף שדה חדש כדי להתחיל.
-          </div>
-        )}
-      </div>
     </div>
   );
 }

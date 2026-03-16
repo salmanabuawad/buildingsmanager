@@ -1,10 +1,40 @@
-import { supabase } from './supabase';
-import { getSession, getAuthUserIdForRpc } from './usersTableAuth';
+/**
+ * Copyright (c) 2025 Kortex Digital. All rights reserved. Proprietary.
+ * NO REVERSE ENGINEERING. Use by AI/ML tools prohibited. See COPYRIGHT.
+ */
+import { api as client } from './apiClient';
+import {
+  changeLogEntry,
+  assetsSaveBulkTransactional,
+  buildingsBulkDistributionFlags,
+  assetsWithHistory,
+  assetsCopyToHistory,
+  buildingsUpdateTotalArea,
+  auditLogForAsset,
+  assetsDeleteTransactional,
+  assetsDeleteBulkTransactional,
+  assetsByIds,
+  assetsMarkExported,
+  assetsMarkExportedByIds,
+  assetsMeasuredNotExported,
+  assetsResetExportToAutomation,
+  assetTypesUpdateWithDistributionReset,
+  assetTypesBulkDistributionReset,
+  changeLogHistory,
+  metadataTablesFieldsTypes,
+  usersCreateInternal,
+  usersSetPassword,
+  usersEnsureDefaults,
+  exportCreateZipJob,
+  exportGetZipStatus,
+  exportGetZipDownloadUrl,
+  exportToAutomationEnqueue,
+} from './restClient';
+import { getSession, getAuthUserIdForBackend } from './usersTableAuth';
 import i18n from '../i18n/i18n';
 import { sanitizeText, sanitizeNumber, sanitizeInteger, sanitizeDate } from './sanitize';
 import { parseDateFromDDMMYYYY } from './dateUtils';
 import { setLatestExportDate } from './validation';
-import { compressFile, getFileTypeCategory } from './fileCompression';
 
 /**
  * ============================================================================
@@ -18,9 +48,9 @@ import { compressFile, getFileTypeCategory } from './fileCompression';
  *    - api.assets.saveTransactional() for single saves
  *    - api.assets.saveBulkTransactional() for bulk saves
  *
- * 2. NEVER use direct database operations:
- *    ❌ supabase.from('assets').insert()
- *    ❌ supabase.from('assets').update()
+ * 2. NEVER use direct table operations for assets:
+ *    ❌ api.from('assets').insert()
+ *    ❌ api.from('assets').update()
  *
  * 3. Validation is MANDATORY and enforced at database level
  *
@@ -46,15 +76,15 @@ async function getCurrentUserName(): Promise<string> {
 }
 
 /**
- * Get current user info for RPCs (users-table auth only).
- * user_id is 'uid:' + user_id for p_user_id / auth_user_id lookup.
+ * Get current user info for backend REST requests (users-table auth only).
+ * user_id is 'uid:' + user_id for p_user_id / auth_user_id in request payloads.
  */
 async function getCurrentUserInfo(): Promise<{ user_name: string; user_email?: string; user_id?: string }> {
   const s = getSession();
   if (!s) return { user_name: 'default' };
   return {
     user_name: s.user_name,
-    user_id: getAuthUserIdForRpc() ?? undefined,
+    user_id: getAuthUserIdForBackend() ?? undefined,
   };
 }
 
@@ -71,7 +101,7 @@ async function getAssetBusinessResidenceType(asset: Partial<Asset>): Promise<'bu
     const mainAssetTypeStr = String(asset.main_asset_type).trim();
     
     // First try string lookup
-    const { data: assetTypeData, error } = await supabase
+    const { data: assetTypeData, error } = await api
       .from('asset_types')
       .select('name, business_residence')
       .eq('name', mainAssetTypeStr)
@@ -83,7 +113,7 @@ async function getAssetBusinessResidenceType(asset: Partial<Asset>): Promise<'bu
     if (!foundAssetType) {
       const mainAssetTypeNum = parseInt(mainAssetTypeStr, 10);
       if (!isNaN(mainAssetTypeNum)) {
-        const { data: allAssetTypes } = await supabase
+        const { data: allAssetTypes } = await api
           .from('asset_types')
           .select('name, business_residence');
         
@@ -128,7 +158,7 @@ async function resetDistributionFlagsIfNeeded(
 
   try {
     // Get current building data to check if flags need to be reset and if shared area is > 0
-    const { data: building, error: buildingError } = await supabase
+    const { data: building, error: buildingError } = await api
       .from('buildings')
       .select('need_business_distribution, need_residence_distribution, business_shared_area, residence_shared_area')
       .eq('building_number', buildingNumber)
@@ -173,14 +203,14 @@ async function resetDistributionFlagsIfNeeded(
     // After setting flags to true, we should check if there are actually eligible assets
     if (changeType === 'delete' || changeType === 'update') {
       // Get all assets for this building
-      const { data: allAssets, error: assetsError } = await supabase
+      const { data: allAssets, error: assetsError } = await api
         .from('assets')
         .select('main_asset_type')
         .eq('building_number', buildingNumber);
 
       if (!assetsError && allAssets && allAssets.length > 0) {
         // Get all asset types to check their properties
-        const { data: allAssetTypes, error: typesError } = await supabase
+        const { data: allAssetTypes, error: typesError } = await api
           .from('asset_types')
           .select('name, business_residence, non_accountable_for_distribution');
 
@@ -265,9 +295,9 @@ async function resetDistributionFlagsIfNeeded(
       }
     }
 
-    // Update building if flags need to be reset (use direct supabase call to avoid circular reference)
+    // Update building if flags need to be reset (use direct api call to avoid circular reference)
     if (Object.keys(updates).length > 0) {
-      await supabase
+      await api
         .from('buildings')
         .update(updates)
         .eq('building_number', buildingNumber);
@@ -295,13 +325,13 @@ function logChangeAsync(
     try {
       const userInfo = await getCurrentUserInfo();
       
-      // Call the RPC function asynchronously (don't await)
+      // Call the REST endpoint asynchronously (don't await)
       // Function now uses user_id FK - pass auth_user_id (p_user_id)
-      const { error } = await supabase.rpc('log_change_entry', {
+      const { error } = await changeLogEntry({
         p_table_name: tableName,
         p_operation: operation,
         p_record_id: recordId,
-        p_user_id: userInfo.user_id || null, // auth_user_id (UUID as text)
+        p_user_id: userInfo.user_id || null,
         p_before_data: beforeData ? JSON.parse(JSON.stringify(beforeData)) : null,
         p_after_data: afterData ? JSON.parse(JSON.stringify(afterData)) : null,
         p_changed_fields: changedFields || null
@@ -343,21 +373,29 @@ function calculateChangedFields(before: any, after: any): string[] {
   return changed;
 }
 
+/** Convert any value to boolean. DB uses boolean; at ingest we accept legacy "כן"/"לא" and normalize to boolean. */
+export function toBoolean(value: unknown): boolean {
+  if (typeof value === 'boolean') return value;
+  if (value == null) return false;
+  const s = String(value).trim();
+  return s === 'כן' || /^(true|1|yes|t)$/i.test(s);
+}
+
 export interface Building {
   note?: string;
   building_number: number;
   tax_region?: string;
   residence_shared_area?: number;
   business_shared_area?: number;
-  elevator?: string;
+  elevator?: boolean;
   area_for_control?: number;
   created_at: string;
   total_building_area?: number;
   net_area?: number; // שטח נטו - sum of asset_size for building
   asset_count?: number; // מספר נכסים ברמת בניין
-  single_double_family?: string;
-  condo?: string;
-  townhouses?: string;
+  single_double_family?: boolean;
+  condo?: boolean;
+  townhouses?: boolean;
   need_residence_distribution?: boolean;
   need_business_distribution?: boolean;
   building_address?: number; // Street code from address_list table (DB column)
@@ -372,13 +410,18 @@ export interface Building {
   _isNew?: boolean; // Hidden field to mark new buildings
 }
 
-/** Normalize a building row from DB so the UI gets .address for display (DB column is building_address). */
+/** Normalize a building row from DB so the UI gets .address and boolean checkbox fields. */
 function normalizeBuildingForUi(row: Record<string, unknown>): Building {
   const b = { ...row } as Building;
   const streetCode = b.building_address ?? (row as Record<string, unknown>).building_address ?? b.address;
   if (streetCode != null) {
     b.address = Number(streetCode);
   }
+  // DB now returns boolean; normalize in case of legacy string
+  const boolKeys: (keyof Building)[] = ['elevator', 'single_double_family', 'condo', 'townhouses'];
+  boolKeys.forEach(k => {
+    if (k in row && row[k] !== undefined) (b as any)[k] = toBoolean(row[k]);
+  });
   return b;
 }
 
@@ -404,11 +447,11 @@ export interface Asset {
   structure_drawing_url?: string;
   created_at: string;
   updated_at: string;
-  elevator?: string;
-  single_double_family?: string;
-  condo?: string;
-  townhouses?: string;
-  penthouse?: string;
+  elevator?: boolean;
+  single_double_family?: boolean;
+  condo?: boolean;
+  townhouses?: boolean;
+  penthouse?: boolean;
   tax_region?: number; // Tax region code (אזור מס) - matches asset_types.tax_region
   is_latest?: boolean; // Flag from assets_with_history view: true for assets table, false for assets_history
   history_created_at?: string; // Only present for assets_history records
@@ -435,13 +478,68 @@ export interface Asset {
 export interface AssetFile {
   id: number;
   asset_id: number;
-  file_url: string;
+  /** Download URL (frontend build from file_path when backend returns only file_path). */
+  file_url?: string;
+  /** Storage path (backend model); use to build download URL when file_url missing. */
+  file_path?: string;
   file_name?: string;
   file_size?: number;
   file_type?: string;
   uploaded_at: string;
   uploaded_by?: string;
   measurement_date?: string | null; // Measurement date this file belongs to (NULL = belongs to all measurements)
+}
+
+/** Derive MIME type from filename extension. */
+function fileTypeFromFileName(fileName: string): string | undefined {
+  const lower = (fileName || '').toLowerCase();
+  if (lower.endsWith('.pdf')) return 'application/pdf';
+  if (lower.endsWith('.png')) return 'image/png';
+  if (lower.endsWith('.jpg') || lower.endsWith('.jpeg')) return 'image/jpeg';
+  if (lower.endsWith('.gif')) return 'image/gif';
+  if (lower.endsWith('.webp')) return 'image/webp';
+  if (lower.endsWith('.svg')) return 'image/svg+xml';
+  return undefined;
+}
+
+/** Normalize asset file from API row: ensure file_name, file_type, file_path from file_url/path when missing. */
+function normalizeAssetFile(row: Record<string, unknown> & { id: number; asset_id: number; uploaded_at: string }): AssetFile {
+  const file = { ...row } as AssetFile;
+  const url = (file.file_url ?? (row as Record<string, unknown>).file_url) as string | undefined;
+  const path = (file.file_path ?? (row as Record<string, unknown>).file_path) as string | undefined;
+  const name = (file.file_name ?? (row as Record<string, unknown>).file_name) as string | undefined;
+  const type = (file.file_type ?? (row as Record<string, unknown>).file_type) as string | undefined;
+
+  let resolvedPath = path?.trim() || '';
+  if (!resolvedPath && url) {
+    const pathMatch = url.match(/[?&]path=([^&]+)/);
+    if (pathMatch) resolvedPath = decodeURIComponent(pathMatch[1]);
+    else if (url.startsWith('http') || url.startsWith('/')) {
+      const u = url.replace(/\\/g, '/');
+      const last = u.split('/').pop()?.split('?')[0];
+      if (last) resolvedPath = last;
+    } else if (url && !url.startsWith('http')) {
+      // file_url holds storage path (e.g. inspections/1/uuid.ext)
+      resolvedPath = url.replace(/\\/g, '/').split('?')[0].trim();
+    }
+  }
+  if (resolvedPath) file.file_path = resolvedPath;
+  if (url) file.file_url = url;
+
+  let resolvedName = name?.trim() || '';
+  if (!resolvedName && resolvedPath) {
+    resolvedName = resolvedPath.replace(/\\/g, '/').split('/').pop()?.split('?')[0]?.trim() || '';
+  }
+  if (!resolvedName && url) {
+    const u = url.replace(/\\/g, '/');
+    resolvedName = u.split('/').pop()?.split('?')[0]?.trim() || '';
+  }
+  if (resolvedName) file.file_name = resolvedName;
+
+  const resolvedType = type?.trim() || (resolvedName ? fileTypeFromFileName(resolvedName) : undefined);
+  if (resolvedType) file.file_type = resolvedType;
+
+  return file;
 }
 
 export interface SystemConfiguration {
@@ -477,13 +575,13 @@ export interface AssetType {
   description?: string;
   tax_region?: number;
   area_description_for_tab?: string; // תיאור אזור לתצוגה בלשונית
-  elevator?: string;
-  single_double_family?: string;
-  penthouse?: string;
-  condo?: string;
-  townhouses?: string;
+  elevator?: boolean;
+  single_double_family?: boolean;
+  penthouse?: boolean;
+  condo?: boolean;
+  townhouses?: boolean;
   business_residence?: string;
-  active?: string;
+  active?: boolean;
   non_accountable_for_total_area?: boolean; // לא נספר בחישוב שטח מבנה
   non_accountable_for_distribution?: boolean; // לא נספר בפיזור
   not_accountable_for_statistics?: boolean; // לא נספר בסטטיסטיקה
@@ -594,57 +692,6 @@ export interface DistributionAudit {
 // Type alias for backward compatibility
 export type AuditLog = DistributionAudit;
 
-export type InspectionTaskStatus = 'new' | 'in_progress' | 'pending_approval' | 'approved' | 'cancelled';
-
-export type InspectionTaskPriority = 'high' | 'medium' | 'low';
-
-export interface InspectionTask {
-  id: number;
-  title: string;
-  building_number: number;
-  asset_ids: number[] | null;
-  assigned_to: number | null;
-  status: InspectionTaskStatus;
-  priority: InspectionTaskPriority;
-  created_at: string;
-  created_by: number | null;
-  updated_at: string;
-  taken_at: string | null;
-  submitted_at: string | null;
-  approved_at: string | null;
-  approved_by: number | null;
-  note: string | null;
-}
-
-export interface InspectionTaskHistoryEntry {
-  id: number;
-  task_id: number;
-  created_at: string;
-  created_by: number | null;
-  action: 'created' | 'taken' | 'submitted' | 'returned' | 'approved' | 'cancelled';
-  comment_text: string | null;
-}
-
-export interface InspectionReport {
-  id: number;
-  task_id: number;
-  report_text: string | null;
-  reported_at: string | null;
-  reported_by: number | null;
-  created_at: string;
-  updated_at: string;
-}
-
-export interface InspectionReportFile {
-  id: number;
-  report_id: number;
-  asset_id: number | null;
-  file_path: string;
-  file_name: string | null;
-  file_type: string | null;
-  uploaded_at: string;
-  uploaded_by: number | null;
-}
 
 /**
  * Helper function to convert Hebrew boolean strings to actual booleans
@@ -652,49 +699,14 @@ export interface InspectionReportFile {
  */
 function convertHebrewBooleans(obj: any): any {
   if (!obj || typeof obj !== 'object') return obj;
-  
   const booleanFields = ['elevator', 'single_double_family', 'condo', 'townhouses', 'penthouse', 'is_new_measurement', 'exported_to_automation', 'data_from_automation'];
   const converted = { ...obj };
-  
   booleanFields.forEach(field => {
-    const value = converted[field];
-    // Handle string values (including Hebrew)
-    if (typeof value === 'string') {
-      const trimmed = value.trim();
-      if (trimmed === 'כן' || trimmed.toLowerCase() === 'yes' || trimmed === '1' || trimmed.toLowerCase() === 'true' || trimmed === 'TRUE') {
-        converted[field] = true;
-      } else if (trimmed === 'לא' || trimmed.toLowerCase() === 'no' || trimmed === '0' || trimmed.toLowerCase() === 'false' || trimmed === 'FALSE' || trimmed === '') {
-        converted[field] = false;
-      }
-    } 
-    // If already boolean, keep it
-    else if (typeof value === 'boolean') {
-      converted[field] = value;
-    }
-    // If null/undefined, leave it (will be handled by sanitizeAssetInput)
-    else if (value === null || value === undefined) {
-      // Don't set to false if not present - let sanitizeAssetInput handle defaults
-    }
-    // For any other type, try to convert
-    else {
-      const strValue = String(value).trim();
-      if (strValue === 'כן' || strValue.toLowerCase() === 'yes' || strValue === '1' || strValue.toLowerCase() === 'true') {
-        converted[field] = true;
-      } else {
-        converted[field] = false;
-      }
-    }
+    const v = converted[field];
+    if (v === null || v === undefined) return;
+    converted[field] = typeof v === 'boolean' ? v : toBoolean(v);
   });
-  
   return converted;
-}
-
-/** Truthy for active/checkbox: boolean true or legacy "כן"/"yes"/"true"/"1". */
-export function toBoolean(value: unknown): boolean {
-  if (value === true) return true;
-  if (value === false || value == null || value === '') return false;
-  const s = String(value).trim();
-  return s === 'כן' || s.toLowerCase() === 'yes' || s === '1' || s.toLowerCase() === 'true';
 }
 
 /**
@@ -718,12 +730,8 @@ export function sanitizeAssetInput(input: any): any {
     payer_id: preConverted.payer_id != null && preConverted.payer_id !== '' ? sanitizeText(preConverted.payer_id) : undefined,
     asset_id: preConverted.asset_id != null ? sanitizeInteger(preConverted.asset_id) : undefined,
     measurement_date: measurementDate, // Always include measurement_date
-    // For updates (asset_id present), always include main_asset_type - use null not undefined so JSON keeps the key.
-    // JSON.stringify omits undefined; DB needs the key for type-change detection.
-    main_asset_type: (preConverted.asset_id != null || 'main_asset_type' in preConverted)
-      ? (preConverted.main_asset_type != null && preConverted.main_asset_type !== '' ? sanitizeText(preConverted.main_asset_type) : null)
-      : undefined,
-    asset_size: (preConverted.asset_id != null || 'asset_size' in preConverted) ? sanitizeNumber(preConverted.asset_size ?? 0) : undefined,
+    main_asset_type: ('main_asset_type' in preConverted) ? (preConverted.main_asset_type != null && preConverted.main_asset_type !== '' ? sanitizeText(preConverted.main_asset_type) : null) : undefined,
+    asset_size: ('asset_size' in preConverted) ? sanitizeNumber(preConverted.asset_size ?? 0) : undefined,
     tax_region: preConverted.tax_region != null ? sanitizeInteger(preConverted.tax_region) : undefined,
     sub_asset_type_1: ('sub_asset_type_1' in preConverted) ? (preConverted.sub_asset_type_1 != null && preConverted.sub_asset_type_1 !== '' ? sanitizeText(preConverted.sub_asset_type_1) : null) : undefined,
     sub_asset_size_1: ('sub_asset_size_1' in preConverted) ? sanitizeNumber(preConverted.sub_asset_size_1 ?? 0) : undefined,
@@ -737,15 +745,12 @@ export function sanitizeAssetInput(input: any): any {
     sub_asset_size_5: ('sub_asset_size_5' in preConverted) ? sanitizeNumber(preConverted.sub_asset_size_5 ?? 0) : undefined,
     sub_asset_type_6: ('sub_asset_type_6' in preConverted) ? (preConverted.sub_asset_type_6 != null && preConverted.sub_asset_type_6 !== '' ? sanitizeText(preConverted.sub_asset_type_6) : null) : undefined,
     sub_asset_size_6: ('sub_asset_size_6' in preConverted) ? sanitizeNumber(preConverted.sub_asset_size_6 ?? 0) : undefined,
-    // Checkbox fields: convert to boolean (true/false only, never null/undefined)
-    // Support both old format ('כן'/'לא') and new format (true/false)
-    // Always return boolean: true or false
-    // Note: preConverted already handles Hebrew strings, but we keep these checks for safety
-    elevator: (preConverted.elevator === true || preConverted.elevator === 'כן' || preConverted.elevator === 'true' || preConverted.elevator === 'TRUE' || preConverted.elevator === '1') ? true : false,
-    single_double_family: (preConverted.single_double_family === true || preConverted.single_double_family === 'כן' || preConverted.single_double_family === 'true' || preConverted.single_double_family === 'TRUE' || preConverted.single_double_family === '1') ? true : false,
-    condo: (preConverted.condo === true || preConverted.condo === 'כן' || preConverted.condo === 'true' || preConverted.condo === 'TRUE' || preConverted.condo === '1') ? true : false,
-    townhouses: (preConverted.townhouses === true || preConverted.townhouses === 'כן' || preConverted.townhouses === 'true' || preConverted.townhouses === 'TRUE' || preConverted.townhouses === '1') ? true : false,
-    penthouse: (preConverted.penthouse === true || preConverted.penthouse === 'כן' || preConverted.penthouse === 'true' || preConverted.penthouse === 'TRUE' || preConverted.penthouse === '1') ? true : false,
+    // Checkbox fields: always boolean (DB uses boolean; legacy "כן"/"לא" normalized by convertHebrewBooleans)
+    elevator: toBoolean(preConverted.elevator),
+    single_double_family: toBoolean(preConverted.single_double_family),
+    condo: toBoolean(preConverted.condo),
+    townhouses: toBoolean(preConverted.townhouses),
+    penthouse: toBoolean(preConverted.penthouse),
     structure_drawing_url: preConverted.structure_drawing_url != null ? sanitizeText(preConverted.structure_drawing_url) : undefined,
     apartment_number: preConverted.apartment_number != null && preConverted.apartment_number !== '' ? sanitizeText(preConverted.apartment_number) : undefined,
     apartment_floor: preConverted.apartment_floor != null && preConverted.apartment_floor !== '' ? sanitizeText(preConverted.apartment_floor) : undefined,
@@ -787,9 +792,8 @@ export function sanitizeAssetInput(input: any): any {
     if (sanitized[field] === undefined) {
       sanitized[field] = false;
     }
-    // Double-check: ensure it's actually a boolean, not a string
     if (typeof sanitized[field] !== 'boolean') {
-      sanitized[field] = (sanitized[field] === 'כן' || sanitized[field] === true || sanitized[field] === 'true' || sanitized[field] === '1') ? true : false;
+      sanitized[field] = toBoolean(sanitized[field]);
     }
   });
   
@@ -835,36 +839,11 @@ function sanitizeBuildingInput(input: any): any {
   if (input.total_building_area != null) {
     sanitized.total_building_area = sanitizeNumber(input.total_building_area);
   }
-  // Handle checkbox fields: convert to boolean (true/false)
-  // Support both old format ('כן'/'לא') and new format (true/false)
-  if ('elevator' in input) {
-    if (input.elevator === true || input.elevator === 'כן' || input.elevator === 'true' || input.elevator === 'TRUE' || input.elevator === '1') {
-      sanitized.elevator = true;
-    } else {
-      sanitized.elevator = false;
-    }
-  }
-  if ('single_double_family' in input) {
-    if (input.single_double_family === true || input.single_double_family === 'כן' || input.single_double_family === 'true' || input.single_double_family === 'TRUE' || input.single_double_family === '1') {
-      sanitized.single_double_family = true;
-    } else {
-      sanitized.single_double_family = false;
-    }
-  }
-  if ('condo' in input) {
-    if (input.condo === true || input.condo === 'כן' || input.condo === 'true' || input.condo === 'TRUE' || input.condo === '1') {
-      sanitized.condo = true;
-    } else {
-      sanitized.condo = false;
-    }
-  }
-  if ('townhouses' in input) {
-    if (input.townhouses === true || input.townhouses === 'כן' || input.townhouses === 'true' || input.townhouses === 'TRUE' || input.townhouses === '1') {
-      sanitized.townhouses = true;
-    } else {
-      sanitized.townhouses = false;
-    }
-  }
+  // Checkbox fields: boolean (DB uses boolean; legacy "כן"/"לא" accepted)
+  if ('elevator' in input) sanitized.elevator = toBoolean(input.elevator);
+  if ('single_double_family' in input) sanitized.single_double_family = toBoolean(input.single_double_family);
+  if ('condo' in input) sanitized.condo = toBoolean(input.condo);
+  if ('townhouses' in input) sanitized.townhouses = toBoolean(input.townhouses);
   // Handle building_address: street code from address_list table
   if ('building_address' in input) {
     if (input.building_address === null || input.building_address === '' || input.building_address === undefined) {
@@ -1027,7 +1006,7 @@ export async function validateAndSaveBulkAssets(
   // Load existing assets from database if we have asset_ids
   let existingAssetsMap = new Map<number, any>();
   if (assetIds.length > 0) {
-    const { data: existingAssets, error: fetchError } = await supabase
+    const { data: existingAssets, error: fetchError } = await api
       .from('assets')
       .select('*')
       .in('asset_id', assetIds);
@@ -1090,7 +1069,7 @@ export async function validateAndSaveBulkAssets(
       // Fetch building once and get asset types from cache (synchronous, no API call)
       const [{ getAssetTypes }, buildingData] = await Promise.all([
         import('./validation').then(m => ({ getAssetTypes: m.getAssetTypes })),
-        supabase.from('buildings').select('*').eq('building_number', firstBuildingNumber).maybeSingle()
+        api.from('buildings').select('*').eq('building_number', firstBuildingNumber).maybeSingle()
       ]);
       
       const assetTypes = getAssetTypes();
@@ -1138,48 +1117,14 @@ export async function validateAndSaveBulkAssets(
     });
 
   // STEP 2: Build DB payload like import (sanitizeAssetInput only)
-  // CRITICAL: Ensure main_asset_type (and asset_size) are never undefined for updates - JSON.stringify
-  // omits undefined, so the DB would not receive the key and would treat it as "no change".
   const assetsForDatabase = preparedAssetsData.map(asset => {
     const { id, ...rest } = asset as any;
-    const assetId = rest.asset_id != null ? Number(rest.asset_id) : null;
-    const existingForFallback = assetId != null && !isNaN(assetId) ? existingAssetsMap.get(assetId) : null;
-    if (existingForFallback) {
-      if (rest.main_asset_type === undefined || !('main_asset_type' in rest)) {
-        rest.main_asset_type = rest.main_asset_type ?? existingForFallback.main_asset_type ?? null;
-      }
-      if (rest.asset_size === undefined || !('asset_size' in rest)) {
-        rest.asset_size = rest.asset_size ?? existingForFallback.asset_size ?? 0;
-      }
-    }
     return sanitizeAssetInput(rest);
   });
 
-  // Resolve isBusinessContext: use provided value, or derive from assets' main_asset_type when undefined
-  // This ensures distribution flags are set correctly when saving from Asset List (which may pass undefined in edge cases)
-  let resolvedIsBusinessContext: boolean | null = isBusinessContext !== undefined ? isBusinessContext : null;
-  if (resolvedIsBusinessContext === null && cachedValidationData.assetTypes?.length) {
-    const assetTypes = cachedValidationData.assetTypes as Array<{ name: string | number; business_residence?: string }>;
-    const mainTypes = preparedAssetsData
-      .map(a => a.main_asset_type != null ? String(a.main_asset_type).trim() : null)
-      .filter(Boolean) as string[];
-    const businessCount = mainTypes.filter(mt => {
-      const at = assetTypes.find(t => String(t.name).trim() === mt || String(t.name) === mt);
-      return at?.business_residence === 'עסקים';
-    }).length;
-    const residenceCount = mainTypes.filter(mt => {
-      const at = assetTypes.find(t => String(t.name).trim() === mt || String(t.name) === mt);
-      return at?.business_residence === 'מגורים';
-    }).length;
-    if (businessCount > 0 && residenceCount === 0) resolvedIsBusinessContext = true;
-    else if (residenceCount > 0 && businessCount === 0) resolvedIsBusinessContext = false;
-  }
-
-  const isDistributionAction = actionType === 'business_distribution' || actionType === 'residence_distribution';
-
   // STEP 3: Call transactional bulk save function (rejects if any validation failed)
   try {
-    const { data, error } = await supabase.rpc('save_assets_bulk_transactional', {
+    const { data, error } = await assetsSaveBulkTransactional({
       p_assets_data: assetsForDatabase,
       p_validation_passed: allValid,
       p_validation_errors: validationErrors.length > 0 ? validationErrors.join('; ') : null,
@@ -1188,8 +1133,7 @@ export async function validateAndSaveBulkAssets(
       p_before_data: beforeData || null,
       p_after_data: afterData || null,
       p_description: description || null,
-      p_is_business_context: resolvedIsBusinessContext,
-      p_set_distribution_flags_on_type_or_size_change: !isDistributionAction
+      p_is_business_context: isBusinessContext !== undefined ? isBusinessContext : null
     });
 
     if (error) {
@@ -1215,13 +1159,14 @@ export async function validateAndSaveBulkAssets(
 }
 
 export const api = {
-  /** For components that need direct table access (e.g. validation refresh). */
-  from: (table: string) => supabase.from(table),
-  /** For components that need storage (upload, download, signed URLs). */
-  storage: supabase.storage,
+  from: client.from,
+  auth: client.auth,
+  storage: client.storage,
+  deleteByQuery: client.deleteByQuery,
+  deleteBuildingWithRelated: client.deleteBuildingWithRelated,
   buildings: {
     getAll: async (): Promise<Building[]> => {
-      const { data, error } = await supabase
+      const { data, error } = await api
         .from('buildings')
         .select('*')
         .order('building_number');
@@ -1231,7 +1176,7 @@ export const api = {
       return (data || []).map(normalizeBuildingForUi);
     },
     getOne: async (buildingNumber: number): Promise<Building> => {
-      const { data, error } = await supabase
+      const { data, error } = await api
         .from('buildings')
         .select('*')
         .eq('building_number', buildingNumber)
@@ -1273,7 +1218,7 @@ export const api = {
     },
     create: async (input: Omit<Building, 'created_at'>): Promise<Building> => {
       const sanitizedInput = sanitizeBuildingInput(input);
-      // Remove undefined values to prevent Supabase errors
+      // Remove undefined values to prevent database errors
       const cleanedInput = Object.fromEntries(
         Object.entries(sanitizedInput).filter(([_, v]) => v !== undefined)
       );
@@ -1284,7 +1229,7 @@ export const api = {
       cleanedInput.need_residence_distribution = false;
       cleanedInput.need_business_distribution = false;
       
-      const { data, error } = await supabase
+      const { data, error } = await api
         .from('buildings')
         .insert(cleanedInput)
         .select()
@@ -1319,7 +1264,7 @@ export const api = {
       }
       
       const sanitizedInput = sanitizeBuildingInput(input);
-      // Remove undefined values to prevent Supabase errors
+      // Remove undefined values to prevent database errors
       const cleanedInput = Object.fromEntries(
         Object.entries(sanitizedInput).filter(([_, v]) => v !== undefined)
       );
@@ -1341,16 +1286,16 @@ export const api = {
         updates: cleanedInput
       }];
       
-      const { data: functionResult, error: rpcError } = await supabase.rpc('update_buildings_bulk_with_distribution_flags', {
+      const { data: functionResult, error: restError } = await buildingsBulkDistributionFlags( {
         p_buildings_data: buildingsData
       });
 
       let data: Building | null = null;
       let error: any = null;
 
-      if (rpcError) {
-        // If RPC fails, fall back to direct update (for backwards compatibility)
-        const fallbackResult = await supabase
+      if (restError) {
+        // If REST call fails, fall back to direct update (for backwards compatibility)
+        const fallbackResult = await api
           .from('buildings')
           .update(cleanedInput)
           .eq('building_number', buildingNumber)
@@ -1464,12 +1409,12 @@ export const api = {
         return { success: true, count: 0, buildings: [] };
       }
 
-      const { data: functionResult, error: rpcError } = await supabase.rpc('update_buildings_bulk_with_distribution_flags', {
+      const { data: functionResult, error: restError } = await buildingsBulkDistributionFlags( {
         p_buildings_data: payload as any
       });
 
-      if (rpcError) {
-        return { success: false, count: 0, error: rpcError.message };
+      if (restError) {
+        return { success: false, count: 0, error: restError.message };
       }
 
       const result = functionResult as { success: boolean; buildings: any[]; count: number };
@@ -1497,7 +1442,7 @@ export const api = {
         return cleanedInput;
       });
 
-      const { data, error } = await supabase
+      const { data, error } = await api
         .from('buildings')
         .insert(prepared)
         .select('*');
@@ -1537,7 +1482,7 @@ export const api = {
 
       // Delete audit rows that reference this building before deleting the building
       const buildingIdStr = String(buildingNumber);
-      const { error: auditError } = await supabase
+      const { error: auditError } = await api
         .from('audit')
         .delete()
         .eq('entity_type', 'bulk_asset')
@@ -1545,7 +1490,7 @@ export const api = {
       if (auditError) {
         console.warn('[api.buildings.delete] Failed to delete audit rows for building:', auditError);
       }
-      const { error: auditBuildingError } = await supabase
+      const { error: auditBuildingError } = await api
         .from('audit')
         .delete()
         .eq('entity_type', 'building')
@@ -1554,7 +1499,7 @@ export const api = {
         console.warn('[api.buildings.delete] Failed to delete building audit rows:', auditBuildingError);
       }
 
-      const { error } = await supabase
+      const { error } = await api
         .from('buildings')
         .delete()
         .eq('building_number', buildingNumber);
@@ -1576,7 +1521,7 @@ export const api = {
     },
     // Distribution flag management API
     markBusinessDistributionNeeded: async (buildingNumber: number): Promise<void> => {
-      const { error } = await supabase
+      const { error } = await api
         .from('buildings')
         .update({ need_business_distribution: true })
         .eq('building_number', buildingNumber);
@@ -1587,7 +1532,7 @@ export const api = {
       }
     },
     markBusinessDistributionDone: async (buildingNumber: number): Promise<void> => {
-      const { error } = await supabase
+      const { error } = await api
         .from('buildings')
         .update({ need_business_distribution: false })
         .eq('building_number', buildingNumber);
@@ -1598,7 +1543,7 @@ export const api = {
       }
     },
     markResidenceDistributionNeeded: async (buildingNumber: number): Promise<void> => {
-      const { data, error } = await supabase
+      const { data, error } = await api
         .from('buildings')
         .update({ need_residence_distribution: true })
         .eq('building_number', buildingNumber)
@@ -1615,7 +1560,7 @@ export const api = {
       }
     },
     markResidenceDistributionDone: async (buildingNumber: number): Promise<void> => {
-      const { error } = await supabase
+      const { error } = await api
         .from('buildings')
         .update({ need_residence_distribution: false })
         .eq('building_number', buildingNumber);
@@ -1626,7 +1571,7 @@ export const api = {
       }
     },
     getDistributionStatus: async (buildingNumber: number): Promise<{ business: boolean | null; residence: boolean | null }> => {
-      const { data, error } = await supabase
+      const { data, error } = await api
         .from('buildings')
         .select('need_business_distribution, need_residence_distribution')
         .eq('building_number', buildingNumber)
@@ -1649,7 +1594,7 @@ export const api = {
   },
   assets: {
     getAll: async (buildingNumber?: number): Promise<Asset[]> => {
-      let query = supabase
+      let query = api
         .from('assets')
         .select('*')
         .order('asset_id');
@@ -1683,7 +1628,7 @@ export const api = {
       return sortedData.map(asset => convertHebrewBooleans(asset));
     },
     getLatestOnly: async (buildingNumber?: number): Promise<Asset[]> => {
-      let query = supabase
+      let query = api
         .from('assets')
         .select('*')
         .order('asset_id');
@@ -1722,7 +1667,7 @@ export const api = {
       return Array.from(latestMap.values());
     },
     getAllByAssetId: async (assetId: string, buildingNumber?: number): Promise<Asset[]> => {
-      let query = supabase
+      let query = api
         .from('assets')
         .select('*')
         .eq('asset_id', assetId);
@@ -1751,7 +1696,7 @@ export const api = {
       return sorted.map(asset => convertHebrewBooleans(asset));
     },
     getHistoryByAssetId: async (assetId: string | number): Promise<Asset[]> => {
-      const { data, error } = await supabase
+      const { data, error } = await api
         .from('assets_history')
         .select('*')
         .eq('asset_id', assetId)
@@ -1783,7 +1728,7 @@ export const api = {
     getAssetWithHistory: async (assetId: string | number, buildingNumber?: number): Promise<Asset[]> => {
       try {
         // First record: fetch from assets table (latest measurement)
-        let masterQuery = supabase
+        let masterQuery = api
           .from('assets')
           .select('*')
           .eq('asset_id', assetId);
@@ -1799,7 +1744,7 @@ export const api = {
         }
 
         // Other records: fetch from assets_history table
-        let historyQuery = supabase
+        let historyQuery = api
           .from('assets_history')
           .select('*')
           .eq('asset_id', assetId);
@@ -1876,7 +1821,7 @@ export const api = {
     },
     getAssetWithHistoryFallback: async (assetId: string | number, buildingNumber?: number): Promise<Asset[]> => {
       // Fallback method using separate queries (old implementation)
-      let masterQuery = supabase
+      let masterQuery = api
         .from('assets')
         .select('*')
         .eq('asset_id', assetId);
@@ -1892,7 +1837,7 @@ export const api = {
       }
 
       // Fetch detail records from assets_history table
-      const { data: historyData, error: historyError } = await supabase
+      const { data: historyData, error: historyError } = await api
         .from('assets_history')
         .select('*')
         .eq('asset_id', assetId)
@@ -1927,7 +1872,7 @@ export const api = {
     },
     getAllAssetsWithHistory: async (buildingNumber: number): Promise<Asset[]> => {
       // Call PostgreSQL function to get both master and details in one database call
-      const { data, error } = await supabase.rpc('get_assets_with_history', {
+      const { data, error } = await assetsWithHistory({
         p_building_number: buildingNumber
       });
 
@@ -1937,7 +1882,7 @@ export const api = {
         if (error.code === '42883' || error.code === 'PGRST202' || error.message.includes('function') || error.message.includes('does not exist') || error.message.includes('Could not find the function')) {
           
           // Fallback: Fetch all master records from assets table for the building
-          const { data: masterAssets, error: masterError } = await supabase
+          const { data: masterAssets, error: masterError } = await api
             .from('assets')
             .select('*')
             .eq('building_number', buildingNumber)
@@ -1955,7 +1900,7 @@ export const api = {
           const assetIds = masterAssets.map(a => a.asset_id);
 
           // Fetch all history records for these asset_ids in one query
-          const { data: allHistoryData, error: historyError } = await supabase
+          const { data: allHistoryData, error: historyError } = await api
             .from('assets_history')
             .select('*')
             .in('asset_id', assetIds)
@@ -2053,7 +1998,7 @@ export const api = {
     // Fallback method if database function doesn't exist
     getAllAssetsWithHistoryFallback: async (buildingNumber: number): Promise<Asset[]> => {
       // Fetch all master records from assets table for the building
-      const { data: masterAssets, error: masterError } = await supabase
+      const { data: masterAssets, error: masterError } = await api
         .from('assets')
         .select('*')
         .eq('building_number', buildingNumber)
@@ -2071,7 +2016,7 @@ export const api = {
       const assetIds = masterAssets.map(a => a.asset_id);
 
       // Fetch all history records for these asset_ids in one query
-      const { data: allHistoryData, error: historyError } = await supabase
+      const { data: allHistoryData, error: historyError } = await api
         .from('assets_history')
         .select('*')
         .in('asset_id', assetIds)
@@ -2126,7 +2071,7 @@ export const api = {
         console.warn('[api.assets.getOne] Individual asset fetch detected. This should be avoided - use getAll() instead. Asset ID:', id, new Error().stack);
       }
       
-      const { data, error } = await supabase
+      const { data, error } = await api
         .from('assets')
         .select('*')
         .eq('asset_id', id)
@@ -2147,7 +2092,7 @@ export const api = {
       
       // Check if an asset with the same asset_id already exists
       if (sanitizedInput.asset_id != null) {
-        const { data: existingAsset, error: checkError } = await supabase
+        const { data: existingAsset, error: checkError } = await api
           .from('assets')
           .select('*')
           .eq('asset_id', sanitizedInput.asset_id)
@@ -2163,16 +2108,14 @@ export const api = {
           // Copy to history before deletion (transaction-based, replaces trigger)
           // Do NOT create audit entry - audit entries are only created by bulk operations
           try {
-            await supabase.rpc('copy_asset_to_history_before_update', {
-              p_asset_id: sanitizedInput.asset_id
-            });
+            await assetsCopyToHistory(sanitizedInput.asset_id);
           } catch (historyError) {
             console.warn('Failed to copy asset to history before asset replacement:', historyError);
             // Continue with deletion even if history copy fails
           }
           
           // Delete the existing asset from assets table
-          const { error: deleteError } = await supabase
+          const { error: deleteError } = await api
             .from('assets')
             .delete()
             .eq('asset_id', sanitizedInput.asset_id);
@@ -2182,7 +2125,7 @@ export const api = {
           }
 
           // Insert new asset with new measurement data
-          const { data: newAsset, error: insertError } = await supabase
+          const { data: newAsset, error: insertError } = await api
             .from('assets')
             .insert(sanitizedInput)
             .select()
@@ -2194,9 +2137,7 @@ export const api = {
           
           // Update building total area (transaction-based, replaces trigger)
           try {
-            await supabase.rpc('update_building_total_area', {
-              p_building_number: newAsset.building_number
-            });
+            await buildingsUpdateTotalArea(newAsset.building_number);
           } catch (areaError) {
             console.warn('Failed to update building total area after asset replacement:', areaError);
             // Don't fail the operation if area update fails
@@ -2219,13 +2160,13 @@ export const api = {
                 const oldMainTypeStr = String(existingAsset.main_asset_type || '').trim();
                 const newMainTypeStr = String(newAsset.main_asset_type).trim();
                 
-                const { data: oldTypeData } = await supabase
+                const { data: oldTypeData } = await api
                   .from('asset_types')
                   .select('name, business_residence, non_accountable_for_distribution')
                   .eq('name', oldMainTypeStr)
                   .maybeSingle();
                 
-                const { data: newTypeDataInitial } = await supabase
+                const { data: newTypeDataInitial } = await api
                   .from('asset_types')
                   .select('name, business_residence, non_accountable_for_distribution')
                   .eq('name', newMainTypeStr)
@@ -2236,7 +2177,7 @@ export const api = {
                 if (!newTypeData && newMainTypeStr) {
                   const newMainTypeNum = parseInt(newMainTypeStr, 10);
                   if (!isNaN(newMainTypeNum)) {
-                    const { data: allAssetTypes } = await supabase
+                    const { data: allAssetTypes } = await api
                       .from('asset_types')
                       .select('name, business_residence, non_accountable_for_distribution');
                     
@@ -2278,7 +2219,7 @@ export const api = {
       }
 
       // If no existing asset, proceed with normal insert
-      const { data, error } = await supabase
+      const { data, error } = await api
         .from('assets')
         .insert(sanitizedInput)
         .select()
@@ -2328,9 +2269,7 @@ export const api = {
       
       // Update building total area (transaction-based, replaces trigger)
       try {
-        await supabase.rpc('update_building_total_area', {
-          p_building_number: data.building_number
-        });
+        await buildingsUpdateTotalArea(data.building_number);
       } catch (areaError) {
         console.warn('Failed to update building total area after asset creation:', areaError);
         // Don't fail the operation if area update fails
@@ -2364,7 +2303,7 @@ export const api = {
       // Get the current asset data before update (for change log)
       let beforeData: Asset | null = null;
       try {
-        const { data: assetData } = await supabase
+        const { data: assetData } = await api
           .from('assets')
           .select('*')
           .eq('asset_id', assetIdNum)
@@ -2399,9 +2338,7 @@ export const api = {
       // This replaces the trigger_reset_new_measurement_flag and trigger_copy_asset_to_history
       if (isNewMeasurement === true) {
         try {
-          await supabase.rpc('copy_asset_to_history_before_update', {
-            p_asset_id: assetIdNum
-          });
+          await assetsCopyToHistory(assetIdNum);
           // Reset the flag after copying to history (replaces trigger_reset_new_measurement_flag behavior)
           // We'll set it to false in the update below
           (sanitizedInput as any).is_new_measurement = false;
@@ -2417,7 +2354,7 @@ export const api = {
       }
       
       // Perform the UPDATE
-      const { data: updatedAsset, error: updateError } = await supabase
+      const { data: updatedAsset, error: updateError } = await api
         .from('assets')
         .update({ ...sanitizedInput, updated_at: new Date().toISOString() })
         .eq('asset_id', id)
@@ -2472,9 +2409,7 @@ export const api = {
 
       // Update building total area (transaction-based, replaces trigger)
       try {
-        await supabase.rpc('update_building_total_area', {
-          p_building_number: updatedAsset.building_number
-        });
+        await buildingsUpdateTotalArea(updatedAsset.building_number);
       } catch (areaError) {
         console.warn('Failed to update building total area after asset update:', areaError);
         // Don't fail the operation if area update fails
@@ -2491,7 +2426,7 @@ export const api = {
       if (!skipAudit && (actionType === 'transfer_area' || actionType === 'distribute_shared')) {
         const userInfo = await getCurrentUserInfo();
         try {
-          await supabase.rpc('log_audit_for_asset', {
+          await auditLogForAsset({
             p_asset_id: assetIdNum,
             p_operation: 'UPDATE',
             p_user_id: userInfo.user_id || null, // auth_user_id (UUID as text)
@@ -2533,7 +2468,7 @@ export const api = {
 
       const userInfo = await getCurrentUserInfo();
 
-      const { data, error } = await supabase.rpc('delete_asset_transactional', {
+      const { data, error } = await assetsDeleteTransactional({
         p_asset_id: assetIdNum,
         p_user_id: userInfo.user_id || null,
         p_description: 'Asset deleted'
@@ -2558,7 +2493,7 @@ export const api = {
 
       const userInfo = await getCurrentUserInfo();
 
-      const { data, error } = await supabase.rpc('delete_assets_bulk_transactional', {
+      const { data, error } = await assetsDeleteBulkTransactional({
         p_asset_ids: assetIds,
         p_user_id: userInfo.user_id || null,
         p_description: description || 'Bulk asset delete'
@@ -2595,7 +2530,7 @@ export const api = {
         // Count assets that still need export:
         // - exported_to_automation is null/false AND
         // - data_from_automation is null/false (exclude rows imported from automation until edited in app)
-        const { count, error: countError } = await supabase
+        const { count, error: countError } = await api
           .from('assets')
           .select('asset_id', { count: 'exact', head: true })
           .or('exported_to_automation.is.null,exported_to_automation.eq.false')
@@ -2614,15 +2549,14 @@ export const api = {
     },
     exportToAutomation: async (): Promise<{ success: boolean; count: number; assetIds: number[]; error?: string }> => {
       try {
-        // Use RPC function to bulk mark assets as exported
+        // Use REST endpoint to bulk mark assets as exported
         // This function updates all assets where exported_to_automation is null/false
         // and data_from_automation is null/false
-        const { data: result, error: rpcError } = await supabase
-          .rpc('mark_assets_as_exported_to_automation');
+        const { data: result, error: restError } = await assetsMarkExported();
 
-        if (rpcError) {
-          console.error('[api.assets.exportToAutomation] Error marking assets as exported:', rpcError);
-          return { success: false, count: 0, assetIds: [], error: rpcError.message };
+        if (restError) {
+          console.error('[api.assets.exportToAutomation] Error marking assets as exported:', restError);
+          return { success: false, count: 0, assetIds: [], error: restError.message };
         }
 
         if (!result || result.length === 0) {
@@ -2661,7 +2595,7 @@ export const api = {
     },
     /**
      * Fetch assets by IDs in batches to avoid timeouts and payload limits.
-     * Uses get_assets_by_ids RPC in parallel chunks (default 800 IDs per chunk, 5 concurrent).
+     * Uses REST assets/by-ids in parallel chunks (default 800 IDs per chunk, 5 concurrent).
      */
     getAssetsByIdsBatched: async (
       assetIds: number[],
@@ -2675,7 +2609,7 @@ export const api = {
         chunks.push(assetIds.slice(i, i + chunkSize));
       }
       const runBatch = async (chunk: number[]) => {
-        const { data, error } = await supabase.rpc('get_assets_by_ids', { p_asset_ids: chunk });
+        const { data, error } = await assetsByIds(chunk);
         if (error) throw error;
         return data ?? [];
       };
@@ -2689,29 +2623,25 @@ export const api = {
       merged.sort((a, b) => (Number(a?.asset_id ?? 0) - Number(b?.asset_id ?? 0)));
       return merged;
     },
-    getMeasuredNotExported: async (): Promise<Asset[]> => {
+    getMeasuredNotExported: async (buildingNumber?: number): Promise<Asset[]> => {
       try {
-        // Fetch assets that:
-        // - have measurement_date (not null)
-        // - exported_to_automation is null or false
-        const { data, error } = await supabase
-          .from('assets')
-          .select('*')
-          .not('measurement_date', 'is', null)
-          .or('exported_to_automation.is.null,exported_to_automation.eq.false')
-          .order('building_number')
-          .order('asset_id');
-
+        // Use dedicated backend endpoint (same SQL as mark_exported) so count/list is reliable
+        const { data, error } = await assetsMeasuredNotExported(buildingNumber);
         if (error) {
           console.error('[api.assets.getMeasuredNotExported] Error fetching assets:', error);
-          throw error;
+          throw new Error(error.message);
         }
-
-        return data || [];
+        return (data || []) as Asset[];
       } catch (error: any) {
         console.error('[api.assets.getMeasuredNotExported] Unexpected error:', error);
         throw error;
       }
+    },
+    /** Mark given asset IDs as exported. Call only after successful send (zip + emails) so count updates after send. */
+    markExportedByIds: async (assetIds: number[]): Promise<{ updated_count: number }> => {
+      const { data, error } = await assetsMarkExportedByIds(assetIds);
+      if (error) throw new Error(error.message);
+      return { updated_count: (data as any)?.updated_count ?? 0 };
     },
     getMeasurementProgress: async (startDate?: string, endDate?: string): Promise<{
       yearly: Array<{
@@ -2749,7 +2679,7 @@ export const api = {
         };
 
         // Build query
-        let query = supabase
+        let query = api
           .from('assets')
           .select('measurement_date, building_number, asset_id, asset_size, exported_to_automation')
           .not('measurement_date', 'is', null)
@@ -2855,116 +2785,20 @@ export const api = {
     },
     resetExportToAutomation: async (): Promise<{ success: boolean; count: number; error?: string }> => {
       try {
-        // First, get all exported assets with their export dates
-        const { data: exportedAssets, error: fetchError } = await supabase
-          .from('assets')
-          .select('asset_id, export_to_automation_at')
-          .eq('exported_to_automation', true)
-          .not('export_to_automation_at', 'is', null);
-
-        if (fetchError) {
-          console.error('[api.assets.resetExportToAutomation] Error fetching exported assets:', fetchError);
-          return { success: false, count: 0, error: fetchError.message };
+        const { data, error } = await assetsResetExportToAutomation();
+        if (error) {
+          return { success: false, count: 0, error: error.message };
         }
-
-        // If no exported assets found, return success with 0 count
-        if (!exportedAssets || exportedAssets.length === 0) {
+        const result = data as { success?: boolean; count?: number; next_latest_date?: string | null } | null;
+        if (!result) {
           return { success: true, count: 0 };
         }
-
-        // Find the latest export date by parsing DD/MM/YYYY dates
-        // Find latest export date
-        let latestDate: Date | null = null;
-        let latestDateStr: string | null = null;
-
-        for (const asset of exportedAssets) {
-          if (asset.export_to_automation_at) {
-            const parsedDate = parseDateFromDDMMYYYY(asset.export_to_automation_at);
-            if (parsedDate && (!latestDate || parsedDate > latestDate)) {
-              latestDate = parsedDate;
-              latestDateStr = asset.export_to_automation_at;
-            }
-          }
-        }
-
-        // If no valid date found, return error
-        if (!latestDateStr) {
-          return { success: false, count: 0, error: 'לא נמצא תאריך ייצוא תקף' };
-        }
-
-        // Filter assets that have the latest export date
-        // Ensure all assetIds are numbers (Supabase may return them as strings)
-        const assetIdsToReset = exportedAssets
-          .filter(asset => asset.export_to_automation_at === latestDateStr)
-          .map(asset => {
-            const id = asset.asset_id;
-            if (typeof id === 'string') {
-              const parsed = parseInt(id, 10);
-              return isNaN(parsed) ? null : parsed;
-            }
-            return typeof id === 'number' ? id : Number(id);
-          })
-          .filter((id): id is number => id !== null && !isNaN(id) && id > 0);
-
-        if (assetIdsToReset.length === 0) {
-          return { success: true, count: 0 };
-        }
-
-        // Reset exported_to_automation flag and clear export date only for assets with latest date
-        // Update each asset individually to avoid type mismatch issues with .in()
-        const updatePromises = assetIdsToReset.map(async (assetId) => {
-          const { error } = await supabase
-            .from('assets')
-            .update({ 
-              exported_to_automation: false,
-              export_to_automation_at: null
-            })
-            .eq('asset_id', assetId);
-          return error;
-        });
-        
-        const updateErrors = await Promise.all(updatePromises);
-        const updateError = updateErrors.find(err => err !== null);
-        const count = assetIdsToReset.length;
-
-        if (updateError) {
-          console.error('[api.assets.resetExportToAutomation] Error resetting export flag:', updateError);
-          return { success: false, count: 0, error: updateError.message };
-        }
-
-        // After reset, refresh the latest export date in memory (it will be the next latest date or null)
-        // Fetch remaining exported assets to find the next latest date
-        const { data: remainingExportedAssets, error: remainingFetchError } = await supabase
-          .from('assets')
-          .select('export_to_automation_at')
-          .eq('exported_to_automation', true)
-          .not('export_to_automation_at', 'is', null);
-
-        if (!remainingFetchError && remainingExportedAssets && remainingExportedAssets.length > 0) {
-          // Find the next latest export date
-          let nextLatestDate: Date | null = null;
-          let nextLatestDateStr: string | null = null;
-
-          for (const asset of remainingExportedAssets) {
-            if (asset.export_to_automation_at) {
-              const parsedDate = parseDateFromDDMMYYYY(asset.export_to_automation_at);
-              if (parsedDate && (!nextLatestDate || parsedDate > nextLatestDate)) {
-                nextLatestDate = parsedDate;
-                nextLatestDateStr = asset.export_to_automation_at;
-              }
-            }
-          }
-
-          // Update cache with next latest date
-          const { setLatestExportDate } = await import('./validation');
-          setLatestExportDate(nextLatestDateStr);
-        } else {
-          // No more exported assets, clear cache
-          const { setLatestExportDate } = await import('./validation');
-          setLatestExportDate(null);
-        }
-
-        return { success: true, count: count || assetIdsToReset.length };
+        const { setLatestExportDate } = await import('./validation');
+        setLatestExportDate(result.next_latest_date ?? null);
+        return {
+          success: result.success !== false,
+          count: result.count ?? 0,
+        };
       } catch (error: any) {
         console.error('[api.assets.resetExportToAutomation] Unexpected error:', error);
         return { success: false, count: 0, error: error.message || 'Unknown error' };
@@ -2973,7 +2807,7 @@ export const api = {
     getLatestExportDate: async (): Promise<{ success: boolean; date: string | null; error?: string }> => {
       try {
         // Get all exported assets with their export dates
-        const { data: exportedAssets, error: fetchError } = await supabase
+        const { data: exportedAssets, error: fetchError } = await api
           .from('assets')
           .select('export_to_automation_at')
           .eq('exported_to_automation', true)
@@ -3015,31 +2849,38 @@ export const api = {
     },
     files: {
       getAll: async (assetId: number): Promise<AssetFile[]> => {
-        const { data, error } = await supabase
+        const { data, error } = await api
           .from('asset_files')
           .select('*')
           .eq('asset_id', assetId)
-          .order('uploaded_at', { ascending: false });
+          .order('file_name', { ascending: true });
 
         if (error) throw error;
-        return data || [];
+        return (data || []).map((row: Record<string, unknown> & { id: number; asset_id: number; uploaded_at: string }) => normalizeAssetFile(row));
       },
       getAllBulk: async (assetIds: number[]): Promise<Map<number, AssetFile[]>> => {
         if (!assetIds || assetIds.length === 0) {
           return new Map();
         }
-        
-        const { data, error } = await supabase
-          .from('asset_files')
-          .select('*')
-          .in('asset_id', assetIds)
-          .order('uploaded_at', { ascending: false });
 
-        if (error) throw error;
-        
-        // Group files by asset_id
+        // Chunk to avoid backend ANY/array type issues with long IN lists (>100 items)
+        const CHUNK_SIZE = 100;
+        const allData: Array<Record<string, unknown> & { id: number; asset_id: number; uploaded_at: string }> = [];
+        for (let i = 0; i < assetIds.length; i += CHUNK_SIZE) {
+          const chunk = assetIds.slice(i, i + CHUNK_SIZE);
+          const { data, error } = await api
+            .from('asset_files')
+            .select('*')
+            .in('asset_id', chunk)
+            .order('file_name', { ascending: true });
+          if (error) throw error;
+          if (data?.length) allData.push(...(data as typeof allData));
+        }
+
+        // Group files by asset_id; normalize each file so file_name/file_type/file_path are correct
         const filesByAsset = new Map<number, AssetFile[]>();
-        (data || []).forEach(file => {
+        allData.forEach((row) => {
+          const file = normalizeAssetFile(row);
           const assetId = Number(file.asset_id);
           if (!isNaN(assetId) && assetId > 0) {
             if (!filesByAsset.has(assetId)) {
@@ -3061,7 +2902,7 @@ export const api = {
       },
       add: async (assetId: number, fileUrl: string, fileName?: string, fileSize?: number, fileType?: string, measurementDate?: string | null): Promise<AssetFile> => {
         const userInfo = await getCurrentUserInfo();
-        const { data, error } = await supabase
+        const { data, error } = await api
           .from('asset_files')
           .insert({
             asset_id: assetId,
@@ -3076,11 +2917,11 @@ export const api = {
           .single();
 
         if (error) throw error;
-        return data;
+        return data ? normalizeAssetFile(data as Record<string, unknown> & { id: number; asset_id: number; uploaded_at: string }) : (data as unknown as AssetFile);
       },
       clone: async (assetId: number, sourceMeasurementDate: string | null, targetMeasurementDate: string): Promise<AssetFile[]> => {
         // Get all files for the source measurement (or shared files if sourceMeasurementDate is null)
-        let query = supabase
+        let query = api
           .from('asset_files')
           .select('*')
           .eq('asset_id', assetId);
@@ -3093,8 +2934,8 @@ export const api = {
           query = query.is('measurement_date', null);
         }
         
-        query = query.order('uploaded_at', { ascending: false });
-        
+        query = query.order('file_name', { ascending: true });
+
         const { data: sourceFiles, error: fetchError } = await query;
         
         if (fetchError || !sourceFiles || sourceFiles.length === 0) {
@@ -3114,24 +2955,15 @@ export const api = {
               : `${assetId}/${fileName}`;
             
             // Download the file from storage
-            const { data: fileData, error: downloadError } = await supabase.storage
+            const { data: fileData, error: downloadError } = await api.storage
               .from('structure-drawings')
               .download(filePath);
             
             if (downloadError || !fileData) {
               // Check for bucket not found error
               if (downloadError?.message?.includes('Bucket not found') || downloadError?.statusCode === '404') {
-                console.error(
-                  'Storage bucket "structure-drawings" not found. ' +
-                  'Please create the bucket in Supabase Dashboard: Storage → New bucket → Name: "structure-drawings". ' +
-                  'See CREATE_STORAGE_BUCKETS.md for detailed instructions.'
-                );
-                // Return error instead of continuing silently
-                throw new Error(
-                  'Storage bucket "structure-drawings" not found. ' +
-                  'Please create the bucket in Supabase Dashboard: Storage → New bucket → Name: "structure-drawings". ' +
-                  'See CREATE_STORAGE_BUCKETS.md for detailed instructions.'
-                );
+                console.error('Storage bucket "structure-drawings" not found. Configure backend file storage.');
+                throw new Error('Storage bucket "structure-drawings" not found. Configure backend file storage.');
               }
               console.error(`Error downloading file ${filePath}:`, downloadError);
               continue;
@@ -3143,17 +2975,10 @@ export const api = {
             const newFileName = `${timestamp}.${fileExt}`;
             const newFilePath = `${assetId}/${newFileName}`;
             
-            // Compress images to <30KB before re-uploading
-            let dataToUpload: Blob | File = fileData;
-            if (getFileTypeCategory(file.file_name || fileName, file.file_type || undefined) === 'image' && fileData.size > 30 * 1024) {
-              const fileForCompress = new File([fileData], file.file_name || fileName, { type: file.file_type || 'application/octet-stream' });
-              dataToUpload = await compressFile(fileForCompress);
-            }
-            
             // Upload to new path
-            const { error: uploadError } = await supabase.storage
+            const { error: uploadError } = await api.storage
               .from('structure-drawings')
-              .upload(newFilePath, dataToUpload, { contentType: dataToUpload.type || file.file_type || undefined });
+              .upload(newFilePath, fileData);
             
             if (uploadError) {
               console.error(`Error uploading cloned file:`, uploadError);
@@ -3161,20 +2986,20 @@ export const api = {
             }
             
             // Get public URL for new file
-            const { data: { publicUrl } } = supabase.storage
+            const { data: { publicUrl } } = api.storage
               .from('structure-drawings')
               .getPublicUrl(newFilePath);
             
             // Create new file record with target measurement_date
             const userInfo = await getCurrentUserInfo();
-            const { data: clonedFile, error: insertError } = await supabase
+            const { data: clonedFile, error: insertError } = await api
               .from('asset_files')
               .insert({
                 asset_id: assetId,
                 file_url: publicUrl,
                 file_name: file.file_name,
-                file_size: dataToUpload.size,
-                file_type: dataToUpload.type || file.file_type,
+                file_size: file.file_size,
+                file_type: file.file_type,
                 uploaded_by: userInfo.user_name,
                 measurement_date: targetMeasurementDate
               })
@@ -3195,7 +3020,7 @@ export const api = {
         return clonedFiles;
       },
       delete: async (fileIds: number[]): Promise<{ success: boolean; error?: string }> => {
-        const { error } = await supabase
+        const { error } = await api
           .from('asset_files')
           .delete()
           .in('id', fileIds);
@@ -3206,21 +3031,34 @@ export const api = {
         return { success: true };
       },
       deleteByUrl: async (fileUrl: string): Promise<{ success: boolean; error?: string }> => {
-        // Extract file path from URL to delete from storage
-        const urlParts = fileUrl.split('/');
-        const fileName = urlParts[urlParts.length - 1].split('?')[0];
-        
-        // Delete from storage
-        const { error: storageError } = await supabase.storage
-          .from('structure-drawings')
-          .remove([fileName]);
-
-        if (storageError) {
-          console.warn('Error deleting file from storage:', storageError);
+        // Ref-like: extract full storage path (assetId/filename) from URL for remove
+        let storagePath: string;
+        try {
+          if (fileUrl.includes('path=')) {
+            const match = fileUrl.match(/path=([^&]+)/);
+            storagePath = match ? decodeURIComponent(match[1]) : '';
+          } else if (fileUrl.includes('structure-drawings/')) {
+            const idx = fileUrl.indexOf('structure-drawings/') + 'structure-drawings/'.length;
+            storagePath = fileUrl.substring(idx).split('?')[0] || '';
+          } else {
+            const urlParts = fileUrl.split('/');
+            const fileName = urlParts[urlParts.length - 1].split('?')[0];
+            storagePath = fileName;
+          }
+        } catch {
+          storagePath = '';
+        }
+        if (storagePath) {
+          const { error: storageError } = await api.storage
+            .from('structure-drawings')
+            .remove([storagePath]);
+          if (storageError) {
+            console.warn('Error deleting file from storage:', storageError);
+          }
         }
 
-        // Delete from database
-        const { error } = await supabase
+        // Delete from database (ref: delete by file_url)
+        const { error } = await api
           .from('asset_files')
           .delete()
           .eq('file_url', fileUrl);
@@ -3234,7 +3072,7 @@ export const api = {
   },
   measurements: {
     getAll: async (assetId: string): Promise<AssetMeasurement[]> => {
-      const { data, error } = await supabase
+      const { data, error } = await api
         .from('asset_measurements')
         .select('*')
         .eq('asset_id', assetId);
@@ -3257,7 +3095,7 @@ export const api = {
       return sorted.map(asset => convertHebrewBooleans(asset));
     },
     getOne: async (id: string): Promise<AssetMeasurement> => {
-      const { data, error } = await supabase
+      const { data, error } = await api
         .from('asset_measurements')
         .select('*')
         .eq('id', id)
@@ -3268,7 +3106,7 @@ export const api = {
       return data;
     },
     create: async (input: Omit<AssetMeasurement, 'id' | 'created_at' | 'total_area'>): Promise<AssetMeasurement> => {
-      const { data, error } = await supabase
+      const { data, error } = await api
         .from('asset_measurements')
         .insert(input)
         .select()
@@ -3278,7 +3116,7 @@ export const api = {
       return data;
     },
     update: async (id: string, input: Partial<AssetMeasurement>): Promise<AssetMeasurement> => {
-      const { data, error } = await supabase
+      const { data, error } = await api
         .from('asset_measurements')
         .update(input)
         .eq('id', id)
@@ -3289,7 +3127,7 @@ export const api = {
       return data;
     },
     delete: async (id: string): Promise<{ message: string }> => {
-      const { error } = await supabase
+      const { error } = await api
         .from('asset_measurements')
         .delete()
         .eq('id', id);
@@ -3315,7 +3153,7 @@ export const api = {
 
       // Fallback to database query if cache is not available
       // Explicitly select all fields including business_residence and use_shared_area to ensure they're included
-      const { data, error } = await supabase
+      const { data, error } = await api
         .from('asset_types')
         .select('id, name, description, tax_region, elevator, single_double_family, penthouse, condo, townhouses, business_residence, min_size, max_size, active, non_accountable_for_total_area, non_accountable_for_distribution, not_accountable_for_statistics, use_shared_area, use_for_parking_shared_area, area_description_for_tab, created_at, updated_at')
         .order('name');
@@ -3359,7 +3197,7 @@ export const api = {
 
       // Fallback to database query if not found in cache
       // Try id first, then asset_type as fallback
-      let { data, error } = await supabase
+      let { data, error } = await api
         .from('asset_types')
         .select('*')
         .eq('id', id)
@@ -3367,7 +3205,7 @@ export const api = {
 
       // If id column doesn't exist, try asset_type
       if (error && error.code === '42703') {
-        const result = await supabase
+        const result = await api
           .from('asset_types')
           .select('*')
           .eq('asset_type', id)
@@ -3400,7 +3238,7 @@ export const api = {
       }
 
       // Fallback to database query if not found in cache
-      const { data, error } = await supabase
+      const { data, error } = await api
         .from('asset_types')
         .select('*')
         .eq('name', name);
@@ -3427,7 +3265,7 @@ export const api = {
       return String(code);
     },
     create: async (input: Omit<AssetType, 'id' | 'created_at' | 'updated_at'>): Promise<AssetType> => {
-      const { data, error } = await supabase
+      const { data, error } = await api
         .from('asset_types')
         .insert(input)
         .select()
@@ -3448,7 +3286,7 @@ export const api = {
         try {
           
           // Find all buildings with assets of this type
-          const { data: affectedAssets } = await supabase
+          const { data: affectedAssets } = await api
             .from('assets')
             .select('building_number')
             .eq('main_asset_type', data.name)
@@ -3488,7 +3326,7 @@ export const api = {
         return { success: true, count: 0, rows: [] };
       }
 
-      const { data, error } = await supabase
+      const { data, error } = await api
         .from('asset_types')
         .insert(inputs)
         .select('*');
@@ -3559,7 +3397,7 @@ export const api = {
         cleanedInput.max_size = isNaN(parsed) ? null : parsed;
       }
       
-      // Remove undefined values to prevent Supabase errors
+      // Remove undefined values to prevent database errors
       const finalInput = Object.fromEntries(
         Object.entries(cleanedInput).filter(([_, v]) => v !== undefined)
       );
@@ -3569,18 +3407,18 @@ export const api = {
       let data: AssetType;
       
       try {
-        const { data: result, error: rpcError } = await supabase.rpc('update_asset_type_with_distribution_reset', {
+        const { data: result, error: restError } = await assetTypesUpdateWithDistributionReset({
           p_id: id,
           p_updates: finalInput
         });
         
-        if (rpcError) {
+        if (restError) {
           // Fallback to regular update if function doesn't exist
-          if (rpcError.code === '42883' || rpcError.code === 'PGRST202' || rpcError.message?.includes('function') || rpcError.message?.includes('does not exist')) {
+          if (restError.code === '42883' || restError.code === 'PGRST202' || restError.message?.includes('function') || restError.message?.includes('does not exist')) {
             console.warn('[api.assetTypes.update] Database function not found, falling back to regular update');
             
             // Try id first, then asset_type as fallback
-            let { data: updateData, error } = await supabase
+            let { data: updateData, error } = await api
               .from('asset_types')
               .update(finalInput)
               .eq('id', id)
@@ -3589,7 +3427,7 @@ export const api = {
 
             // If id column doesn't exist, try asset_type
             if (error && error.code === '42703') {
-              const result = await supabase
+              const result = await api
                 .from('asset_types')
                 .update(finalInput)
                 .eq('asset_type', id)
@@ -3617,7 +3455,7 @@ export const api = {
               
               if (oldValue !== newValue) {
                 
-                const { data: affectedAssets } = await supabase
+                const { data: affectedAssets } = await api
                   .from('assets')
                   .select('building_number')
                   .eq('main_asset_type', beforeData.name)
@@ -3638,7 +3476,7 @@ export const api = {
               }
             }
           } else {
-            throw rpcError;
+            throw restError;
           }
         } else {
           // Function succeeded - extract the updated data
@@ -3664,9 +3502,9 @@ export const api = {
           }
         }
       } catch (err) {
-        // If RPC fails completely, fall back to regular update
-        console.warn('[api.assetTypes.update] RPC failed, using fallback:', err);
-        const { data: fallbackData, error: fallbackError } = await supabase
+        // If REST call fails completely, fall back to regular update
+        console.warn('[api.assetTypes.update] REST update failed, using fallback:', err);
+        const { data: fallbackData, error: fallbackError } = await api
           .from('asset_types')
           .update(finalInput)
           .eq('id', id)
@@ -3726,7 +3564,7 @@ export const api = {
         return { success: true, count: 0, affected_buildings: [] };
       }
 
-      const { data, error } = await supabase.rpc('update_asset_types_bulk_with_distribution_reset', {
+      const { data, error } = await assetTypesBulkDistributionReset({
         p_asset_types_data: payload as any
       });
 
@@ -3761,14 +3599,14 @@ export const api = {
       }
       
       // Try id first, then asset_type as fallback
-      let { error } = await supabase
+      let { error } = await api
         .from('asset_types')
         .delete()
         .eq('id', id);
 
       // If id column doesn't exist, try asset_type
       if (error && error.code === '42703') {
-        const result = await supabase
+        const result = await api
           .from('asset_types')
           .delete()
           .eq('asset_type', id);
@@ -3808,7 +3646,7 @@ export const api = {
       let error: any = null;
       let count: number | null = null;
 
-      const byId = await supabase
+      const byId = await api
         .from('asset_types')
         .delete()
         .in('id', numericIds)
@@ -3818,7 +3656,7 @@ export const api = {
       count = byId.count ?? null;
 
       if (error && error.code === '42703') {
-        const byLegacy = await supabase
+        const byLegacy = await api
           .from('asset_types')
           .delete()
           .in('asset_type', numericIds)
@@ -3842,7 +3680,7 @@ export const api = {
   },
   addressList: {
     getAll: async (): Promise<AddressList[]> => {
-      const { data, error } = await supabase
+      const { data, error } = await api
         .from('address_list')
         .select('*')
         .order('street_code', { ascending: true });
@@ -3851,7 +3689,7 @@ export const api = {
       return data || [];
     },
     getOne: async (streetCode: number): Promise<AddressList> => {
-      const { data, error } = await supabase
+      const { data, error } = await api
         .from('address_list')
         .select('*')
         .eq('street_code', streetCode)
@@ -3861,7 +3699,7 @@ export const api = {
       return data;
     },
     create: async (input: Partial<AddressList>): Promise<AddressList> => {
-      const { data, error } = await supabase
+      const { data, error } = await api
         .from('address_list')
         .insert(input)
         .select()
@@ -3871,7 +3709,7 @@ export const api = {
       return data;
     },
     update: async (streetCode: number, input: Partial<AddressList>): Promise<AddressList> => {
-      const { data, error } = await supabase
+      const { data, error } = await api
         .from('address_list')
         .update(input)
         .eq('street_code', streetCode)
@@ -3886,7 +3724,7 @@ export const api = {
         return { success: true, count: 0, rows: [] };
       }
 
-      const { data, error } = await supabase
+      const { data, error } = await api
         .from('address_list')
         .upsert(inputs, { onConflict: 'street_code' })
         .select('*');
@@ -3895,7 +3733,7 @@ export const api = {
       return { success: true, count: data?.length || inputs.length, rows: data || [] };
     },
     delete: async (streetCode: number): Promise<{ message: string }> => {
-      const { error } = await supabase
+      const { error } = await api
         .from('address_list')
         .delete()
         .eq('street_code', streetCode);
@@ -3909,7 +3747,7 @@ export const api = {
         return { success: true, count: 0 };
       }
 
-      const { error, count } = await supabase
+      const { error, count } = await api
         .from('address_list')
         .delete()
         .in('street_code', codes)
@@ -3921,7 +3759,7 @@ export const api = {
   },
   validationRules: {
     getAll: async (entityType?: string): Promise<ValidationRule[]> => {
-      let query = supabase
+      let query = api
         .from('validation_rules')
         .select('*')
         .order('entity_type')
@@ -3937,7 +3775,7 @@ export const api = {
       return data || [];
     },
     getEnabled: async (entityType?: string): Promise<ValidationRule[]> => {
-      let query = supabase
+      let query = api
         .from('validation_rules')
         .select('*')
         .eq('enabled', true)
@@ -3954,7 +3792,7 @@ export const api = {
       return data || [];
     },
     getOne: async (id: string): Promise<ValidationRule> => {
-      const { data, error } = await supabase
+      const { data, error } = await api
         .from('validation_rules')
         .select('*')
         .eq('id', id)
@@ -3965,7 +3803,7 @@ export const api = {
       return data;
     },
     getByKey: async (ruleKey: string): Promise<ValidationRule> => {
-      const { data, error } = await supabase
+      const { data, error } = await api
         .from('validation_rules')
         .select('*')
         .eq('rule_key', ruleKey)
@@ -3976,7 +3814,7 @@ export const api = {
       return data;
     },
     create: async (input: Omit<ValidationRule, 'id' | 'created_at' | 'updated_at'>): Promise<ValidationRule> => {
-      const { data, error } = await supabase
+      const { data, error } = await api
         .from('validation_rules')
         .insert(input)
         .select()
@@ -3986,7 +3824,7 @@ export const api = {
       return data;
     },
     update: async (id: string, input: Partial<ValidationRule>): Promise<ValidationRule> => {
-      const { data, error } = await supabase
+      const { data, error } = await api
         .from('validation_rules')
         .update(input)
         .eq('id', id)
@@ -3997,7 +3835,7 @@ export const api = {
       return data;
     },
     delete: async (id: string): Promise<{ message: string }> => {
-      const { error } = await supabase
+      const { error } = await api
         .from('validation_rules')
         .delete()
         .eq('id', id);
@@ -4010,88 +3848,10 @@ export const api = {
     return api.buildings.delete(buildingNumber);
   },
   deleteAssetsByBuilding: async (buildingNumber: number): Promise<{ message: string }> => {
-    // Get all assets for this building first (including main_asset_type to determine flags)
-    const { data: assets, error: fetchError } = await supabase
-      .from('assets')
-      .select('asset_id, main_asset_type')
-      .eq('building_number', buildingNumber);
-
-    if (fetchError) throw fetchError;
-
-    const assetIds = assets?.map(a => a.asset_id) || [];
-
-    // Delete audit rows for these assets (entity_type = 'asset', entity_id = asset_id)
-    if (assetIds.length > 0) {
-      const assetIdStrs = assetIds.map(id => String(id));
-      const { error: auditError } = await supabase
-        .from('audit')
-        .delete()
-        .eq('entity_type', 'asset')
-        .in('entity_id', assetIdStrs);
-      if (auditError) {
-        console.warn('[deleteAssetsByBuilding] Failed to delete asset audit rows:', auditError);
-      }
-    }
-
-    // NOTE: For bulk deletion, we should use delete_asset_transactional for each asset
-    // to ensure flags are set as part of the transaction. This function should be
-    // refactored to use transactional delete, or a bulk transactional delete function
-    // should be created that handles flags as part of the transaction.
-
-    // Delete all existing history records for all assets in this building
-    if (assetIds.length > 0) {
-      const { error: historyError1 } = await supabase
-        .from('assets_history')
-        .delete()
-        .in('asset_id', assetIds);
-
-      if (historyError1) {
-        console.warn('Error deleting existing history from assets_history:', historyError1);
-        // Continue with asset deletion even if history deletion fails
-      }
-    }
-
-    // Delete from assets table
-    // Note: The trigger will run BEFORE DELETE and create new history entries
-    const { error } = await supabase
-      .from('assets')
-      .delete()
-      .eq('building_number', buildingNumber);
-
-    if (error) throw error;
-
-    // Update building total area (transaction-based, replaces trigger)
-    try {
-      await supabase.rpc('update_building_total_area', {
-        p_building_number: buildingNumber
-      });
-    } catch (areaError) {
-      console.warn('Failed to update building total area after bulk asset deletion:', areaError);
-      // Don't fail the operation if area update fails
-    }
-
-    // NOTE: Distribution flags are NOT set here - they are set by delete_asset_transactional
-    // when individual assets are deleted. For bulk deletion, flags should be set by
-    // using the transactional delete function for each asset, or by a bulk transactional delete function.
-    // This ensures flags are always part of the delete transaction and cannot be set separately.
-
-    // Delete from assets_history again to remove entries created by the trigger
-    if (assetIds.length > 0) {
-      const { error: historyError2 } = await supabase
-        .from('assets_history')
-        .delete()
-        .in('asset_id', assetIds);
-
-      if (historyError2) {
-        console.warn('Error deleting trigger-created history from assets_history:', historyError2);
-        // Don't throw - assets are already deleted, this is just cleanup
-      }
-    }
-
-    // Delete the building itself (assets were deleted above)
-    await api.buildings.delete(buildingNumber);
-
-    return { message: 'Assets deleted successfully' };
+    // REST: single DELETE; backend deletes assets (with history), audit rows, and building
+    const { data, error } = await api.deleteBuildingWithRelated(buildingNumber);
+    if (error) throw new Error(error.message);
+    return { message: data?.deleted_assets_count != null ? `Building and ${data.deleted_assets_count} assets deleted` : 'Building deleted successfully' };
   },
   fieldConfigurations: {
     getAll: async (gridName?: string): Promise<FieldConfiguration[]> => {
@@ -4142,7 +3902,7 @@ export const api = {
       }
 
       // Fallback to database query if cache is not available
-      let query = supabase
+      let query = api
         .from('field_configurations')
         .select('*');
       
@@ -4159,7 +3919,7 @@ export const api = {
       return data || [];
     },
     getOne: async (gridName: string, fieldName: string): Promise<FieldConfiguration | null> => {
-      const { data, error } = await supabase
+      const { data, error } = await api
         .from('field_configurations')
         .select('*')
         .eq('grid_name', gridName)
@@ -4170,7 +3930,7 @@ export const api = {
       return data;
     },
     create: async (input: Omit<FieldConfiguration, 'created_at' | 'updated_at'>): Promise<FieldConfiguration> => {
-      const { data, error } = await supabase
+      const { data, error } = await api
         .from('field_configurations')
         .insert(input)
         .select()
@@ -4180,7 +3940,7 @@ export const api = {
       return data;
     },
     update: async (gridName: string, fieldName: string, input: Partial<Omit<FieldConfiguration, 'grid_name' | 'field_name' | 'created_at' | 'updated_at'>>): Promise<FieldConfiguration> => {
-      const { data, error } = await supabase
+      const { data, error } = await api
         .from('field_configurations')
         .update(input)
         .eq('grid_name', gridName)
@@ -4192,7 +3952,7 @@ export const api = {
       return data;
     },
     upsert: async (input: Omit<FieldConfiguration, 'created_at' | 'updated_at'>): Promise<FieldConfiguration> => {
-      const { data, error } = await supabase
+      const { data, error } = await api
         .from('field_configurations')
         .upsert(input, { onConflict: 'grid_name,field_name' })
         .select()
@@ -4206,7 +3966,7 @@ export const api = {
         return { success: true, count: 0, rows: [] };
       }
 
-      const { data, error } = await supabase
+      const { data, error } = await api
         .from('field_configurations')
         .upsert(inputs, { onConflict: 'grid_name,field_name' })
         .select('*');
@@ -4215,7 +3975,7 @@ export const api = {
       return { success: true, count: data?.length || inputs.length, rows: data || [] };
     },
     delete: async (gridName: string, fieldName: string): Promise<{ message: string }> => {
-      const { error } = await supabase
+      const { error } = await api
         .from('field_configurations')
         .delete()
         .eq('grid_name', gridName)
@@ -4299,7 +4059,7 @@ export const api = {
       };
     },
     getAll: async (filters?: { limit?: number }): Promise<DistributionAudit[]> => {
-      let query = supabase
+      let query = api
         .from('audit')
         .select('*')
         .order('created_at', { ascending: false });
@@ -4343,7 +4103,7 @@ export const api = {
       });
     },
     getOne: async (id: number): Promise<DistributionAudit> => {
-      const { data, error } = await supabase
+      const { data, error } = await api
         .from('audit')
         .select('*')
         .eq('action_id', id)
@@ -4351,7 +4111,7 @@ export const api = {
       
       if (error) throw error;
       
-      // Parse JSONB if it comes as a string (Supabase should auto-parse, but handle both cases)
+      // Parse JSONB if it comes as a string (API may return string or object; handle both)
       let beforeData = data.before_data;
       let afterData = data.after_data;
       
@@ -4404,7 +4164,7 @@ export const api = {
       // Query audit table by entity_type and entity_id
       // Distribution: entity_type='bulk_asset', entity_id=building_number (as text)
       // Transfer: same for bulk; also include entity_type='asset' where entity_id is an asset in this building
-      let query = supabase
+      let query = api
         .from('audit')
         .select('*')
         .eq('entity_type', 'bulk_asset')
@@ -4426,13 +4186,13 @@ export const api = {
 
       // For transfer history: also include audit rows where entity_type='asset' and entity_id is an asset in this building
       if (mappedActionTypes?.includes('transfer_area')) {
-        const { data: buildingAssets } = await supabase
+        const { data: buildingAssets } = await api
           .from('assets')
           .select('asset_id')
           .eq('building_number', buildingNumber);
         const assetIds = (buildingAssets || []).map((a: any) => String(a.asset_id));
         if (assetIds.length > 0) {
-          const { data: assetAuditData, error: assetErr } = await supabase
+          const { data: assetAuditData, error: assetErr } = await api
             .from('audit')
             .select('*')
             .eq('entity_type', 'asset')
@@ -4475,7 +4235,7 @@ export const api = {
       // automatically through save_assets_bulk_transactional
     },
     getOne: async (id: number): Promise<DistributionAudit> => {
-      const { data, error } = await supabase
+      const { data, error } = await api
         .from('audit')
         .select('*')
         .eq('id', id)
@@ -4483,7 +4243,7 @@ export const api = {
       
       if (error) throw error;
       
-      // Parse JSONB if it comes as a string (Supabase should auto-parse, but handle both cases)
+      // Parse JSONB if it comes as a string (API may return string or object; handle both)
       let beforeData = data.before_data;
       let afterData = data.after_data;
       
@@ -4519,7 +4279,7 @@ export const api = {
       endDate: string,
       actionType?: 'distribution' | 'transfer'
     ): Promise<DistributionAudit[]> => {
-      let query = supabase
+      let query = api
         .from('audit')
         .select('*')
         .eq('building_number', buildingNumber)
@@ -4553,7 +4313,7 @@ export const api = {
       limit?: number;
       offset?: number;
     }): Promise<ChangeLog[]> => {
-      let query = supabase
+      let query = api
         .from('change_log')
         .select('*')
         .order('created_at', { ascending: false });
@@ -4590,7 +4350,7 @@ export const api = {
       return data || [];
     },
     getOne: async (logId: number): Promise<ChangeLog> => {
-      const { data, error } = await supabase
+      const { data, error } = await api
         .from('change_log')
         .select('*')
         .eq('log_id', logId)
@@ -4600,7 +4360,7 @@ export const api = {
       return data;
     },
     getByTable: async (tableName: string, recordId?: string, limit: number = 100): Promise<ChangeLog[]> => {
-      let query = supabase
+      let query = api
         .from('change_log')
         .select('*')
         .eq('table_name', tableName)
@@ -4616,7 +4376,7 @@ export const api = {
       return data || [];
     },
     getByUser: async (userName: string, tableName?: string, limit: number = 100): Promise<ChangeLog[]> => {
-      let query = supabase
+      let query = api
         .from('change_log')
         .select('*')
         .eq('user_name', userName)
@@ -4632,7 +4392,7 @@ export const api = {
       return data || [];
     },
     getRecordHistory: async (tableName: string, recordId: string, limit: number = 50): Promise<ChangeLog[]> => {
-      const { data, error } = await supabase.rpc('get_record_change_history', {
+      const { data, error } = await changeLogHistory({
         p_table_name: tableName,
         p_record_id: recordId,
         p_limit: limit
@@ -4644,7 +4404,7 @@ export const api = {
   },
   schema: {
     getTablesFieldsTypes: async (): Promise<Array<{ table_name: string; field_name: string; field_type: string }>> => {
-      const { data, error } = await supabase.rpc('get_tables_fields_types');
+      const { data, error } = await metadataTablesFieldsTypes();
       
       if (error) {
         console.error('Error fetching schema:', error);
@@ -4655,13 +4415,20 @@ export const api = {
     },
   },
   users: {
-    getOne: async (userId: number): Promise<{ user_id: number; user_name: string; user_email: string | null; full_name: string | null } | null> => {
-      const { data, error } = await supabase
+    getOne: async (userId: number): Promise<{
+      user_id: number;
+      user_name: string;
+      user_email: string | null;
+      full_name?: string | null;
+      user_role: string;
+      active: boolean;
+    } | null> => {
+      const { data, error } = await api
         .from('users')
-        .select('user_id, user_name, user_email, full_name')
+        .select('user_id, user_name, user_email, user_role, active')
         .eq('user_id', userId)
         .maybeSingle();
-      if (error) throw new Error(`Failed to fetch user: ${error.message}`);
+      if (error) throw new Error(error.message || 'Failed to fetch user');
       return data;
     },
     getAll: async (): Promise<Array<{
@@ -4669,15 +4436,16 @@ export const api = {
       auth_user_id: string | null;
       user_name: string;
       user_email: string | null;
-      full_name: string | null;
+      full_name?: string | null;
+      phone?: string | null;
       user_role: 'admin' | 'user' | 'inspector';
       active: boolean;
       created_at: string;
       updated_at: string;
     }>> => {
-      const { data, error } = await supabase
+      const { data, error } = await api
         .from('users')
-        .select('user_id, auth_user_id, user_name, user_email, full_name, user_role, active, created_at, updated_at')
+        .select('user_id, auth_user_id, user_name, user_email, full_name, phone, user_role, active, created_at, updated_at')
         .order('user_name');
       
       if (error) {
@@ -4693,14 +4461,15 @@ export const api = {
       user_name?: string;
       user_email?: string;
       full_name?: string | null;
+      phone?: string | null;
     }): Promise<void> => {
-      const { error } = await supabase
+      const { error } = await api
         .from('users')
+        .eq('user_id', userId)
         .update({
           ...updates,
           updated_at: new Date().toISOString(),
-        })
-        .eq('user_id', userId);
+        });
       
       if (error) {
         console.error('Error updating user:', error);
@@ -4713,16 +4482,18 @@ export const api = {
       password: string;
       user_role?: 'admin' | 'user' | 'inspector';
       full_name?: string | null;
+      phone?: string | null;
     }): Promise<{
       user_id: number;
       auth_user_id: string | null;
     }> => {
-      const { data, error } = await supabase.rpc('users_create_internal', {
+      const { data, error } = await usersCreateInternal({
         p_user_name: userData.user_name,
         p_user_email: userData.user_email || '',
         p_password: userData.password,
         p_user_role: userData.user_role || 'user',
-        p_full_name: userData.full_name || null,
+        full_name: userData.full_name ?? undefined,
+        phone: userData.phone ?? undefined,
       });
       if (error) {
         console.error('Error creating user:', error);
@@ -4733,7 +4504,7 @@ export const api = {
       return { user_id: d.user_id, auth_user_id: d.auth_user_id };
     },
     delete: async (userId: number): Promise<void> => {
-      const { error } = await supabase
+      const { error } = await api
         .from('users')
         .delete()
         .eq('user_id', userId);
@@ -4744,7 +4515,7 @@ export const api = {
       }
     },
     changePassword: async (userId: number, newPassword: string): Promise<void> => {
-      const { error } = await supabase.rpc('users_set_password', {
+      const { error } = await usersSetPassword({
         p_user_id: userId,
         p_new_password: newPassword,
       });
@@ -4752,7 +4523,7 @@ export const api = {
     },
     createDefaultUsers: async (): Promise<{ success: boolean; results: Array<{ user: string; success: boolean; message: string }>; message: string }> => {
       try {
-        await supabase.rpc('users_ensure_defaults');
+        await usersEnsureDefaults();
         return {
           success: true,
           results: [
@@ -4769,7 +4540,7 @@ export const api = {
   },
   systemConfiguration: {
     getAll: async (): Promise<SystemConfiguration[]> => {
-      const { data, error } = await supabase
+      const { data, error } = await api
         .from('system_configuration')
         .select('*')
         .order('name');
@@ -4778,7 +4549,7 @@ export const api = {
       return data || [];
     },
     getOne: async (id: number): Promise<SystemConfiguration | null> => {
-      const { data, error } = await supabase
+      const { data, error } = await api
         .from('system_configuration')
         .select('*')
         .eq('id', id)
@@ -4788,7 +4559,7 @@ export const api = {
       return data;
     },
     getByName: async (name: string): Promise<SystemConfiguration | null> => {
-      const { data, error } = await supabase
+      const { data, error } = await api
         .from('system_configuration')
         .select('*')
         .eq('name', name)
@@ -4799,7 +4570,7 @@ export const api = {
     },
     create: async (input: Omit<SystemConfiguration, 'id' | 'created_at' | 'updated_at'>): Promise<SystemConfiguration> => {
       const userInfo = await getCurrentUserInfo();
-      const { data, error } = await supabase
+      const { data, error } = await api
         .from('system_configuration')
         .insert({
           ...input,
@@ -4814,7 +4585,7 @@ export const api = {
     },
     update: async (id: number, input: Partial<Omit<SystemConfiguration, 'id' | 'created_at' | 'updated_at' | 'created_by'>>): Promise<SystemConfiguration> => {
       const userInfo = await getCurrentUserInfo();
-      const { data, error } = await supabase
+      const { data, error } = await api
         .from('system_configuration')
         .update({
           ...input,
@@ -4829,7 +4600,7 @@ export const api = {
     },
     upsert: async (name: string, value: string, description?: string): Promise<SystemConfiguration> => {
       const userInfo = await getCurrentUserInfo();
-      const { data, error } = await supabase
+      const { data, error } = await api
         .from('system_configuration')
         .upsert({
           name,
@@ -4842,31 +4613,38 @@ export const api = {
         .select()
         .single();
       
-      if (error) throw error;
+      if (error) throw new Error(error.message || 'Failed to save system configuration');
       return data;
     },
     delete: async (id: number): Promise<void> => {
-      const { error } = await supabase
+      const { error } = await api
         .from('system_configuration')
         .delete()
         .eq('id', id);
       
       if (error) throw error;
     },
-    getUIConfig: async (): Promise<{ validation_rules_enabled: boolean; validate_inline: boolean }> => {
+    getUIConfig: async (): Promise<{ validation_rules_enabled: boolean; validation_mode?: 'off' | 'before_save' | 'online'; theme_id?: 'ocean' | 'mist' }> => {
       const config = await api.systemConfiguration.getByName('ui_config');
       if (config && config.value) {
         try {
           const configData = JSON.parse(config.value);
+          const mode = configData.validation_mode === 'off' || configData.validation_mode === 'online' || configData.validation_mode === 'before_save'
+            ? configData.validation_mode
+            : 'before_save';
+          const enabled = configData.validation_rules_enabled ?? (mode !== 'off');
+          const tid = configData.theme_id;
+          const themeId = (tid === 'mist' || tid === 'minimal') ? 'mist' : 'ocean';
           return {
-            validation_rules_enabled: configData.validation_rules_enabled ?? false,
-            validate_inline: configData.validate_inline ?? true,
+            validation_rules_enabled: enabled,
+            validation_mode: mode,
+            theme_id: themeId,
           };
         } catch {
-          return { validation_rules_enabled: false, validate_inline: true };
+          return { validation_rules_enabled: false, validation_mode: 'before_save', theme_id: 'ocean' };
         }
       }
-      return { validation_rules_enabled: false, validate_inline: true };
+      return { validation_rules_enabled: false, validation_mode: 'before_save', theme_id: 'ocean' };
     },
     getEmailConfig: async (): Promise<any> => {
       const config = await api.systemConfiguration.getByName('email_config');
@@ -4890,7 +4668,7 @@ export const api = {
       }
       return null;
     },
-    /** Email templates stored in DB (system_configuration). Placeholders vary by template. */
+    /** Email templates stored in DB (system_configuration). Placeholders: {{name}}, {{date}}, {{assetCount}}, {{inspectorName}}, {{taskTitle}}, {{taskId}}, {{taskLink}}, {{action}} */
     getEmailTemplate: async (name: 'email_template_operator' | 'email_template_manager' | 'email_template_inspection_task'): Promise<{ subject: string; body: string } | null> => {
       const config = await api.systemConfiguration.getByName(name);
       if (!config?.value) return null;
@@ -4905,11 +4683,40 @@ export const api = {
       return null;
     },
     upsertEmailTemplate: async (
-      name: 'email_template_operator' | 'email_template_manager' | 'email_template_inspection_task',
+      name: 'email_template_operator' | 'email_template_manager',
       template: { subject: string; body: string },
       description?: string
     ): Promise<SystemConfiguration> => {
       return api.systemConfiguration.upsert(name, JSON.stringify(template), description);
+    },
+    /** File storage location (used by backend for upload/download). Stored as name='file_storage', value=JSON. */
+    getFileStorageConfig: async (): Promise<{ storage_path: string; storage_main_folder: string }> => {
+      const config = await api.systemConfiguration.getByName('file_storage');
+      if (config?.value) {
+        try {
+          const o = JSON.parse(config.value);
+          if (o && typeof (o.storage_path ?? o.STORAGE_PATH) === 'string') {
+            return {
+              storage_path: String(o.storage_path ?? o.STORAGE_PATH ?? './storage'),
+              storage_main_folder: String(o.storage_main_folder ?? o.STORAGE_MAIN_FOLDER ?? 'assetflow-files'),
+            };
+          }
+        } catch {
+          /* use defaults */
+        }
+      }
+      return { storage_path: './storage', storage_main_folder: 'assetflow-files' };
+    },
+    upsertFileStorageConfig: async (
+      storage_path: string,
+      storage_main_folder: string,
+      description?: string
+    ): Promise<SystemConfiguration> => {
+      return api.systemConfiguration.upsert(
+        'file_storage',
+        JSON.stringify({ storage_path: storage_path.trim(), storage_main_folder: storage_main_folder.trim() || 'assetflow-files' }),
+        description ?? 'מיקום אחסון קבצים (File storage path and folder)'
+      );
     },
   },
   operators: {
@@ -4923,7 +4730,7 @@ export const api = {
       updated_at: row.updated_at ?? '',
     }),
     getAll: async (): Promise<Operator[]> => {
-      const { data, error } = await supabase
+      const { data, error } = await api
         .from('operators')
         .select('operator_id, name, mail, phone, created_at, updated_at')
         .order('name');
@@ -4931,7 +4738,7 @@ export const api = {
       return (data || []).map(api.operators._mapRow);
     },
     getOne: async (id: number): Promise<Operator | null> => {
-      const { data, error } = await supabase
+      const { data, error } = await api
         .from('operators')
         .select('operator_id, name, mail, phone, created_at, updated_at')
         .eq('operator_id', id)
@@ -4940,7 +4747,7 @@ export const api = {
       return data ? api.operators._mapRow(data) : null;
     },
     create: async (input: Omit<Operator, 'id' | 'created_at' | 'updated_at'>): Promise<Operator> => {
-      const { data, error } = await supabase.from('operators').insert({
+      const { data, error } = await api.from('operators').insert({
         name: input.name,
         mail: input.email,
         phone: input.phone ?? null,
@@ -4953,12 +4760,12 @@ export const api = {
       if (input.name !== undefined) payload.name = input.name;
       if (input.email !== undefined) payload.mail = input.email;
       if (input.phone !== undefined) payload.phone = input.phone;
-      const { data, error } = await supabase.from('operators').update(payload).eq('operator_id', id).select().single();
+      const { data, error } = await api.from('operators').eq('operator_id', id).update(payload).select().single();
       if (error) throw error;
       return api.operators._mapRow(data);
     },
     delete: async (id: number): Promise<void> => {
-      const { error } = await supabase.from('operators').delete().eq('operator_id', id);
+      const { error } = await api.from('operators').delete().eq('operator_id', id);
       if (error) throw error;
     },
   },
@@ -4973,7 +4780,7 @@ export const api = {
       updated_at: row.updated_at ?? '',
     }),
     getAll: async (): Promise<Manager[]> => {
-      const { data, error } = await supabase
+      const { data, error } = await api
         .from('managers')
         .select('manager_id, name, tax_regions, mail, phone, created_at, updated_at')
         .order('name');
@@ -4981,7 +4788,7 @@ export const api = {
       return (data || []).map(api.managers._mapRow);
     },
     getOne: async (id: number): Promise<Manager | null> => {
-      const { data, error } = await supabase
+      const { data, error } = await api
         .from('managers')
         .select('manager_id, name, tax_regions, mail, phone, created_at, updated_at')
         .eq('manager_id', id)
@@ -4990,7 +4797,7 @@ export const api = {
       return data ? api.managers._mapRow(data) : null;
     },
     create: async (input: Omit<Manager, 'id' | 'created_at' | 'updated_at'>): Promise<Manager> => {
-      const { data, error } = await supabase.from('managers').insert({
+      const { data, error } = await api.from('managers').insert({
         name: input.name,
         tax_regions: input.tax_regions,
         mail: input.email,
@@ -5005,435 +4812,39 @@ export const api = {
       if (input.tax_regions !== undefined) payload.tax_regions = input.tax_regions;
       if (input.email !== undefined) payload.mail = input.email;
       if (input.phone !== undefined) payload.phone = input.phone;
-      const { data, error } = await supabase.from('managers').update(payload).eq('manager_id', id).select().single();
+      const { data, error } = await api.from('managers').eq('manager_id', id).update(payload).select().single();
       if (error) throw error;
       return api.managers._mapRow(data);
     },
     delete: async (id: number): Promise<void> => {
-      const { error } = await supabase.from('managers').delete().eq('manager_id', id);
+      const { error } = await api.from('managers').delete().eq('manager_id', id);
       if (error) throw error;
     },
   },
-  inspectionTasks: {
-    getAll: async (filters?: { status?: InspectionTaskStatus; assigned_to?: number; building_number?: number }): Promise<InspectionTask[]> => {
-      const session = getSession();
-      let query = supabase
-        .from('inspection_tasks')
-        .select('*')
-        .order('created_at', { ascending: false });
-      if (session?.user_role === 'inspector') {
-        query = query.eq('assigned_to', session.user_id);
-      } else if (filters?.assigned_to !== undefined) {
-        query = query.eq('assigned_to', filters.assigned_to);
-      }
-      if (filters?.status) query = query.eq('status', filters.status);
-      if (filters?.building_number !== undefined) query = query.eq('building_number', filters.building_number);
-      const { data, error } = await query;
-      if (error) throw error;
-      return (data || []) as InspectionTask[];
-    },
-    getOne: async (taskId: number): Promise<InspectionTask | null> => {
-      const { data, error } = await supabase
-        .from('inspection_tasks')
-        .select('*')
-        .eq('id', taskId)
-        .maybeSingle();
-      if (error) throw error;
-      return data as InspectionTask | null;
-    },
-    /** Get all history entries for a task (actions + comments when sent back/forward). */
-    getHistory: async (taskId: number): Promise<InspectionTaskHistoryEntry[]> => {
-      const { data, error } = await supabase
-        .from('inspection_task_history')
-        .select('id, task_id, created_at, created_by, action, comment_text')
-        .eq('task_id', taskId)
-        .order('created_at', { ascending: true });
-      if (error) throw error;
-      return (data || []) as InspectionTaskHistoryEntry[];
-    },
-    /**
-     * Returns the asset list the inspector should use when linking an upload to an asset:
-     * - If the task has asset_ids assigned, returns only those task assets.
-     * - Otherwise returns all assets for the task's building.
-     */
-    getAssetsForFileSelection: async (taskId: number): Promise<Asset[]> => {
-      const task = await api.inspectionTasks.getOne(taskId);
-      if (!task) return [];
-      if (task.asset_ids && task.asset_ids.length > 0) {
-        const list = await api.assets.getAssetsByIdsBatched(task.asset_ids);
-        return list as Asset[];
-      }
-      return api.assets.getAll(task.building_number);
-    },
-    create: async (input: { title: string; building_number: number; asset_ids?: number[]; assigned_to?: number; note?: string; priority?: InspectionTaskPriority }): Promise<InspectionTask> => {
-      const session = getSession();
-      if (!session?.user_id) throw new Error('לא מחובר');
-      const { data: task, error: taskError } = await supabase
-        .from('inspection_tasks')
-        .insert({
-          title: input.title.trim(),
-          building_number: input.building_number,
-          asset_ids: input.asset_ids?.length ? input.asset_ids : null,
-          assigned_to: input.assigned_to ?? null,
-          note: input.note?.trim() || null,
-          priority: input.priority && ['high', 'medium', 'low'].includes(input.priority) ? input.priority : 'medium',
-          status: 'new',
-          created_by: session.user_id,
-          updated_at: new Date().toISOString(),
-        })
-        .select()
-        .single();
-      if (taskError) throw taskError;
-      const { error: historyError } = await supabase.from('inspection_task_history').insert({
-        task_id: task.id,
-        created_by: session.user_id,
-        action: 'created',
-        comment_text: null,
-      });
-      if (historyError) console.warn('[inspectionTasks.create] history insert failed:', historyError);
-      return task as InspectionTask;
-    },
-    /** Create one-time access token for task deep link (admin only). Returns token for email. */
-    createAccessToken: async (taskId: number, userId: number): Promise<string> => {
-      const session = getSession();
-      if (!session?.user_id) throw new Error('לא מחובר');
-      const { data, error } = await supabase.rpc('inspection_task_create_access_token', {
-        p_task_id: taskId,
-        p_user_id: userId,
-        p_caller_user_id: session.user_id,
-      });
-      if (error) throw new Error(error.message || 'לא ניתן ליצור טוקן');
-      return data as string;
-    },
-    /** Inspector marks task as in progress (new -> in_progress). */
-    takeTask: async (taskId: number): Promise<InspectionTask> => {
-      const session = getSession();
-      if (!session?.user_id) throw new Error('לא מחובר');
-      const now = new Date().toISOString();
-      const { data: task, error: updateError } = await supabase
-        .from('inspection_tasks')
-        .update({
-          status: 'in_progress',
-          taken_at: now,
-          updated_at: now,
-        })
-        .eq('id', taskId)
-        .eq('assigned_to', session.user_id)
-        .in('status', ['new'])
-        .select()
-        .single();
-      if (updateError || !task) throw new Error(updateError?.message || 'לא ניתן להתחיל את המשימה');
-      await supabase.from('inspection_task_history').insert({
-        task_id: taskId,
-        created_by: session.user_id,
-        action: 'taken',
-        comment_text: null,
-      });
-      return task as InspectionTask;
-    },
-    /** Inspector submits task for approval (new|in_progress -> pending_approval). */
-    submitForApproval: async (taskId: number, comment?: string | null): Promise<InspectionTask> => {
-      const session = getSession();
-      if (!session?.user_id) throw new Error('לא מחובר');
-      const now = new Date().toISOString();
-      const { data: task, error: updateError } = await supabase
-        .from('inspection_tasks')
-        .update({
-          status: 'pending_approval',
-          submitted_at: now,
-          updated_at: now,
-        })
-        .eq('id', taskId)
-        .eq('assigned_to', session.user_id)
-        .in('status', ['new', 'in_progress'])
-        .select()
-        .single();
-      if (updateError || !task) throw new Error(updateError?.message || 'לא ניתן לשלוח לאישור');
-      await supabase.from('inspection_task_history').insert({
-        task_id: taskId,
-        created_by: session.user_id,
-        action: 'submitted',
-        comment_text: comment?.trim() || null,
-      });
-      return task as InspectionTask;
-    },
-    /** Admin approves task (pending_approval -> approved). After approval, copies uploaded files that have asset_id into asset_files. */
-    approveTask: async (taskId: number): Promise<InspectionTask> => {
-      const session = getSession();
-      if (!session?.user_id) throw new Error('לא מחובר');
-      if (session.user_role !== 'admin') throw new Error('רק מנהל יכול לאשר משימה');
-      const now = new Date().toISOString();
-      const { data: task, error: updateError } = await supabase
-        .from('inspection_tasks')
-        .update({
-          status: 'approved',
-          approved_at: now,
-          approved_by: session.user_id,
-          updated_at: now,
-        })
-        .eq('id', taskId)
-        .eq('status', 'pending_approval')
-        .select()
-        .single();
-      if (updateError || !task) throw new Error(updateError?.message || 'לא ניתן לאשר את המשימה');
-      await supabase.from('inspection_task_history').insert({
-        task_id: taskId,
-        created_by: session.user_id,
-        action: 'approved',
-        comment_text: null,
-      });
-      const report = await supabase.from('inspection_reports').select('id').eq('task_id', taskId).maybeSingle();
-      if (report?.data?.id) {
-        const { data: files } = await supabase
-          .from('inspection_report_files')
-          .select('id, report_id, asset_id, file_path, file_name, file_type')
-          .eq('report_id', report.data.id)
-          .not('asset_id', 'is', null);
-        const userInfo = await getCurrentUserInfo();
-        for (const f of (files || []) as Array<{ id: number; report_id: number; asset_id: number; file_path: string; file_name: string | null; file_type: string | null }>) {
-          try {
-            const { data: blob, error: downloadErr } = await supabase.storage.from('inspection-reports').download(f.file_path);
-            if (downloadErr || !blob) continue;
-            const safeName = (f.file_name || f.file_path.split('/').pop() || `inspection_${f.id}`).replace(/[^a-zA-Z0-9._-]/g, '_');
-            const mimeType = f.file_type || blob.type || undefined;
-            let dataToUpload: Blob | File = blob;
-            // Compress images to <30KB before inserting into asset_files
-            if (getFileTypeCategory(safeName, mimeType) === 'image' && blob.size > 30 * 1024) {
-              const file = new File([blob], safeName, { type: mimeType || 'application/octet-stream' });
-              dataToUpload = await compressFile(file);
-            }
-            const targetPath = `${f.asset_id}/${Date.now()}_${safeName}`;
-            const { error: uploadErr } = await supabase.storage.from('structure-drawings').upload(targetPath, dataToUpload, { contentType: dataToUpload.type || mimeType });
-            if (uploadErr) continue;
-            const { data: { publicUrl } } = supabase.storage.from('structure-drawings').getPublicUrl(targetPath);
-            await supabase.from('asset_files').insert({
-              asset_id: f.asset_id,
-              file_url: publicUrl,
-              file_name: f.file_name || safeName,
-              file_size: dataToUpload.size,
-              file_type: dataToUpload.type || f.file_type || null,
-              uploaded_by: userInfo.user_name,
-              measurement_date: null,
-            });
-          } catch (_) {
-            // skip failed copy
-          }
-        }
-      }
-      return task as InspectionTask;
-    },
-    /** Admin returns task to inspector (pending_approval -> in_progress); note is stored in history. */
-    returnToInspector: async (taskId: number, note?: string | null): Promise<InspectionTask> => {
-      const session = getSession();
-      if (!session?.user_id) throw new Error('לא מחובר');
-      if (session.user_role !== 'admin') throw new Error('רק מנהל יכול להחזיר לפקח');
-      const now = new Date().toISOString();
-      const { data: task, error: updateError } = await supabase
-        .from('inspection_tasks')
-        .update({
-          status: 'in_progress',
-          submitted_at: null,
-          updated_at: now,
-        })
-        .eq('id', taskId)
-        .eq('status', 'pending_approval')
-        .select()
-        .single();
-      if (updateError || !task) throw new Error(updateError?.message || 'לא ניתן להחזיר לפקח');
-      await supabase.from('inspection_task_history').insert({
-        task_id: taskId,
-        created_by: session.user_id,
-        action: 'returned',
-        comment_text: note?.trim() || null,
-      });
-      return task as InspectionTask;
-    },
-    /** Admin cancels task at any time. Sets status to cancelled; task remains in DB. */
-    cancelTask: async (taskId: number): Promise<InspectionTask> => {
-      const session = getSession();
-      if (!session?.user_id) throw new Error('לא מחובר');
-      if (session.user_role !== 'admin') throw new Error('רק מנהל יכול לבטל משימה');
-      const existing = await api.inspectionTasks.getOne(taskId);
-      if (!existing) throw new Error('משימה לא נמצאה');
-      if (existing.status === 'cancelled') return existing;
-      const now = new Date().toISOString();
-      const { data: task, error: updateError } = await supabase
-        .from('inspection_tasks')
-        .update({
-          status: 'cancelled',
-          updated_at: now,
-        })
-        .eq('id', taskId)
-        .select()
-        .single();
-      if (updateError || !task) throw new Error(updateError?.message || 'לא ניתן לבטל את המשימה');
-      await supabase.from('inspection_task_history').insert({
-        task_id: taskId,
-        created_by: session.user_id,
-        action: 'cancelled',
-        comment_text: null,
-      });
-      return task as InspectionTask;
-    },
-    /** Admin can update task metadata any time. Inspector can update only after starting (in_progress), and only title + note + priority. */
-    update: async (
-      taskId: number,
-      input: { title?: string; building_number?: number; assigned_to?: number | null; note?: string | null; asset_ids?: number[] | null; priority?: InspectionTaskPriority }
-    ): Promise<InspectionTask> => {
-      const session = getSession();
-      if (!session?.user_id) throw new Error('לא מחובר');
-      const existing = await api.inspectionTasks.getOne(taskId);
-      if (!existing) throw new Error('משימה לא נמצאה');
-      const isAdmin = session.user_role === 'admin';
-      const isInspectorAssigned = session.user_role === 'inspector' && existing.assigned_to === session.user_id && existing.status === 'in_progress';
-      if (!isAdmin && !isInspectorAssigned) throw new Error('אין הרשאה לעדכן משימה זו');
-      const updates: Record<string, unknown> = { updated_at: new Date().toISOString() };
-      if (isAdmin) {
-        if (input.title !== undefined) updates.title = input.title.trim();
-        if (input.building_number !== undefined) updates.building_number = input.building_number;
-        if (input.assigned_to !== undefined) updates.assigned_to = input.assigned_to;
-        if (input.note !== undefined) updates.note = input.note?.trim() || null;
-        if (input.asset_ids !== undefined) updates.asset_ids = input.asset_ids?.length ? input.asset_ids : null;
-        if (input.priority !== undefined && ['high', 'medium', 'low'].includes(input.priority)) updates.priority = input.priority;
-      } else {
-        if (input.title !== undefined) updates.title = input.title.trim();
-        if (input.note !== undefined) updates.note = input.note?.trim() || null;
-        if (input.priority !== undefined && ['high', 'medium', 'low'].includes(input.priority)) updates.priority = input.priority;
-      }
-      const { data: task, error } = await supabase
-        .from('inspection_tasks')
-        .update(updates)
-        .eq('id', taskId)
-        .select()
-        .single();
-      if (error) throw error;
-      return task as InspectionTask;
-    },
+  /** Queue receives 3 requests: create_download_zip, send_mail_operators, send_mail_managers */
+  exportToAutomation: {
+    enqueue: exportToAutomationEnqueue,
   },
-  inspectionReports: {
-    getByTaskId: async (taskId: number): Promise<InspectionReport | null> => {
-      const { data, error } = await supabase
-        .from('inspection_reports')
-        .select('*')
-        .eq('task_id', taskId)
-        .maybeSingle();
-      if (error) throw error;
-      return data as InspectionReport | null;
-    },
-    upsert: async (taskId: number, reportText?: string | null): Promise<InspectionReport> => {
-      const session = getSession();
-      const { data: existing } = await supabase.from('inspection_reports').select('id').eq('task_id', taskId).maybeSingle();
-      const now = new Date().toISOString();
-      if (existing) {
-        const { data, error } = await supabase
-          .from('inspection_reports')
-          .update({
-            report_text: reportText !== undefined ? reportText : undefined,
-            updated_at: now,
-            ...(reportText !== undefined && { reported_at: now, reported_by: session?.user_id ?? null }),
-          })
-          .eq('task_id', taskId)
-          .select()
-          .single();
-        if (error) throw error;
-        return data as InspectionReport;
+  export: {
+    createZipJob: exportCreateZipJob,
+    getZipStatus: exportGetZipStatus,
+    getZipDownloadUrl: exportGetZipDownloadUrl,
+    /** Poll until ready (or failed), then return download URL or throw. */
+    async waitThenDownloadUrl(
+      jobId: string,
+      opts?: { pollIntervalMs?: number; maxWaitMs?: number }
+    ): Promise<string> {
+      const interval = opts?.pollIntervalMs ?? 2000;
+      const maxWait = opts?.maxWaitMs ?? 300000; // 5 min
+      const start = Date.now();
+      for (;;) {
+        const { data, error } = await exportGetZipStatus(jobId);
+        if (error) throw new Error(error.message);
+        if (data?.status === 'ready') return exportGetZipDownloadUrl(jobId);
+        if (data?.status === 'failed') throw new Error(data.error ?? 'ZIP job failed');
+        if (Date.now() - start > maxWait) throw new Error('ZIP job timed out');
+        await new Promise((r) => setTimeout(r, interval));
       }
-      const { data, error } = await supabase
-        .from('inspection_reports')
-        .insert({
-          task_id: taskId,
-          report_text: reportText ?? null,
-          reported_at: reportText ? now : null,
-          reported_by: reportText ? (session?.user_id ?? null) : null,
-          updated_at: now,
-        })
-        .select()
-        .single();
-      if (error) throw error;
-      return data as InspectionReport;
-    },
-    files: {
-      list: async (reportId: number): Promise<InspectionReportFile[]> => {
-        const { data, error } = await supabase
-          .from('inspection_report_files')
-          .select('*')
-          .eq('report_id', reportId)
-          .order('uploaded_at', { ascending: false });
-        if (error) throw error;
-        return (data || []) as InspectionReportFile[];
-      },
-      /** Upload a file; assetId is required (inspector must select asset before upload). */
-      upload: async (
-        reportId: number,
-        file: File,
-        assetId?: number | null
-      ): Promise<InspectionReportFile> => {
-        const session = getSession();
-        const safeName = `${Date.now()}_${file.name.replace(/[^a-zA-Z0-9._-]/g, '_')}`;
-        const filePath = `${reportId}/${safeName}`;
-        const { error: uploadError } = await supabase.storage
-          .from('inspection-reports')
-          .upload(filePath, file, { contentType: file.type || undefined, upsert: false });
-        if (uploadError) {
-          const msg = uploadError.message || String(uploadError);
-          console.error('Storage upload failed:', uploadError);
-          throw new Error(msg);
-        }
-        const { data: row, error: insertError } = await supabase
-          .from('inspection_report_files')
-          .insert({
-            report_id: reportId,
-            asset_id: assetId ?? null,
-            file_path: filePath,
-            file_name: file.name,
-            file_type: file.type || null,
-            uploaded_by: session?.user_id ?? null,
-          })
-          .select()
-          .single();
-        if (insertError) {
-          const msg = insertError.message || String(insertError);
-          console.error('inspection_report_files insert failed:', insertError);
-          throw new Error(msg);
-        }
-        if (!row) throw new Error('ההעלאה הצליחה אך לא התקבלה תשובה מהשרת');
-        return row as InspectionReportFile;
-      },
-      /** Update file metadata (e.g. file_name). */
-      update: async (fileId: number, patch: { file_name?: string | null }): Promise<InspectionReportFile> => {
-        const { data, error } = await supabase
-          .from('inspection_report_files')
-          .update({
-            ...(patch.file_name !== undefined && { file_name: patch.file_name || null }),
-          })
-          .eq('id', fileId)
-          .select()
-          .single();
-        if (error) throw error;
-        if (!data) throw new Error('קובץ לא נמצא');
-        return data as InspectionReportFile;
-      },
-      delete: async (fileId: number): Promise<{ success: boolean; error?: string }> => {
-        const { data: file, error: fetchError } = await supabase
-          .from('inspection_report_files')
-          .select('file_path')
-          .eq('id', fileId)
-          .single();
-        if (fetchError || !file) return { success: false, error: fetchError?.message || 'File not found' };
-        await supabase.storage.from('inspection-reports').remove([file.file_path]);
-        const { error: deleteError } = await supabase.from('inspection_report_files').delete().eq('id', fileId);
-        if (deleteError) return { success: false, error: deleteError.message };
-        return { success: true };
-      },
-      getDownloadUrl: (filePath: string): string => {
-        const { data } = supabase.storage.from('inspection-reports').getPublicUrl(filePath);
-        return data.publicUrl;
-      },
-      getSignedUrl: async (filePath: string, expiresIn = 3600): Promise<string> => {
-        const { data, error } = await supabase.storage.from('inspection-reports').createSignedUrl(filePath, expiresIn);
-        if (error) throw error;
-        return data.signedUrl;
-      },
     },
   },
 };

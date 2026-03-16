@@ -2092,11 +2092,11 @@ export const TransferAreas = forwardRef<TransferAreasRef, TransferAreasProps>(({
   }
 
   return (
-    <div className="flex flex-col flex-1 min-h-0 w-full px-2 sm:px-4 md:px-6 py-1.5 sm:py-2">
-      <div className="page-header mb-2 rounded-lg px-3 py-2 w-full">
-        <div className="flex items-center gap-2 flex-wrap w-full">
+    <div className="flex flex-col flex-1 min-h-0 w-full py-2" style={{ maxWidth: '100vw', width: '100%', paddingLeft: '0.5rem', paddingRight: '0.5rem' }}>
+      <div className="page-header mb-1.5 rounded-md px-2 py-1.5 flex-shrink-0 w-full">
+        <div className="relative flex items-center gap-1.5 flex-wrap w-full">
           <div className="page-header-icon shrink-0">
-            <BuildingIcon className="w-5 h-5" />
+            <BuildingIcon className="w-4 h-4" />
           </div>
           <h1 className="page-header-title text-sm sm:text-base font-bold">
             העברת שטחים - מבנה {building?.building_number}
@@ -2116,7 +2116,9 @@ export const TransferAreas = forwardRef<TransferAreasRef, TransferAreasProps>(({
         </div>
       )}
 
-      <div className="mb-2 action-bar flex justify-end gap-2">
+      <div className="mb-1.5 flex flex-wrap items-center gap-2 flex-shrink-0">
+      <div className="action-bar flex-1 min-w-0 py-1 px-2">
+      <div className="flex flex-wrap justify-end gap-1.5">
         <button
           onClick={async () => {
             if (!assets || assets.length === 0) {
@@ -2183,9 +2185,11 @@ export const TransferAreas = forwardRef<TransferAreasRef, TransferAreasProps>(({
           <span>{loading ? 'שומר...' : `שמור כמדידות חדשות${hasChanges ? ` (${dirtyAssets.size})` : ''}${validationErrors.size > 0 ? ` - ${validationErrors.size} שגיאות` : ''}`}</span>
         </button>
       </div>
+      </div>
+      </div>
 
       <div className="flex-1 min-h-0 flex flex-col bg-white rounded-xl shadow-lg hover:shadow-xl transition-shadow duration-200 overflow-hidden border-2 border-theme-action-accent w-full">
-        <div className="ag-theme-alpine buildings-list-grid flex-1 min-h-[200px]" style={{ width: '100%', minWidth: '100%', overflowX: 'auto' }}>
+        <div className="ag-theme-alpine buildings-list-grid flex-1 min-h-[300px]" style={{ width: '100%', minWidth: '100%', overflowX: 'auto' }}>
             <AgGridReact<Asset>
               ref={gridRef}
               rowData={sortedAssets}

@@ -625,15 +625,13 @@ export function AddressListComponent() {
   }
 
   return (
-    <div className="flex flex-col flex-1 min-h-0 w-full px-2 sm:px-4 md:px-6 py-1.5 sm:py-2">
-      <div className="page-header mb-2 rounded-lg px-3 py-2 w-full">
-        <div className="flex items-center justify-between w-full">
-          <div className="flex items-center gap-2">
-            <div className="page-header-icon shrink-0">
-              <MapPin className="w-5 h-5" />
-            </div>
-            <h1 className="page-header-title text-sm sm:text-base font-bold">רשימת כתובות</h1>
+    <div className="flex flex-col flex-1 min-h-0 w-full py-2" style={{ maxWidth: '100vw', width: '100%', paddingLeft: '0.5rem', paddingRight: '0.5rem' }}>
+      <div className="page-header mb-1.5 rounded-md px-2 py-1.5 flex-shrink-0 w-full">
+        <div className="relative flex items-center gap-1.5 flex-wrap w-full">
+          <div className="page-header-icon shrink-0">
+            <MapPin className="w-4 h-4" />
           </div>
+          <h1 className="page-header-title text-sm sm:text-base font-bold">רשימת כתובות</h1>
           <span className="page-header-badge">{addresses.length} רשומות</span>
         </div>
       </div>
@@ -696,37 +694,47 @@ export function AddressListComponent() {
         </div>
       )}
 
-      <div className="bg-white rounded-xl shadow-lg border border-theme-card-border p-6 mb-6">
-        <div className="flex items-center justify-between mb-6">
-          <div className="flex items-center gap-3">
-            <h2 className="text-xl font-bold text-slate-900">רשימת כתובות</h2>
-            <span className="text-sm text-slate-700 bg-slate-100 px-3 py-1 rounded-lg font-semibold">
-              סך הכל: {addresses.length} כתובות
-            </span>
-          </div>
-          <div className="action-bar flex justify-end gap-2">
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept=".csv,.xlsx,.xls"
-              onChange={handleFileImport}
-              className="hidden"
-            />
+      <div className="mb-1.5 flex flex-wrap items-center gap-2 flex-shrink-0">
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept=".csv,.xlsx,.xls"
+          onChange={handleFileImport}
+          className="hidden"
+        />
+        <div className="action-bar flex-1 min-w-0 py-1 px-2">
+          <div className="flex flex-wrap justify-end gap-1.5">
+            <button
+              onClick={handleCancelAll}
+              disabled={isSaving || (dirtyAddresses.size === 0 && deletedAddresses.size === 0)}
+              className="btn btn-action btn-cancel disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <X className="h-5 w-5" />
+              <span>{t('cancel')}</span>
+            </button>
+            <button
+              onClick={handleSaveAll}
+              disabled={isSaving || (dirtyAddresses.size === 0 && deletedAddresses.size === 0)}
+              className="btn btn-action btn-primary disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {isSaving ? <Loader2 className="h-5 w-5 animate-spin" /> : <Save className="h-5 w-5" />}
+              <span>{isSaving ? 'שומר...' : `שמור הכל${dirtyAddresses.size + deletedAddresses.size > 0 ? ` (${dirtyAddresses.size + deletedAddresses.size})` : ''}`}</span>
+            </button>
             <button
               onClick={handleExportToExcel}
               className="btn btn-action btn-export"
               title="ייצא נתונים ל-Excel"
             >
               <Download className="h-5 w-5" />
-              <span className="hidden sm:inline">ייצא ל-Excel</span>
+              <span>ייצא</span>
             </button>
             <button
               onClick={() => handleExportTemplate('excel')}
               className="btn btn-action btn-secondary"
-              title="הורד תבנית לקובץ Excel"
+              title="הורד תבנית Excel"
             >
               <Download className="h-5 w-5" />
-              <span className="hidden sm:inline">הורד תבנית</span>
+              <span>תבנית</span>
             </button>
             <button
               onClick={() => handleExportTemplate('csv')}
@@ -742,37 +750,14 @@ export function AddressListComponent() {
               className="btn btn-action btn-primary disabled:opacity-50 disabled:shadow-none"
             >
               <Upload className="h-5 w-5" />
-              <span className="hidden sm:inline">{isImporting ? t('loading') : 'ייבא קובץ'}</span>
+              <span>{isImporting ? t('loading') : 'ייבא'}</span>
             </button>
           </div>
         </div>
+      </div>
 
-        {/* Save All / Cancel buttons */}
-        <div className="mb-4 action-bar flex flex-col sm:flex-row justify-end gap-2 sm:gap-3">
-          <button
-            onClick={handleCancelAll}
-            disabled={isSaving || (dirtyAddresses.size === 0 && deletedAddresses.size === 0)}
-            className="btn btn-action btn-cancel disabled:opacity-50 disabled:cursor-not-allowed w-full sm:w-auto"
-          >
-            <X className="h-5 w-5" />
-            <span>{t('cancel')}</span>
-          </button>
-          <button
-            onClick={handleSaveAll}
-            disabled={isSaving || (dirtyAddresses.size === 0 && deletedAddresses.size === 0)}
-            className="btn btn-action btn-primary disabled:opacity-50 disabled:cursor-not-allowed w-full sm:w-auto"
-          >
-            {isSaving ? (
-              <Loader2 className="h-5 w-5 animate-spin" />
-            ) : (
-              <Save className="h-5 w-5" />
-            )}
-            <span>{isSaving ? 'שומר...' : `שמור הכל${dirtyAddresses.size + deletedAddresses.size > 0 ? ` (${dirtyAddresses.size + deletedAddresses.size})` : ''}`}</span>
-          </button>
-        </div>
-
-        <div className="bg-white rounded-xl shadow-lg hover:shadow-xl transition-shadow duration-200 overflow-hidden border-2 border-theme-action-accent w-full">
-          <div className="ag-theme-alpine" style={{ height: '60vh', width: '100%', minWidth: '100%', overflowX: 'auto', direction: 'rtl' }}>
+      <div className="flex-1 min-h-0 flex flex-col bg-white rounded-xl shadow-lg hover:shadow-xl transition-shadow duration-200 overflow-hidden border-2 border-theme-action-accent w-full">
+          <div className="ag-theme-alpine flex-1 min-h-[300px]" style={{ width: '100%', minWidth: '100%', overflowX: 'auto', direction: 'rtl' }}>
             <AgGridReact<AddressList>
             ref={gridRef}
             rowData={addresses}
@@ -968,7 +953,6 @@ export function AddressListComponent() {
           />
           </div>
         </div>
-      </div>
     </div>
   );
 }

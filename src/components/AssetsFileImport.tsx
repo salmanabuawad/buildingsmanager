@@ -1,9 +1,9 @@
-import { useState, useRef, useMemo, useCallback, useEffect } from 'react';
+﻿import { useState, useRef, useMemo, useCallback, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
 import { Upload, FileText, Download, AlertCircle, CheckCircle, Loader2, X, Save, CheckCircle2, Trash2, RotateCcw, MessageSquare } from 'lucide-react';
 import { api, Asset, AssetType, Building, AddressList } from '../lib/api';
-import { supabase } from '../lib/supabase';
+import { client } from '../lib/client';
 import { AssetValidationHandler } from '../lib/assetValidationHandler';
 import { ValidationResultModal, BatchValidationResults, ValidationProgress } from './ValidationResultModal';
 import { useValidationRules } from '../contexts/ValidationContext';
@@ -1496,7 +1496,7 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
         // Update total area for each affected building
         for (const buildingNum of affectedBuildingNumbers) {
           try {
-            await supabase.rpc('update_building_total_area', { p_building_number: buildingNum });
+            await client.rpc('update_building_total_area', { p_building_number: buildingNum });
           } catch (areaError) {
             console.warn(`Failed to update building total area for building ${buildingNum} after skeleton import:`, areaError);
             // Don't fail the operation if area update fails
@@ -2321,7 +2321,7 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
                   // Update total area for each affected building
                   for (const buildingNum of affectedBuildingNumbers) {
                     try {
-                      await supabase.rpc('update_building_total_area', { p_building_number: buildingNum });
+                      await client.rpc('update_building_total_area', { p_building_number: buildingNum });
                     } catch (areaError) {
                       console.warn(`Failed to update building total area for building ${buildingNum} after import:`, areaError);
                       // Don't fail the operation if area update fails
@@ -2387,7 +2387,7 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
         // Update total area for each affected building
         for (const buildingNum of affectedBuildingNumbers) {
           try {
-            await supabase.rpc('update_building_total_area', { p_building_number: buildingNum });
+            await client.rpc('update_building_total_area', { p_building_number: buildingNum });
           } catch (areaError) {
             console.warn(`Failed to update building total area for building ${buildingNum} after import:`, areaError);
             // Don't fail the operation if area update fails

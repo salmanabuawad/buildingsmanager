@@ -1,4 +1,4 @@
-import { supabase } from './supabase';
+﻿import { client } from './client';
 
 const STORAGE_KEY = 'buildingsmanager_users_table_session';
 const FILE_SESSION_COOKIE = 'file_session';
@@ -83,7 +83,7 @@ export async function loginUsersTable(
   password: string
 ): Promise<{ success: true; session: UsersTableSession } | { success: false; error: string }> {
   try {
-    const { data, error } = await supabase.rpc('auth_login', {
+    const { data, error } = await client.rpc('auth_login', {
       p_user_name: user_name.trim(),
       p_password: password,
     });
@@ -129,7 +129,7 @@ export async function loginByOtp(
   otp: string
 ): Promise<{ success: true; session: UsersTableSession; taskId?: number } | { success: false; error: string }> {
   try {
-    const { data, error } = await supabase.rpc('auth_login_by_otp', {
+    const { data, error } = await client.rpc('auth_login_by_otp', {
       p_otp: otp.trim(),
     });
 
@@ -162,7 +162,7 @@ export async function loginByTaskToken(
   token: string
 ): Promise<{ success: true; session: UsersTableSession; taskId: number } | { success: false; error: string }> {
   try {
-    const { data, error } = await supabase.rpc('auth_login_by_task_token', {
+    const { data, error } = await client.rpc('auth_login_by_task_token', {
       p_token: token.trim(),
     });
 

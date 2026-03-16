@@ -224,6 +224,61 @@ async def generic_insert(table: str, data: dict | list) -> list[dict]:
     return result
 
 
+# Cache of primary key columns per table to avoid repeated DB lookups
+_pk_cache: dict[str, list[str]] = {}
+
+
+async def _get_primary_keys(conn, table: str) -> list[str]:
+    if table in _pk_cache:
+        return _pk_cache[table]
+    q = """
+        SELECT kcu.column_name
+        FROM information_schema.table_constraints tc
+        JOIN information_schema.key_column_usage kcu
+          ON tc.constraint_name = kcu.constraint_name AND tc.table_name = kcu.table_name
+        WHERE tc.constraint_type = 'PRIMARY KEY' AND tc.table_name = $1
+        ORDER BY kcu.ordinal_position
+    """
+    rows = await conn.fetch(q, table)
+    pks = [r["column_name"] for r in rows]
+    _pk_cache[table] = pks
+    return pks
+
+
+async def generic_upsert(table: str, data: dict | list) -> list[dict]:
+    """INSERT ... ON CONFLICT (pk) DO UPDATE SET ... using the table's primary key."""
+    if table not in ALLOWED_TABLES:
+        raise ValueError(f"Table not allowed: {table}")
+    rows = data if isinstance(data, list) else [data]
+    if not rows:
+        return []
+    cols = list(rows[0].keys())
+    result = []
+    pool = get_pool()
+    async with pool.acquire() as conn:
+        pk_cols = await _get_primary_keys(conn, table)
+        if not pk_cols:
+            # No PK found — fall back to plain insert
+            return await generic_insert(table, data)
+        non_pk_cols = [c for c in cols if c not in pk_cols]
+        col_names = ", ".join(_safe_col(c) for c in cols)
+        conflict_cols = ", ".join(_safe_col(c) for c in pk_cols)
+        if non_pk_cols:
+            update_set = ", ".join(f"{_safe_col(c)} = EXCLUDED.{_safe_col(c)}" for c in non_pk_cols)
+            on_conflict = f"ON CONFLICT ({conflict_cols}) DO UPDATE SET {update_set}"
+        else:
+            on_conflict = f"ON CONFLICT ({conflict_cols}) DO NOTHING"
+        async with conn.transaction():
+            for row in rows:
+                placeholders = ", ".join(f"${i+1}" for i in range(len(cols)))
+                values = [row.get(c) for c in cols]
+                sql = f"INSERT INTO {table} ({col_names}) VALUES ({placeholders}) {on_conflict} RETURNING *"
+                r = await conn.fetchrow(sql, *values)
+                if r:
+                    result.append(dict(r))
+    return result
+
+
 async def generic_update(table: str, data: dict, query_params: dict) -> list[dict]:
     if table not in ALLOWED_TABLES:
         raise ValueError(f"Table not allowed: {table}")

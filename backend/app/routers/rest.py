@@ -9,6 +9,7 @@ from app.repositories.base import (
     generic_insert,
     generic_update,
     generic_delete,
+    generic_upsert,
     ALLOWED_TABLES,
 )
 from app.users_table import get_current_user_users_table, CurrentUser
@@ -59,8 +60,10 @@ async def rest_insert(
 ):
     _table_or_404(table)
     body = await request.json()
+    prefer = request.headers.get("Prefer", "")
+    is_upsert = "resolution=merge-duplicates" in prefer
     try:
-        rows = await generic_insert(table, body)
+        rows = await generic_upsert(table, body) if is_upsert else await generic_insert(table, body)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:

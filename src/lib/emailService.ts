@@ -4,7 +4,6 @@
  * Ref: C:\production\bolt\origin\buildingsmanager
  */
 
-import { api } from './api';
 import { getSession } from './usersTableAuth';
 
 /** Backend base URL for email API (no trailing slash). Same origin when published; VITE_BACKEND_URL or localhost:8000 in dev. */
@@ -19,14 +18,10 @@ function getEmailBackendUrl(): string {
 /** Get headers for email API: JWT or users-table session (X-Users-Table-Session). */
 async function getEmailApiHeaders(): Promise<HeadersInit> {
   const headers: HeadersInit = { 'Content-Type': 'application/json' };
-  try {
-    const { data: { session } } = await api.auth.getSession();
-    if (session?.access_token && session.access_token !== 'local') {
-      (headers as Record<string, string>)['Authorization'] = `Bearer ${session.access_token}`;
-      return headers;
-    }
-  } catch {
-    /* use session or token below */
+  const usersTableSession = getSession();
+  if (usersTableSession?.access_token) {
+    (headers as Record<string, string>)['Authorization'] = `Bearer ${usersTableSession.access_token}`;
+    return headers;
   }
   const backendToken = typeof localStorage !== 'undefined' ? localStorage.getItem('auth_token') : null;
   if (backendToken) {

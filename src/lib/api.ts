@@ -1,4 +1,4 @@
-import { supabase } from './supabase';
+﻿import { client } from './client';
 import { getSession, getAuthUserIdForRpc } from './usersTableAuth';
 import i18n from '../i18n/i18n';
 import { sanitizeText, sanitizeNumber, sanitizeInteger, sanitizeDate } from './sanitize';
@@ -19,8 +19,8 @@ import { compressFile, getFileTypeCategory } from './fileCompression';
  *    - api.assets.saveBulkTransactional() for bulk saves
  *
  * 2. NEVER use direct database operations:
- *    ❌ supabase.from('assets').insert()
- *    ❌ supabase.from('assets').update()
+ *    ❌ client.from('assets').insert()
+ *    ❌ client.from('assets').update()
  *
  * 3. Validation is MANDATORY and enforced at database level
  *
@@ -71,7 +71,7 @@ async function getAssetBusinessResidenceType(asset: Partial<Asset>): Promise<'bu
     const mainAssetTypeStr = String(asset.main_asset_type).trim();
     
     // First try string lookup
-    const { data: assetTypeData, error } = await supabase
+    const { data: assetTypeData, error } = await client
       .from('asset_types')
       .select('name, business_residence')
       .eq('name', mainAssetTypeStr)
@@ -83,7 +83,7 @@ async function getAssetBusinessResidenceType(asset: Partial<Asset>): Promise<'bu
     if (!foundAssetType) {
       const mainAssetTypeNum = parseInt(mainAssetTypeStr, 10);
       if (!isNaN(mainAssetTypeNum)) {
-        const { data: allAssetTypes } = await supabase
+        const { data: allAssetTypes } = await client
           .from('asset_types')
           .select('name, business_residence');
         
@@ -128,7 +128,7 @@ async function resetDistributionFlagsIfNeeded(
 
   try {
     // Get current building data to check if flags need to be reset and if shared area is > 0
-    const { data: building, error: buildingError } = await supabase
+    const { data: building, error: buildingError } = await client
       .from('buildings')
       .select('need_business_distribution, need_residence_distribution, business_shared_area, residence_shared_area')
       .eq('building_number', buildingNumber)
@@ -173,14 +173,14 @@ async function resetDistributionFlagsIfNeeded(
     // After setting flags to true, we should check if there are actually eligible assets
     if (changeType === 'delete' || changeType === 'update') {
       // Get all assets for this building
-      const { data: allAssets, error: assetsError } = await supabase
+      const { data: allAssets, error: assetsError } = await client
         .from('assets')
         .select('main_asset_type')
         .eq('building_number', buildingNumber);
 
       if (!assetsError && allAssets && allAssets.length > 0) {
         // Get all asset types to check their properties
-        const { data: allAssetTypes, error: typesError } = await supabase
+        const { data: allAssetTypes, error: typesError } = await client
           .from('asset_types')
           .select('name, business_residence, non_accountable_for_distribution');
 
@@ -265,9 +265,9 @@ async function resetDistributionFlagsIfNeeded(
       }
     }
 
-    // Update building if flags need to be reset (use direct supabase call to avoid circular reference)
+    // Update building if flags need to be reset (use direct client call to avoid circular reference)
     if (Object.keys(updates).length > 0) {
-      await supabase
+      await client
         .from('buildings')
         .update(updates)
         .eq('building_number', buildingNumber);
@@ -297,7 +297,7 @@ function logChangeAsync(
       
       // Call the RPC function asynchronously (don't await)
       // Function now uses user_id FK - pass auth_user_id (p_user_id)
-      const { error } = await supabase.rpc('log_change_entry', {
+      const { error } = await client.rpc('log_change_entry', {
         p_table_name: tableName,
         p_operation: operation,
         p_record_id: recordId,
@@ -1027,7 +1027,7 @@ export async function validateAndSaveBulkAssets(
   // Load existing assets from database if we have asset_ids
   let existingAssetsMap = new Map<number, any>();
   if (assetIds.length > 0) {
-    const { data: existingAssets, error: fetchError } = await supabase
+    const { data: existingAssets, error: fetchError } = await client
       .from('assets')
       .select('*')
       .in('asset_id', assetIds);
@@ -1090,7 +1090,7 @@ export async function validateAndSaveBulkAssets(
       // Fetch building once and get asset types from cache (synchronous, no API call)
       const [{ getAssetTypes }, buildingData] = await Promise.all([
         import('./validation').then(m => ({ getAssetTypes: m.getAssetTypes })),
-        supabase.from('buildings').select('*').eq('building_number', firstBuildingNumber).maybeSingle()
+        client.from('buildings').select('*').eq('building_number', firstBuildingNumber).maybeSingle()
       ]);
       
       const assetTypes = getAssetTypes();
@@ -1179,7 +1179,7 @@ export async function validateAndSaveBulkAssets(
 
   // STEP 3: Call transactional bulk save function (rejects if any validation failed)
   try {
-    const { data, error } = await supabase.rpc('save_assets_bulk_transactional', {
+    const { data, error } = await client.rpc('save_assets_bulk_transactional', {
       p_assets_data: assetsForDatabase,
       p_validation_passed: allValid,
       p_validation_errors: validationErrors.length > 0 ? validationErrors.join('; ') : null,
@@ -1216,12 +1216,12 @@ export async function validateAndSaveBulkAssets(
 
 export const api = {
   /** For components that need direct table access (e.g. validation refresh). */
-  from: (table: string) => supabase.from(table),
+  from: (table: string) => client.from(table),
   /** For components that need storage (upload, download, signed URLs). */
-  storage: supabase.storage,
+  storage: client.storage,
   buildings: {
     getAll: async (): Promise<Building[]> => {
-      const { data, error } = await supabase
+      const { data, error } = await client
         .from('buildings')
         .select('*')
         .order('building_number');
@@ -1231,7 +1231,7 @@ export const api = {
       return (data || []).map(normalizeBuildingForUi);
     },
     getOne: async (buildingNumber: number): Promise<Building> => {
-      const { data, error } = await supabase
+      const { data, error } = await client
         .from('buildings')
         .select('*')
         .eq('building_number', buildingNumber)
@@ -1284,7 +1284,7 @@ export const api = {
       cleanedInput.need_residence_distribution = false;
       cleanedInput.need_business_distribution = false;
       
-      const { data, error } = await supabase
+      const { data, error } = await client
         .from('buildings')
         .insert(cleanedInput)
         .select()
@@ -1341,7 +1341,7 @@ export const api = {
         updates: cleanedInput
       }];
       
-      const { data: functionResult, error: rpcError } = await supabase.rpc('update_buildings_bulk_with_distribution_flags', {
+      const { data: functionResult, error: rpcError } = await client.rpc('update_buildings_bulk_with_distribution_flags', {
         p_buildings_data: buildingsData
       });
 
@@ -1350,7 +1350,7 @@ export const api = {
 
       if (rpcError) {
         // If RPC fails, fall back to direct update (for backwards compatibility)
-        const fallbackResult = await supabase
+        const fallbackResult = await client
           .from('buildings')
           .update(cleanedInput)
           .eq('building_number', buildingNumber)
@@ -1464,7 +1464,7 @@ export const api = {
         return { success: true, count: 0, buildings: [] };
       }
 
-      const { data: functionResult, error: rpcError } = await supabase.rpc('update_buildings_bulk_with_distribution_flags', {
+      const { data: functionResult, error: rpcError } = await client.rpc('update_buildings_bulk_with_distribution_flags', {
         p_buildings_data: payload as any
       });
 
@@ -1497,7 +1497,7 @@ export const api = {
         return cleanedInput;
       });
 
-      const { data, error } = await supabase
+      const { data, error } = await client
         .from('buildings')
         .insert(prepared)
         .select('*');
@@ -1537,7 +1537,7 @@ export const api = {
 
       // Delete audit rows that reference this building before deleting the building
       const buildingIdStr = String(buildingNumber);
-      const { error: auditError } = await supabase
+      const { error: auditError } = await client
         .from('audit')
         .delete()
         .eq('entity_type', 'bulk_asset')
@@ -1545,7 +1545,7 @@ export const api = {
       if (auditError) {
         console.warn('[api.buildings.delete] Failed to delete audit rows for building:', auditError);
       }
-      const { error: auditBuildingError } = await supabase
+      const { error: auditBuildingError } = await client
         .from('audit')
         .delete()
         .eq('entity_type', 'building')
@@ -1554,7 +1554,7 @@ export const api = {
         console.warn('[api.buildings.delete] Failed to delete building audit rows:', auditBuildingError);
       }
 
-      const { error } = await supabase
+      const { error } = await client
         .from('buildings')
         .delete()
         .eq('building_number', buildingNumber);
@@ -1576,7 +1576,7 @@ export const api = {
     },
     // Distribution flag management API
     markBusinessDistributionNeeded: async (buildingNumber: number): Promise<void> => {
-      const { error } = await supabase
+      const { error } = await client
         .from('buildings')
         .update({ need_business_distribution: true })
         .eq('building_number', buildingNumber);
@@ -1587,7 +1587,7 @@ export const api = {
       }
     },
     markBusinessDistributionDone: async (buildingNumber: number): Promise<void> => {
-      const { error } = await supabase
+      const { error } = await client
         .from('buildings')
         .update({ need_business_distribution: false })
         .eq('building_number', buildingNumber);
@@ -1598,7 +1598,7 @@ export const api = {
       }
     },
     markResidenceDistributionNeeded: async (buildingNumber: number): Promise<void> => {
-      const { data, error } = await supabase
+      const { data, error } = await client
         .from('buildings')
         .update({ need_residence_distribution: true })
         .eq('building_number', buildingNumber)
@@ -1615,7 +1615,7 @@ export const api = {
       }
     },
     markResidenceDistributionDone: async (buildingNumber: number): Promise<void> => {
-      const { error } = await supabase
+      const { error } = await client
         .from('buildings')
         .update({ need_residence_distribution: false })
         .eq('building_number', buildingNumber);
@@ -1626,7 +1626,7 @@ export const api = {
       }
     },
     getDistributionStatus: async (buildingNumber: number): Promise<{ business: boolean | null; residence: boolean | null }> => {
-      const { data, error } = await supabase
+      const { data, error } = await client
         .from('buildings')
         .select('need_business_distribution, need_residence_distribution')
         .eq('building_number', buildingNumber)
@@ -1649,7 +1649,7 @@ export const api = {
   },
   assets: {
     getAll: async (buildingNumber?: number): Promise<Asset[]> => {
-      let query = supabase
+      let query = client
         .from('assets')
         .select('*')
         .order('asset_id');
@@ -1683,7 +1683,7 @@ export const api = {
       return sortedData.map(asset => convertHebrewBooleans(asset));
     },
     getLatestOnly: async (buildingNumber?: number): Promise<Asset[]> => {
-      let query = supabase
+      let query = client
         .from('assets')
         .select('*')
         .order('asset_id');
@@ -1722,7 +1722,7 @@ export const api = {
       return Array.from(latestMap.values());
     },
     getAllByAssetId: async (assetId: string, buildingNumber?: number): Promise<Asset[]> => {
-      let query = supabase
+      let query = client
         .from('assets')
         .select('*')
         .eq('asset_id', assetId);
@@ -1751,7 +1751,7 @@ export const api = {
       return sorted.map(asset => convertHebrewBooleans(asset));
     },
     getHistoryByAssetId: async (assetId: string | number): Promise<Asset[]> => {
-      const { data, error } = await supabase
+      const { data, error } = await client
         .from('assets_history')
         .select('*')
         .eq('asset_id', assetId)
@@ -1783,7 +1783,7 @@ export const api = {
     getAssetWithHistory: async (assetId: string | number, buildingNumber?: number): Promise<Asset[]> => {
       try {
         // First record: fetch from assets table (latest measurement)
-        let masterQuery = supabase
+        let masterQuery = client
           .from('assets')
           .select('*')
           .eq('asset_id', assetId);
@@ -1799,7 +1799,7 @@ export const api = {
         }
 
         // Other records: fetch from assets_history table
-        let historyQuery = supabase
+        let historyQuery = client
           .from('assets_history')
           .select('*')
           .eq('asset_id', assetId);
@@ -1876,7 +1876,7 @@ export const api = {
     },
     getAssetWithHistoryFallback: async (assetId: string | number, buildingNumber?: number): Promise<Asset[]> => {
       // Fallback method using separate queries (old implementation)
-      let masterQuery = supabase
+      let masterQuery = client
         .from('assets')
         .select('*')
         .eq('asset_id', assetId);
@@ -1892,7 +1892,7 @@ export const api = {
       }
 
       // Fetch detail records from assets_history table
-      const { data: historyData, error: historyError } = await supabase
+      const { data: historyData, error: historyError } = await client
         .from('assets_history')
         .select('*')
         .eq('asset_id', assetId)
@@ -1927,7 +1927,7 @@ export const api = {
     },
     getAllAssetsWithHistory: async (buildingNumber: number): Promise<Asset[]> => {
       // Call PostgreSQL function to get both master and details in one database call
-      const { data, error } = await supabase.rpc('get_assets_with_history', {
+      const { data, error } = await client.rpc('get_assets_with_history', {
         p_building_number: buildingNumber
       });
 
@@ -1937,7 +1937,7 @@ export const api = {
         if (error.code === '42883' || error.code === 'PGRST202' || error.message.includes('function') || error.message.includes('does not exist') || error.message.includes('Could not find the function')) {
           
           // Fallback: Fetch all master records from assets table for the building
-          const { data: masterAssets, error: masterError } = await supabase
+          const { data: masterAssets, error: masterError } = await client
             .from('assets')
             .select('*')
             .eq('building_number', buildingNumber)
@@ -1955,7 +1955,7 @@ export const api = {
           const assetIds = masterAssets.map(a => a.asset_id);
 
           // Fetch all history records for these asset_ids in one query
-          const { data: allHistoryData, error: historyError } = await supabase
+          const { data: allHistoryData, error: historyError } = await client
             .from('assets_history')
             .select('*')
             .in('asset_id', assetIds)
@@ -2053,7 +2053,7 @@ export const api = {
     // Fallback method if database function doesn't exist
     getAllAssetsWithHistoryFallback: async (buildingNumber: number): Promise<Asset[]> => {
       // Fetch all master records from assets table for the building
-      const { data: masterAssets, error: masterError } = await supabase
+      const { data: masterAssets, error: masterError } = await client
         .from('assets')
         .select('*')
         .eq('building_number', buildingNumber)
@@ -2071,7 +2071,7 @@ export const api = {
       const assetIds = masterAssets.map(a => a.asset_id);
 
       // Fetch all history records for these asset_ids in one query
-      const { data: allHistoryData, error: historyError } = await supabase
+      const { data: allHistoryData, error: historyError } = await client
         .from('assets_history')
         .select('*')
         .in('asset_id', assetIds)
@@ -2126,7 +2126,7 @@ export const api = {
         console.warn('[api.assets.getOne] Individual asset fetch detected. This should be avoided - use getAll() instead. Asset ID:', id, new Error().stack);
       }
       
-      const { data, error } = await supabase
+      const { data, error } = await client
         .from('assets')
         .select('*')
         .eq('asset_id', id)
@@ -2147,7 +2147,7 @@ export const api = {
       
       // Check if an asset with the same asset_id already exists
       if (sanitizedInput.asset_id != null) {
-        const { data: existingAsset, error: checkError } = await supabase
+        const { data: existingAsset, error: checkError } = await client
           .from('assets')
           .select('*')
           .eq('asset_id', sanitizedInput.asset_id)
@@ -2163,7 +2163,7 @@ export const api = {
           // Copy to history before deletion (transaction-based, replaces trigger)
           // Do NOT create audit entry - audit entries are only created by bulk operations
           try {
-            await supabase.rpc('copy_asset_to_history_before_update', {
+            await client.rpc('copy_asset_to_history_before_update', {
               p_asset_id: sanitizedInput.asset_id
             });
           } catch (historyError) {
@@ -2172,7 +2172,7 @@ export const api = {
           }
           
           // Delete the existing asset from assets table
-          const { error: deleteError } = await supabase
+          const { error: deleteError } = await client
             .from('assets')
             .delete()
             .eq('asset_id', sanitizedInput.asset_id);
@@ -2182,7 +2182,7 @@ export const api = {
           }
 
           // Insert new asset with new measurement data
-          const { data: newAsset, error: insertError } = await supabase
+          const { data: newAsset, error: insertError } = await client
             .from('assets')
             .insert(sanitizedInput)
             .select()
@@ -2194,7 +2194,7 @@ export const api = {
           
           // Update building total area (transaction-based, replaces trigger)
           try {
-            await supabase.rpc('update_building_total_area', {
+            await client.rpc('update_building_total_area', {
               p_building_number: newAsset.building_number
             });
           } catch (areaError) {
@@ -2219,13 +2219,13 @@ export const api = {
                 const oldMainTypeStr = String(existingAsset.main_asset_type || '').trim();
                 const newMainTypeStr = String(newAsset.main_asset_type).trim();
                 
-                const { data: oldTypeData } = await supabase
+                const { data: oldTypeData } = await client
                   .from('asset_types')
                   .select('name, business_residence, non_accountable_for_distribution')
                   .eq('name', oldMainTypeStr)
                   .maybeSingle();
                 
-                const { data: newTypeDataInitial } = await supabase
+                const { data: newTypeDataInitial } = await client
                   .from('asset_types')
                   .select('name, business_residence, non_accountable_for_distribution')
                   .eq('name', newMainTypeStr)
@@ -2236,7 +2236,7 @@ export const api = {
                 if (!newTypeData && newMainTypeStr) {
                   const newMainTypeNum = parseInt(newMainTypeStr, 10);
                   if (!isNaN(newMainTypeNum)) {
-                    const { data: allAssetTypes } = await supabase
+                    const { data: allAssetTypes } = await client
                       .from('asset_types')
                       .select('name, business_residence, non_accountable_for_distribution');
                     
@@ -2278,7 +2278,7 @@ export const api = {
       }
 
       // If no existing asset, proceed with normal insert
-      const { data, error } = await supabase
+      const { data, error } = await client
         .from('assets')
         .insert(sanitizedInput)
         .select()
@@ -2328,7 +2328,7 @@ export const api = {
       
       // Update building total area (transaction-based, replaces trigger)
       try {
-        await supabase.rpc('update_building_total_area', {
+        await client.rpc('update_building_total_area', {
           p_building_number: data.building_number
         });
       } catch (areaError) {
@@ -2364,7 +2364,7 @@ export const api = {
       // Get the current asset data before update (for change log)
       let beforeData: Asset | null = null;
       try {
-        const { data: assetData } = await supabase
+        const { data: assetData } = await client
           .from('assets')
           .select('*')
           .eq('asset_id', assetIdNum)
@@ -2399,7 +2399,7 @@ export const api = {
       // This replaces the trigger_reset_new_measurement_flag and trigger_copy_asset_to_history
       if (isNewMeasurement === true) {
         try {
-          await supabase.rpc('copy_asset_to_history_before_update', {
+          await client.rpc('copy_asset_to_history_before_update', {
             p_asset_id: assetIdNum
           });
           // Reset the flag after copying to history (replaces trigger_reset_new_measurement_flag behavior)
@@ -2417,7 +2417,7 @@ export const api = {
       }
       
       // Perform the UPDATE
-      const { data: updatedAsset, error: updateError } = await supabase
+      const { data: updatedAsset, error: updateError } = await client
         .from('assets')
         .update({ ...sanitizedInput, updated_at: new Date().toISOString() })
         .eq('asset_id', id)
@@ -2472,7 +2472,7 @@ export const api = {
 
       // Update building total area (transaction-based, replaces trigger)
       try {
-        await supabase.rpc('update_building_total_area', {
+        await client.rpc('update_building_total_area', {
           p_building_number: updatedAsset.building_number
         });
       } catch (areaError) {
@@ -2491,7 +2491,7 @@ export const api = {
       if (!skipAudit && (actionType === 'transfer_area' || actionType === 'distribute_shared')) {
         const userInfo = await getCurrentUserInfo();
         try {
-          await supabase.rpc('log_audit_for_asset', {
+          await client.rpc('log_audit_for_asset', {
             p_asset_id: assetIdNum,
             p_operation: 'UPDATE',
             p_user_id: userInfo.user_id || null, // auth_user_id (UUID as text)
@@ -2533,7 +2533,7 @@ export const api = {
 
       const userInfo = await getCurrentUserInfo();
 
-      const { data, error } = await supabase.rpc('delete_asset_transactional', {
+      const { data, error } = await client.rpc('delete_asset_transactional', {
         p_asset_id: assetIdNum,
         p_user_id: userInfo.user_id || null,
         p_description: 'Asset deleted'
@@ -2558,7 +2558,7 @@ export const api = {
 
       const userInfo = await getCurrentUserInfo();
 
-      const { data, error } = await supabase.rpc('delete_assets_bulk_transactional', {
+      const { data, error } = await client.rpc('delete_assets_bulk_transactional', {
         p_asset_ids: assetIds,
         p_user_id: userInfo.user_id || null,
         p_description: description || 'Bulk asset delete'
@@ -2595,7 +2595,7 @@ export const api = {
         // Count assets that still need export:
         // - exported_to_automation is null/false AND
         // - data_from_automation is null/false (exclude rows imported from automation until edited in app)
-        const { count, error: countError } = await supabase
+        const { count, error: countError } = await client
           .from('assets')
           .select('asset_id', { count: 'exact', head: true })
           .or('exported_to_automation.is.null,exported_to_automation.eq.false')
@@ -2617,7 +2617,7 @@ export const api = {
         // Use RPC function to bulk mark assets as exported
         // This function updates all assets where exported_to_automation is null/false
         // and data_from_automation is null/false
-        const { data: result, error: rpcError } = await supabase
+        const { data: result, error: rpcError } = await client
           .rpc('mark_assets_as_exported_to_automation');
 
         if (rpcError) {
@@ -2675,7 +2675,7 @@ export const api = {
         chunks.push(assetIds.slice(i, i + chunkSize));
       }
       const runBatch = async (chunk: number[]) => {
-        const { data, error } = await supabase.rpc('get_assets_by_ids', { p_asset_ids: chunk });
+        const { data, error } = await client.rpc('get_assets_by_ids', { p_asset_ids: chunk });
         if (error) throw error;
         return data ?? [];
       };
@@ -2694,7 +2694,7 @@ export const api = {
         // Fetch assets that:
         // - have measurement_date (not null)
         // - exported_to_automation is null or false
-        const { data, error } = await supabase
+        const { data, error } = await client
           .from('assets')
           .select('*')
           .not('measurement_date', 'is', null)
@@ -2749,7 +2749,7 @@ export const api = {
         };
 
         // Build query
-        let query = supabase
+        let query = client
           .from('assets')
           .select('measurement_date, building_number, asset_id, asset_size, exported_to_automation')
           .not('measurement_date', 'is', null)
@@ -2856,7 +2856,7 @@ export const api = {
     resetExportToAutomation: async (): Promise<{ success: boolean; count: number; error?: string }> => {
       try {
         // First, get all exported assets with their export dates
-        const { data: exportedAssets, error: fetchError } = await supabase
+        const { data: exportedAssets, error: fetchError } = await client
           .from('assets')
           .select('asset_id, export_to_automation_at')
           .eq('exported_to_automation', true)
@@ -2913,7 +2913,7 @@ export const api = {
         // Reset exported_to_automation flag and clear export date only for assets with latest date
         // Update each asset individually to avoid type mismatch issues with .in()
         const updatePromises = assetIdsToReset.map(async (assetId) => {
-          const { error } = await supabase
+          const { error } = await client
             .from('assets')
             .update({ 
               exported_to_automation: false,
@@ -2934,7 +2934,7 @@ export const api = {
 
         // After reset, refresh the latest export date in memory (it will be the next latest date or null)
         // Fetch remaining exported assets to find the next latest date
-        const { data: remainingExportedAssets, error: remainingFetchError } = await supabase
+        const { data: remainingExportedAssets, error: remainingFetchError } = await client
           .from('assets')
           .select('export_to_automation_at')
           .eq('exported_to_automation', true)
@@ -2973,7 +2973,7 @@ export const api = {
     getLatestExportDate: async (): Promise<{ success: boolean; date: string | null; error?: string }> => {
       try {
         // Get all exported assets with their export dates
-        const { data: exportedAssets, error: fetchError } = await supabase
+        const { data: exportedAssets, error: fetchError } = await client
           .from('assets')
           .select('export_to_automation_at')
           .eq('exported_to_automation', true)
@@ -3015,7 +3015,7 @@ export const api = {
     },
     files: {
       getAll: async (assetId: number): Promise<AssetFile[]> => {
-        const { data, error } = await supabase
+        const { data, error } = await client
           .from('asset_files')
           .select('*')
           .eq('asset_id', assetId)
@@ -3029,7 +3029,7 @@ export const api = {
           return new Map();
         }
         
-        const { data, error } = await supabase
+        const { data, error } = await client
           .from('asset_files')
           .select('*')
           .in('asset_id', assetIds)
@@ -3061,7 +3061,7 @@ export const api = {
       },
       add: async (assetId: number, fileUrl: string, fileName?: string, fileSize?: number, fileType?: string, measurementDate?: string | null): Promise<AssetFile> => {
         const userInfo = await getCurrentUserInfo();
-        const { data, error } = await supabase
+        const { data, error } = await client
           .from('asset_files')
           .insert({
             asset_id: assetId,
@@ -3080,7 +3080,7 @@ export const api = {
       },
       clone: async (assetId: number, sourceMeasurementDate: string | null, targetMeasurementDate: string): Promise<AssetFile[]> => {
         // Get all files for the source measurement (or shared files if sourceMeasurementDate is null)
-        let query = supabase
+        let query = client
           .from('asset_files')
           .select('*')
           .eq('asset_id', assetId);
@@ -3114,7 +3114,7 @@ export const api = {
               : `${assetId}/${fileName}`;
             
             // Download the file from storage
-            const { data: fileData, error: downloadError } = await supabase.storage
+            const { data: fileData, error: downloadError } = await client.storage
               .from('structure-drawings')
               .download(filePath);
             
@@ -3151,7 +3151,7 @@ export const api = {
             }
             
             // Upload to new path
-            const { error: uploadError } = await supabase.storage
+            const { error: uploadError } = await client.storage
               .from('structure-drawings')
               .upload(newFilePath, dataToUpload, { contentType: dataToUpload.type || file.file_type || undefined });
             
@@ -3161,13 +3161,13 @@ export const api = {
             }
             
             // Get public URL for new file
-            const { data: { publicUrl } } = supabase.storage
+            const { data: { publicUrl } } = client.storage
               .from('structure-drawings')
               .getPublicUrl(newFilePath);
             
             // Create new file record with target measurement_date
             const userInfo = await getCurrentUserInfo();
-            const { data: clonedFile, error: insertError } = await supabase
+            const { data: clonedFile, error: insertError } = await client
               .from('asset_files')
               .insert({
                 asset_id: assetId,
@@ -3195,7 +3195,7 @@ export const api = {
         return clonedFiles;
       },
       delete: async (fileIds: number[]): Promise<{ success: boolean; error?: string }> => {
-        const { error } = await supabase
+        const { error } = await client
           .from('asset_files')
           .delete()
           .in('id', fileIds);
@@ -3211,7 +3211,7 @@ export const api = {
         const fileName = urlParts[urlParts.length - 1].split('?')[0];
         
         // Delete from storage
-        const { error: storageError } = await supabase.storage
+        const { error: storageError } = await client.storage
           .from('structure-drawings')
           .remove([fileName]);
 
@@ -3220,7 +3220,7 @@ export const api = {
         }
 
         // Delete from database
-        const { error } = await supabase
+        const { error } = await client
           .from('asset_files')
           .delete()
           .eq('file_url', fileUrl);
@@ -3234,7 +3234,7 @@ export const api = {
   },
   measurements: {
     getAll: async (assetId: string): Promise<AssetMeasurement[]> => {
-      const { data, error } = await supabase
+      const { data, error } = await client
         .from('asset_measurements')
         .select('*')
         .eq('asset_id', assetId);
@@ -3257,7 +3257,7 @@ export const api = {
       return sorted.map(asset => convertHebrewBooleans(asset));
     },
     getOne: async (id: string): Promise<AssetMeasurement> => {
-      const { data, error } = await supabase
+      const { data, error } = await client
         .from('asset_measurements')
         .select('*')
         .eq('id', id)
@@ -3268,7 +3268,7 @@ export const api = {
       return data;
     },
     create: async (input: Omit<AssetMeasurement, 'id' | 'created_at' | 'total_area'>): Promise<AssetMeasurement> => {
-      const { data, error } = await supabase
+      const { data, error } = await client
         .from('asset_measurements')
         .insert(input)
         .select()
@@ -3278,7 +3278,7 @@ export const api = {
       return data;
     },
     update: async (id: string, input: Partial<AssetMeasurement>): Promise<AssetMeasurement> => {
-      const { data, error } = await supabase
+      const { data, error } = await client
         .from('asset_measurements')
         .update(input)
         .eq('id', id)
@@ -3289,7 +3289,7 @@ export const api = {
       return data;
     },
     delete: async (id: string): Promise<{ message: string }> => {
-      const { error } = await supabase
+      const { error } = await client
         .from('asset_measurements')
         .delete()
         .eq('id', id);
@@ -3315,7 +3315,7 @@ export const api = {
 
       // Fallback to database query if cache is not available
       // Explicitly select all fields including business_residence and use_shared_area to ensure they're included
-      const { data, error } = await supabase
+      const { data, error } = await client
         .from('asset_types')
         .select('id, name, description, tax_region, elevator, single_double_family, penthouse, condo, townhouses, business_residence, min_size, max_size, active, non_accountable_for_total_area, non_accountable_for_distribution, not_accountable_for_statistics, use_shared_area, use_for_parking_shared_area, area_description_for_tab, created_at, updated_at')
         .order('name');
@@ -3359,7 +3359,7 @@ export const api = {
 
       // Fallback to database query if not found in cache
       // Try id first, then asset_type as fallback
-      let { data, error } = await supabase
+      let { data, error } = await client
         .from('asset_types')
         .select('*')
         .eq('id', id)
@@ -3367,7 +3367,7 @@ export const api = {
 
       // If id column doesn't exist, try asset_type
       if (error && error.code === '42703') {
-        const result = await supabase
+        const result = await client
           .from('asset_types')
           .select('*')
           .eq('asset_type', id)
@@ -3400,7 +3400,7 @@ export const api = {
       }
 
       // Fallback to database query if not found in cache
-      const { data, error } = await supabase
+      const { data, error } = await client
         .from('asset_types')
         .select('*')
         .eq('name', name);
@@ -3427,7 +3427,7 @@ export const api = {
       return String(code);
     },
     create: async (input: Omit<AssetType, 'id' | 'created_at' | 'updated_at'>): Promise<AssetType> => {
-      const { data, error } = await supabase
+      const { data, error } = await client
         .from('asset_types')
         .insert(input)
         .select()
@@ -3448,7 +3448,7 @@ export const api = {
         try {
           
           // Find all buildings with assets of this type
-          const { data: affectedAssets } = await supabase
+          const { data: affectedAssets } = await client
             .from('assets')
             .select('building_number')
             .eq('main_asset_type', data.name)
@@ -3488,7 +3488,7 @@ export const api = {
         return { success: true, count: 0, rows: [] };
       }
 
-      const { data, error } = await supabase
+      const { data, error } = await client
         .from('asset_types')
         .insert(inputs)
         .select('*');
@@ -3569,7 +3569,7 @@ export const api = {
       let data: AssetType;
       
       try {
-        const { data: result, error: rpcError } = await supabase.rpc('update_asset_type_with_distribution_reset', {
+        const { data: result, error: rpcError } = await client.rpc('update_asset_type_with_distribution_reset', {
           p_id: id,
           p_updates: finalInput
         });
@@ -3580,7 +3580,7 @@ export const api = {
             console.warn('[api.assetTypes.update] Database function not found, falling back to regular update');
             
             // Try id first, then asset_type as fallback
-            let { data: updateData, error } = await supabase
+            let { data: updateData, error } = await client
               .from('asset_types')
               .update(finalInput)
               .eq('id', id)
@@ -3589,7 +3589,7 @@ export const api = {
 
             // If id column doesn't exist, try asset_type
             if (error && error.code === '42703') {
-              const result = await supabase
+              const result = await client
                 .from('asset_types')
                 .update(finalInput)
                 .eq('asset_type', id)
@@ -3617,7 +3617,7 @@ export const api = {
               
               if (oldValue !== newValue) {
                 
-                const { data: affectedAssets } = await supabase
+                const { data: affectedAssets } = await client
                   .from('assets')
                   .select('building_number')
                   .eq('main_asset_type', beforeData.name)
@@ -3666,7 +3666,7 @@ export const api = {
       } catch (err) {
         // If RPC fails completely, fall back to regular update
         console.warn('[api.assetTypes.update] RPC failed, using fallback:', err);
-        const { data: fallbackData, error: fallbackError } = await supabase
+        const { data: fallbackData, error: fallbackError } = await client
           .from('asset_types')
           .update(finalInput)
           .eq('id', id)
@@ -3726,7 +3726,7 @@ export const api = {
         return { success: true, count: 0, affected_buildings: [] };
       }
 
-      const { data, error } = await supabase.rpc('update_asset_types_bulk_with_distribution_reset', {
+      const { data, error } = await client.rpc('update_asset_types_bulk_with_distribution_reset', {
         p_asset_types_data: payload as any
       });
 
@@ -3761,14 +3761,14 @@ export const api = {
       }
       
       // Try id first, then asset_type as fallback
-      let { error } = await supabase
+      let { error } = await client
         .from('asset_types')
         .delete()
         .eq('id', id);
 
       // If id column doesn't exist, try asset_type
       if (error && error.code === '42703') {
-        const result = await supabase
+        const result = await client
           .from('asset_types')
           .delete()
           .eq('asset_type', id);
@@ -3808,7 +3808,7 @@ export const api = {
       let error: any = null;
       let count: number | null = null;
 
-      const byId = await supabase
+      const byId = await client
         .from('asset_types')
         .delete()
         .in('id', numericIds)
@@ -3818,7 +3818,7 @@ export const api = {
       count = byId.count ?? null;
 
       if (error && error.code === '42703') {
-        const byLegacy = await supabase
+        const byLegacy = await client
           .from('asset_types')
           .delete()
           .in('asset_type', numericIds)
@@ -3842,7 +3842,7 @@ export const api = {
   },
   addressList: {
     getAll: async (): Promise<AddressList[]> => {
-      const { data, error } = await supabase
+      const { data, error } = await client
         .from('address_list')
         .select('*')
         .order('street_code', { ascending: true });
@@ -3851,7 +3851,7 @@ export const api = {
       return data || [];
     },
     getOne: async (streetCode: number): Promise<AddressList> => {
-      const { data, error } = await supabase
+      const { data, error } = await client
         .from('address_list')
         .select('*')
         .eq('street_code', streetCode)
@@ -3861,7 +3861,7 @@ export const api = {
       return data;
     },
     create: async (input: Partial<AddressList>): Promise<AddressList> => {
-      const { data, error } = await supabase
+      const { data, error } = await client
         .from('address_list')
         .insert(input)
         .select()
@@ -3871,7 +3871,7 @@ export const api = {
       return data;
     },
     update: async (streetCode: number, input: Partial<AddressList>): Promise<AddressList> => {
-      const { data, error } = await supabase
+      const { data, error } = await client
         .from('address_list')
         .update(input)
         .eq('street_code', streetCode)
@@ -3886,7 +3886,7 @@ export const api = {
         return { success: true, count: 0, rows: [] };
       }
 
-      const { data, error } = await supabase
+      const { data, error } = await client
         .from('address_list')
         .upsert(inputs, { onConflict: 'street_code' })
         .select('*');
@@ -3895,7 +3895,7 @@ export const api = {
       return { success: true, count: data?.length || inputs.length, rows: data || [] };
     },
     delete: async (streetCode: number): Promise<{ message: string }> => {
-      const { error } = await supabase
+      const { error } = await client
         .from('address_list')
         .delete()
         .eq('street_code', streetCode);
@@ -3909,7 +3909,7 @@ export const api = {
         return { success: true, count: 0 };
       }
 
-      const { error, count } = await supabase
+      const { error, count } = await client
         .from('address_list')
         .delete()
         .in('street_code', codes)
@@ -3921,7 +3921,7 @@ export const api = {
   },
   validationRules: {
     getAll: async (entityType?: string): Promise<ValidationRule[]> => {
-      let query = supabase
+      let query = client
         .from('validation_rules')
         .select('*')
         .order('entity_type')
@@ -3937,7 +3937,7 @@ export const api = {
       return data || [];
     },
     getEnabled: async (entityType?: string): Promise<ValidationRule[]> => {
-      let query = supabase
+      let query = client
         .from('validation_rules')
         .select('*')
         .eq('enabled', true)
@@ -3954,7 +3954,7 @@ export const api = {
       return data || [];
     },
     getOne: async (id: string): Promise<ValidationRule> => {
-      const { data, error } = await supabase
+      const { data, error } = await client
         .from('validation_rules')
         .select('*')
         .eq('id', id)
@@ -3965,7 +3965,7 @@ export const api = {
       return data;
     },
     getByKey: async (ruleKey: string): Promise<ValidationRule> => {
-      const { data, error } = await supabase
+      const { data, error } = await client
         .from('validation_rules')
         .select('*')
         .eq('rule_key', ruleKey)
@@ -3976,7 +3976,7 @@ export const api = {
       return data;
     },
     create: async (input: Omit<ValidationRule, 'id' | 'created_at' | 'updated_at'>): Promise<ValidationRule> => {
-      const { data, error } = await supabase
+      const { data, error } = await client
         .from('validation_rules')
         .insert(input)
         .select()
@@ -3986,7 +3986,7 @@ export const api = {
       return data;
     },
     update: async (id: string, input: Partial<ValidationRule>): Promise<ValidationRule> => {
-      const { data, error } = await supabase
+      const { data, error } = await client
         .from('validation_rules')
         .update(input)
         .eq('id', id)
@@ -3997,7 +3997,7 @@ export const api = {
       return data;
     },
     delete: async (id: string): Promise<{ message: string }> => {
-      const { error } = await supabase
+      const { error } = await client
         .from('validation_rules')
         .delete()
         .eq('id', id);
@@ -4011,7 +4011,7 @@ export const api = {
   },
   deleteAssetsByBuilding: async (buildingNumber: number): Promise<{ message: string }> => {
     // Get all assets for this building first (including main_asset_type to determine flags)
-    const { data: assets, error: fetchError } = await supabase
+    const { data: assets, error: fetchError } = await client
       .from('assets')
       .select('asset_id, main_asset_type')
       .eq('building_number', buildingNumber);
@@ -4023,7 +4023,7 @@ export const api = {
     // Delete audit rows for these assets (entity_type = 'asset', entity_id = asset_id)
     if (assetIds.length > 0) {
       const assetIdStrs = assetIds.map(id => String(id));
-      const { error: auditError } = await supabase
+      const { error: auditError } = await client
         .from('audit')
         .delete()
         .eq('entity_type', 'asset')
@@ -4040,7 +4040,7 @@ export const api = {
 
     // Delete all existing history records for all assets in this building
     if (assetIds.length > 0) {
-      const { error: historyError1 } = await supabase
+      const { error: historyError1 } = await client
         .from('assets_history')
         .delete()
         .in('asset_id', assetIds);
@@ -4053,7 +4053,7 @@ export const api = {
 
     // Delete from assets table
     // Note: The trigger will run BEFORE DELETE and create new history entries
-    const { error } = await supabase
+    const { error } = await client
       .from('assets')
       .delete()
       .eq('building_number', buildingNumber);
@@ -4062,7 +4062,7 @@ export const api = {
 
     // Update building total area (transaction-based, replaces trigger)
     try {
-      await supabase.rpc('update_building_total_area', {
+      await client.rpc('update_building_total_area', {
         p_building_number: buildingNumber
       });
     } catch (areaError) {
@@ -4077,7 +4077,7 @@ export const api = {
 
     // Delete from assets_history again to remove entries created by the trigger
     if (assetIds.length > 0) {
-      const { error: historyError2 } = await supabase
+      const { error: historyError2 } = await client
         .from('assets_history')
         .delete()
         .in('asset_id', assetIds);
@@ -4142,7 +4142,7 @@ export const api = {
       }
 
       // Fallback to database query if cache is not available
-      let query = supabase
+      let query = client
         .from('field_configurations')
         .select('*');
       
@@ -4159,7 +4159,7 @@ export const api = {
       return data || [];
     },
     getOne: async (gridName: string, fieldName: string): Promise<FieldConfiguration | null> => {
-      const { data, error } = await supabase
+      const { data, error } = await client
         .from('field_configurations')
         .select('*')
         .eq('grid_name', gridName)
@@ -4170,7 +4170,7 @@ export const api = {
       return data;
     },
     create: async (input: Omit<FieldConfiguration, 'created_at' | 'updated_at'>): Promise<FieldConfiguration> => {
-      const { data, error } = await supabase
+      const { data, error } = await client
         .from('field_configurations')
         .insert(input)
         .select()
@@ -4180,7 +4180,7 @@ export const api = {
       return data;
     },
     update: async (gridName: string, fieldName: string, input: Partial<Omit<FieldConfiguration, 'grid_name' | 'field_name' | 'created_at' | 'updated_at'>>): Promise<FieldConfiguration> => {
-      const { data, error } = await supabase
+      const { data, error } = await client
         .from('field_configurations')
         .update(input)
         .eq('grid_name', gridName)
@@ -4192,7 +4192,7 @@ export const api = {
       return data;
     },
     upsert: async (input: Omit<FieldConfiguration, 'created_at' | 'updated_at'>): Promise<FieldConfiguration> => {
-      const { data, error } = await supabase
+      const { data, error } = await client
         .from('field_configurations')
         .upsert(input, { onConflict: 'grid_name,field_name' })
         .select()
@@ -4206,7 +4206,7 @@ export const api = {
         return { success: true, count: 0, rows: [] };
       }
 
-      const { data, error } = await supabase
+      const { data, error } = await client
         .from('field_configurations')
         .upsert(inputs, { onConflict: 'grid_name,field_name' })
         .select('*');
@@ -4215,7 +4215,7 @@ export const api = {
       return { success: true, count: data?.length || inputs.length, rows: data || [] };
     },
     delete: async (gridName: string, fieldName: string): Promise<{ message: string }> => {
-      const { error } = await supabase
+      const { error } = await client
         .from('field_configurations')
         .delete()
         .eq('grid_name', gridName)
@@ -4299,7 +4299,7 @@ export const api = {
       };
     },
     getAll: async (filters?: { limit?: number }): Promise<DistributionAudit[]> => {
-      let query = supabase
+      let query = client
         .from('audit')
         .select('*')
         .order('created_at', { ascending: false });
@@ -4343,7 +4343,7 @@ export const api = {
       });
     },
     getOne: async (id: number): Promise<DistributionAudit> => {
-      const { data, error } = await supabase
+      const { data, error } = await client
         .from('audit')
         .select('*')
         .eq('action_id', id)
@@ -4404,7 +4404,7 @@ export const api = {
       // Query audit table by entity_type and entity_id
       // Distribution: entity_type='bulk_asset', entity_id=building_number (as text)
       // Transfer: same for bulk; also include entity_type='asset' where entity_id is an asset in this building
-      let query = supabase
+      let query = client
         .from('audit')
         .select('*')
         .eq('entity_type', 'bulk_asset')
@@ -4426,13 +4426,13 @@ export const api = {
 
       // For transfer history: also include audit rows where entity_type='asset' and entity_id is an asset in this building
       if (mappedActionTypes?.includes('transfer_area')) {
-        const { data: buildingAssets } = await supabase
+        const { data: buildingAssets } = await client
           .from('assets')
           .select('asset_id')
           .eq('building_number', buildingNumber);
         const assetIds = (buildingAssets || []).map((a: any) => String(a.asset_id));
         if (assetIds.length > 0) {
-          const { data: assetAuditData, error: assetErr } = await supabase
+          const { data: assetAuditData, error: assetErr } = await client
             .from('audit')
             .select('*')
             .eq('entity_type', 'asset')
@@ -4475,7 +4475,7 @@ export const api = {
       // automatically through save_assets_bulk_transactional
     },
     getOne: async (id: number): Promise<DistributionAudit> => {
-      const { data, error } = await supabase
+      const { data, error } = await client
         .from('audit')
         .select('*')
         .eq('id', id)
@@ -4519,7 +4519,7 @@ export const api = {
       endDate: string,
       actionType?: 'distribution' | 'transfer'
     ): Promise<DistributionAudit[]> => {
-      let query = supabase
+      let query = client
         .from('audit')
         .select('*')
         .eq('building_number', buildingNumber)
@@ -4553,7 +4553,7 @@ export const api = {
       limit?: number;
       offset?: number;
     }): Promise<ChangeLog[]> => {
-      let query = supabase
+      let query = client
         .from('change_log')
         .select('*')
         .order('created_at', { ascending: false });
@@ -4590,7 +4590,7 @@ export const api = {
       return data || [];
     },
     getOne: async (logId: number): Promise<ChangeLog> => {
-      const { data, error } = await supabase
+      const { data, error } = await client
         .from('change_log')
         .select('*')
         .eq('log_id', logId)
@@ -4600,7 +4600,7 @@ export const api = {
       return data;
     },
     getByTable: async (tableName: string, recordId?: string, limit: number = 100): Promise<ChangeLog[]> => {
-      let query = supabase
+      let query = client
         .from('change_log')
         .select('*')
         .eq('table_name', tableName)
@@ -4616,7 +4616,7 @@ export const api = {
       return data || [];
     },
     getByUser: async (userName: string, tableName?: string, limit: number = 100): Promise<ChangeLog[]> => {
-      let query = supabase
+      let query = client
         .from('change_log')
         .select('*')
         .eq('user_name', userName)
@@ -4632,7 +4632,7 @@ export const api = {
       return data || [];
     },
     getRecordHistory: async (tableName: string, recordId: string, limit: number = 50): Promise<ChangeLog[]> => {
-      const { data, error } = await supabase.rpc('get_record_change_history', {
+      const { data, error } = await client.rpc('get_record_change_history', {
         p_table_name: tableName,
         p_record_id: recordId,
         p_limit: limit
@@ -4644,7 +4644,7 @@ export const api = {
   },
   schema: {
     getTablesFieldsTypes: async (): Promise<Array<{ table_name: string; field_name: string; field_type: string }>> => {
-      const { data, error } = await supabase.rpc('get_tables_fields_types');
+      const { data, error } = await client.rpc('get_tables_fields_types');
       
       if (error) {
         console.error('Error fetching schema:', error);
@@ -4656,7 +4656,7 @@ export const api = {
   },
   users: {
     getOne: async (userId: number): Promise<{ user_id: number; user_name: string; user_email: string | null; full_name: string | null } | null> => {
-      const { data, error } = await supabase
+      const { data, error } = await client
         .from('users')
         .select('user_id, user_name, user_email, full_name')
         .eq('user_id', userId)
@@ -4675,7 +4675,7 @@ export const api = {
       created_at: string;
       updated_at: string;
     }>> => {
-      const { data, error } = await supabase
+      const { data, error } = await client
         .from('users')
         .select('user_id, auth_user_id, user_name, user_email, full_name, user_role, active, created_at, updated_at')
         .order('user_name');
@@ -4694,7 +4694,7 @@ export const api = {
       user_email?: string;
       full_name?: string | null;
     }): Promise<void> => {
-      const { error } = await supabase
+      const { error } = await client
         .from('users')
         .update({
           ...updates,
@@ -4717,7 +4717,7 @@ export const api = {
       user_id: number;
       auth_user_id: string | null;
     }> => {
-      const { data, error } = await supabase.rpc('users_create_internal', {
+      const { data, error } = await client.rpc('users_create_internal', {
         p_user_name: userData.user_name,
         p_user_email: userData.user_email || '',
         p_password: userData.password,
@@ -4733,7 +4733,7 @@ export const api = {
       return { user_id: d.user_id, auth_user_id: d.auth_user_id };
     },
     delete: async (userId: number): Promise<void> => {
-      const { error } = await supabase
+      const { error } = await client
         .from('users')
         .delete()
         .eq('user_id', userId);
@@ -4744,7 +4744,7 @@ export const api = {
       }
     },
     changePassword: async (userId: number, newPassword: string): Promise<void> => {
-      const { error } = await supabase.rpc('users_set_password', {
+      const { error } = await client.rpc('users_set_password', {
         p_user_id: userId,
         p_new_password: newPassword,
       });
@@ -4752,7 +4752,7 @@ export const api = {
     },
     createDefaultUsers: async (): Promise<{ success: boolean; results: Array<{ user: string; success: boolean; message: string }>; message: string }> => {
       try {
-        await supabase.rpc('users_ensure_defaults');
+        await client.rpc('users_ensure_defaults');
         return {
           success: true,
           results: [
@@ -4769,7 +4769,7 @@ export const api = {
   },
   systemConfiguration: {
     getAll: async (): Promise<SystemConfiguration[]> => {
-      const { data, error } = await supabase
+      const { data, error } = await client
         .from('system_configuration')
         .select('*')
         .order('name');
@@ -4778,7 +4778,7 @@ export const api = {
       return data || [];
     },
     getOne: async (id: number): Promise<SystemConfiguration | null> => {
-      const { data, error } = await supabase
+      const { data, error } = await client
         .from('system_configuration')
         .select('*')
         .eq('id', id)
@@ -4788,7 +4788,7 @@ export const api = {
       return data;
     },
     getByName: async (name: string): Promise<SystemConfiguration | null> => {
-      const { data, error } = await supabase
+      const { data, error } = await client
         .from('system_configuration')
         .select('*')
         .eq('name', name)
@@ -4799,7 +4799,7 @@ export const api = {
     },
     create: async (input: Omit<SystemConfiguration, 'id' | 'created_at' | 'updated_at'>): Promise<SystemConfiguration> => {
       const userInfo = await getCurrentUserInfo();
-      const { data, error } = await supabase
+      const { data, error } = await client
         .from('system_configuration')
         .insert({
           ...input,
@@ -4814,7 +4814,7 @@ export const api = {
     },
     update: async (id: number, input: Partial<Omit<SystemConfiguration, 'id' | 'created_at' | 'updated_at' | 'created_by'>>): Promise<SystemConfiguration> => {
       const userInfo = await getCurrentUserInfo();
-      const { data, error } = await supabase
+      const { data, error } = await client
         .from('system_configuration')
         .update({
           ...input,
@@ -4829,7 +4829,7 @@ export const api = {
     },
     upsert: async (name: string, value: string, description?: string): Promise<SystemConfiguration> => {
       const userInfo = await getCurrentUserInfo();
-      const { data, error } = await supabase
+      const { data, error } = await client
         .from('system_configuration')
         .upsert({
           name,
@@ -4846,7 +4846,7 @@ export const api = {
       return data;
     },
     delete: async (id: number): Promise<void> => {
-      const { error } = await supabase
+      const { error } = await client
         .from('system_configuration')
         .delete()
         .eq('id', id);
@@ -4923,7 +4923,7 @@ export const api = {
       updated_at: row.updated_at ?? '',
     }),
     getAll: async (): Promise<Operator[]> => {
-      const { data, error } = await supabase
+      const { data, error } = await client
         .from('operators')
         .select('operator_id, name, mail, phone, created_at, updated_at')
         .order('name');
@@ -4931,7 +4931,7 @@ export const api = {
       return (data || []).map(api.operators._mapRow);
     },
     getOne: async (id: number): Promise<Operator | null> => {
-      const { data, error } = await supabase
+      const { data, error } = await client
         .from('operators')
         .select('operator_id, name, mail, phone, created_at, updated_at')
         .eq('operator_id', id)
@@ -4940,7 +4940,7 @@ export const api = {
       return data ? api.operators._mapRow(data) : null;
     },
     create: async (input: Omit<Operator, 'id' | 'created_at' | 'updated_at'>): Promise<Operator> => {
-      const { data, error } = await supabase.from('operators').insert({
+      const { data, error } = await client.from('operators').insert({
         name: input.name,
         mail: input.email,
         phone: input.phone ?? null,
@@ -4953,12 +4953,12 @@ export const api = {
       if (input.name !== undefined) payload.name = input.name;
       if (input.email !== undefined) payload.mail = input.email;
       if (input.phone !== undefined) payload.phone = input.phone;
-      const { data, error } = await supabase.from('operators').update(payload).eq('operator_id', id).select().single();
+      const { data, error } = await client.from('operators').update(payload).eq('operator_id', id).select().single();
       if (error) throw error;
       return api.operators._mapRow(data);
     },
     delete: async (id: number): Promise<void> => {
-      const { error } = await supabase.from('operators').delete().eq('operator_id', id);
+      const { error } = await client.from('operators').delete().eq('operator_id', id);
       if (error) throw error;
     },
   },
@@ -4973,7 +4973,7 @@ export const api = {
       updated_at: row.updated_at ?? '',
     }),
     getAll: async (): Promise<Manager[]> => {
-      const { data, error } = await supabase
+      const { data, error } = await client
         .from('managers')
         .select('manager_id, name, tax_regions, mail, phone, created_at, updated_at')
         .order('name');
@@ -4981,7 +4981,7 @@ export const api = {
       return (data || []).map(api.managers._mapRow);
     },
     getOne: async (id: number): Promise<Manager | null> => {
-      const { data, error } = await supabase
+      const { data, error } = await client
         .from('managers')
         .select('manager_id, name, tax_regions, mail, phone, created_at, updated_at')
         .eq('manager_id', id)
@@ -4990,7 +4990,7 @@ export const api = {
       return data ? api.managers._mapRow(data) : null;
     },
     create: async (input: Omit<Manager, 'id' | 'created_at' | 'updated_at'>): Promise<Manager> => {
-      const { data, error } = await supabase.from('managers').insert({
+      const { data, error } = await client.from('managers').insert({
         name: input.name,
         tax_regions: input.tax_regions,
         mail: input.email,
@@ -5005,19 +5005,19 @@ export const api = {
       if (input.tax_regions !== undefined) payload.tax_regions = input.tax_regions;
       if (input.email !== undefined) payload.mail = input.email;
       if (input.phone !== undefined) payload.phone = input.phone;
-      const { data, error } = await supabase.from('managers').update(payload).eq('manager_id', id).select().single();
+      const { data, error } = await client.from('managers').update(payload).eq('manager_id', id).select().single();
       if (error) throw error;
       return api.managers._mapRow(data);
     },
     delete: async (id: number): Promise<void> => {
-      const { error } = await supabase.from('managers').delete().eq('manager_id', id);
+      const { error } = await client.from('managers').delete().eq('manager_id', id);
       if (error) throw error;
     },
   },
   inspectionTasks: {
     getAll: async (filters?: { status?: InspectionTaskStatus; assigned_to?: number; building_number?: number }): Promise<InspectionTask[]> => {
       const session = getSession();
-      let query = supabase
+      let query = client
         .from('inspection_tasks')
         .select('*')
         .order('created_at', { ascending: false });
@@ -5033,7 +5033,7 @@ export const api = {
       return (data || []) as InspectionTask[];
     },
     getOne: async (taskId: number): Promise<InspectionTask | null> => {
-      const { data, error } = await supabase
+      const { data, error } = await client
         .from('inspection_tasks')
         .select('*')
         .eq('id', taskId)
@@ -5043,7 +5043,7 @@ export const api = {
     },
     /** Get all history entries for a task (actions + comments when sent back/forward). */
     getHistory: async (taskId: number): Promise<InspectionTaskHistoryEntry[]> => {
-      const { data, error } = await supabase
+      const { data, error } = await client
         .from('inspection_task_history')
         .select('id, task_id, created_at, created_by, action, comment_text')
         .eq('task_id', taskId)
@@ -5068,7 +5068,7 @@ export const api = {
     create: async (input: { title: string; building_number: number; asset_ids?: number[]; assigned_to?: number; note?: string; priority?: InspectionTaskPriority }): Promise<InspectionTask> => {
       const session = getSession();
       if (!session?.user_id) throw new Error('לא מחובר');
-      const { data: task, error: taskError } = await supabase
+      const { data: task, error: taskError } = await client
         .from('inspection_tasks')
         .insert({
           title: input.title.trim(),
@@ -5084,7 +5084,7 @@ export const api = {
         .select()
         .single();
       if (taskError) throw taskError;
-      const { error: historyError } = await supabase.from('inspection_task_history').insert({
+      const { error: historyError } = await client.from('inspection_task_history').insert({
         task_id: task.id,
         created_by: session.user_id,
         action: 'created',
@@ -5097,7 +5097,7 @@ export const api = {
     createAccessToken: async (taskId: number, userId: number): Promise<string> => {
       const session = getSession();
       if (!session?.user_id) throw new Error('לא מחובר');
-      const { data, error } = await supabase.rpc('inspection_task_create_access_token', {
+      const { data, error } = await client.rpc('inspection_task_create_access_token', {
         p_task_id: taskId,
         p_user_id: userId,
         p_caller_user_id: session.user_id,
@@ -5110,7 +5110,7 @@ export const api = {
       const session = getSession();
       if (!session?.user_id) throw new Error('לא מחובר');
       const now = new Date().toISOString();
-      const { data: task, error: updateError } = await supabase
+      const { data: task, error: updateError } = await client
         .from('inspection_tasks')
         .update({
           status: 'in_progress',
@@ -5123,7 +5123,7 @@ export const api = {
         .select()
         .single();
       if (updateError || !task) throw new Error(updateError?.message || 'לא ניתן להתחיל את המשימה');
-      await supabase.from('inspection_task_history').insert({
+      await client.from('inspection_task_history').insert({
         task_id: taskId,
         created_by: session.user_id,
         action: 'taken',
@@ -5136,7 +5136,7 @@ export const api = {
       const session = getSession();
       if (!session?.user_id) throw new Error('לא מחובר');
       const now = new Date().toISOString();
-      const { data: task, error: updateError } = await supabase
+      const { data: task, error: updateError } = await client
         .from('inspection_tasks')
         .update({
           status: 'pending_approval',
@@ -5149,7 +5149,7 @@ export const api = {
         .select()
         .single();
       if (updateError || !task) throw new Error(updateError?.message || 'לא ניתן לשלוח לאישור');
-      await supabase.from('inspection_task_history').insert({
+      await client.from('inspection_task_history').insert({
         task_id: taskId,
         created_by: session.user_id,
         action: 'submitted',
@@ -5163,7 +5163,7 @@ export const api = {
       if (!session?.user_id) throw new Error('לא מחובר');
       if (session.user_role !== 'admin') throw new Error('רק מנהל יכול לאשר משימה');
       const now = new Date().toISOString();
-      const { data: task, error: updateError } = await supabase
+      const { data: task, error: updateError } = await client
         .from('inspection_tasks')
         .update({
           status: 'approved',
@@ -5176,15 +5176,15 @@ export const api = {
         .select()
         .single();
       if (updateError || !task) throw new Error(updateError?.message || 'לא ניתן לאשר את המשימה');
-      await supabase.from('inspection_task_history').insert({
+      await client.from('inspection_task_history').insert({
         task_id: taskId,
         created_by: session.user_id,
         action: 'approved',
         comment_text: null,
       });
-      const report = await supabase.from('inspection_reports').select('id').eq('task_id', taskId).maybeSingle();
+      const report = await client.from('inspection_reports').select('id').eq('task_id', taskId).maybeSingle();
       if (report?.data?.id) {
-        const { data: files } = await supabase
+        const { data: files } = await client
           .from('inspection_report_files')
           .select('id, report_id, asset_id, file_path, file_name, file_type')
           .eq('report_id', report.data.id)
@@ -5192,7 +5192,7 @@ export const api = {
         const userInfo = await getCurrentUserInfo();
         for (const f of (files || []) as Array<{ id: number; report_id: number; asset_id: number; file_path: string; file_name: string | null; file_type: string | null }>) {
           try {
-            const { data: blob, error: downloadErr } = await supabase.storage.from('inspection-reports').download(f.file_path);
+            const { data: blob, error: downloadErr } = await client.storage.from('inspection-reports').download(f.file_path);
             if (downloadErr || !blob) continue;
             const safeName = (f.file_name || f.file_path.split('/').pop() || `inspection_${f.id}`).replace(/[^a-zA-Z0-9._-]/g, '_');
             const mimeType = f.file_type || blob.type || undefined;
@@ -5203,10 +5203,10 @@ export const api = {
               dataToUpload = await compressFile(file);
             }
             const targetPath = `${f.asset_id}/${Date.now()}_${safeName}`;
-            const { error: uploadErr } = await supabase.storage.from('structure-drawings').upload(targetPath, dataToUpload, { contentType: dataToUpload.type || mimeType });
+            const { error: uploadErr } = await client.storage.from('structure-drawings').upload(targetPath, dataToUpload, { contentType: dataToUpload.type || mimeType });
             if (uploadErr) continue;
-            const { data: { publicUrl } } = supabase.storage.from('structure-drawings').getPublicUrl(targetPath);
-            await supabase.from('asset_files').insert({
+            const { data: { publicUrl } } = client.storage.from('structure-drawings').getPublicUrl(targetPath);
+            await client.from('asset_files').insert({
               asset_id: f.asset_id,
               file_url: publicUrl,
               file_name: f.file_name || safeName,
@@ -5228,7 +5228,7 @@ export const api = {
       if (!session?.user_id) throw new Error('לא מחובר');
       if (session.user_role !== 'admin') throw new Error('רק מנהל יכול להחזיר לפקח');
       const now = new Date().toISOString();
-      const { data: task, error: updateError } = await supabase
+      const { data: task, error: updateError } = await client
         .from('inspection_tasks')
         .update({
           status: 'in_progress',
@@ -5240,7 +5240,7 @@ export const api = {
         .select()
         .single();
       if (updateError || !task) throw new Error(updateError?.message || 'לא ניתן להחזיר לפקח');
-      await supabase.from('inspection_task_history').insert({
+      await client.from('inspection_task_history').insert({
         task_id: taskId,
         created_by: session.user_id,
         action: 'returned',
@@ -5257,7 +5257,7 @@ export const api = {
       if (!existing) throw new Error('משימה לא נמצאה');
       if (existing.status === 'cancelled') return existing;
       const now = new Date().toISOString();
-      const { data: task, error: updateError } = await supabase
+      const { data: task, error: updateError } = await client
         .from('inspection_tasks')
         .update({
           status: 'cancelled',
@@ -5267,7 +5267,7 @@ export const api = {
         .select()
         .single();
       if (updateError || !task) throw new Error(updateError?.message || 'לא ניתן לבטל את המשימה');
-      await supabase.from('inspection_task_history').insert({
+      await client.from('inspection_task_history').insert({
         task_id: taskId,
         created_by: session.user_id,
         action: 'cancelled',
@@ -5300,7 +5300,7 @@ export const api = {
         if (input.note !== undefined) updates.note = input.note?.trim() || null;
         if (input.priority !== undefined && ['high', 'medium', 'low'].includes(input.priority)) updates.priority = input.priority;
       }
-      const { data: task, error } = await supabase
+      const { data: task, error } = await client
         .from('inspection_tasks')
         .update(updates)
         .eq('id', taskId)
@@ -5312,7 +5312,7 @@ export const api = {
   },
   inspectionReports: {
     getByTaskId: async (taskId: number): Promise<InspectionReport | null> => {
-      const { data, error } = await supabase
+      const { data, error } = await client
         .from('inspection_reports')
         .select('*')
         .eq('task_id', taskId)
@@ -5322,10 +5322,10 @@ export const api = {
     },
     upsert: async (taskId: number, reportText?: string | null): Promise<InspectionReport> => {
       const session = getSession();
-      const { data: existing } = await supabase.from('inspection_reports').select('id').eq('task_id', taskId).maybeSingle();
+      const { data: existing } = await client.from('inspection_reports').select('id').eq('task_id', taskId).maybeSingle();
       const now = new Date().toISOString();
       if (existing) {
-        const { data, error } = await supabase
+        const { data, error } = await client
           .from('inspection_reports')
           .update({
             report_text: reportText !== undefined ? reportText : undefined,
@@ -5338,7 +5338,7 @@ export const api = {
         if (error) throw error;
         return data as InspectionReport;
       }
-      const { data, error } = await supabase
+      const { data, error } = await client
         .from('inspection_reports')
         .insert({
           task_id: taskId,
@@ -5354,7 +5354,7 @@ export const api = {
     },
     files: {
       list: async (reportId: number): Promise<InspectionReportFile[]> => {
-        const { data, error } = await supabase
+        const { data, error } = await client
           .from('inspection_report_files')
           .select('*')
           .eq('report_id', reportId)
@@ -5371,7 +5371,7 @@ export const api = {
         const session = getSession();
         const safeName = `${Date.now()}_${file.name.replace(/[^a-zA-Z0-9._-]/g, '_')}`;
         const filePath = `${reportId}/${safeName}`;
-        const { error: uploadError } = await supabase.storage
+        const { error: uploadError } = await client.storage
           .from('inspection-reports')
           .upload(filePath, file, { contentType: file.type || undefined, upsert: false });
         if (uploadError) {
@@ -5379,7 +5379,7 @@ export const api = {
           console.error('Storage upload failed:', uploadError);
           throw new Error(msg);
         }
-        const { data: row, error: insertError } = await supabase
+        const { data: row, error: insertError } = await client
           .from('inspection_report_files')
           .insert({
             report_id: reportId,
@@ -5401,7 +5401,7 @@ export const api = {
       },
       /** Update file metadata (e.g. file_name). */
       update: async (fileId: number, patch: { file_name?: string | null }): Promise<InspectionReportFile> => {
-        const { data, error } = await supabase
+        const { data, error } = await client
           .from('inspection_report_files')
           .update({
             ...(patch.file_name !== undefined && { file_name: patch.file_name || null }),
@@ -5414,23 +5414,23 @@ export const api = {
         return data as InspectionReportFile;
       },
       delete: async (fileId: number): Promise<{ success: boolean; error?: string }> => {
-        const { data: file, error: fetchError } = await supabase
+        const { data: file, error: fetchError } = await client
           .from('inspection_report_files')
           .select('file_path')
           .eq('id', fileId)
           .single();
         if (fetchError || !file) return { success: false, error: fetchError?.message || 'File not found' };
-        await supabase.storage.from('inspection-reports').remove([file.file_path]);
-        const { error: deleteError } = await supabase.from('inspection_report_files').delete().eq('id', fileId);
+        await client.storage.from('inspection-reports').remove([file.file_path]);
+        const { error: deleteError } = await client.from('inspection_report_files').delete().eq('id', fileId);
         if (deleteError) return { success: false, error: deleteError.message };
         return { success: true };
       },
       getDownloadUrl: (filePath: string): string => {
-        const { data } = supabase.storage.from('inspection-reports').getPublicUrl(filePath);
+        const { data } = client.storage.from('inspection-reports').getPublicUrl(filePath);
         return data.publicUrl;
       },
       getSignedUrl: async (filePath: string, expiresIn = 3600): Promise<string> => {
-        const { data, error } = await supabase.storage.from('inspection-reports').createSignedUrl(filePath, expiresIn);
+        const { data, error } = await client.storage.from('inspection-reports').createSignedUrl(filePath, expiresIn);
         if (error) throw error;
         return data.signedUrl;
       },

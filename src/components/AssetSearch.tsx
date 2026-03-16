@@ -1,7 +1,7 @@
-import { useState, useMemo } from 'react';
+﻿import { useState, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Search, Home } from 'lucide-react';
-import { supabase } from '../lib/supabase';
+import { client } from '../lib/client';
 import { Asset } from '../lib/api';
 import { AgGridReact } from 'ag-grid-react';
 import { ColDef } from 'ag-grid-community';
@@ -30,7 +30,7 @@ export function AssetSearch({ onSelectAsset }: AssetSearchProps) {
     setHasSearched(true);
 
     try {
-      const { data, error } = await supabase
+      const { data, error } = await client
         .rpc('search_assets_by_range', {
           from_id: parseInt(fromNumber),
           to_id: parseInt(toNumber)

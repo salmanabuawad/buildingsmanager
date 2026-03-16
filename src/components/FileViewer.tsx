@@ -1,9 +1,9 @@
-import { useState, useEffect, useMemo } from 'react';
+﻿import { useState, useEffect, useMemo } from 'react';
 import { Document, Page, pdfjs } from 'react-pdf';
 import { ZoomIn, ZoomOut, Download, RotateCw, ChevronLeft, ChevronRight, File as FileIcon, Printer } from 'lucide-react';
 import { sanitizeFilename } from '../lib/sanitize';
 import { getFileTypeCategory } from '../lib/fileCompression';
-import { supabase } from '../lib/supabase';
+import { client } from '../lib/client';
 import 'react-pdf/dist/Page/AnnotationLayer.css';
 import 'react-pdf/dist/Page/TextLayer.css';
 
@@ -33,7 +33,7 @@ export function FileViewer({ fileUrl, fileName }: FileViewerProps) {
       setIsPreparingUrl(true);
       setPdfLoadError(null);
 
-      if (fileUrl.includes('.supabase.co/storage/v1/object/sign/')) {
+      if (fileUrl.includes('.client.co/storage/v1/object/sign/')) {
         if (!cancelled) setActualFileUrl(fileUrl);
         setIsPreparingUrl(false);
         return;
@@ -46,7 +46,7 @@ export function FileViewer({ fileUrl, fileName }: FileViewerProps) {
         if (pathMatch) {
           const [, bucket, path] = pathMatch;
 
-          const { data, error } = await supabase.storage
+          const { data, error } = await client.storage
             .from(bucket)
             .createSignedUrl(path, 3600); // 1 hour expiry
 

@@ -1,6 +1,6 @@
 /**
- * Supabase compatibility shim.
- * Routes all Supabase calls to FastAPI backend at VITE_API_URL.
+ * HTTP client for the FastAPI backend.
+ * Routes all RPC, REST table, and file-storage calls to VITE_API_URL.
  */
 
 const API_URL: string = (import.meta.env.VITE_API_URL as string | undefined) ?? "";
@@ -31,7 +31,8 @@ function toError(msg: string): { message: string } {
   return { message: msg };
 }
 
-// RPC
+// ── RPC ───────────────────────────────────────────────────────────────────────
+
 async function rpc(fnName: string, params?: Record<string, unknown>) {
   try {
     const res = await apiFetch(`/api/rpc/${fnName}`, {
@@ -51,7 +52,8 @@ async function rpc(fnName: string, params?: Record<string, unknown>) {
   }
 }
 
-// Query builder
+// ── Query builder (PostgREST-compatible) ──────────────────────────────────────
+
 type QueryResult<T = unknown> = { data: T | null; error: { message: string } | null };
 
 class QueryBuilder {
@@ -59,6 +61,7 @@ class QueryBuilder {
   private _params: URLSearchParams = new URLSearchParams();
   private _method: "GET" | "POST" | "PATCH" | "DELETE" = "GET";
   private _body: unknown = undefined;
+  private _upsert = false;
 
   constructor(table: string) { this._table = table; }
 
@@ -101,7 +104,7 @@ class QueryBuilder {
 
   insert(data: unknown): this { this._method = "POST"; this._body = data; return this; }
   update(data: unknown): this { this._method = "PATCH"; this._body = data; return this; }
-  upsert(data: unknown): this { this._method = "POST"; this._body = data; return this; }
+  upsert(data: unknown): this { this._method = "POST"; this._body = data; this._upsert = true; return this; }
   delete(): this { this._method = "DELETE"; return this; }
 
   single(): QueryBuilderSingle { return new QueryBuilderSingle(this); }
@@ -111,9 +114,12 @@ class QueryBuilder {
     const qs = this._params.toString();
     const path = `/api/rest/${this._table}${qs ? `?${qs}` : ""}`;
     try {
+      const extraHeaders: Record<string, string> = {};
+      if (this._upsert) extraHeaders["Prefer"] = "resolution=merge-duplicates";
       const res = await apiFetch(path, {
         method: this._method,
         body: this._body !== undefined ? JSON.stringify(this._body) : undefined,
+        headers: extraHeaders,
       });
       if (!res.ok) {
         const j = await res.json().catch(() => ({}));
@@ -158,7 +164,8 @@ function fromTable(table: string): QueryBuilder {
   return new QueryBuilder(table);
 }
 
-// Storage
+// ── File storage ──────────────────────────────────────────────────────────────
+
 function storageFrom(bucket: string) {
   return {
     upload: async (path: string, file: File | Blob, _opts?: { upsert?: boolean; contentType?: string }) => {
@@ -234,33 +241,10 @@ function storageFrom(bucket: string) {
   };
 }
 
-// Auth stub
-const authStub = {
-  getSession: async () => {
-    try {
-      const raw = sessionStorage.getItem("buildingsmanager_users_table_session");
-      if (!raw) return { data: { session: null } };
-      const s = JSON.parse(raw);
-      return { data: { session: s ? { access_token: "local", user: s } : null } };
-    } catch {
-      return { data: { session: null } };
-    }
-  },
-};
+// ── Exports ───────────────────────────────────────────────────────────────────
 
-export const supabase = {
+export const client = {
   rpc,
   from: fromTable,
   storage: { from: storageFrom },
-  auth: authStub,
 };
-
-export interface Building {
-  id: string;
-  name: string;
-  storage_area: number;
-  pergola_area: number;
-  balcony_area: number;
-  total_building_area: number;
-  created_at: string;
-}

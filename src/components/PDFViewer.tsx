@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+﻿import { useState, useEffect, useMemo } from 'react';
 import { Document, Page, pdfjs } from 'react-pdf';
 import { ZoomIn, ZoomOut, Download, RotateCw, ChevronLeft, ChevronRight } from 'lucide-react';
 import { sanitizeFilename } from '../lib/sanitize';
@@ -31,7 +31,7 @@ export function PDFViewer({ fileUrl, fileName }: PDFViewerProps) {
       setLoadError(null);
 
       // Check if URL is already a signed URL (ref: origin)
-      if (fileUrl.includes('.supabase.co/storage/v1/object/sign/')) {
+      if (fileUrl.includes('.client.co/storage/v1/object/sign/')) {
         if (!cancelled) setActualFileUrl(fileUrl);
         setIsPreparingUrl(false);
         return;

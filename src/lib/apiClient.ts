@@ -1,8 +1,8 @@
 /**
- * API client using Supabase as backend.
- * All data, storage, and RPC calls go to Supabase.
+ * API client.
+ * All data, storage, and RPC calls go to the FastAPI backend via client.ts.
  */
-import { supabase } from './supabase';
+import { client } from './client';
 import { getSession, setFileSessionCookie } from './usersTableAuth';
 
 export interface ApiError {
@@ -19,24 +19,10 @@ function toApiError(e: unknown): ApiError {
   return { message: String(e) };
 }
 
-// Re-export Supabase's from() - it has select, eq, insert, update, delete, upsert, etc.
-const from = (table: string) => supabase.from(table);
+// Re-export client's from() - it has select, eq, insert, update, delete, upsert, etc.
+const from = (table: string) => client.from(table);
 
-// Auth stub for code that calls api.auth.getSession()
-const auth = {
-  getSession: async () => {
-    try {
-      const raw = sessionStorage.getItem('buildingsmanager_users_table_session');
-      if (!raw) return { data: { session: null } };
-      const s = JSON.parse(raw);
-      return { data: { session: s ? { access_token: 'local', user: s } : null } };
-    } catch {
-      return { data: { session: null } };
-    }
-  },
-};
-
-/** Headers for file/inspection API. Supabase uses anon key from client; session used for RLS context. */
+/** Headers for file/inspection API. Session used for auth context. */
 export function getFileApiHeaders(): Record<string, string> {
   const s = getSession();
   if (s && typeof document !== 'undefined') setFileSessionCookie(s);
@@ -50,7 +36,7 @@ export async function getFileViewUrl(path: string): Promise<GetFileViewUrlResult
   try {
     const bucket = path.startsWith('structure-drawings/') ? 'structure-drawings' : path.startsWith('dwg-files/') ? 'dwg-files' : 'asset-files';
     const pathInBucket = path.replace(/^[^/]+\//, '') || path;
-    const { data, error } = await supabase.storage
+    const { data, error } = await client.storage
       .from(bucket)
       .createSignedUrl(pathInBucket, 3600);
     if (error) return { status: 500, error: error.message };
@@ -61,35 +47,35 @@ export async function getFileViewUrl(path: string): Promise<GetFileViewUrlResult
   }
 }
 
-// Storage: use Supabase storage
+// Storage
 function storageFrom(bucket: string) {
   return {
     upload: async (path: string, file: File | Blob, opts?: { upsert?: boolean }) => {
-      const { data, error } = await supabase.storage
+      const { data, error } = await client.storage
         .from(bucket)
         .upload(path, file, { upsert: opts?.upsert ?? true });
       if (error) throw new Error(error.message);
-      return { data: { path: data.path, ...data }, error: null };
+      return { data: { path: (data as { path?: string })?.path ?? path, ...data }, error: null };
     },
     getPublicUrl: (path: string) => ({
       data: {
-        publicUrl: supabase.storage.from(bucket).getPublicUrl(path).data.publicUrl,
+        publicUrl: client.storage.from(bucket).getPublicUrl(path).data.publicUrl,
       },
     }),
     createSignedUrl: async (path: string, expirySeconds?: number) => {
-      const { data, error } = await supabase.storage
+      const { data, error } = await client.storage
         .from(bucket)
         .createSignedUrl(path, expirySeconds ?? 3600);
       if (error) throw new Error(error.message);
-      return { data: { signedUrl: data.signedUrl }, error: null };
+      return { data: { signedUrl: (data as { signedUrl?: string })?.signedUrl ?? '' }, error: null };
     },
     download: async (path: string) => {
-      const { data, error } = await supabase.storage.from(bucket).download(path);
+      const { data, error } = await client.storage.from(bucket).download(path);
       if (error) throw new Error(error.message);
       return { data: data ?? null, error: null };
     },
     remove: async (paths: string[]) => {
-      const { error } = await supabase.storage.from(bucket).remove(paths);
+      const { error } = await client.storage.from(bucket).remove(paths);
       if (error) throw new Error(error.message);
       return { data: {}, error: null };
     },
@@ -104,7 +90,7 @@ async function deleteByQuery(
   filters: Record<string, string | number | (string | number)[]>
 ): Promise<{ data: unknown; error: ApiError | null }> {
   try {
-    let query = supabase.from(table).delete();
+    let query = client.from(table).delete();
     for (const [col, val] of Object.entries(filters)) {
       if (Array.isArray(val)) {
         query = query.in(col, val);
@@ -126,15 +112,15 @@ async function deleteBuildingWithRelated(
 ): Promise<{ data: { success?: boolean; building_number?: number; deleted_assets_count?: number } | null; error: ApiError | null }> {
   try {
     const bid = String(buildingNumber);
-    const { count } = await supabase
+    const { count } = await client
       .from('assets')
       .select('*', { count: 'exact', head: true })
       .eq('building_number', buildingNumber);
     const deletedCount = count ?? 0;
 
-    await supabase.from('audit').delete().eq('entity_type', 'bulk_asset').eq('entity_id', bid);
-    await supabase.from('audit').delete().eq('entity_type', 'building').eq('entity_id', bid);
-    const { error } = await supabase.from('buildings').delete().eq('building_number', buildingNumber);
+    await client.from('audit').delete().eq('entity_type', 'bulk_asset').eq('entity_id', bid);
+    await client.from('audit').delete().eq('entity_type', 'building').eq('entity_id', bid);
+    const { error } = await client.from('buildings').delete().eq('building_number', buildingNumber);
 
     if (error) return { data: null, error: toApiError(error) };
     return { data: { success: true, building_number: buildingNumber, deleted_assets_count: deletedCount }, error: null };
@@ -145,7 +131,6 @@ async function deleteBuildingWithRelated(
 
 export const api = {
   from,
-  auth,
   storage,
   deleteByQuery,
   deleteBuildingWithRelated,

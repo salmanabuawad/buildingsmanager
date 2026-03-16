@@ -364,43 +364,53 @@ export function UserManagement() {
 
   return (
     <div className="flex flex-col flex-1 min-h-0 w-full px-2 sm:px-4 md:px-6 py-1.5 sm:py-2">
-      <div className="flex items-center justify-between mb-6">
-        <div className="flex items-center gap-3">
-          <User className="h-6 w-6 text-purple-600" />
-          <h1 className="text-2xl font-bold text-slate-900">ניהול משתמשים</h1>
-        </div>
-        <div className="flex items-center gap-2">
-          <button
-            onClick={openAddUserModal}
-            className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
-          >
-            <Plus className="h-4 w-4" />
-            הוסף משתמש
-          </button>
-          <button
-            onClick={fetchUsers}
-            disabled={loading}
-            className="flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
-            רענן
-          </button>
+      <div className="page-header mb-2 rounded-lg px-3 py-2 w-full">
+        <div className="flex items-center justify-between w-full">
+          <div className="flex items-center gap-2">
+            <div className="page-header-icon shrink-0">
+              <User className="w-5 h-5" />
+            </div>
+            <h1 className="page-header-title text-sm sm:text-base font-bold">ניהול משתמשים</h1>
+          </div>
+          <span className="page-header-badge">{users.length} רשומות</span>
         </div>
       </div>
 
-      {error && (
-        <div className="mb-4 bg-red-50 border border-red-200 rounded-lg p-4">
-          <p className="text-red-700">{error}</p>
+      <div className="bg-white rounded-xl shadow-lg hover:shadow-xl transition-shadow duration-200 border border-theme-card-border p-6 mb-6">
+        <div className="flex items-center justify-between mb-6">
+          <h2 className="text-xl font-bold text-slate-800">ניהול משתמשים</h2>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={openAddUserModal}
+              className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+            >
+              <Plus className="h-4 w-4" />
+              הוסף משתמש
+            </button>
+            <button
+              onClick={fetchUsers}
+              disabled={loading}
+              className="flex items-center gap-2 px-4 py-2 bg-theme-tab-active text-white rounded-lg hover:bg-theme-tab-active-hover transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
+              רענן
+            </button>
+          </div>
         </div>
-      )}
 
-      {loading ? (
-        <div className="flex items-center justify-center py-12">
-          <Loader2 className="h-8 w-8 text-purple-600 animate-spin" />
-        </div>
-      ) : (
-        <div className="bg-white rounded-lg shadow-lg border border-purple-200 overflow-hidden">
-          <div className="ag-theme-alpine" style={{ height: 400, width: '100%', direction: 'rtl' }}>
+        {error && (
+          <div className="mb-4 bg-red-50 border border-red-200 rounded-lg p-4">
+            <p className="text-red-700">{error}</p>
+          </div>
+        )}
+
+        {loading ? (
+          <div className="flex items-center justify-center py-12">
+            <Loader2 className="h-8 w-8 text-theme-tab-active animate-spin" />
+          </div>
+        ) : (
+          <div className="bg-white rounded-xl shadow-lg hover:shadow-xl transition-shadow duration-200 overflow-hidden border-2 border-theme-action-accent w-full">
+            <div className="ag-theme-alpine" style={{ height: '60vh', width: '100%', minWidth: '100%', overflowX: 'auto', direction: 'rtl' }}>
             <AgGridReact<User>
               ref={gridRef}
               rowData={users}
@@ -416,9 +426,11 @@ export function UserManagement() {
               stopEditingWhenCellsLoseFocus={true}
               localeText={{ noRowsToShow: 'לא נמצאו משתמשים' }}
             />
+            </div>
           </div>
-        </div>
-      )}
+        )}
+
+      </div>
 
       {/* Password Change Modal */}
       {passwordModalOpen !== null && (

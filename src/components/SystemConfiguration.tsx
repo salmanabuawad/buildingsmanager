@@ -435,10 +435,16 @@ export function SystemConfigurationManager() {
         />
       )}
 
-      {/* Page header */}
-      <div className="mb-8">
-        <h1 className="text-2xl font-bold text-slate-800">הגדרות מערכת</h1>
-        <p className="mt-1 text-sm text-slate-600">ניהול הגדרות אימות, אחסון, דוא&quot;ל והגדרות מתקדמות</p>
+      <div className="page-header mb-2 rounded-lg px-3 py-2 w-full">
+        <div className="flex items-center justify-between w-full">
+          <div className="flex items-center gap-2">
+            <div className="page-header-icon shrink-0">
+              <Settings className="w-5 h-5" />
+            </div>
+            <h1 className="page-header-title text-sm sm:text-base font-bold">הגדרות מערכת</h1>
+          </div>
+        </div>
+        <p className="mt-1 text-sm text-slate-600 mr-7">ניהול הגדרות אימות, אחסון, דוא&quot;ל והגדרות מתקדמות</p>
       </div>
 
       {/* 1. אימות (Validation) */}

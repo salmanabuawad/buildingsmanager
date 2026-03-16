@@ -677,13 +677,31 @@ export function ValidationRulesManager() {
 
   return (
     <div className="flex flex-col flex-1 min-h-0 w-full px-2 sm:px-4 md:px-6 py-1.5 sm:py-2">
-    <div className="flex flex-col flex-1 min-h-0 w-full bg-white rounded-lg shadow-lg overflow-hidden">
-      <div className="flex items-center justify-between p-3 border-b border-slate-200">
-        <div className="flex items-center gap-2">
-          <Settings className="h-5 w-5 text-teal-600" />
-          <h2 className="text-lg font-bold text-slate-800">{t('validationRules')}</h2>
+      <div className="page-header mb-2 rounded-lg px-3 py-2 w-full">
+        <div className="flex items-center justify-between w-full">
+          <div className="flex items-center gap-2">
+            <div className="page-header-icon shrink-0">
+              <Settings className="w-5 h-5" />
+            </div>
+            <h1 className="page-header-title text-sm sm:text-base font-bold">{t('validationRules')}</h1>
+          </div>
+          <span className="page-header-badge">{rules.length} רשומות</span>
         </div>
-        <div className="flex gap-2">
+      </div>
+
+      {message && (
+        <div className={`mb-6 p-4 rounded-lg ${message.type === 'success' ? 'bg-green-50 text-green-800' : 'bg-red-50 text-red-800'}`}>
+          {message.text}
+        </div>
+      )}
+
+      <div className="bg-white rounded-xl shadow-lg hover:shadow-xl transition-shadow duration-200 border border-theme-card-border p-6 mb-6">
+        <div className="flex items-center justify-between mb-6">
+          <div className="flex items-center gap-2">
+            <Settings className="h-5 w-5 text-teal-600" />
+            <h2 className="text-xl font-bold text-slate-800">{t('validationRules')}</h2>
+          </div>
+          <div className="flex gap-2">
           <input
             ref={fileInputRef}
             type="file"
@@ -722,12 +740,6 @@ export function ValidationRulesManager() {
           </button>
         </div>
       </div>
-
-      {message && (
-        <div className={`mx-6 mt-4 p-3 rounded-lg ${message.type === 'success' ? 'bg-green-50 text-green-800' : 'bg-red-50 text-red-800'}`}>
-          {message.text}
-        </div>
-      )}
 
       {isAdding && (
         <div className="m-6 p-6 bg-slate-50 rounded-lg border border-slate-200">
@@ -926,22 +938,18 @@ export function ValidationRulesManager() {
         </div>
       )}
 
-      <div className="flex-1 p-6">
         {loading ? (
-          <div className="flex items-center justify-center h-full">
+          <div className="flex items-center justify-center py-12">
             <div className="text-slate-600">{t('loading')}</div>
           </div>
         ) : rules.length === 0 ? (
-          <div className="flex items-center justify-center h-full">
-            <div className="text-slate-600">לא נמצאו כללי תקינות</div>
+          <div className="flex items-center justify-center py-12 text-slate-500">
+            <p className="text-lg">לא נמצאו כללי תקינות</p>
           </div>
         ) : (
-          <div className="flex flex-col h-full">
-            <div className="mb-2 text-sm text-slate-600">
-              מציג {rules.length} כללי תקינות
-            </div>
+          <>
             <div className="bg-white rounded-xl shadow-lg hover:shadow-xl transition-shadow duration-200 overflow-hidden border-2 border-theme-action-accent w-full">
-              <div className="ag-theme-alpine" style={{ height: '60vh', width: '100%', minWidth: '100%', overflowX: 'auto' }}>
+              <div className="ag-theme-alpine" style={{ height: '60vh', width: '100%', minWidth: '100%', overflowX: 'auto', direction: 'rtl' }}>
                 <AgGridReact
                 ref={gridRef}
                 rowData={rules}
@@ -1001,10 +1009,9 @@ export function ValidationRulesManager() {
               />
               </div>
             </div>
-          </div>
+          </>
         )}
       </div>
-    </div>
     </div>
   );
 }

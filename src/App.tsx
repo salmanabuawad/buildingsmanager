@@ -130,6 +130,8 @@ function App() {
     setAdminMenuOpen(false);
     setManagerActionsSubmenuOpen(false);
     setSystemConfigSubmenuOpen(false);
+    setUserMenuOpen(false);
+    setSettingsMenuOpen(false);
   }, []);
   const [batchValidationLoading, setBatchValidationLoading] = useState(false);
   const [batchValidationProgress, setBatchValidationProgress] = useState<{

@@ -402,11 +402,22 @@ export function OperatorsManager() {
         />
       )}
 
-      <div className="bg-white rounded-xl shadow-lg border border-theme-card-border p-6">
+      <div className="page-header mb-2 rounded-lg px-3 py-2 w-full">
+        <div className="flex items-center justify-between w-full">
+          <div className="flex items-center gap-2">
+            <div className="page-header-icon shrink-0">
+              <Users className="w-5 h-5" />
+            </div>
+            <h1 className="page-header-title text-sm sm:text-base font-bold">מפעילים</h1>
+          </div>
+          <span className="page-header-badge">{items.length} רשומות</span>
+        </div>
+      </div>
+
+      <div className="bg-white rounded-xl shadow-lg hover:shadow-xl transition-shadow duration-200 border border-theme-card-border p-6 mb-6">
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center gap-3">
-            <Users className="h-6 w-6 text-theme-tab-active" />
-            <h1 className="text-2xl font-bold text-slate-800">מפעילים</h1>
+            <h2 className="text-xl font-bold text-slate-800">מפעילים</h2>
           </div>
           <div className="flex items-center gap-2">
             <button
@@ -525,7 +536,7 @@ export function OperatorsManager() {
           </div>
         )}
 
-        <div className="bg-white rounded-xl shadow-lg hover:shadow-xl transition-shadow duration-200 overflow-hidden border-2 border-blue-400 w-full">
+        <div className="bg-white rounded-xl shadow-lg hover:shadow-xl transition-shadow duration-200 overflow-hidden border-2 border-theme-action-accent w-full">
           <div className="ag-theme-alpine" style={{ height: '60vh', width: '100%', minWidth: '100%', overflowX: 'auto', direction: 'rtl' }}>
             <AgGridReact
               ref={gridRef}

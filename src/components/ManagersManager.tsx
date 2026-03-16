@@ -205,66 +205,79 @@ export function ManagersManager() {
 
   return (
     <div className="flex flex-col flex-1 min-h-0 w-full px-2 sm:px-4 md:px-6 py-1.5 sm:py-2">
-      <div className="flex items-center justify-between mb-4">
-        <h1 className="text-xl font-bold text-slate-800 flex items-center gap-2">
-          <UserCog className="h-6 w-6 text-theme-tab-active" />
-          מנהלים
-        </h1>
-        <div className="flex gap-2">
-          {isAdding ? (
-            <>
-              <input
-                placeholder="שם"
-                value={formData.name}
-                onChange={e => setFormData(d => ({ ...d, name: e.target.value }))}
-                className="border rounded px-2 py-1 text-sm w-32"
-              />
-              <input
-                placeholder="אזורי מס (1,2,3)"
-                value={formData.tax_regions}
-                onChange={e => setFormData(d => ({ ...d, tax_regions: e.target.value }))}
-                className="border rounded px-2 py-1 text-sm w-36"
-              />
-              <input
-                placeholder="אימייל"
-                value={formData.email}
-                onChange={e => setFormData(d => ({ ...d, email: e.target.value }))}
-                className="border rounded px-2 py-1 text-sm w-40"
-              />
-              <input
-                placeholder="טלפון"
-                value={formData.phone}
-                onChange={e => setFormData(d => ({ ...d, phone: e.target.value }))}
-                className="border rounded px-2 py-1 text-sm w-28"
-              />
-              <button onClick={handleAdd} disabled={isSaving} className="btn bg-green-600 text-white px-3 py-1 rounded text-sm flex items-center gap-1">
-                <Save className="h-4 w-4" /> שמור
-              </button>
-              <button onClick={() => setIsAdding(false)} className="btn border rounded px-3 py-1 text-sm"><X className="h-4 w-4" /></button>
-            </>
-          ) : (
-            <>
-              {isAdmin && (
-                <button onClick={() => setIsAdding(true)} className="btn bg-theme-tab-active text-white px-3 py-2 rounded flex items-center gap-2">
-                  <Plus className="h-4 w-4" /> הוסף מנהל
-                </button>
-              )}
-              {(dirtyItems.size > 0 || deletedItems.size > 0) && (
-                <>
-                  <button onClick={handleSaveAll} disabled={isSaving} className="btn bg-theme-tab-active text-white px-3 py-2 rounded flex items-center gap-2">
-                    <Save className="h-4 w-4" /> שמור שינויים
-                  </button>
-                  <button onClick={handleCancelAll} className="btn border rounded px-3 py-2">ביטול</button>
-                </>
-              )}
-            </>
-          )}
+      {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
+
+      <div className="page-header mb-2 rounded-lg px-3 py-2 w-full">
+        <div className="flex items-center justify-between w-full">
+          <div className="flex items-center gap-2">
+            <div className="page-header-icon shrink-0">
+              <UserCog className="w-5 h-5" />
+            </div>
+            <h1 className="page-header-title text-sm sm:text-base font-bold">מנהלים</h1>
+          </div>
+          <span className="page-header-badge">{items.length} רשומות</span>
         </div>
       </div>
-      <p className="text-sm text-slate-600 mb-4">
-        מנהלים מקבלים במייל רשימת נכסים לפי אזורי המס שהוגדרו (בעת שליחת נתונים לעירייה). הזן אזורי מס מופרדים בפסיק (למשל: 1,2,3).
-      </p>
-      <div className="ag-theme-alpine" style={{ height: 400, width: '100%' }}>
+
+      <div className="bg-white rounded-xl shadow-lg hover:shadow-xl transition-shadow duration-200 border border-theme-card-border p-6 mb-6">
+        <div className="flex items-center justify-between mb-6">
+          <h2 className="text-xl font-bold text-slate-800">מנהלים</h2>
+          <div className="flex gap-2">
+            {isAdding ? (
+              <>
+                <input
+                  placeholder="שם"
+                  value={formData.name}
+                  onChange={e => setFormData(d => ({ ...d, name: e.target.value }))}
+                  className="border rounded px-2 py-1 text-sm w-32"
+                />
+                <input
+                  placeholder="אזורי מס (1,2,3)"
+                  value={formData.tax_regions}
+                  onChange={e => setFormData(d => ({ ...d, tax_regions: e.target.value }))}
+                  className="border rounded px-2 py-1 text-sm w-36"
+                />
+                <input
+                  placeholder="אימייל"
+                  value={formData.email}
+                  onChange={e => setFormData(d => ({ ...d, email: e.target.value }))}
+                  className="border rounded px-2 py-1 text-sm w-40"
+                />
+                <input
+                  placeholder="טלפון"
+                  value={formData.phone}
+                  onChange={e => setFormData(d => ({ ...d, phone: e.target.value }))}
+                  className="border rounded px-2 py-1 text-sm w-28"
+                />
+                <button onClick={handleAdd} disabled={isSaving} className="btn bg-green-600 text-white px-3 py-1 rounded text-sm flex items-center gap-1">
+                  <Save className="h-4 w-4" /> שמור
+                </button>
+                <button onClick={() => setIsAdding(false)} className="btn border rounded px-3 py-1 text-sm"><X className="h-4 w-4" /></button>
+              </>
+            ) : (
+              <>
+                {isAdmin && (
+                  <button onClick={() => setIsAdding(true)} className="btn bg-theme-tab-active text-white px-3 py-2 rounded flex items-center gap-2">
+                    <Plus className="h-4 w-4" /> הוסף מנהל
+                  </button>
+                )}
+                {(dirtyItems.size > 0 || deletedItems.size > 0) && (
+                  <>
+                    <button onClick={handleSaveAll} disabled={isSaving} className="btn bg-theme-tab-active text-white px-3 py-2 rounded flex items-center gap-2">
+                      <Save className="h-4 w-4" /> שמור שינויים
+                    </button>
+                    <button onClick={handleCancelAll} className="btn border rounded px-3 py-2">ביטול</button>
+                  </>
+                )}
+              </>
+            )}
+          </div>
+        </div>
+        <p className="text-sm text-slate-600 mb-4">
+          מנהלים מקבלים במייל רשימת נכסים לפי אזורי המס שהוגדרו (בעת שליחת נתונים לעירייה). הזן אזורי מס מופרדים בפסיק (למשל: 1,2,3).
+        </p>
+        <div className="bg-white rounded-xl shadow-lg hover:shadow-xl transition-shadow duration-200 overflow-hidden border-2 border-theme-action-accent w-full">
+          <div className="ag-theme-alpine" style={{ height: '60vh', width: '100%', minWidth: '100%', overflowX: 'auto', direction: 'rtl' }}>
         <AgGridReact<Manager>
           rowData={items.map(item => ({
             ...item,
@@ -280,8 +293,9 @@ export function ManagersManager() {
           suppressCellFocus={true}
           singleClickEdit={true}
         />
+          </div>
+        </div>
       </div>
-      {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
     </div>
   );
 }

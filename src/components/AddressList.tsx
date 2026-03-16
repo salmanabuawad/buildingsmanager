@@ -771,8 +771,8 @@ export function AddressListComponent() {
           </button>
         </div>
 
-        <div className="bg-white rounded-xl shadow-lg hover:shadow-xl transition-shadow duration-200 overflow-hidden border-2 border-blue-400 w-full">
-          <div className="ag-theme-alpine" style={{ height: '60vh', width: '100%', minWidth: '100%', overflowX: 'auto' }}>
+        <div className="bg-white rounded-xl shadow-lg hover:shadow-xl transition-shadow duration-200 overflow-hidden border-2 border-theme-action-accent w-full">
+          <div className="ag-theme-alpine" style={{ height: '60vh', width: '100%', minWidth: '100%', overflowX: 'auto', direction: 'rtl' }}>
             <AgGridReact<AddressList>
             ref={gridRef}
             rowData={addresses}

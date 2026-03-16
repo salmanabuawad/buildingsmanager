@@ -14,9 +14,6 @@ from typing import Optional
 from fastapi import Depends, HTTPException, Request, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 
-from app.repos.users_repo import UsersRepo
-
-_users_repo = UsersRepo()
 security_bearer = HTTPBearer(auto_error=False)
 
 
@@ -106,7 +103,7 @@ def get_current_user_users_table(
         except (ValueError, TypeError):
             pass
 
-    # 4. Bearer JWT
+    # 4. Bearer JWT — trust the signed token directly, no DB roundtrip
     if credentials and credentials.credentials:
         try:
             from app.auth import decode_token
@@ -116,15 +113,13 @@ def get_current_user_users_table(
             if sub is not None:
                 uid = int(sub) if str(sub).isdigit() else None
                 if uid is not None:
-                    row = _users_repo.get_by_id(uid)
-                    if row and row.get("active", True):
-                        return CurrentUser(
-                            user_id=uid,
-                            user_name=row.get("user_name") or "",
-                            user_email=row.get("user_email"),
-                            user_role=row.get("user_role") or role,
-                            active=True,
-                        )
+                    return CurrentUser(
+                        user_id=uid,
+                        user_name="",
+                        user_email=None,
+                        user_role=role,
+                        active=True,
+                    )
         except Exception:
             pass
 

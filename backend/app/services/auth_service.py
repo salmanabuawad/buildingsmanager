@@ -3,9 +3,9 @@ Authentication service.
 Replaces: auth_login, auth_login_by_otp, auth_login_by_task_token,
           users_create_internal, users_set_password, users_ensure_defaults RPCs.
 """
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from app.database import fetch_one, execute, fetch_val
-from app.auth import hash_password, verify_password
+from app.auth import hash_password, verify_password, create_token
 
 
 async def login(user_name: str, password: str) -> dict:
@@ -25,10 +25,18 @@ async def login(user_name: str, password: str) -> dict:
     if not verify_password(password, row["password_hash"]):
         raise ValueError("auth_login: invalid credentials")
 
+    user_id = row["user_id"]
+    user_role = row["user_role"] or "user"
+    access_token = create_token({
+        "sub": str(user_id),
+        "role": user_role,
+        "exp": datetime.now(timezone.utc) + timedelta(days=7),
+    })
     return {
-        "user_id": row["user_id"],
+        "user_id": user_id,
         "user_name": row["user_name"],
-        "user_role": row["user_role"] or "user",
+        "user_role": user_role,
+        "access_token": access_token,
     }
 
 
@@ -55,11 +63,19 @@ async def login_otp(otp: str) -> dict:
     if not user:
         raise ValueError("auth_login_by_otp: user not found or inactive")
 
+    otp_user_id = row["user_id"]
+    otp_role = user["user_role"] or "user"
+    otp_token = create_token({
+        "sub": str(otp_user_id),
+        "role": otp_role,
+        "exp": datetime.now(timezone.utc) + timedelta(days=7),
+    })
     return {
-        "user_id": row["user_id"],
+        "user_id": otp_user_id,
         "user_name": user["user_name"],
-        "user_role": user["user_role"] or "user",
+        "user_role": otp_role,
         "task_id": row["task_id"],
+        "access_token": otp_token,
     }
 
 
@@ -86,11 +102,19 @@ async def login_task_token(token: str) -> dict:
     if not user:
         raise ValueError("auth_login_by_task_token: user not found or inactive")
 
+    tt_user_id = row["user_id"]
+    tt_role = user["user_role"] or "user"
+    tt_token = create_token({
+        "sub": str(tt_user_id),
+        "role": tt_role,
+        "exp": datetime.now(timezone.utc) + timedelta(days=7),
+    })
     return {
-        "user_id": row["user_id"],
+        "user_id": tt_user_id,
         "user_name": user["user_name"],
-        "user_role": user["user_role"] or "user",
+        "user_role": tt_role,
         "task_id": row["task_id"],
+        "access_token": tt_token,
     }
 
 

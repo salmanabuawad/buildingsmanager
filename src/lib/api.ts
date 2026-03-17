@@ -4213,11 +4213,24 @@ export const api = {
       }
 
       // Extract data with before_data and after_data; audit table uses action_id (not id)
+      // Parse before_data/after_data if server returns them as JSON strings (so grid can read .assets)
+      const parseJsonField = (v: unknown): any => {
+        if (v == null) return null;
+        if (typeof v === 'object') return v;
+        if (typeof v === 'string') {
+          try {
+            return JSON.parse(v) as any;
+          } catch {
+            return null;
+          }
+        }
+        return null;
+      };
       return records.map((record: any) => ({
         ...record,
         id: record.action_id ?? record.id,
-        before_data: record.before_data || null,
-        after_data: record.after_data || null,
+        before_data: parseJsonField(record.before_data) || null,
+        after_data: parseJsonField(record.after_data) || null,
       }));
     },
     // saveCurrentState is deprecated - distribution operations are now logged

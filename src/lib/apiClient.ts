@@ -12,12 +12,19 @@ export interface ApiError {
   code?: string;
 }
 
+function getRequestBase(): string {
+  const base = getApiBaseUrl();
+  if (base !== '' && base != null) return base;
+  if (typeof window !== 'undefined' && window.location?.origin) return window.location.origin;
+  return '';
+}
+
 async function request<T>(
   method: string,
   path: string,
   body?: unknown
 ): Promise<{ data: T | null; error: ApiError | null }> {
-  const url = `${getApiBaseUrl()}/api${path}`;
+  const url = `${getRequestBase()}/api${path}`;
   const headers: Record<string, string> = { 'Content-Type': 'application/json' };
   const token = getAccessToken();
   if (token) headers['Authorization'] = `Bearer ${token}`;
@@ -289,7 +296,7 @@ export type GetFileViewUrlResult = { url: string } | { status: number; error?: s
 export async function getFileViewUrl(path: string): Promise<GetFileViewUrlResult> {
   const session = getSession();
   if (session && typeof document !== 'undefined') setFileSessionCookie(session);
-  const base = `${getApiBaseUrl()}/api/files`.replace(/\/+$/, '');
+  const base = `${getRequestBase()}/api/files`.replace(/\/+$/, '');
   const url = base ? `${base}/view-url` : '/api/files/view-url';
   const res = await fetch(`${url}?path=${encodeURIComponent(path)}`, {
     credentials: 'include',
@@ -313,7 +320,7 @@ export async function getFileViewUrl(path: string): Promise<GetFileViewUrlResult
 
 // Storage: proxy to backend file endpoints
 function storageFrom(bucket: string) {
-  const base = `${getApiBaseUrl()}/api/files`;
+  const base = `${getRequestBase()}/api/files`;
   return {
     upload: async (path: string, file: File | Blob, opts?: { upsert?: boolean }) => {
       const form = new FormData();

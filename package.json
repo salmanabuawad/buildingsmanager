@@ -16,6 +16,7 @@
     "test:e2e:report": "playwright show-report",
     "deploy": "npm run build && netlify deploy --prod",
     "deploy:preview": "npm run build && netlify deploy",
+    "deploy:server": "powershell -ExecutionPolicy Bypass -File ./deploy-to-server.ps1",
     "db:setup": "node -e \"console.log('Run: ./scripts/setup-db.sh (Mac/Linux) or .\\\\scripts\\\\setup-db.bat (Windows)')\"",
     "db:backup": "node -e \"console.log('Run: pg_dump -U postgres buildings_manager > backup.sql')\"",
     "db:restore": "node -e \"console.log('Run: psql -U postgres buildings_manager < backup.sql')\"",

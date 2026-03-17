@@ -30,7 +30,8 @@ if ($LASTEXITCODE -ne 0) {
     exit $LASTEXITCODE
 }
 
-$remoteCmd = "mkdir -p $REMOTE_PATH && rm -rf ${REMOTE_PATH}/* && mv ${remoteTemp}/dist/* $REMOTE_PATH/ && rm -rf $remoteTemp"
+# SCP may create remoteTemp/dist/ or put contents directly in remoteTemp/
+$remoteCmd = "mkdir -p $REMOTE_PATH && rm -rf ${REMOTE_PATH}/* && (mv ${remoteTemp}/dist/* $REMOTE_PATH/ 2>/dev/null || mv ${remoteTemp}/* $REMOTE_PATH/) && rm -rf $remoteTemp"
 Write-Host "Moving files into place on server..."
 & ssh "${USER}@${SERVER}" $remoteCmd
 if ($LASTEXITCODE -ne 0) {

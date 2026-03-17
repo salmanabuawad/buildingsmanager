@@ -138,10 +138,12 @@ function from(table: string) {
       return chain;
     },
     async then<T>(onFulfilled?: (value: { data: T | null; error: ApiError | null }) => T | Promise<T>) {
+      const limitVal = state.limit ?? 1000;
       const q: Record<string, string | number | string[] | undefined> = {
         select: state.select,
-        limit: state.limit ?? 1000,
+        limit: limitVal,
         offset: state.offset ?? 0,
+        row: limitVal,
         ...state.filters,
       };
       if (state.order) q.order = state.order;
@@ -151,7 +153,7 @@ function from(table: string) {
       return onFulfilled ? onFulfilled(out as { data: T | null; error: ApiError | null }) : (out as T);
     },
     async single() {
-      const q: Record<string, string | number | string[] | undefined> = { ...state.filters, select: state.select, limit: 1 };
+      const q: Record<string, string | number | string[] | undefined> = { ...state.filters, select: state.select, limit: 1, row: 1 };
       if (state.orClauses?.length) q.or = state.orClauses;
       const path = `/data/${state.table}${buildQuery(q)}`;
       const out = await request('GET', path);
@@ -161,7 +163,7 @@ function from(table: string) {
       return { data: arr[0], error: null };
     },
     async maybeSingle() {
-      const q: Record<string, string | number | string[] | undefined> = { ...state.filters, select: state.select, limit: 2 };
+      const q: Record<string, string | number | string[] | undefined> = { ...state.filters, select: state.select, limit: 2, row: 2 };
       if (state.orClauses?.length) q.or = state.orClauses;
       const path = `/data/${state.table}${buildQuery(q)}`;
       const out = await request('GET', path);

@@ -4182,7 +4182,7 @@ export const api = {
       const { data: bulkData, error } = await query;
       if (error) throw error;
 
-      let records: any[] = bulkData || [];
+      let records: any[] = Array.isArray(bulkData) ? bulkData : [];
 
       // For transfer history: also include audit rows where entity_type='asset' and entity_id is an asset in this building
       if (mappedActionTypes?.includes('transfer_area')) {

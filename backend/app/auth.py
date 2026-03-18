@@ -43,6 +43,11 @@ def decode_token(token: str) -> dict:
         )
 
 
+def require_jwt(credentials: HTTPAuthorizationCredentials = Depends(security)):
+    """Validate JWT and return payload. Use for routes that don't need the User ORM (e.g. session users with sub=uid:123)."""
+    return decode_token(credentials.credentials)
+
+
 def get_current_user(
     credentials: HTTPAuthorizationCredentials = Depends(security),
     db: Session = Depends(get_db)

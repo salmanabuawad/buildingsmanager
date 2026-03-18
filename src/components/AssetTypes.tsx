@@ -1169,6 +1169,7 @@ export function AssetTypes() {
       filename,
       sheetName: 'סוגי נכסים',
       data,
+      decimalFormatColumnIndices: [14, 15], // שטח מ, שטח עד (min_size, max_size)
       columnWidths: [
         { wch: 12 }, // סוג נכס
         { wch: 25 }, // תיאור

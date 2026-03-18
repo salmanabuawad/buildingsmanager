@@ -6,8 +6,8 @@ FastAPI backend for AssetFlow - Building and Asset Management System
 
 - RESTful API with FastAPI
 - JWT-based authentication
-- Azure PostgreSQL database integration
-- Azure Blob Storage for file uploads
+- PostgreSQL database integration
+- Local filesystem storage for file uploads
 - Comprehensive audit logging
 - Role-based access control (Admin, Editor, Viewer)
 
@@ -15,7 +15,7 @@ FastAPI backend for AssetFlow - Building and Asset Management System
 
 - Python 3.11+
 - PostgreSQL 14+
-- Azure Blob Storage account (for file uploads)
+- Local writable filesystem path for uploads (see `FILES_BASE_PATH`)
 
 ## Local Development Setup
 
@@ -43,8 +43,9 @@ DATABASE_URL=postgresql://username:password@localhost:5432/assetflow
 SECRET_KEY=your-secret-key-here
 ALGORITHM=HS256
 ACCESS_TOKEN_EXPIRE_MINUTES=30
-AZURE_STORAGE_CONNECTION_STRING=your-azure-storage-connection-string
-AZURE_STORAGE_CONTAINER_NAME=assetflow-files
+# Local filesystem storage roots
+FILES_BASE_PATH=/home/profilegroup/app/uploads
+ASSET_FILES_STORAGE_PATH=/home/profilegroup/app/asset_files_storage
 ALLOWED_ORIGINS=http://localhost:5173
 ENVIRONMENT=development
 ```
@@ -176,7 +177,7 @@ Navigate to http://localhost:8000/docs for interactive API documentation.
 
 See [AZURE_DEPLOYMENT_GUIDE.md](../AZURE_DEPLOYMENT_GUIDE.md) for detailed deployment instructions.
 
-### Quick Deploy to Azure
+### Deploy
 
 ```bash
 # From project root
@@ -192,8 +193,8 @@ chmod +x deploy-to-azure.sh
 | SECRET_KEY | JWT secret key | Required |
 | ALGORITHM | JWT algorithm | HS256 |
 | ACCESS_TOKEN_EXPIRE_MINUTES | Token expiration time | 30 |
-| AZURE_STORAGE_CONNECTION_STRING | Azure Blob Storage connection | Required |
-| AZURE_STORAGE_CONTAINER_NAME | Storage container name | assetflow-files |
+| FILES_BASE_PATH | Local base path for file uploads | `/home/profilegroup/app/uploads` |
+| ASSET_FILES_STORAGE_PATH | Local path for structure-drawings / asset files | `/home/profilegroup/app/asset_files_storage` |
 | ALLOWED_ORIGINS | CORS allowed origins (comma-separated) | http://localhost:5173 |
 | ENVIRONMENT | Environment name | development |
 
@@ -206,7 +207,7 @@ Check your DATABASE_URL format:
 postgresql://username:password@host:port/database?sslmode=require
 ```
 
-For Azure PostgreSQL, SSL mode must be `require`.
+If your PostgreSQL requires SSL, set `sslmode=require` in `DATABASE_URL`.
 
 ### CORS Issues
 
@@ -215,9 +216,7 @@ Make sure your frontend URL is in the ALLOWED_ORIGINS environment variable.
 ### File Upload Issues
 
 Verify that:
-1. Azure Storage connection string is correct
-2. Container exists in your storage account
-3. Container permissions are set correctly
+1. `FILES_BASE_PATH` / `ASSET_FILES_STORAGE_PATH` directories exist and are writable by the app user
 
 ## Security Best Practices
 
@@ -225,7 +224,7 @@ Verify that:
 2. Enable HTTPS in production
 3. Rotate JWT tokens regularly
 4. Use environment variables for all secrets
-5. Enable Azure Key Vault for production secrets
+5. Use a secrets manager for production secrets (e.g. Key Vault / environment variables)
 6. Set up rate limiting for API endpoints
 7. Regular security updates for dependencies
 

@@ -4226,12 +4226,21 @@ export const api = {
         }
         return null;
       };
-      return records.map((record: any) => ({
-        ...record,
-        id: record.action_id ?? record.id,
-        before_data: parseJsonField(record.before_data) || null,
-        after_data: parseJsonField(record.after_data) || null,
-      }));
+      const ensureAssetsArray = (obj: any): any => {
+        if (!obj || typeof obj !== 'object') return obj;
+        if (Array.isArray(obj.assets)) return obj;
+        return { ...obj, assets: [] };
+      };
+      return records.map((record: any) => {
+        const before = parseJsonField(record.before_data);
+        const after = parseJsonField(record.after_data);
+        return {
+          ...record,
+          id: record.action_id ?? record.id,
+          before_data: before ? ensureAssetsArray(before) : null,
+          after_data: after ? ensureAssetsArray(after) : null,
+        };
+      });
     },
     // saveCurrentState is deprecated - distribution operations are now logged
     // automatically through save_assets_bulk_transactional which calls log_audit_entry

@@ -2,6 +2,7 @@ import React, { useEffect, useState, useMemo, useRef, useCallback, forwardRef, u
 import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
 import { Asset, Building, AssetType, AddressList, Operator, api, validateAndSaveBulkAssets } from '../lib/api';
+import { getAssetFileBlobForZip } from '../lib/apiClient';
 import { assetValidators, validateAll, inputValidators, validateEntity } from '../lib/validation';
 import { AssetValidationHandler } from '../lib/assetValidationHandler';
 import { AgGridReact } from 'ag-grid-react';
@@ -618,7 +619,7 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
     hasUnsavedChanges: () => totalChanges > 0
   }), [totalChanges]);
   
-  // Fetch export to automation count for current building (uses same backend logic as mark_exported)
+  // Fetch export to automation count for current building only (filter by building in case backend returns more)
   const fetchExportToAutomationCount = useCallback(async () => {
     if (!buildingNumber) {
       setExportToAutomationCount(0);
@@ -626,7 +627,11 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
     }
     try {
       const list = await api.assets.getMeasuredNotExported(buildingNumber);
-      setExportToAutomationCount(list?.length ?? 0);
+      const buildingOnly = (list || []).filter(asset => {
+        const bn = typeof asset.building_number === 'string' ? parseInt(asset.building_number, 10) : (asset.building_number ?? 0);
+        return !isNaN(bn) && bn === buildingNumber;
+      });
+      setExportToAutomationCount(buildingOnly.length);
     } catch (err) {
       console.error('[AssetsList] Error fetching export to automation count:', err);
       setExportToAutomationCount(0);
@@ -647,9 +652,13 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
     document.body.style.cursor = 'wait';
 
     try {
-      // STEP 1: Get assets in this building that match export condition (same backend logic as mark_exported)
-      const filteredAssets = await api.assets.getMeasuredNotExported(buildingNumber);
-      if (!filteredAssets || filteredAssets.length === 0) {
+      // STEP 1: Get assets that match export condition; restrict to current building only (in case backend returns more)
+      const rawMeasuredNotExported = await api.assets.getMeasuredNotExported(buildingNumber);
+      const filteredAssets = (rawMeasuredNotExported || []).filter(asset => {
+        const bn = typeof asset.building_number === 'string' ? parseInt(asset.building_number, 10) : (asset.building_number ?? 0);
+        return !isNaN(bn) && bn === buildingNumber;
+      });
+      if (filteredAssets.length === 0) {
         setToast({ message: 'אין נכסים לשליחה - כל הנכסים כבר נשלחו לעירייה', type: 'info' });
         setTimeout(() => setToast(null), 5000);
         setExporting(false);
@@ -753,7 +762,7 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
         exportedAssets = await api.assets.getAssetsByIdsBatched(numericAssetIdsForQuery);
       } catch (fetchError: any) {
         console.error('[AssetsList] Error fetching exported assets:', fetchError);
-        setToast({ message: 'הנכסים סומנו כייצאו אך לא ניתן היה לייצא אותם לקובץ Excel', type: 'error' });
+        setToast({ message: 'לא ניתן היה לטעון את נתוני הנכסים לייצוא לקובץ Excel. הנכסים לא סומנו כייצאו. נסה שוב.', type: 'error' });
         setTimeout(() => setToast(null), 5000);
         setExporting(false);
         setExportProgressMessage('');
@@ -924,8 +933,7 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
         return true;
       });
       
-      // Get all files for exported assets in the current building only
-      // Ensure assetIds are numbers (not strings)
+      // Get all files: use business asset_id (DB has asset_files.asset_id -> assets.asset_id, no separate assets.id)
       const numericAssetIdsForFiles = filteredExportedAssets
         .map(asset => {
           const assetId = typeof asset.asset_id === 'string' ? parseInt(asset.asset_id, 10) : Number(asset.asset_id);
@@ -937,14 +945,10 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
         ? await api.assets.files.getAllBulk(numericAssetIdsForFiles)
         : new Map<number, any[]>();
       
-      // Create a map of asset_id to asset data for lookup (only for assets in current building)
-      // Ensure asset_id is converted to number for consistent key matching
       const assetMap = new Map<number, any>();
       filteredExportedAssets.forEach(asset => {
         const assetId = typeof asset.asset_id === 'string' ? parseInt(asset.asset_id, 10) : Number(asset.asset_id);
-        if (!isNaN(assetId) && assetId > 0) {
-          assetMap.set(assetId, asset);
-        }
+        if (!isNaN(assetId) && assetId > 0) assetMap.set(assetId, asset);
       });
       
       setExportProgressMessage('מכין קבצים ל-ZIP...');
@@ -1012,12 +1016,13 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
         // Create data array with headers and rows for this tax region
         const data = [headers, ...rows];
 
-        // Create Excel file for this tax region
+        // Create Excel file for this tax region (size columns: גודל נכס + גודל נכס משנה 1..6 = indices 5,7,9,11,13,15,17)
         const excelFilename = `שליחת_נתונים_${taxRegion}_${dateStr}.xlsx`;
         const regionExcelBlob = createExcelBlob({
           filename: excelFilename,
           sheetName: 'נכסים',
           data,
+          decimalFormatColumnIndices: [5, 7, 9, 11, 13, 15, 17],
           columnWidths: [
             { wch: 15 }, // זיהוי משלם
             { wch: 15 }, // זיהוי נכס
@@ -1061,12 +1066,49 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
         for (const { assetId, asset, files } of regionAssets) {
           const payerId = asset?.payer_id || '';
           
+          const extractFilenameFromUrl = (url: string | undefined): string => {
+            if (!url) return '';
+            const u = url.replace(/\\/g, '/');
+            return u.split('/').pop()?.split('?')[0] ?? '';
+          };
+          const getFilePathForDownload = (assetIdNum: number, file: any): string => {
+            // Download expects a bucket-relative path (e.g. "{assetId}/{filename}")
+            const filePath = typeof file?.file_path === 'string' ? file.file_path.trim() : '';
+            if (filePath && !filePath.startsWith('http') && !filePath.startsWith('/')) {
+              // If path is just a filename (no slash), backend expects assetId/filename
+              if (!filePath.includes('/')) return `${assetIdNum}/${filePath}`;
+              return filePath;
+            }
+
+            const url: string | undefined = file?.file_url;
+            if (typeof url === 'string' && url.length > 0) {
+              const u = url.replace(/\\/g, '/');
+              // Supabase public URL format:
+              // .../storage/v1/object/public/structure-drawings/{assetId}/{filename}
+              const supabasePrefix = '/object/public/structure-drawings/';
+              const idxPublic = u.indexOf(supabasePrefix);
+              if (idxPublic !== -1) {
+                return u.substring(idxPublic + supabasePrefix.length).split('?')[0];
+              }
+              // Sometimes file_url may still contain "structure-drawings/{assetId}/{filename}"
+              const idxBucket = u.indexOf('structure-drawings/');
+              if (idxBucket !== -1) {
+                return u.substring(idxBucket + 'structure-drawings/'.length).split('?')[0];
+              }
+              const filename = extractFilenameFromUrl(url);
+              if (filename) return `${assetIdNum}/${filename}`;
+            }
+
+            const name = typeof file?.file_name === 'string' ? file.file_name.trim() : '';
+            if (name) return `${assetIdNum}/${name}`;
+            return `${assetIdNum}/unknown`;
+          };
+
           for (const file of files) {
             // Extract file name from URL if file_name is not available
             let fileName = file.file_name;
             if (!fileName && file.file_url) {
-              const urlParts = file.file_url.split('/');
-              fileName = urlParts[urlParts.length - 1].split('?')[0];
+              fileName = extractFilenameFromUrl(file.file_url);
             }
             
             // Add row to file list Excel: asset_id, payer_id, file_name
@@ -1076,44 +1118,18 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
               fileName || ''
             ]);
             
-            // Download file from storage and add to ZIP
+            // Download file from backend and add to ZIP
             try {
-              // Extract file path from URL
-              const urlParts = file.file_url.split('/');
-              const urlFileName = urlParts[urlParts.length - 1].split('?')[0];
-              
-              // Try to extract path from URL (format: .../structure-drawings/{assetId}/{filename})
-              let filePath = '';
-              const structureDrawingsIndex = file.file_url.indexOf('structure-drawings/');
-              if (structureDrawingsIndex !== -1) {
-                filePath = file.file_url.substring(structureDrawingsIndex + 'structure-drawings/'.length).split('?')[0];
-              } else {
-                // Fallback: construct path from assetId and filename
-                filePath = `${assetId}/${urlFileName}`;
-              }
-              
-              // Download file from storage
-              const { data: fileData, error: downloadError } = await api.storage
-                .from('structure-drawings')
-                .download(filePath);
-              
-              if (downloadError || !fileData) {
-                // Check for bucket not found error
-                if (downloadError?.message?.includes('Bucket not found') || downloadError?.statusCode === '404') {
-                  console.error(
-                    'Storage bucket "structure-drawings" not found. ' +
-                    'Storage bucket "structure-drawings" not found. Configure backend file storage.'
-                  );
-                  // Show error to user
-                  setToast({ message: 'Storage bucket "structure-drawings" not found. Configure backend file storage.', type: 'error' });
-                  setTimeout(() => setToast(null), 10000);
-                  continue;
-                }
-                console.warn(`[AssetsList] Error downloading file for asset ${assetId}:`, downloadError);
+              const urlFileName = extractFilenameFromUrl(file.file_url);
+              const filePath = getFilePathForDownload(assetId, file);
+              if (!filePath) continue;
+
+              const result = await getAssetFileBlobForZip(filePath, file.file_url);
+              if (result.error || !result.data) {
+                console.warn(`[AssetsList] Error downloading file for asset ${assetId}:`, result.error?.message);
                 continue;
               }
-              
-              // Add file to ZIP in tax region folder: {tax_region}/{assetId}_{filename}
+              const fileData = result.data;
               const zipFilePath = `${taxRegion}/${assetId}_${fileName || urlFileName}`;
               zipFiles.push({
                 filename: zipFilePath,
@@ -1188,11 +1204,13 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
           filename: `נכסים_מפעיל_${operatorId}_${dateStr}_${operatorAssets.length}נכסים.xlsx`,
           sheetName: 'נכסים',
           data: opData,
+          decimalFormatColumnIndices: [5, 7, 9, 11, 13, 15, 17],
           columnWidths: [{ wch: 15 }, { wch: 15 }, { wch: 20 }, { wch: 20 }, { wch: 12 }, { wch: 12 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 10 }, { wch: 12 }, { wch: 12 }, { wch: 12 }, { wch: 15 }, { wch: 15 }]
         });
         const subj = templateOp ? applyTpl(templateOp.subject, operator.name, operatorAssets.length) : `שליחת נתונים - ${dateStrHe}`;
         const body = templateOp ? applyTpl(templateOp.body, operator.name, operatorAssets.length) : `שלום ${operator.name},\n\nמצורף קובץ הנתונים.\nתאריך: ${dateStrHe}\n\nבברכה,\nמערכת ניהול נכסים`;
-        sendItems.push({ to: operator.email, recipientName: operator.name, subject: subj, body, attachmentFilename: `נכסים_מפעיל_${operator.name}_${dateStr}_${operatorAssets.length}נכסים.xlsx`, attachmentBlob: opExcelBlob });
+        // Use operator.id (stable, automation-friendly) instead of operator.name in filename.
+        sendItems.push({ to: operator.email, recipientName: operator.name, subject: subj, body, attachmentFilename: `נכסים_מפעיל_${operatorId}_${dateStr}_${operatorAssets.length}נכסים.xlsx`, attachmentBlob: opExcelBlob });
       }
       if (sendItems.length === 0) {
         const fullRows = assetsForExcel.map((asset: any) => [
@@ -1208,13 +1226,15 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
           filename: `נכסים_שליחה_${dateStr}_${assetsForExcel.length}נכסים.xlsx`,
           sheetName: 'נכסים',
           data: [headers, ...fullRows],
+          decimalFormatColumnIndices: [5, 7, 9, 11, 13, 15, 17],
           columnWidths: [{ wch: 15 }, { wch: 15 }, { wch: 20 }, { wch: 20 }, { wch: 12 }, { wch: 12 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 10 }, { wch: 12 }, { wch: 12 }, { wch: 12 }, { wch: 15 }, { wch: 15 }]
         });
         for (const operator of operatorsList) {
           if (!operator?.email || !operator.email.includes('@')) continue;
           const subj = templateOp ? applyTpl(templateOp.subject, operator.name, assetsForExcel.length) : `שליחת נתונים - ${dateStrHe}`;
           const body = templateOp ? applyTpl(templateOp.body, operator.name, assetsForExcel.length) : `שלום ${operator.name},\n\nמצורף קובץ הנתונים.\nתאריך: ${dateStrHe}\n\nבברכה,\nמערכת ניהול נכסים`;
-          sendItems.push({ to: operator.email, recipientName: operator.name, subject: subj, body, attachmentFilename: `נכסים_שליחה_${dateStr}_${assetsForExcel.length}נכסים.xlsx`, attachmentBlob: fullExcelBlob });
+          // Use operator.id in filename (instead of generic "שליחה") so the automation can classify reliably.
+          sendItems.push({ to: operator.email, recipientName: operator.name, subject: subj, body, attachmentFilename: `נכסים_מפעיל_${operator.id}_${dateStr}_${assetsForExcel.length}נכסים.xlsx`, attachmentBlob: fullExcelBlob });
         }
       }
       const managersList = await api.managers.getAll();
@@ -1241,11 +1261,13 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
           filename: `נכסים_מנהל_${manager.id}_${dateStr}_${managerAssets.length}נכסים.xlsx`,
           sheetName: 'נכסים',
           data: mgrData,
+          decimalFormatColumnIndices: [5, 7, 9, 11, 13, 15, 17],
           columnWidths: [{ wch: 15 }, { wch: 15 }, { wch: 20 }, { wch: 20 }, { wch: 12 }, { wch: 12 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 10 }, { wch: 12 }, { wch: 12 }, { wch: 12 }, { wch: 15 }, { wch: 15 }]
         });
         const subj = templateMgr ? applyTpl(templateMgr.subject, manager.name, managerAssets.length) : `שליחת נתונים - ${dateStrHe}`;
         const body = templateMgr ? applyTpl(templateMgr.body, manager.name, managerAssets.length) : `שלום ${manager.name},\n\nמצורף קובץ הנתונים.\nתאריך: ${dateStrHe}\n\nבברכה,\nמערכת ניהול נכסים`;
-        sendItems.push({ to: manager.email, recipientName: manager.name, subject: subj, body, attachmentFilename: `נכסים_מנהל_${manager.name}_${dateStr}_${managerAssets.length}נכסים.xlsx`, attachmentBlob: mgrExcelBlob });
+        // Use manager.id (stable, automation-friendly) instead of manager.name in filename.
+        sendItems.push({ to: manager.email, recipientName: manager.name, subject: subj, body, attachmentFilename: `נכסים_מנהל_${manager.id}_${dateStr}_${managerAssets.length}נכסים.xlsx`, attachmentBlob: mgrExcelBlob });
       }
       let sentCount = 0;
       if (sendItems.length > 0) {
@@ -4535,11 +4557,14 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
       const dateStr = now.toISOString().split('T')[0].replace(/-/g, '');
       const filename = `נכסים_מבנה_${buildingNumber}${taxRegion ? `_אזור_${taxRegion}` : ''}_${dateStr}.xlsx`;
 
+      // Size columns (0-based): asset_size, sub_asset_size_1..6, business_distribution_area, shared_parking_area
+      const sizeColumnIndices = [14, 16, 18, 20, 22, 24, 26, 27, 28];
       // Use improved export function to reduce antivirus false positives
       exportToExcel({
         filename,
         sheetName: 'נכסים',
         data,
+        decimalFormatColumnIndices: sizeColumnIndices,
         columnWidths: [
           { wch: 12 }, // מזהה מבנה
           { wch: 12 }, // מזהה נכס

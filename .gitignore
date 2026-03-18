@@ -22,6 +22,9 @@ dist-ssr
 *.sw?
 .env
 
+# Migrate-data exports (contain live DB data)
+scripts/migrate-data/export_*.json
+
 # Playwright
 playwright-report/
 test-results/

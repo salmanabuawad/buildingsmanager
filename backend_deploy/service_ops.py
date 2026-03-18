@@ -136,22 +136,19 @@ async def assets_measured_not_exported(
     building_number: Optional[int] = None,
     _user=Depends(get_current_user_users_table),
 ):
+    """Return only assets that are measured and not yet exported. building_number is required so we never return all assets in the system; callers must pass the building they are exporting for."""
     from app.database import get_pool
+    if building_number is None or building_number <= 0:
+        return []
     try:
         pool = get_pool()
         async with pool.acquire() as conn:
-            if building_number is not None:
-                rows = await conn.fetch(
-                    "SELECT * FROM assets WHERE measurement_date IS NOT NULL AND "
-                    "(exported_to_automation IS NULL OR exported_to_automation = false) "
-                    "AND building_number = $1",
-                    building_number,
-                )
-            else:
-                rows = await conn.fetch(
-                    "SELECT * FROM assets WHERE measurement_date IS NOT NULL AND "
-                    "(exported_to_automation IS NULL OR exported_to_automation = false)"
-                )
+            rows = await conn.fetch(
+                "SELECT * FROM assets WHERE measurement_date IS NOT NULL AND "
+                "(exported_to_automation IS NULL OR exported_to_automation = false) "
+                "AND building_number = $1",
+                building_number,
+            )
             return [dict(r) for r in rows]
     except Exception as e:
         raise HTTPException(status_code=500, detail=_err(e))

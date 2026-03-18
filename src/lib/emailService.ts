@@ -231,7 +231,7 @@ class EmailService {
             subject: item.subject,
             body: item.body,
             attachments: [{
-              filename: item.attachmentFilename,
+              filename: (item.attachmentFilename && item.attachmentFilename.trim()) || 'נכסים.xlsx',
               content: item.attachmentBlob,
               contentType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
             }],

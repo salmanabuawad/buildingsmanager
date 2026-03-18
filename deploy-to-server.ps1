@@ -1,12 +1,30 @@
-# Deploy buildingsmanager frontend to 185.229.226.37
-# Usage:
-#   .\deploy-to-server.ps1
-#   $env:DEPLOY_USER="ubuntu"; $env:DEPLOY_PATH="/var/www/html"; .\deploy-to-server.ps1
+# Deploy buildingsmanager frontend
+# Default: root@185.229.226.37, path /var/www/buildingsmanager (see DEPLOY_SERVER.md)
+# Override: DEPLOY_HOST, DEPLOY_USER, DEPLOY_PATH
+# Skip confirmation: $env:DEPLOY_SKIP_CONFIRM = "1"
 
 $ErrorActionPreference = "Stop"
-$SERVER = "185.229.226.37"
+$SERVER = if ($env:DEPLOY_HOST) { $env:DEPLOY_HOST } else { "185.229.226.37" }
 $USER = if ($env:DEPLOY_USER) { $env:DEPLOY_USER } else { "root" }
-$REMOTE_PATH = if ($env:DEPLOY_PATH) { $env:DEPLOY_PATH.TrimEnd("/") } else { "/var/www/html" }
+$REMOTE_PATH = if ($env:DEPLOY_PATH) { $env:DEPLOY_PATH.TrimEnd("/") } else { "/var/www/buildingsmanager" }
+# Human-readable target (same server as 185.229.226.37)
+$APP_URL = if ($env:DEPLOY_APP_URL) { $env:DEPLOY_APP_URL } else { "https://profile.wavelync.com/" }
+
+Write-Host ""
+Write-Host "========== DEPLOY TARGET ==========" -ForegroundColor Yellow
+Write-Host "  Server:    $USER@$SERVER"
+Write-Host "  Path:      $REMOTE_PATH"
+Write-Host "  App URL:   $APP_URL"
+Write-Host "===================================" -ForegroundColor Yellow
+Write-Host ""
+
+if (-not $env:DEPLOY_SKIP_CONFIRM) {
+    $confirm = Read-Host "Deploy to the above target? [y/N]"
+    if ($confirm -notmatch '^[yY]') {
+        Write-Host "Deploy cancelled." -ForegroundColor Yellow
+        exit 0
+    }
+}
 
 Write-Host "Building frontend..." -ForegroundColor Cyan
 npm run build
@@ -39,4 +57,4 @@ if ($LASTEXITCODE -ne 0) {
     exit $LASTEXITCODE
 }
 
-Write-Host "Deploy complete. App should be at http://${SERVER}/" -ForegroundColor Green
+Write-Host "Deploy complete. App: $APP_URL" -ForegroundColor Green

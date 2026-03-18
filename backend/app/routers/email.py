@@ -105,10 +105,9 @@ def send_email_with_smtp(
                 attachment_data = base64.b64decode(attachment.content)
                 part.set_payload(attachment_data)
                 encoders.encode_base64(part)
-                part.add_header(
-                    'Content-Disposition',
-                    f'attachment; filename= {attachment.filename}'
-                )
+                # Use RFC 2231 (filename*=UTF-8'') so non-ASCII names (e.g. Hebrew) don't show as "noname"
+                filename = (attachment.filename or "").strip() or "attachment.xlsx"
+                part.add_header("Content-Disposition", "attachment", filename=("utf-8", "", filename))
                 msg.attach(part)
 
         # Determine all recipients

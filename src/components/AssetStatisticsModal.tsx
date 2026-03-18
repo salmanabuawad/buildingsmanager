@@ -257,6 +257,7 @@ export function AssetStatisticsModal({ isOpen, onClose, assets, assetTypes, buil
         filename,
         sheetName: 'סטטיסטיקות',
         data: excelData,
+        decimalFormatColumnIndices: [0, 2], // סכום שטח, שטח משותף לחניות
         columnWidths: [
           { wch: 18 }, // סכום שטח
           { wch: 18 }, // אחוז מהשטח הכולל

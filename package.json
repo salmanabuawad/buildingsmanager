@@ -17,6 +17,8 @@
     "deploy": "npm run build && netlify deploy --prod",
     "deploy:preview": "npm run build && netlify deploy",
     "deploy:server": "powershell -ExecutionPolicy Bypass -File ./deploy-to-server.ps1",
+    "deploy:backend": "powershell -ExecutionPolicy Bypass -File ./deploy-backend-to-server.ps1",
+    "deploy:server:all": "powershell -ExecutionPolicy Bypass -File ./deploy-all-to-server.ps1",
     "db:setup": "node -e \"console.log('Run: ./scripts/setup-db.sh (Mac/Linux) or .\\\\scripts\\\\setup-db.bat (Windows)')\"",
     "db:backup": "node -e \"console.log('Run: pg_dump -U postgres buildings_manager > backup.sql')\"",
     "db:restore": "node -e \"console.log('Run: psql -U postgres buildings_manager < backup.sql')\"",
@@ -26,13 +28,13 @@
     "db:push": "node supabase/scripts/push-all-migrations.mjs"
   },
   "dependencies": {
-    "nodemailer": "^6.9.16",
     "ag-grid-community": "^34.3.1",
     "ag-grid-react": "^34.3.1",
     "browser-image-compression": "^2.0.2",
     "i18next": "^25.6.1",
     "jszip": "^3.10.1",
     "lucide-react": "^0.344.0",
+    "nodemailer": "^6.9.16",
     "pdfjs-dist": "^5.4.394",
     "pg": "^8.16.3",
     "react": "^18.3.1",
@@ -40,6 +42,7 @@
     "react-i18next": "^16.2.4",
     "react-pdf": "^10.2.0",
     "react-router-dom": "^7.9.6",
+    "react-to-print": "^3.3.0",
     "xlsx": "^0.18.5"
   },
   "devDependencies": {

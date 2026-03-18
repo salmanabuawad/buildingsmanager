@@ -1,10 +1,11 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
+import { useReactToPrint } from 'react-to-print';
 import { Document, Page, pdfjs } from 'react-pdf';
 import { ZoomIn, ZoomOut, Download, RotateCw, ChevronLeft, ChevronRight, File as FileIcon, Printer } from 'lucide-react';
 import { sanitizeFilename } from '../lib/sanitize';
 import { getFileTypeCategory } from '../lib/fileCompression';
 import { getApiBaseUrl } from '../lib/appConfig';
-import { api, getFileApiHeaders, getFileViewUrl } from '../lib/apiClient';
+import { api, getFileApiHeaders, getFileViewUrl, toBackendFileUrl } from '../lib/apiClient';
 import 'react-pdf/dist/Page/AnnotationLayer.css';
 import 'react-pdf/dist/Page/TextLayer.css';
 
@@ -47,6 +48,7 @@ export function FileViewer({ fileUrl, fileName }: FileViewerProps) {
   const [fileBlob, setFileBlob] = useState<Blob | null>(null);
   const [isPreparingUrl, setIsPreparingUrl] = useState<boolean>(true);
   const [isLocalPath, setIsLocalPath] = useState<boolean>(false);
+  const printAreaRef = useRef<HTMLDivElement>(null);
 
   // Resolve display URL: ignore local/Cursor paths; for our API get view URL or blob; otherwise use fileUrl.
   useEffect(() => {
@@ -69,7 +71,10 @@ export function FileViewer({ fileUrl, fileName }: FileViewerProps) {
       }
 
       let urlToUse: string;
-      if (fileUrl.startsWith('http') || fileUrl.startsWith('/')) {
+      const backendUrl = toBackendFileUrl(fileUrl);
+      if (backendUrl && backendUrl !== fileUrl) {
+        urlToUse = backendUrl;
+      } else if (fileUrl.startsWith('http') || fileUrl.startsWith('/')) {
         urlToUse = fileUrl;
       } else {
         const { data } = api.storage.from('structure-drawings').getPublicUrl(fileUrl);
@@ -146,6 +151,11 @@ export function FileViewer({ fileUrl, fileName }: FileViewerProps) {
     }
     return safeBasename(fileName || fileUrl, 'קובץ');
   }, [fileName, fileUrl]);
+
+  const reactToPrintFn = useReactToPrint({
+    contentRef: printAreaRef,
+    documentTitle: displayName || 'drawing',
+  });
 
   // Detect file type from filename (avoid HEAD request so we don't block or require auth)
   useEffect(() => {
@@ -260,86 +270,13 @@ export function FileViewer({ fileUrl, fileName }: FileViewerProps) {
     }
   }
 
-  async function handlePrint() {
+  /** Print via react-to-print (prints only contentRef, with documentTitle). */
+  function handlePrint() {
     if (isLocalPath) {
       alert('לא ניתן להדפיס קובץ ממיקום מקומי. פתח את הקובץ מתוך רשימת הקבצים של הנכס.');
       return;
     }
-    const isOurApi = (u: string) => u.includes('/api/files/');
-
-    // Open print window: attach onload before navigating so we don't miss the load event.
-    function openUrlAndPrint(urlToOpen: string, _docTitle?: string) {
-      const w = window.open('', '_blank', 'noopener,noreferrer');
-      if (!w) {
-        alert('לא ניתן לפתוח חלון להדפסה. אפשר חלונות קופצים עבור האתר.');
-        return;
-      }
-      const doPrint = () => {
-        try {
-          w.focus();
-          w.print();
-          w.onafterprint = () => { try { w.close(); } catch { /* ignore */ } };
-        } catch {
-          try { w.close(); } catch { /* ignore */ }
-        }
-      };
-      w.onload = () => setTimeout(doPrint, 800);
-      setTimeout(doPrint, 8000);
-      w.location.href = urlToOpen;
-    }
-
-    const rawUrl = actualFileUrl || fileUrl;
-    const pathMatch = rawUrl.match(/[?&]path=([^&]+)/);
-    const path = pathMatch ? decodeURIComponent(pathMatch[1]) : null;
-    const buildDownloadUrl = (): string | null => {
-      if (!path) return null;
-      const base = getApiBaseUrl().replace(/\/$/, '');
-      return `${base ? base + '/' : ''}api/files/download?path=${encodeURIComponent(path)}`;
-    };
-
-    // Parse physical filename from Content-Disposition so print window shows server's file name and type.
-    const filenameFromDisposition = (res: Response): string | null => {
-      const h = res.headers.get('Content-Disposition');
-      if (!h) return null;
-      const utf8Match = h.match(/filename\*=UTF-8''([^;]+)/i);
-      if (utf8Match) return decodeURIComponent(utf8Match[1].replace(/"/g, ''));
-      const match = h.match(/filename=["']?([^"';]+)["']?/i);
-      return match ? match[1].trim() : null;
-    };
-
-    // Our API: get a short-lived view URL with token so the new window can load the file without auth, then print.
-    if (path && (rawUrl.includes('/api/files/download') || rawUrl.includes('/download?') || rawUrl.includes('/view?'))) {
-      const result = await getFileViewUrl(path);
-      if (!('url' in result)) {
-        alert(result.error || 'לא ניתן לקבל כתובת להדפסה. נסה שוב.');
-        return;
-      }
-      openUrlAndPrint(result.url);
-      return;
-    }
-
-    if (actualFileUrl && actualFileUrl.includes('/view?') && (actualFileUrl.includes('token=') || actualFileUrl.includes('expiry='))) {
-      alert(actualFileUrl);
-      openUrlAndPrint(actualFileUrl);
-      return;
-    }
-    if (blobUrl && blobUrl.startsWith('blob:')) {
-      alert(blobUrl);
-      openUrlAndPrint(blobUrl, displayName);
-      return;
-    }
-    if (fileBlob) {
-      const blobUrlForPrint = URL.createObjectURL(fileBlob);
-      alert(blobUrlForPrint);
-      openUrlAndPrint(blobUrlForPrint, displayName);
-      return;
-    }
-    if (actualFileUrl && (actualFileUrl.startsWith('http') || actualFileUrl.startsWith('/')) && !isOurApi(actualFileUrl)) {
-      alert(actualFileUrl);
-      openUrlAndPrint(actualFileUrl);
-      return;
-    }
-    alert('כתובת הקובץ אינה זמינה. נסה שוב.');
+    reactToPrintFn();
   }
 
   // Local/Cursor path – not loadable via app
@@ -369,7 +306,7 @@ export function FileViewer({ fileUrl, fileName }: FileViewerProps) {
   if (fileType === 'pdf') {
     return (
       <div className="w-full">
-        <div className="border border-slate-300 rounded-t-lg bg-white p-4">
+        <div className="file-viewer-no-print border border-slate-300 rounded-t-lg bg-white p-4">
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-4">
               {numPages > 1 && (
@@ -439,7 +376,7 @@ export function FileViewer({ fileUrl, fileName }: FileViewerProps) {
           </div>
         </div>
 
-        <div className="border border-t-0 border-slate-300 rounded-b-lg bg-slate-50 p-4 overflow-auto max-h-[600px]">
+        <div ref={printAreaRef} className="print-root file-viewer-print-area border border-t-0 border-slate-300 rounded-b-lg bg-slate-50 p-4 overflow-auto max-h-[600px]">
           <div className="flex justify-center">
             {isPreparingUrl ? (
               <div className="flex items-center justify-center p-12">
@@ -518,7 +455,7 @@ export function FileViewer({ fileUrl, fileName }: FileViewerProps) {
   if (fileType === 'image') {
     return (
       <div className="w-full">
-        <div className="border border-slate-300 rounded-t-lg bg-white p-4">
+        <div className="file-viewer-no-print border border-slate-300 rounded-t-lg bg-white p-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
               <button
@@ -565,7 +502,7 @@ export function FileViewer({ fileUrl, fileName }: FileViewerProps) {
           </div>
         </div>
 
-        <div className="border border-t-0 border-slate-300 rounded-b-lg bg-slate-50 p-4 overflow-auto max-h-[600px] flex justify-center">
+        <div ref={printAreaRef} className="print-root file-viewer-print-area border border-t-0 border-slate-300 rounded-b-lg bg-slate-50 p-4 overflow-auto max-h-[600px] flex justify-center">
           {isPreparingUrl ? (
             <div className="flex items-center justify-center p-12">
               <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-slate-800"></div>
@@ -599,12 +536,12 @@ export function FileViewer({ fileUrl, fileName }: FileViewerProps) {
   // Document or other file types - show print and download option
   return (
     <div className="w-full">
-      <div className="border border-slate-300 rounded-lg bg-slate-50 p-12 flex flex-col items-center justify-center">
+      <div ref={printAreaRef} className="print-root file-viewer-print-area border border-slate-300 rounded-lg bg-slate-50 p-12 flex flex-col items-center justify-center">
         <FileIcon className="h-16 w-16 text-slate-400 mb-4" />
         <p className="text-slate-700 mb-4">
           {displayName || 'תצוגה מקדימה אינה זמינה לסוג קובץ זה'}
         </p>
-        <div className="flex items-center gap-2">
+        <div className="file-viewer-no-print flex items-center gap-2">
           <button
             onClick={handlePrint}
             className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-300 rounded hover:bg-slate-100"

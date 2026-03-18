@@ -2,6 +2,7 @@ import { useEffect, useState, useMemo, useRef, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
 import { Asset, Building, AssetType, api } from '../lib/api';
+import { getAssetFileBlobForZip } from '../lib/apiClient';
 import { AgGridReact } from 'ag-grid-react';
 import { ColDef } from 'ag-grid-community';
 import 'ag-grid-community/styles/ag-theme-alpine.css';
@@ -16,7 +17,7 @@ import { useUserRole } from '../contexts/UserRoleContext';
 import { useUIConfig } from '../contexts/UIConfigContext';
 import { Toast } from './Toast';
 import { getAssetTypes, setLatestExportDate } from '../lib/validation';
-import { createExcelBlob } from '../lib/excelExport';
+import { createExcelBlob, exportToExcel } from '../lib/excelExport';
 import { createAndDownloadZip } from '../lib/zipExport';
 import { AssetValidationHandler } from '../lib/assetValidationHandler';
 
@@ -972,7 +973,7 @@ export const MeasuredNotExportedAssets = ({ onSelectAsset, onOpenAssetsTab }: Me
           code: fetchError?.code,
           assetIds: numericAssetIdsForQuery
         });
-        setToast({ message: 'לא ניתן היה לייצא את הנכסים לקובץ Excel', type: 'error' });
+        setToast({ message: 'לא ניתן היה לטעון את נתוני הנכסים לייצוא לקובץ Excel. הנכסים לא סומנו כייצאו. נסה שוב.', type: 'error' });
         setTimeout(() => setToast(null), 5000);
         setExporting(false);
         setExportProgressMessage('');
@@ -1072,18 +1073,18 @@ export const MeasuredNotExportedAssets = ({ onSelectAsset, onOpenAssetsTab }: Me
         assetsByTaxRegionForExcel.get(taxRegion)!.push(asset);
       });
 
-      // Get all files for exported assets
-      const numericAssetIdsForFiles = numericAssetIdsForQuery;
-      const filesByAsset = await api.assets.files.getAllBulk(numericAssetIdsForFiles);
+      // Get all files: use business asset_id (DB asset_files.asset_id -> assets.asset_id)
+      const numericAssetIdsForFiles = exportedAssets
+        .map(asset => { const aid = typeof asset.asset_id === 'string' ? parseInt(asset.asset_id, 10) : Number(asset.asset_id); return !isNaN(aid) && aid > 0 ? aid : null; })
+        .filter((id): id is number => id !== null);
+      const filesByAsset = numericAssetIdsForFiles.length > 0
+        ? await api.assets.files.getAllBulk(numericAssetIdsForFiles)
+        : new Map<number, any[]>();
       
-      // Create a map of asset_id to asset data for lookup
-      // Ensure asset_id is converted to number for consistent key matching
       const assetMap = new Map<number, any>();
       exportedAssets.forEach(asset => {
-        const assetId = typeof asset.asset_id === 'string' ? parseInt(asset.asset_id, 10) : Number(asset.asset_id);
-        if (!isNaN(assetId) && assetId > 0) {
-          assetMap.set(assetId, asset);
-        }
+        const aid = typeof asset.asset_id === 'string' ? parseInt(asset.asset_id, 10) : Number(asset.asset_id);
+        if (!isNaN(aid) && aid > 0) assetMap.set(aid, asset);
       });
       
       // Prepare files array for ZIP
@@ -1157,6 +1158,7 @@ export const MeasuredNotExportedAssets = ({ onSelectAsset, onOpenAssetsTab }: Me
           filename: excelFilename,
           sheetName: 'נכסים',
           data,
+          decimalFormatColumnIndices: [5, 7, 9, 11, 13, 15, 17],
           columnWidths: [
             { wch: 15 }, // זיהוי משלם
             { wch: 15 }, // זיהוי נכס
@@ -1196,8 +1198,7 @@ export const MeasuredNotExportedAssets = ({ onSelectAsset, onOpenAssetsTab }: Me
           ['מזהה נכס', 'מזהה משלם', 'שם קובץ']
         ];
         
-        // Build list of storage download tasks for this region (then run in parallel)
-        const downloadTasks: Array<{ filePath: string; assetId: number; fileName: string; urlFileName: string }> = [];
+        const downloadTasks: Array<{ filePath: string; assetId: number; fileName: string; urlFileName: string; fileUrl?: string }> = [];
         for (const { assetId, asset, files } of regionAssets) {
           const payerId = asset?.payer_id || '';
           for (const file of files) {
@@ -1207,37 +1208,36 @@ export const MeasuredNotExportedAssets = ({ onSelectAsset, onOpenAssetsTab }: Me
               fileName = urlParts[urlParts.length - 1].split('?')[0];
             }
             fileListData.push([assetId, payerId, fileName || '']);
-            const urlParts = file.file_url.split('/');
+            const urlParts = (file.file_url || '').split('/');
             const urlFileName = urlParts[urlParts.length - 1].split('?')[0];
-            let filePath = '';
-            const structureDrawingsIndex = file.file_url.indexOf('structure-drawings/');
-            if (structureDrawingsIndex !== -1) {
-              filePath = file.file_url.substring(structureDrawingsIndex + 'structure-drawings/'.length).split('?')[0];
-            } else {
-              filePath = `${assetId}/${urlFileName}`;
+            let filePath = typeof file.file_path === 'string' && file.file_path.trim()
+              ? file.file_path.trim()
+              : '';
+            if (!filePath && file.file_url) {
+              const structureDrawingsIndex = file.file_url.indexOf('structure-drawings/');
+              if (structureDrawingsIndex !== -1) {
+                filePath = file.file_url.substring(structureDrawingsIndex + 'structure-drawings/'.length).split('?')[0];
+              } else {
+                filePath = `${assetId}/${urlFileName}`;
+              }
             }
-            downloadTasks.push({ filePath, assetId, fileName: fileName || urlFileName, urlFileName });
+            if (filePath && !filePath.includes('/')) filePath = `${assetId}/${filePath}`;
+            if (filePath) downloadTasks.push({ filePath, assetId, fileName: fileName || urlFileName, urlFileName, fileUrl: file.file_url });
           }
         }
         
         const STORAGE_DOWNLOAD_CONCURRENCY = 6;
-        let bucketNotFoundShown = false;
         for (let i = 0; i < downloadTasks.length; i += STORAGE_DOWNLOAD_CONCURRENCY) {
           const batch = downloadTasks.slice(i, i + STORAGE_DOWNLOAD_CONCURRENCY);
           const results = await Promise.all(
             batch.map(async (task) => {
               try {
-                const { data: fileData, error: downloadError } = await api.storage
-                  .from('structure-drawings')
-                  .download(task.filePath);
-                if (downloadError || !fileData) {
-                  if (downloadError?.message?.includes('Bucket not found') || downloadError?.statusCode === '404') {
-                    return { kind: 'bucket_not_found' as const };
-                  }
-                  console.warn(`Error downloading file for asset ${task.assetId}:`, downloadError);
+                const result = await getAssetFileBlobForZip(task.filePath, task.fileUrl);
+                if (result.error || !result.data) {
+                  console.warn(`Error downloading file for asset ${task.assetId}:`, result.error?.message);
                   return { kind: 'error' as const };
                 }
-                return { kind: 'ok' as const, data: fileData, task };
+                return { kind: 'ok' as const, data: result.data, task };
               } catch (err) {
                 console.warn(`Error processing file for asset ${task.assetId}:`, err);
                 return { kind: 'error' as const };
@@ -1245,14 +1245,6 @@ export const MeasuredNotExportedAssets = ({ onSelectAsset, onOpenAssetsTab }: Me
             })
           );
           for (const r of results) {
-            if (r.kind === 'bucket_not_found') {
-              if (!bucketNotFoundShown) {
-                bucketNotFoundShown = true;
-                setToast({ message: 'Storage bucket "structure-drawings" not found. Configure backend file storage.', type: 'error' });
-                setTimeout(() => setToast(null), 10000);
-              }
-              continue;
-            }
             if (r.kind === 'ok' && r.data && r.task) {
               const zipFilePath = `${taxRegion}/${r.task.assetId}_${r.task.fileName}`;
               zipFiles.push({ filename: zipFilePath, data: r.data });
@@ -1324,11 +1316,13 @@ export const MeasuredNotExportedAssets = ({ onSelectAsset, onOpenAssetsTab }: Me
           filename: `נכסים_מפעיל_${operatorId}_${dateStr}_${operatorAssets.length}נכסים.xlsx`,
           sheetName: 'נכסים',
           data: opData,
+          decimalFormatColumnIndices: [5, 7, 9, 11, 13, 15, 17],
           columnWidths: [{ wch: 15 }, { wch: 15 }, { wch: 20 }, { wch: 20 }, { wch: 12 }, { wch: 12 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 10 }, { wch: 12 }, { wch: 12 }, { wch: 12 }, { wch: 15 }, { wch: 15 }]
         });
         const subj = templateOp ? applyTpl(templateOp.subject, operator.name, operatorAssets.length) : `שליחת נתונים - ${dateStrHe}`;
         const body = templateOp ? applyTpl(templateOp.body, operator.name, operatorAssets.length) : `שלום ${operator.name},\n\nמצורף קובץ הנתונים.\nתאריך: ${dateStrHe}\n\nבברכה,\nמערכת ניהול נכסים`;
-        sendItems.push({ to: operator.email, recipientName: operator.name, subject: subj, body, attachmentFilename: `נכסים_מפעיל_${operator.name}_${dateStr}_${operatorAssets.length}נכסים.xlsx`, attachmentBlob: opExcelBlob });
+        // Use operator.id (stable, automation-friendly) instead of operator.name in filename.
+        sendItems.push({ to: operator.email, recipientName: operator.name, subject: subj, body, attachmentFilename: `נכסים_מפעיל_${operatorId}_${dateStr}_${operatorAssets.length}נכסים.xlsx`, attachmentBlob: opExcelBlob });
       }
       if (sendItems.length === 0) {
         const fullRows = assetsToExport.map((asset: any) => [
@@ -1344,13 +1338,15 @@ export const MeasuredNotExportedAssets = ({ onSelectAsset, onOpenAssetsTab }: Me
           filename: `נכסים_שליחה_${dateStr}_${assetsToExport.length}נכסים.xlsx`,
           sheetName: 'נכסים',
           data: [headers, ...fullRows],
+          decimalFormatColumnIndices: [5, 7, 9, 11, 13, 15, 17],
           columnWidths: [{ wch: 15 }, { wch: 15 }, { wch: 20 }, { wch: 20 }, { wch: 12 }, { wch: 12 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 10 }, { wch: 12 }, { wch: 12 }, { wch: 12 }, { wch: 15 }, { wch: 15 }]
         });
         for (const operator of operatorsList) {
           if (!operator?.email || !operator.email.includes('@')) continue;
           const subj = templateOp ? applyTpl(templateOp.subject, operator.name, assetsToExport.length) : `שליחת נתונים - ${dateStrHe}`;
           const body = templateOp ? applyTpl(templateOp.body, operator.name, assetsToExport.length) : `שלום ${operator.name},\n\nמצורף קובץ הנתונים.\nתאריך: ${dateStrHe}\n\nבברכה,\nמערכת ניהול נכסים`;
-          sendItems.push({ to: operator.email, recipientName: operator.name, subject: subj, body, attachmentFilename: `נכסים_שליחה_${dateStr}_${assetsToExport.length}נכסים.xlsx`, attachmentBlob: fullExcelBlob });
+          // Use operator.id in filename (instead of generic "שליחה") so the automation can classify reliably.
+          sendItems.push({ to: operator.email, recipientName: operator.name, subject: subj, body, attachmentFilename: `נכסים_מפעיל_${operator.id}_${dateStr}_${assetsToExport.length}נכסים.xlsx`, attachmentBlob: fullExcelBlob });
         }
       }
       const managersList = await api.managers.getAll();
@@ -1377,11 +1373,13 @@ export const MeasuredNotExportedAssets = ({ onSelectAsset, onOpenAssetsTab }: Me
           filename: `נכסים_מנהל_${manager.id}_${dateStr}_${managerAssets.length}נכסים.xlsx`,
           sheetName: 'נכסים',
           data: mgrData,
+          decimalFormatColumnIndices: [5, 7, 9, 11, 13, 15, 17],
           columnWidths: [{ wch: 15 }, { wch: 15 }, { wch: 20 }, { wch: 20 }, { wch: 12 }, { wch: 12 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 10 }, { wch: 12 }, { wch: 12 }, { wch: 12 }, { wch: 15 }, { wch: 15 }]
         });
         const subj = templateMgr ? applyTpl(templateMgr.subject, manager.name, managerAssets.length) : `שליחת נתונים - ${dateStrHe}`;
         const body = templateMgr ? applyTpl(templateMgr.body, manager.name, managerAssets.length) : `שלום ${manager.name},\n\nמצורף קובץ הנתונים.\nתאריך: ${dateStrHe}\n\nבברכה,\nמערכת ניהול נכסים`;
-        sendItems.push({ to: manager.email, recipientName: manager.name, subject: subj, body, attachmentFilename: `נכסים_מנהל_${manager.name}_${dateStr}_${managerAssets.length}נכסים.xlsx`, attachmentBlob: mgrExcelBlob });
+        // Use manager.id (stable, automation-friendly) instead of manager.name in filename.
+        sendItems.push({ to: manager.email, recipientName: manager.name, subject: subj, body, attachmentFilename: `נכסים_מנהל_${manager.id}_${dateStr}_${managerAssets.length}נכסים.xlsx`, attachmentBlob: mgrExcelBlob });
       }
       let sentCount = 0;
       if (sendItems.length > 0) {
@@ -1461,32 +1459,35 @@ export const MeasuredNotExportedAssets = ({ onSelectAsset, onOpenAssetsTab }: Me
         return fields.map(field => {
           const value = (asset as any)[field];
           const colDef = configuredColumnDefs.find(col => col.field === field);
-          
-          // Format based on column type
+
+          // Numeric columns: pass number so exportToExcel applies .00 format
           if (colDef?.type === 'numericColumn') {
-            if (value == null || value === '' || value === 0) return '';
+            if (value == null || value === '') return '';
             const num = typeof value === 'number' ? value : parseFloat(value);
-            return isNaN(num) || num === 0 ? '' : num.toFixed(2);
+            return isNaN(num) ? '' : num;
           }
-          
+
           if (field === 'measurement_date' || field === 'discount_date_from' || field === 'discount_date_to') {
             return value ? formatDateToDDMMYYYY(value) : '';
           }
-          
+
           if (field === 'penthouse') {
             return value === true ? 'כן' : 'לא';
           }
-          
+
           return value != null ? String(value) : '';
         });
       });
 
-      const ws = XLSX.utils.aoa_to_sheet([headers, ...rows]);
-      const wb = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(wb, ws, 'נכסים שנמדדו ולא נשלחו');
-
+      const sizeFields = ['asset_size', 'business_distribution_area', 'sub_asset_size_1', 'sub_asset_size_2', 'sub_asset_size_3', 'sub_asset_size_4', 'sub_asset_size_5', 'sub_asset_size_6', 'shared_parking_area', 'shared_area'];
+      const decimalFormatColumnIndices = fields.map((f, i) => sizeFields.includes(f) ? i : -1).filter(i => i >= 0);
       const fileName = `נכסים_שנמדדו_ולא_נשלחו_${new Date().toISOString().split('T')[0]}.xlsx`;
-      XLSX.writeFile(wb, fileName);
+      exportToExcel({
+        filename: fileName,
+        sheetName: 'נכסים שנמדדו ולא נשלחו',
+        data: [headers, ...rows],
+        decimalFormatColumnIndices: decimalFormatColumnIndices.length > 0 ? decimalFormatColumnIndices : undefined,
+      });
 
       setToast({ message: 'הייצוא הושלם בהצלחה', type: 'success' });
       setTimeout(() => setToast(null), 3000);

@@ -9,6 +9,20 @@ class UserLogin(BaseModel):
     password: str
 
 
+class SessionLogin(BaseModel):
+    """Frontend sends user_name (same as username)."""
+    user_name: str
+    password: str
+
+
+class SessionLoginResponse(BaseModel):
+    """Response shape expected by frontend (usersTableAuth)."""
+    user_id: int | str
+    user_name: str
+    user_role: str
+    access_token: str
+
+
 class Token(BaseModel):
     access_token: str
     token_type: str

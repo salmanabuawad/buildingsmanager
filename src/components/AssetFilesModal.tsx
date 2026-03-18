@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { X, Trash2, Eye, FileText, Image as ImageIcon, File, AlertTriangle } from 'lucide-react';
 import { api, AssetFile } from '../lib/api';
+import { toBackendFileUrl } from '../lib/apiClient';
 import { FileViewer } from './FileViewer';
 import { PdfThumbnail } from './PdfThumbnail';
 
@@ -141,8 +142,9 @@ export function AssetFilesModal({ isOpen, onClose, assetId, measurementDate, onF
     setCurrentViewingIndex(0);
   };
 
-  /** URL to load the file (for FileViewer). Use file_url directly (ref: origin). */
-  const getFileViewUrl = (file: AssetFile): string => file.file_url?.trim() || '';
+  /** URL to load the file (for FileViewer). Prefer backend URL so files are served from the app server, not Supabase. */
+  const getFileViewUrl = (file: AssetFile): string =>
+    toBackendFileUrl(file.file_url, (file as { file_path?: string }).file_path) || file.file_url?.trim() || '';
 
   /** Use file_name from record; when missing derive from file_url (ref: origin). */
   const getDisplayFileName = (file: AssetFile): string => {

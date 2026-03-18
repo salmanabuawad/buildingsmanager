@@ -16,6 +16,31 @@ export interface ExcelExportOptions {
   sheetName?: string;
   data: any[][];
   columnWidths?: { wch: number }[];
+  /** 0-based column indices for size fields that should display with .00 format in Excel */
+  decimalFormatColumnIndices?: number[];
+}
+
+/** Number format for size/numeric cells so Excel shows values with .00 (e.g. 5 → 5.00) */
+const NUMERIC_FORMAT = '0.00';
+
+/**
+ * Apply number format 0.00 only to numeric cells in the given column indices (e.g. size columns).
+ */
+function applyNumericFormat(worksheet: XLSX.WorkSheet, columnIndices?: number[]): void {
+  const ref = worksheet['!ref'];
+  if (!ref) return;
+  const set = columnIndices != null && columnIndices.length > 0 ? new Set(columnIndices) : null;
+  const range = XLSX.utils.decode_range(ref);
+  for (let R = range.s.r; R <= range.e.r; ++R) {
+    for (let C = range.s.c; C <= range.e.c; ++C) {
+      if (set != null && !set.has(C)) continue;
+      const addr = XLSX.utils.encode_cell({ r: R, c: C });
+      const cell = worksheet[addr];
+      if (cell && cell.t === 'n' && typeof cell.v === 'number') {
+        cell.z = NUMERIC_FORMAT;
+      }
+    }
+  }
 }
 
 /**
@@ -60,6 +85,9 @@ export function exportToExcel(options: ExcelExportOptions): void {
     // Create worksheet from data (sanitize cell values to avoid formula injection / AV suspicion)
     const safeData = data.map(row => (Array.isArray(row) ? row.map(sanitizeSpreadsheetCell) : row)) as any[][];
     const worksheet = XLSX.utils.aoa_to_sheet(safeData);
+
+    // Format size columns (when specified) as .00
+    applyNumericFormat(worksheet, options.decimalFormatColumnIndices);
 
     // Set column widths if provided
     if (columnWidths && columnWidths.length > 0) {
@@ -148,6 +176,9 @@ export function createExcelBlob(options: ExcelExportOptions): Blob {
     // Create worksheet from data (sanitize cell values to avoid formula injection / AV suspicion)
     const safeData = data.map(row => (Array.isArray(row) ? row.map(sanitizeSpreadsheetCell) : row)) as any[][];
     const worksheet = XLSX.utils.aoa_to_sheet(safeData);
+
+    // Format size columns (when specified) as .00
+    applyNumericFormat(worksheet, options.decimalFormatColumnIndices);
 
     // Set column widths if provided
     if (columnWidths && columnWidths.length > 0) {

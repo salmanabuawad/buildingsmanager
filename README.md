@@ -74,8 +74,21 @@ npm run dev
 
 The application will be available at `http://localhost:5173`
 
+## 🚀 Deploy to production (profile.wavelync.com)
+
+Build and deploy the frontend to the server (nginx serves from `/var/www/buildingsmanager`):
+
+```powershell
+npm run deploy:server
+```
+
+You’ll see the deploy target; type `y` to confirm. To skip the prompt: `$env:DEPLOY_SKIP_CONFIRM = "1"; npm run deploy:server`
+
+**Full details:** [DEPLOY_SERVER.md](DEPLOY_SERVER.md) — target, SSH, overrides, and how to confirm you’re deploying to the right place.
+
 ## 📖 Documentation
 
+- **[DEPLOY_SERVER.md](DEPLOY_SERVER.md)** - How to deploy to profile.wavelync.com (build, SCP, nginx path)
 - **[QUICKSTART_LOCAL.md](QUICKSTART_LOCAL.md)** - 5-minute local setup guide
 - **[LOCAL_SETUP.md](LOCAL_SETUP.md)** - Detailed local PostgreSQL setup with troubleshooting
 - **[VALIDATION_IMPLEMENTATION.md](VALIDATION_IMPLEMENTATION.md)** - Validation system documentation

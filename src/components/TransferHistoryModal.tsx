@@ -246,11 +246,11 @@ export function TransferHistoryModal({
           });
         }
         
-        // After row
+        // After row (use beforeAsset when after_data is null so grid still shows something)
         rows.push({
           asset_id: assetId,
           is_before_row: false,
-          asset: afterAsset,
+          asset: afterAsset ?? beforeAsset ?? undefined,
         });
       }
     });

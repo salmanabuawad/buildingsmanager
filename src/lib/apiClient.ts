@@ -145,12 +145,10 @@ function from(table: string) {
       return chain;
     },
     async then<T>(onFulfilled?: (value: { data: T | null; error: ApiError | null }) => T | Promise<T>) {
-      const limitVal = state.limit ?? 1000;
       const q: Record<string, string | number | string[] | undefined> = {
         select: state.select,
-        limit: limitVal,
+        limit: state.limit ?? 1000,
         offset: state.offset ?? 0,
-        row: limitVal,
         ...state.filters,
       };
       if (state.order) q.order = state.order;
@@ -160,7 +158,7 @@ function from(table: string) {
       return onFulfilled ? onFulfilled(out as { data: T | null; error: ApiError | null }) : (out as T);
     },
     async single() {
-      const q: Record<string, string | number | string[] | undefined> = { ...state.filters, select: state.select, limit: 1, row: 1 };
+      const q: Record<string, string | number | string[] | undefined> = { ...state.filters, select: state.select, limit: 1 };
       if (state.orClauses?.length) q.or = state.orClauses;
       const path = `/data/${state.table}${buildQuery(q)}`;
       const out = await request('GET', path);
@@ -170,7 +168,7 @@ function from(table: string) {
       return { data: arr[0], error: null };
     },
     async maybeSingle() {
-      const q: Record<string, string | number | string[] | undefined> = { ...state.filters, select: state.select, limit: 2, row: 2 };
+      const q: Record<string, string | number | string[] | undefined> = { ...state.filters, select: state.select, limit: 2 };
       if (state.orClauses?.length) q.or = state.orClauses;
       const path = `/data/${state.table}${buildQuery(q)}`;
       const out = await request('GET', path);
@@ -289,6 +287,30 @@ export function getFileApiHeaders(): Record<string, string> {
   return {};
 }
 
+const STRUCTURE_DRAWINGS_PREFIX = 'structure-drawings/';
+
+/**
+ * Convert a file URL or path to the backend file URL for viewing/downloading.
+ * When file_url is a Supabase URL (e.g. .../structure-drawings/1180050000/1773754574251.pdf),
+ * returns the backend download URL so files are served from the new server, not Supabase.
+ */
+export function toBackendFileUrl(fileUrlOrPath: string | undefined, filePath?: string): string {
+  const url = (fileUrlOrPath ?? filePath ?? '').trim();
+  if (!url) return '';
+  if (url.includes('/api/files/')) return url;
+  const base = getRequestBase().replace(/\/+$/, '');
+  const apiBase = base ? `${base}/api/files` : '/api/files';
+  if (url.includes(STRUCTURE_DRAWINGS_PREFIX)) {
+    const idx = url.indexOf(STRUCTURE_DRAWINGS_PREFIX) + STRUCTURE_DRAWINGS_PREFIX.length;
+    const path = url.substring(idx).split('?')[0].trim();
+    if (path) return `${apiBase}/download?path=${encodeURIComponent(path)}`;
+  }
+  if (!url.startsWith('http') && !url.startsWith('/') && url.includes('/')) {
+    return `${apiBase}/download?path=${encodeURIComponent(url)}`;
+  }
+  return url;
+}
+
 /** Result of getting a view URL: url when ok, else status for fallback/error message. */
 export type GetFileViewUrlResult = { url: string } | { status: number; error?: string };
 
@@ -372,6 +394,73 @@ function storageFrom(bucket: string) {
 const storage = {
   from: storageFrom,
 };
+
+/**
+ * Download a file from the backend by storage-relative path (e.g. "{assetId}/{filename}").
+ * Use this in export ZIP flows so asset files are always fetched from the backend.
+ */
+export async function downloadBackendFileBlob(
+  path: string
+): Promise<{ data: Blob; error: null } | { data: null; error: { message: string } }> {
+  const base = `${getRequestBase()}/api/files`.replace(/\/+$/, '');
+  const url = base ? `${base}/download` : '/api/files/download';
+  try {
+    const res = await fetch(`${url}?path=${encodeURIComponent(path)}`, {
+      credentials: 'include',
+      headers: getFileApiHeaders(),
+    });
+    if (!res.ok) {
+      const text = await res.text();
+      return { data: null, error: { message: text || `HTTP ${res.status}` } };
+    }
+    const blob = await res.blob();
+    return { data: blob, error: null };
+  } catch (e) {
+    const message = e instanceof Error ? e.message : String(e);
+    return { data: null, error: { message } };
+  }
+}
+
+/**
+ * Fetch file via backend proxy (avoids CORS when file is on Supabase/external URL).
+ */
+async function fetchFileViaBackendProxy(
+  fileUrl: string
+): Promise<{ data: Blob; error: null } | { data: null; error: { message: string } }> {
+  const base = `${getRequestBase()}/api/files`.replace(/\/+$/, '');
+  const url = base ? `${base}/fetch-for-export` : '/api/files/fetch-for-export';
+  try {
+    const res = await fetch(`${url}?url=${encodeURIComponent(fileUrl)}`, {
+      credentials: 'include',
+      headers: getFileApiHeaders(),
+    });
+    if (!res.ok) {
+      const text = await res.text();
+      return { data: null, error: { message: text || `HTTP ${res.status}` } };
+    }
+    const blob = await res.blob();
+    return { data: blob, error: null };
+  } catch (e) {
+    const message = e instanceof Error ? e.message : String(e);
+    return { data: null, error: { message } };
+  }
+}
+
+/**
+ * Get file blob for ZIP: try backend download by path first; if 404/error and fileUrl is an http(s) URL, fetch via backend proxy (avoids CORS).
+ */
+export async function getAssetFileBlobForZip(
+  path: string,
+  fileUrl: string | undefined
+): Promise<{ data: Blob; error: null } | { data: null; error: { message: string } }> {
+  const result = await downloadBackendFileBlob(path);
+  if (result.data) return result;
+  const url = (fileUrl || '').trim();
+  if (url.startsWith('http://') || url.startsWith('https://')) {
+    return fetchFileViaBackendProxy(url);
+  }
+  return result;
+}
 
 /** Delete by filters using POST body. */
 async function deleteByQuery(table: string, filters: Record<string, string | number | (string | number)[]>): Promise<{ data: unknown; error: ApiError | null }> {

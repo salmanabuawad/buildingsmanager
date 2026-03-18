@@ -2,6 +2,7 @@ import React, { useEffect, useState, useMemo, useCallback, useRef, useImperative
 import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
 import { Building, AddressList, api } from '../lib/api';
+import { getAssetFileBlobForZip } from '../lib/apiClient';
 import { buildingValidators, getAssetTypes, setLatestExportDate } from '../lib/validation';
 import { AgGridReact } from 'ag-grid-react';
 import { ColDef, ICellEditorParams } from 'ag-grid-community';
@@ -1974,7 +1975,7 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
     }
   }, [buildings, buildingsToDelete, dirtyBuildings, addressList, getBuildingKey, getAreaDescriptionForTaxRegion]);
 
-  // Export assets to automation system
+  // Export assets to automation system (fetch per building so backend only returns building-scoped assets)
   const handleExportToAutomation = useCallback(async () => {
     setExporting(true);
     setExportProgressMessage('מתחיל שליחה...');
@@ -1982,8 +1983,24 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
     document.body.style.cursor = 'wait';
 
     try {
-      // Get measured-not-exported assets; do not mark as exported until after successful send
-      const assetsToExport = await api.assets.getMeasuredNotExported();
+      // Backend returns only assets for the given building; fetch per building and merge
+      if (!buildings || buildings.length === 0) {
+        setToast({ message: 'אין מבנים', type: 'info' });
+        setTimeout(() => setToast(null), 3000);
+        setExporting(false);
+        setExportProgressMessage('');
+        document.body.style.cursor = '';
+        setExportToAutomationCount(0);
+        return;
+      }
+      const allChunks: any[] = [];
+      for (const b of buildings) {
+        const bn = typeof b.building_number === 'number' ? b.building_number : parseInt(String(b.building_number), 10);
+        if (isNaN(bn) || bn <= 0) continue;
+        const chunk = await api.assets.getMeasuredNotExported(bn);
+        if (chunk?.length) allChunks.push(...chunk);
+      }
+      const assetsToExport = allChunks;
       if (!assetsToExport || assetsToExport.length === 0) {
         setToast({ message: 'אין נכסים לשליחה - כל הנכסים כבר נשלחו לעירייה', type: 'info' });
         setTimeout(() => setToast(null), 5000);
@@ -2016,7 +2033,7 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
         exportedAssets = await api.assets.getAssetsByIdsBatched(numericAssetIdsForQuery);
       } catch (fetchError: any) {
         console.error('Error fetching exported assets:', fetchError);
-        setToast({ message: 'לא ניתן היה לייצא את הנכסים לקובץ Excel', type: 'error' });
+        setToast({ message: 'לא ניתן היה לטעון את נתוני הנכסים לייצוא לקובץ Excel. הנכסים לא סומנו כייצאו. נסה שוב.', type: 'error' });
         setTimeout(() => setToast(null), 5000);
         setExporting(false);
         setExportProgressMessage('');
@@ -2116,18 +2133,18 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
         assetsByTaxRegionForExcel.get(taxRegion)!.push(asset);
       });
 
-      // Get all files for exported assets
-      const numericAssetIdsForFiles = numericAssetIdsForQuery;
-      const filesByAsset = await api.assets.files.getAllBulk(numericAssetIdsForFiles);
+      // Get all files: use business asset_id (DB asset_files.asset_id -> assets.asset_id)
+      const numericAssetIdsForFiles = exportedAssets
+        .map(asset => { const aid = typeof asset.asset_id === 'string' ? parseInt(asset.asset_id, 10) : Number(asset.asset_id); return !isNaN(aid) && aid > 0 ? aid : null; })
+        .filter((id): id is number => id !== null);
+      const filesByAsset = numericAssetIdsForFiles.length > 0
+        ? await api.assets.files.getAllBulk(numericAssetIdsForFiles)
+        : new Map<number, any[]>();
       
-      // Create a map of asset_id to asset data for lookup
-      // Ensure asset_id is converted to number for consistent key matching
       const assetMap = new Map<number, any>();
       exportedAssets.forEach(asset => {
-        const assetId = typeof asset.asset_id === 'string' ? parseInt(asset.asset_id, 10) : Number(asset.asset_id);
-        if (!isNaN(assetId) && assetId > 0) {
-          assetMap.set(assetId, asset);
-        }
+        const aid = typeof asset.asset_id === 'string' ? parseInt(asset.asset_id, 10) : Number(asset.asset_id);
+        if (!isNaN(aid) && aid > 0) assetMap.set(aid, asset);
       });
       
       setExportProgressMessage('מכין קבצים ל-ZIP...');
@@ -2201,6 +2218,7 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
           filename: excelFilename,
           sheetName: 'נכסים',
           data,
+          decimalFormatColumnIndices: [5, 7, 9, 11, 13, 15, 17],
           columnWidths: [
             { wch: 15 }, // זיהוי משלם
             { wch: 15 }, // זיהוי נכס
@@ -2259,44 +2277,29 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
               fileName || ''
             ]);
             
-            // Download file from storage and add to ZIP
+            // Download file from backend and add to ZIP
             try {
-              // Extract file path from URL
-              const urlParts = file.file_url.split('/');
+              const urlParts = (file.file_url || '').split('/');
               const urlFileName = urlParts[urlParts.length - 1].split('?')[0];
-              
-              // Try to extract path from URL (format: .../structure-drawings/{assetId}/{filename})
-              let filePath = '';
-              const structureDrawingsIndex = file.file_url.indexOf('structure-drawings/');
-              if (structureDrawingsIndex !== -1) {
-                filePath = file.file_url.substring(structureDrawingsIndex + 'structure-drawings/'.length).split('?')[0];
-              } else {
-                // Fallback: construct path from assetId and filename
-                filePath = `${assetId}/${urlFileName}`;
-              }
-              
-              // Download file from storage
-              const { data: fileData, error: downloadError } = await api.storage
-                .from('structure-drawings')
-                .download(filePath);
-              
-              if (downloadError || !fileData) {
-                // Check for bucket not found error
-                if (downloadError?.message?.includes('Bucket not found') || downloadError?.statusCode === '404') {
-                  console.error(
-                    'Storage bucket "structure-drawings" not found. ' +
-                    'Storage bucket "structure-drawings" not found. Configure backend file storage.'
-                  );
-                  // Show error to user
-                  setToast({ message: 'Storage bucket "structure-drawings" not found. Configure backend file storage.', type: 'error' });
-                  setTimeout(() => setToast(null), 10000);
-                  continue;
+              let filePath = typeof file.file_path === 'string' && file.file_path.trim()
+                ? file.file_path.trim()
+                : '';
+              if (!filePath && file.file_url) {
+                const idx = (file.file_url || '').indexOf('structure-drawings/');
+                if (idx !== -1) {
+                  filePath = file.file_url.substring(idx + 'structure-drawings/'.length).split('?')[0];
+                } else {
+                  filePath = `${assetId}/${urlFileName}`;
                 }
-                console.warn(`Error downloading file for asset ${assetId}:`, downloadError);
+              }
+              if (filePath && !filePath.includes('/')) filePath = `${assetId}/${filePath}`;
+              if (!filePath) continue;
+              const result = await getAssetFileBlobForZip(filePath, file.file_url);
+              if (result.error || !result.data) {
+                console.warn(`Error downloading file for asset ${assetId}:`, result.error?.message);
                 continue;
               }
-              
-              // Add file to ZIP in tax region folder: {tax_region}/{assetId}_{filename}
+              const fileData = result.data;
               const zipFilePath = `${taxRegion}/${assetId}_${fileName || urlFileName}`;
               zipFiles.push({
                 filename: zipFilePath,
@@ -2371,11 +2374,13 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
           filename: `נכסים_מפעיל_${operatorId}_${dateStr}_${operatorAssets.length}נכסים.xlsx`,
           sheetName: 'נכסים',
           data: opData,
+          decimalFormatColumnIndices: [5, 7, 9, 11, 13, 15, 17],
           columnWidths: [{ wch: 15 }, { wch: 15 }, { wch: 20 }, { wch: 20 }, { wch: 12 }, { wch: 12 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 10 }, { wch: 12 }, { wch: 12 }, { wch: 12 }, { wch: 15 }, { wch: 15 }]
         });
         const subj = templateOp ? applyTpl(templateOp.subject, operator.name, operatorAssets.length) : `שליחת נתונים - ${dateStrHe}`;
         const body = templateOp ? applyTpl(templateOp.body, operator.name, operatorAssets.length) : `שלום ${operator.name},\n\nמצורף קובץ הנתונים.\nתאריך: ${dateStrHe}\n\nבברכה,\nמערכת ניהול נכסים`;
-        sendItems.push({ to: operator.email, recipientName: operator.name, subject: subj, body, attachmentFilename: `נכסים_מפעיל_${operator.name}_${dateStr}_${operatorAssets.length}נכסים.xlsx`, attachmentBlob: opExcelBlob });
+        // Use operator.id (stable, automation-friendly) instead of operator.name in filename.
+        sendItems.push({ to: operator.email, recipientName: operator.name, subject: subj, body, attachmentFilename: `נכסים_מפעיל_${operatorId}_${dateStr}_${operatorAssets.length}נכסים.xlsx`, attachmentBlob: opExcelBlob });
       }
       if (sendItems.length === 0) {
         const fullRows = exportedAssets.map((asset: any) => [
@@ -2397,7 +2402,8 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
           if (!operator?.email || !operator.email.includes('@')) continue;
           const subj = templateOp ? applyTpl(templateOp.subject, operator.name, exportedAssets.length) : `שליחת נתונים - ${dateStrHe}`;
           const body = templateOp ? applyTpl(templateOp.body, operator.name, exportedAssets.length) : `שלום ${operator.name},\n\nמצורף קובץ הנתונים.\nתאריך: ${dateStrHe}\n\nבברכה,\nמערכת ניהול נכסים`;
-          sendItems.push({ to: operator.email, recipientName: operator.name, subject: subj, body, attachmentFilename: `נכסים_שליחה_${dateStr}_${exportedAssets.length}נכסים.xlsx`, attachmentBlob: fullExcelBlob });
+          // Use operator.id in filename (instead of generic "שליחה") so the automation can classify reliably.
+          sendItems.push({ to: operator.email, recipientName: operator.name, subject: subj, body, attachmentFilename: `נכסים_מפעיל_${operator.id}_${dateStr}_${exportedAssets.length}נכסים.xlsx`, attachmentBlob: fullExcelBlob });
         }
       }
       const managersList = await api.managers.getAll();
@@ -2424,11 +2430,13 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
           filename: `נכסים_מנהל_${manager.id}_${dateStr}_${managerAssets.length}נכסים.xlsx`,
           sheetName: 'נכסים',
           data: mgrData,
+          decimalFormatColumnIndices: [5, 7, 9, 11, 13, 15, 17],
           columnWidths: [{ wch: 15 }, { wch: 15 }, { wch: 20 }, { wch: 20 }, { wch: 12 }, { wch: 12 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 10 }, { wch: 12 }, { wch: 12 }, { wch: 12 }, { wch: 15 }, { wch: 15 }]
         });
         const subj = templateMgr ? applyTpl(templateMgr.subject, manager.name, managerAssets.length) : `שליחת נתונים - ${dateStrHe}`;
         const body = templateMgr ? applyTpl(templateMgr.body, manager.name, managerAssets.length) : `שלום ${manager.name},\n\nמצורף קובץ הנתונים.\nתאריך: ${dateStrHe}\n\nבברכה,\nמערכת ניהול נכסים`;
-        sendItems.push({ to: manager.email, recipientName: manager.name, subject: subj, body, attachmentFilename: `נכסים_מנהל_${manager.name}_${dateStr}_${managerAssets.length}נכסים.xlsx`, attachmentBlob: mgrExcelBlob });
+        // Use manager.id (stable, automation-friendly) instead of manager.name in filename.
+        sendItems.push({ to: manager.email, recipientName: manager.name, subject: subj, body, attachmentFilename: `נכסים_מנהל_${manager.id}_${dateStr}_${managerAssets.length}נכסים.xlsx`, attachmentBlob: mgrExcelBlob });
       }
       let sentCount = 0;
       if (sendItems.length > 0) {
@@ -2478,7 +2486,7 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
       setExportProgressMessage('');
       document.body.style.cursor = '';
     }
-  }, [fetchExportToAutomationCount]);
+  }, [buildings, fetchExportToAutomationCount]);
 
   // Save all changes
   const handleSaveAll = async () => {

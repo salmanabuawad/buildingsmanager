@@ -1,10 +1,14 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Body
 from sqlalchemy.orm import Session
 from typing import List
+from app.auth import get_current_user, require_jwt
 from app.database import get_db
 from app.models import Building, User
 from app.schemas import BuildingCreate, BuildingUpdate, BuildingResponse
-from app.auth import get_current_user
+from app.services.workflow_service import (
+    update_buildings_with_distribution_flags,
+    update_building_total_area,
+)
 
 router = APIRouter()
 
@@ -93,3 +97,47 @@ def delete_building(
     db.delete(db_building)
     db.commit()
     return None
+
+
+@router.post("/bulk-distribution-flags")
+def bulk_distribution_flags(
+    body: dict = Body(...),
+    _payload: dict = Depends(require_jwt),
+    db: Session = Depends(get_db),
+):
+    items = body.get("p_buildings_data") or []
+    if not isinstance(items, list) or len(items) == 0:
+        return {"success": True, "count": 0, "buildings": []}
+
+    try:
+        result = update_buildings_with_distribution_flags(db, items)
+        db.commit()
+        return result
+    except ValueError as exc:
+        db.rollback()
+        raise HTTPException(status_code=404, detail=str(exc))
+    except Exception as exc:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=str(exc))
+
+
+@router.post("/update-total-area")
+def recalculate_total_area(
+    body: dict = Body(...),
+    _payload: dict = Depends(require_jwt),
+    db: Session = Depends(get_db),
+):
+    building_number = body.get("p_building_number")
+    if building_number is None:
+        raise HTTPException(status_code=400, detail="p_building_number is required")
+
+    try:
+        result = update_building_total_area(db, int(building_number))
+        db.commit()
+        return result
+    except ValueError as exc:
+        db.rollback()
+        raise HTTPException(status_code=404, detail=str(exc))
+    except Exception as exc:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=str(exc))

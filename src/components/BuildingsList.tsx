@@ -1993,12 +1993,18 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
         setExportToAutomationCount(0);
         return;
       }
+      const buildingNumbers = buildings
+        .map((b) => (typeof b.building_number === 'number' ? b.building_number : parseInt(String(b.building_number), 10)))
+        .filter((bn) => !isNaN(bn) && bn > 0);
+
       const allChunks: any[] = [];
-      for (const b of buildings) {
-        const bn = typeof b.building_number === 'number' ? b.building_number : parseInt(String(b.building_number), 10);
-        if (isNaN(bn) || bn <= 0) continue;
-        const chunk = await api.assets.getMeasuredNotExported(bn);
-        if (chunk?.length) allChunks.push(...chunk);
+      const batchSize = 10;
+      for (let i = 0; i < buildingNumbers.length; i += batchSize) {
+        const batch = buildingNumbers.slice(i, i + batchSize);
+        const batchChunks = await Promise.all(batch.map((bn) => api.assets.getMeasuredNotExported(bn)));
+        for (const chunk of batchChunks) {
+          if (chunk?.length) allChunks.push(...chunk);
+        }
       }
       const assetsToExport = allChunks;
       if (!assetsToExport || assetsToExport.length === 0) {

@@ -1,10 +1,14 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Body
 from sqlalchemy.orm import Session
 from typing import List
 from app.database import get_db
 from app.models import AssetType, User
 from app.schemas import AssetTypeBase, AssetTypeResponse
-from app.auth import get_current_user
+from app.auth import get_current_user, require_jwt
+from app.services.workflow_service import (
+    update_asset_type_with_distribution_reset,
+    bulk_update_asset_types_with_distribution_reset,
+)
 
 router = APIRouter()
 
@@ -48,3 +52,55 @@ def create_asset_type(
     db.commit()
     db.refresh(db_asset_type)
     return db_asset_type
+
+
+@router.post("/update-with-distribution-reset")
+def update_with_distribution_reset(
+    body: dict = Body(...),
+    _payload: dict = Depends(require_jwt),
+    db: Session = Depends(get_db),
+):
+    asset_type_id = body.get("p_id")
+    updates = body.get("p_updates") or {}
+
+    if asset_type_id is None:
+        raise HTTPException(status_code=400, detail="p_id is required")
+    if not isinstance(updates, dict):
+        raise HTTPException(status_code=400, detail="p_updates must be an object")
+
+    try:
+        result = update_asset_type_with_distribution_reset(
+            db=db,
+            asset_type_id=int(asset_type_id),
+            updates_input=updates,
+        )
+        db.commit()
+        return result
+    except ValueError as exc:
+        db.rollback()
+        raise HTTPException(status_code=404, detail=str(exc))
+    except Exception as exc:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=str(exc))
+
+
+@router.post("/bulk-distribution-reset")
+def bulk_distribution_reset(
+    body: dict = Body(...),
+    _payload: dict = Depends(require_jwt),
+    db: Session = Depends(get_db),
+):
+    items = body.get("p_asset_types_data") or []
+    if not isinstance(items, list) or len(items) == 0:
+        return {"success": True, "count": 0, "affected_buildings": []}
+
+    try:
+        result = bulk_update_asset_types_with_distribution_reset(db, items)
+        db.commit()
+        return result
+    except ValueError as exc:
+        db.rollback()
+        raise HTTPException(status_code=404, detail=str(exc))
+    except Exception as exc:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=str(exc))

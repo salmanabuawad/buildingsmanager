@@ -38,31 +38,18 @@ import { setLatestExportDate } from './validation';
 
 /**
  * ============================================================================
- * 🚨 CRITICAL: TRANSACTIONAL SAVE ARCHITECTURE - DO NOT MODIFY 🚨
+ * ARCHITECTURE NOTE
  * ============================================================================
  *
- * This file implements validation-first, transactional-save architecture.
+ * New and refactored business workflows should follow this direction:
  *
- * MANDATORY RULES:
- * 1. ALL asset saves MUST use transactional functions:
- *    - api.assets.saveTransactional() for single saves
- *    - api.assets.saveBulkTransactional() for bulk saves
+ * 1. Validation and orchestration belong in FastAPI/Python
+ * 2. Multi-step writes should run in one Python-managed transaction
+ * 3. Postgres should provide storage and integrity constraints, not business
+ *    logic via triggers or stored functions
  *
- * 2. NEVER use direct table operations for assets:
- *    ❌ api.from('assets').insert()
- *    ❌ api.from('assets').update()
- *
- * 3. Validation is MANDATORY and enforced at database level
- *
- * 4. All post-save actions happen in ONE transaction:
- *    - Asset save
- *    - Building total area update
- *    - Distribution flags update
- *    - Audit log creation
- *
- * 5. ALWAYS check result.success before proceeding
- *
- * See: CRITICAL_ARCHITECTURE_DO_NOT_MODIFY.md for complete documentation
+ * Existing transaction/function-oriented flows in this module should be
+ * refactored toward Python-managed transactions rather than extended further.
  * ============================================================================
  */
 
@@ -73,6 +60,29 @@ import { setLatestExportDate } from './validation';
 async function getCurrentUserName(): Promise<string> {
   const s = getSession();
   return s?.user_name ?? 'default';
+}
+
+const DEFAULT_PAGE_SIZE = 1000;
+
+async function fetchAllRows<T>(
+  loadPage: (offset: number, limit: number) => Promise<{ data: T[] | null; error: unknown }>
+): Promise<T[]> {
+  const rows: T[] = [];
+  let offset = 0;
+
+  while (true) {
+    const { data, error } = await loadPage(offset, DEFAULT_PAGE_SIZE);
+    if (error) throw error;
+
+    const batch = data || [];
+    rows.push(...batch);
+
+    if (batch.length < DEFAULT_PAGE_SIZE) {
+      return rows;
+    }
+
+    offset += DEFAULT_PAGE_SIZE;
+  }
 }
 
 /**
@@ -1166,14 +1176,16 @@ export const api = {
   deleteBuildingWithRelated: client.deleteBuildingWithRelated,
   buildings: {
     getAll: async (): Promise<Building[]> => {
-      const { data, error } = await api
-        .from('buildings')
-        .select('*')
-        .order('building_number');
+      const data = await fetchAllRows<any>((offset, limit) =>
+        api
+          .from('buildings')
+          .select('*')
+          .order('building_number')
+          .offset(offset)
+          .limit(limit)
+      );
 
-      if (error) throw error;
-
-      return (data || []).map(normalizeBuildingForUi);
+      return data.map(normalizeBuildingForUi);
     },
     getOne: async (buildingNumber: number): Promise<Building> => {
       const { data, error } = await api
@@ -1279,8 +1291,6 @@ export const api = {
         return api.buildings.getOne(buildingNumber);
       }
       
-      // Use bulk database function to update building - it will automatically set distribution flags
-      // when shared areas change. Always use bulk function, even for single building updates.
       const buildingsData = [{
         building_number: buildingNumber,
         updates: cleanedInput
@@ -1294,24 +1304,13 @@ export const api = {
       let error: any = null;
 
       if (restError) {
-        // If REST call fails, fall back to direct update (for backwards compatibility)
-        const fallbackResult = await api
-          .from('buildings')
-          .update(cleanedInput)
-          .eq('building_number', buildingNumber)
-          .select()
-          .single();
-        
-        data = fallbackResult.data ? normalizeBuildingForUi(fallbackResult.data as Record<string, unknown>) : null;
-        error = fallbackResult.error;
+        error = restError;
       } else {
-        // Bulk function returns {success, count, buildings: [...]}
-        // Extract the first (and only) building from the result
         const result = functionResult as { success: boolean; buildings: Building[]; count: number };
         if (result && result.buildings && result.buildings.length > 0) {
           data = normalizeBuildingForUi(result.buildings[0] as Record<string, unknown>);
         } else {
-          error = { message: 'No building data returned from bulk update function' };
+          error = { message: 'No building data returned from bulk update endpoint' };
         }
       }
 
@@ -1594,20 +1593,20 @@ export const api = {
   },
   assets: {
     getAll: async (buildingNumber?: number): Promise<Asset[]> => {
-      let query = api
-        .from('assets')
-        .select('*')
-        .order('asset_id');
+      const data = await fetchAllRows<any>((offset, limit) => {
+        let query = api
+          .from('assets')
+          .select('*')
+          .order('asset_id')
+          .offset(offset)
+          .limit(limit);
 
-      if (buildingNumber) {
-        query = query.eq('building_number', buildingNumber);
-      }
+        if (buildingNumber) {
+          query = query.eq('building_number', buildingNumber);
+        }
 
-      const { data, error } = await query;
-
-      if (error) {
-        throw error;
-      }
+        return query;
+      });
 
       const parseDate = (dateStr: string) => {
         const parts = dateStr.split('/');
@@ -1871,199 +1870,15 @@ export const api = {
       return allRecords;
     },
     getAllAssetsWithHistory: async (buildingNumber: number): Promise<Asset[]> => {
-      // Call PostgreSQL function to get both master and details in one database call
       const { data, error } = await assetsWithHistory({
         p_building_number: buildingNumber
       });
 
       if (error) {
-        // Fallback to separate queries if function doesn't exist
-        // PGRST202 = function not found in schema cache
-        if (error.code === '42883' || error.code === 'PGRST202' || error.message.includes('function') || error.message.includes('does not exist') || error.message.includes('Could not find the function')) {
-          
-          // Fallback: Fetch all master records from assets table for the building
-          const { data: masterAssets, error: masterError } = await api
-            .from('assets')
-            .select('*')
-            .eq('building_number', buildingNumber)
-            .order('asset_id');
-
-          if (masterError) {
-            throw masterError;
-          }
-
-          if (!masterAssets || masterAssets.length === 0) {
-            return [];
-          }
-
-          // Get all asset_ids to fetch their history
-          const assetIds = masterAssets.map(a => a.asset_id);
-
-          // Fetch all history records for these asset_ids in one query
-          const { data: allHistoryData, error: historyError } = await api
-            .from('assets_history')
-            .select('*')
-            .in('asset_id', assetIds)
-            .order('created_at', { ascending: false });
-
-          if (historyError) {
-            // If table doesn't exist or RLS blocks it, return only master records
-            if (historyError.code === '42P01' || historyError.code === '42501') {
-              return masterAssets;
-            }
-            throw historyError;
-          }
-
-          // Group history records by asset_id
-          const historyByAssetId = new Map<number, Asset[]>();
-          (allHistoryData || []).forEach(record => {
-            const assetId = record.asset_id;
-            if (!historyByAssetId.has(assetId)) {
-              historyByAssetId.set(assetId, []);
-            }
-            historyByAssetId.get(assetId)!.push(record);
-          });
-
-          // Sort history records by measurement_date for each asset
-          const parseDate = (dateStr: string) => {
-            const parts = dateStr.split('/');
-            if (parts.length === 3) {
-              return new Date(parseInt(parts[2]), parseInt(parts[1]) - 1, parseInt(parts[0]));
-            }
-            return new Date(dateStr);
-          };
-
-          // Combine master records with their history
-          const result: Asset[] = [];
-          masterAssets.forEach(master => {
-            // Add master record
-            result.push(master);
-            
-            // Add history records for this asset
-            const history = historyByAssetId.get(master.asset_id) || [];
-            const sortedHistory = history.sort((a, b) =>
-              parseDate(b.measurement_date).getTime() - parseDate(a.measurement_date).getTime()
-            );
-            result.push(...sortedHistory);
-          });
-
-          return result;
-        }
         throw error;
       }
 
-      // Parse the JSON response
-      const masterAssets: Asset[] = data?.master || [];
-      const historyAssets: Asset[] = data?.details || [];
-
-      // Sort history records by measurement_date
-      const parseDate = (dateStr: string) => {
-        const parts = dateStr.split('/');
-        if (parts.length === 3) {
-          return new Date(parseInt(parts[2]), parseInt(parts[1]) - 1, parseInt(parts[0]));
-        }
-        return new Date(dateStr);
-      };
-
-      // Group history records by asset_id
-      const historyByAssetId = new Map<number, Asset[]>();
-      historyAssets.forEach(record => {
-        const assetId = record.asset_id;
-        if (!historyByAssetId.has(assetId)) {
-          historyByAssetId.set(assetId, []);
-        }
-        historyByAssetId.get(assetId)!.push(record);
-      });
-
-      // Sort each asset's history by measurement_date
-      historyByAssetId.forEach((history, assetId) => {
-        historyByAssetId.set(assetId, history.sort((a, b) =>
-          parseDate(b.measurement_date).getTime() - parseDate(a.measurement_date).getTime()
-        ));
-      });
-
-      // Combine master records with their history
-      const result: Asset[] = [];
-      masterAssets.forEach(master => {
-        // Add master record
-        result.push(master);
-        
-        // Add history records for this asset
-        const history = historyByAssetId.get(master.asset_id) || [];
-        result.push(...history);
-      });
-
-      return result;
-    },
-    // Fallback method if database function doesn't exist
-    getAllAssetsWithHistoryFallback: async (buildingNumber: number): Promise<Asset[]> => {
-      // Fetch all master records from assets table for the building
-      const { data: masterAssets, error: masterError } = await api
-        .from('assets')
-        .select('*')
-        .eq('building_number', buildingNumber)
-        .order('asset_id');
-
-      if (masterError) {
-        throw masterError;
-      }
-
-      if (!masterAssets || masterAssets.length === 0) {
-        return [];
-      }
-
-      // Get all asset_ids to fetch their history
-      const assetIds = masterAssets.map(a => a.asset_id);
-
-      // Fetch all history records for these asset_ids in one query
-      const { data: allHistoryData, error: historyError } = await api
-        .from('assets_history')
-        .select('*')
-        .in('asset_id', assetIds)
-        .order('created_at', { ascending: false });
-
-      if (historyError) {
-        // If table doesn't exist or RLS blocks it, return only master records
-        if (historyError.code === '42P01' || historyError.code === '42501') {
-          return masterAssets;
-        }
-        throw historyError;
-      }
-
-      // Group history records by asset_id
-      const historyByAssetId = new Map<number, Asset[]>();
-      (allHistoryData || []).forEach(record => {
-        const assetId = record.asset_id;
-        if (!historyByAssetId.has(assetId)) {
-          historyByAssetId.set(assetId, []);
-        }
-        historyByAssetId.get(assetId)!.push(record);
-      });
-
-      // Sort history records by measurement_date for each asset
-      const parseDate = (dateStr: string) => {
-        const parts = dateStr.split('/');
-        if (parts.length === 3) {
-          return new Date(parseInt(parts[2]), parseInt(parts[1]) - 1, parseInt(parts[0]));
-        }
-        return new Date(dateStr);
-      };
-
-      // Combine master records with their history
-      const result: Asset[] = [];
-      masterAssets.forEach(master => {
-        // Add master record
-        result.push(master);
-        
-        // Add history records for this asset
-        const history = historyByAssetId.get(master.asset_id) || [];
-        const sortedHistory = history.sort((a, b) =>
-          parseDate(b.measurement_date).getTime() - parseDate(a.measurement_date).getTime()
-        );
-        result.push(...sortedHistory);
-      });
-
-      return result;
+      return Array.isArray(data) ? data as Asset[] : [];
     },
     getOne: async (id: string): Promise<Asset> => {
       // Log warning if this is called - it should rarely be needed since getAll should be used
@@ -2149,8 +1964,7 @@ export const api = {
             const oldAssetType = await getAssetBusinessResidenceType(existingAsset);
             const newAssetType = await getAssetBusinessResidenceType(newAsset);
             
-            // NOTE: Distribution flags are set by save_asset_transactional function, not here
-            // Flags are part of the save transaction and cannot be set separately
+            // Distribution flags for type changes are handled by the backend transaction flow.
             
             // Also check if asset type has non_accountable_for_distribution = true (NOT non_accountable_for_total_area)
             // This should reset distribution flags when changing TO or FROM a type with non_accountable_for_distribution = true
@@ -3402,118 +3216,21 @@ export const api = {
         Object.entries(cleanedInput).filter(([_, v]) => v !== undefined)
       );
       
-      // Use database function to update asset type and reset distribution flags in a transaction
-      // This ensures atomicity - either both operations succeed or both fail
-      let data: AssetType;
-      
-      try {
-        const { data: result, error: restError } = await assetTypesUpdateWithDistributionReset({
-          p_id: id,
-          p_updates: finalInput
-        });
-        
-        if (restError) {
-          // Fallback to regular update if function doesn't exist
-          if (restError.code === '42883' || restError.code === 'PGRST202' || restError.message?.includes('function') || restError.message?.includes('does not exist')) {
-            console.warn('[api.assetTypes.update] Database function not found, falling back to regular update');
-            
-            // Try id first, then asset_type as fallback
-            let { data: updateData, error } = await api
-              .from('asset_types')
-              .update(finalInput)
-              .eq('id', id)
-              .select()
-              .single();
+      const { data: result, error: restError } = await assetTypesUpdateWithDistributionReset({
+        p_id: id,
+        p_updates: finalInput
+      });
+      if (restError) throw new Error(restError.message || 'Failed to update asset type');
 
-            // If id column doesn't exist, try asset_type
-            if (error && error.code === '42703') {
-              const result = await api
-                .from('asset_types')
-                .update(finalInput)
-                .eq('asset_type', id)
-                .select()
-                .single();
-              updateData = result.data;
-              error = result.error;
-              
-              // Map asset_type to id
-              if (updateData && updateData.asset_type !== undefined) {
-                updateData = { ...updateData, id: updateData.asset_type };
-              }
-            }
-
-            if (error) throw error;
-            data = updateData;
-            
-            // Manually reset flags if needed (fallback behavior)
-            // Check if non_accountable_for_distribution changed
-            if (beforeData && beforeData.name) {
-              const oldValue = beforeData.non_accountable_for_distribution === true;
-              const newValue = 'non_accountable_for_distribution' in input 
-                ? (input.non_accountable_for_distribution === true || input.non_accountable_for_distribution === 'true')
-                : oldValue;
-              
-              if (oldValue !== newValue) {
-                
-                const { data: affectedAssets } = await api
-                  .from('assets')
-                  .select('building_number')
-                  .eq('main_asset_type', beforeData.name)
-                  .not('building_number', 'is', null);
-                
-                if (affectedAssets && affectedAssets.length > 0) {
-                  const buildingNumbers = [...new Set(affectedAssets.map(a => a.building_number))];
-                  
-                  // Get the asset type's business_residence to determine which flag to set
-                  const isBusiness = beforeData.business_residence === 'עסקים';
-                  const isResidence = beforeData.business_residence === 'מגורים';
-                  
-                  // NOTE: Distribution flags should be set when assets using this type are saved/updated
-                  // via transactional save functions, not when asset types are created/updated
-                  // Flags are part of asset save transactions and cannot be set separately
-                } else {
-                }
-              }
-            }
-          } else {
-            throw restError;
-          }
-        } else {
-          // Function succeeded - extract the updated data
-          const afterData = result?.after_data;
-          if (afterData) {
-            // Map asset_type to id if needed
-            if (afterData.asset_type !== undefined && afterData.id === undefined) {
-              afterData.id = afterData.asset_type;
-            }
-            data = afterData as AssetType;
-            
-            // Log if distribution flags were reset
-            if (result?.affected_buildings && Array.isArray(result.affected_buildings) && result.affected_buildings.length > 0) {
-            } else if (beforeData && 'non_accountable_for_distribution' in input) {
-              // Check if non_accountable_for_distribution changed but no buildings were affected
-              const oldValue = beforeData.non_accountable_for_distribution === true;
-              const newValue = input.non_accountable_for_distribution === true;
-              if (oldValue !== newValue) {
-              }
-            }
-          } else {
-            throw new Error('Database function returned no data');
-          }
-        }
-      } catch (err) {
-        // If REST call fails completely, fall back to regular update
-        console.warn('[api.assetTypes.update] REST update failed, using fallback:', err);
-        const { data: fallbackData, error: fallbackError } = await api
-          .from('asset_types')
-          .update(finalInput)
-          .eq('id', id)
-          .select()
-          .single();
-        
-        if (fallbackError) throw fallbackError;
-        data = fallbackData;
+      const afterData = result?.after_data;
+      if (!afterData) {
+        throw new Error('Asset type update returned no data');
       }
+
+      if (afterData.asset_type !== undefined && afterData.id === undefined) {
+        afterData.id = afterData.asset_type;
+      }
+      const data = afterData as AssetType;
       
       // Refresh in-memory cache after update
       try {
@@ -3680,13 +3397,14 @@ export const api = {
   },
   addressList: {
     getAll: async (): Promise<AddressList[]> => {
-      const { data, error } = await api
-        .from('address_list')
-        .select('*')
-        .order('street_code', { ascending: true });
-
-      if (error) throw error;
-      return data || [];
+      return fetchAllRows<AddressList>((offset, limit) =>
+        api
+          .from('address_list')
+          .select('*')
+          .order('street_code', { ascending: true })
+          .offset(offset)
+          .limit(limit)
+      );
     },
     getOne: async (streetCode: number): Promise<AddressList> => {
       const { data, error } = await api
@@ -4039,8 +3757,8 @@ export const api = {
         }))
       } : null);
 
-      // Use validateAndSaveBulkAssets which will call save_assets_bulk_transactional
-      // This function handles validation, copying to history, and logging to audit table
+      // Use the current transactional save path for validation, history copy, and audit logging.
+      // Target architecture is to keep the full workflow in Python-managed transactions.
       const result = await validateAndSaveBulkAssets(
         assetsToSave,
         'transfer_area',
@@ -4241,20 +3959,6 @@ export const api = {
           after_data: after ? ensureAssetsArray(after) : null,
         };
       });
-    },
-    // saveCurrentState is deprecated - distribution operations are now logged
-    // automatically through save_assets_bulk_transactional which calls log_audit_entry
-    // This function is kept for backward compatibility but is no longer used
-    saveCurrentState: async (
-      buildingNumber: number,
-      actionType: 'distribution' | 'transfer' | 'business_distribution' | 'residence_distribution',
-      affectedAssetsAfter: Asset[],
-      sharedAreaSize?: number,
-      overloadRatio?: number | null
-    ): Promise<void> => {
-      console.warn('saveCurrentState is deprecated - distribution operations are now logged automatically');
-      // This function is no longer used - distribution operations are logged
-      // automatically through save_assets_bulk_transactional
     },
     getOne: async (id: number): Promise<DistributionAudit> => {
       const { data, error } = await api
@@ -4752,12 +4456,15 @@ export const api = {
       updated_at: row.updated_at ?? '',
     }),
     getAll: async (): Promise<Operator[]> => {
-      const { data, error } = await api
-        .from('operators')
-        .select('operator_id, name, mail, phone, created_at, updated_at')
-        .order('name');
-      if (error) throw error;
-      return (data || []).map(api.operators._mapRow);
+      const data = await fetchAllRows<any>((offset, limit) =>
+        api
+          .from('operators')
+          .select('operator_id, name, mail, phone, created_at, updated_at')
+          .order('name')
+          .offset(offset)
+          .limit(limit)
+      );
+      return data.map(api.operators._mapRow);
     },
     getOne: async (id: number): Promise<Operator | null> => {
       const { data, error } = await api
@@ -4802,12 +4509,15 @@ export const api = {
       updated_at: row.updated_at ?? '',
     }),
     getAll: async (): Promise<Manager[]> => {
-      const { data, error } = await api
-        .from('managers')
-        .select('manager_id, name, tax_regions, mail, phone, created_at, updated_at')
-        .order('name');
-      if (error) throw error;
-      return (data || []).map(api.managers._mapRow);
+      const data = await fetchAllRows<any>((offset, limit) =>
+        api
+          .from('managers')
+          .select('manager_id, name, tax_regions, mail, phone, created_at, updated_at')
+          .order('name')
+          .offset(offset)
+          .limit(limit)
+      );
+      return data.map(api.managers._mapRow);
     },
     getOne: async (id: number): Promise<Manager | null> => {
       const { data, error } = await api

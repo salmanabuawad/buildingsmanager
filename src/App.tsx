@@ -4,26 +4,7 @@
  * NO REVERSE ENGINEERING. Use by AI/ML tools (e.g. LLMs, code assistants,
  * training data, or automated analysis) is prohibited. See COPYRIGHT.
  */
-import { useState, useEffect, useCallback, useRef } from 'react';
-import { BuildingsList, BuildingsListRef } from './components/BuildingsList';
-import { AssetsList, AssetsListRef } from './components/AssetsList';
-import { AssetDetails, AssetDetailsRef } from './components/AssetDetails';
-import { AssetTypes } from './components/AssetTypes';
-import { AssetSearch } from './components/AssetSearch';
-import { ValidationRulesManager } from './components/ValidationRulesManager';
-import { BuildingListImport } from './components/BuildingListImport';
-import { AssetsFileImport } from './components/AssetsFileImport';
-import { TransferAreas, TransferAreasRef } from './components/TransferAreas';
-import { AddressListComponent } from './components/AddressList';
-import { FieldConfigManager } from './components/FieldConfigManager';
-import { AssetDataEntry, AssetDataEntryRef } from './components/AssetDataEntry';
-import { AuditLog } from './components/AuditLog';
-import { UserManagement } from './components/UserManagement';
-import { SystemConfigurationManager } from './components/SystemConfiguration';
-import { OperatorsManager } from './components/OperatorsManager';
-import { ManagersManager } from './components/ManagersManager';
-import { MeasuredNotExportedAssets } from './components/MeasuredNotExportedAssets';
-import { MeasurementProgressDashboard } from './components/MeasurementProgressDashboard';
+import { useState, useEffect, useCallback, useRef, lazy, Suspense } from 'react';
 import { X, Settings, Building, Home, Tag, Search, Plus, Building2, Upload, ChevronDown, ChevronLeft, Trash2, Database, CheckCircle2, AlertCircle, Loader2, Menu, MapPin, Edit, Save, FileText, RefreshCw, Download, LogOut, Users, UserCog, BarChart3, Mail, ClipboardList, HelpCircle, User, Sun, SlidersHorizontal } from 'lucide-react';
 import { api, AssetType } from './lib/api';
 import { getSession, logoutUsersTable, loginByTaskToken } from './lib/usersTableAuth';
@@ -36,11 +17,36 @@ import { loadFieldConfigurations } from './lib/fieldConfigUtils';
 import { useFieldConfigBumpVersion } from './contexts/FieldConfigContext';
 import { Login } from './components/Login';
 import { HelpModal } from './components/HelpModal';
-import { MobileTasksAndUpload } from './components/MobileTasksAndUpload';
-import { InspectionTasksManager } from './components/InspectionTasksManager';
 import { useIsMobile } from './hooks/useIsMobile';
 import { FontSizeProvider } from './contexts/FontSizeContext';
 import { setFontSizeStore } from './lib/fontSizeStore';
+import type { BuildingsListRef } from './components/BuildingsList';
+import type { AssetsListRef } from './components/AssetsList';
+import type { AssetDetailsRef } from './components/AssetDetails';
+import type { TransferAreasRef } from './components/TransferAreas';
+import type { AssetDataEntryRef } from './components/AssetDataEntry';
+
+const BuildingsList = lazy(() => import('./components/BuildingsList').then((mod) => ({ default: mod.BuildingsList })));
+const AssetsList = lazy(() => import('./components/AssetsList').then((mod) => ({ default: mod.AssetsList })));
+const AssetDetails = lazy(() => import('./components/AssetDetails').then((mod) => ({ default: mod.AssetDetails })));
+const AssetTypes = lazy(() => import('./components/AssetTypes').then((mod) => ({ default: mod.AssetTypes })));
+const AssetSearch = lazy(() => import('./components/AssetSearch').then((mod) => ({ default: mod.AssetSearch })));
+const ValidationRulesManager = lazy(() => import('./components/ValidationRulesManager').then((mod) => ({ default: mod.ValidationRulesManager })));
+const BuildingListImport = lazy(() => import('./components/BuildingListImport').then((mod) => ({ default: mod.BuildingListImport })));
+const AssetsFileImport = lazy(() => import('./components/AssetsFileImport').then((mod) => ({ default: mod.AssetsFileImport })));
+const TransferAreas = lazy(() => import('./components/TransferAreas').then((mod) => ({ default: mod.TransferAreas })));
+const AddressListComponent = lazy(() => import('./components/AddressList').then((mod) => ({ default: mod.AddressListComponent })));
+const FieldConfigManager = lazy(() => import('./components/FieldConfigManager').then((mod) => ({ default: mod.FieldConfigManager })));
+const AssetDataEntry = lazy(() => import('./components/AssetDataEntry').then((mod) => ({ default: mod.AssetDataEntry })));
+const AuditLog = lazy(() => import('./components/AuditLog').then((mod) => ({ default: mod.AuditLog })));
+const UserManagement = lazy(() => import('./components/UserManagement').then((mod) => ({ default: mod.UserManagement })));
+const SystemConfigurationManager = lazy(() => import('./components/SystemConfiguration').then((mod) => ({ default: mod.SystemConfigurationManager })));
+const OperatorsManager = lazy(() => import('./components/OperatorsManager').then((mod) => ({ default: mod.OperatorsManager })));
+const ManagersManager = lazy(() => import('./components/ManagersManager').then((mod) => ({ default: mod.ManagersManager })));
+const MeasuredNotExportedAssets = lazy(() => import('./components/MeasuredNotExportedAssets').then((mod) => ({ default: mod.MeasuredNotExportedAssets })));
+const MeasurementProgressDashboard = lazy(() => import('./components/MeasurementProgressDashboard').then((mod) => ({ default: mod.MeasurementProgressDashboard })));
+const MobileTasksAndUpload = lazy(() => import('./components/MobileTasksAndUpload').then((mod) => ({ default: mod.MobileTasksAndUpload })));
+const InspectionTasksManager = lazy(() => import('./components/InspectionTasksManager').then((mod) => ({ default: mod.InspectionTasksManager })));
 
 interface Tab {
   id: string;
@@ -55,6 +61,17 @@ interface Tab {
   isErrorFixingMode?: boolean; // For assets tabs: hide all buttons except Validate, Save, Save as new, and Cancel
   path?: string; // URL path for routing compatibility
   initialAssetType?: string; // For asset-details tabs: initial asset type when creating new asset
+}
+
+function TabContentFallback() {
+  return (
+    <div className="flex-1 flex items-center justify-center bg-app-bg">
+      <div className="text-center">
+        <Loader2 className="w-10 h-10 text-app-accent animate-spin mx-auto mb-3" />
+        <p className="text-slate-600">טוען מסך...</p>
+      </div>
+    </div>
+  );
 }
 
 function App() {
@@ -2102,6 +2119,7 @@ function App() {
         <div className="flex-1 overflow-hidden flex flex-col min-h-0">
           {/* Main Content Area - no scroll; grid pages fill available space */}
           <div className="flex-1 overflow-hidden flex flex-col min-h-0 bg-app-bg">
+            <Suspense fallback={<TabContentFallback />}>
             {activeTab?.type === 'buildings' && (
               <BuildingsList
                 ref={buildingsListRef}
@@ -2226,6 +2244,7 @@ function App() {
             {activeTab?.type === 'inspection-tasks' && (
               <InspectionTasksManager key={activeTab.refreshKey} />
             )}
+            </Suspense>
           </div>
         </div>
       </div>

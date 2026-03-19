@@ -8,6 +8,13 @@ from app.database import get_db
 from app.models import Asset, User
 from app.schemas import AssetCreate, AssetUpdate, AssetResponse
 from app.auth import get_current_user, require_jwt
+from app.services.workflow_service import (
+    copy_asset_to_history,
+    delete_asset_transactional,
+    delete_assets_bulk_transactional,
+    get_assets_with_history,
+    save_assets_bulk_transactional,
+)
 
 router = APIRouter()
 
@@ -195,6 +202,122 @@ def reset_export_to_automation(
     except Exception as e:
         db.rollback()
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/with-history")
+def assets_with_history(
+    body: dict = Body(...),
+    _payload: dict = Depends(require_jwt),
+    db: Session = Depends(get_db),
+):
+    building_number = body.get("p_building_number")
+    if building_number is None:
+        raise HTTPException(status_code=400, detail="p_building_number is required")
+    try:
+        return get_assets_with_history(db, int(building_number))
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+
+@router.post("/copy-to-history")
+def asset_copy_to_history(
+    body: dict = Body(...),
+    _payload: dict = Depends(require_jwt),
+    db: Session = Depends(get_db),
+):
+    asset_id = body.get("p_asset_id")
+    if asset_id is None:
+        raise HTTPException(status_code=400, detail="p_asset_id is required")
+    try:
+        copied = copy_asset_to_history(db, int(asset_id))
+        db.commit()
+        return {"success": copied}
+    except ValueError as exc:
+        db.rollback()
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except Exception as exc:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+
+@router.post("/save-bulk-transactional")
+def asset_save_bulk_transactional(
+    body: dict = Body(...),
+    _payload: dict = Depends(require_jwt),
+    db: Session = Depends(get_db),
+):
+    try:
+        result = save_assets_bulk_transactional(
+            db,
+            assets_data=body.get("p_assets_data") or [],
+            validation_passed=body.get("p_validation_passed"),
+            validation_errors=body.get("p_validation_errors"),
+            action_type=body.get("p_action_type") or "manual_update",
+            user_id=body.get("p_user_id"),
+        )
+        db.commit()
+        return result
+    except ValueError as exc:
+        db.rollback()
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except Exception as exc:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+
+@router.post("/delete-transactional")
+def asset_delete_transactional(
+    body: dict = Body(...),
+    _payload: dict = Depends(require_jwt),
+    db: Session = Depends(get_db),
+):
+    asset_id = body.get("p_asset_id")
+    if asset_id is None:
+        raise HTTPException(status_code=400, detail="p_asset_id is required")
+    try:
+        result = delete_asset_transactional(
+            db,
+            asset_id=int(asset_id),
+            user_id=body.get("p_user_id"),
+            description=body.get("p_description"),
+        )
+        db.commit()
+        return result
+    except ValueError as exc:
+        db.rollback()
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except Exception as exc:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+
+@router.post("/delete-bulk-transactional")
+def asset_delete_bulk_transactional(
+    body: dict = Body(...),
+    _payload: dict = Depends(require_jwt),
+    db: Session = Depends(get_db),
+):
+    raw_ids = body.get("p_asset_ids") or []
+    asset_ids = [int(value) for value in raw_ids if value is not None]
+    if not asset_ids:
+        return {"success": True, "count": 0}
+    try:
+        result = delete_assets_bulk_transactional(
+            db,
+            asset_ids=asset_ids,
+            user_id=body.get("p_user_id"),
+            description=body.get("p_description"),
+        )
+        db.commit()
+        return result
+    except ValueError as exc:
+        db.rollback()
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except Exception as exc:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
 
 
 @router.get("/{asset_id}", response_model=AssetResponse)

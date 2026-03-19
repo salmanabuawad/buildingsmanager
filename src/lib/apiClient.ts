@@ -51,7 +51,11 @@ async function request<T>(
             ? raw
             : res.statusText ?? 'Request failed';
       if (res.status === 401 || (typeof message === 'string' && message.toLowerCase().includes('could not validate credentials'))) {
-        window.dispatchEvent(new CustomEvent('auth:unauthorized', { detail: { message } }));
+        logoutUsersTable();
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(new CustomEvent('auth:unauthorized', { detail: { message } }));
+          window.location.href = '/';
+        }
         return { data: null, error: { message, code: String(res.status) } };
       }
       const err: ApiError = {

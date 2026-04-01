@@ -29,6 +29,15 @@ import {
   exportGetZipStatus,
   exportGetZipDownloadUrl,
   exportToAutomationEnqueue,
+  operatorsCreate,
+  operatorsUpdate,
+  operatorsDelete,
+  managersCreate,
+  managersUpdate,
+  managersDelete,
+  buildingsCreate,
+  buildingsCreateBulk,
+  buildingsDeleteByNumber,
 } from './restClient';
 import { getSession, getAuthUserIdForBackend } from './usersTableAuth';
 import i18n from '../i18n/i18n';
@@ -307,10 +316,7 @@ async function resetDistributionFlagsIfNeeded(
 
     // Update building if flags need to be reset (use direct api call to avoid circular reference)
     if (Object.keys(updates).length > 0) {
-      await api
-        .from('buildings')
-        .update(updates)
-        .eq('building_number', buildingNumber);
+      await api.buildings.update(buildingNumber, updates);
     }
   } catch (err) {
     console.warn('Error resetting distribution flags:', err);
@@ -1079,7 +1085,7 @@ export async function validateAndSaveBulkAssets(
       // Fetch building once and get asset types from cache (synchronous, no API call)
       const [{ getAssetTypes }, buildingData] = await Promise.all([
         import('./validation').then(m => ({ getAssetTypes: m.getAssetTypes })),
-        api.from('buildings').select('*').eq('building_number', firstBuildingNumber).maybeSingle()
+        api.buildings.getOne(firstBuildingNumber).then(b => ({ data: b, error: null })).catch(e => ({ data: null, error: e }))
       ]);
       
       const assetTypes = getAssetTypes();
@@ -1241,11 +1247,7 @@ export const api = {
       cleanedInput.need_residence_distribution = false;
       cleanedInput.need_business_distribution = false;
       
-      const { data, error } = await api
-        .from('buildings')
-        .insert(cleanedInput)
-        .select()
-        .single();
+      const { data, error } = await buildingsCreate(cleanedInput);
 
       if (error) {
         throw error;
@@ -1441,10 +1443,7 @@ export const api = {
         return cleanedInput;
       });
 
-      const { data, error } = await api
-        .from('buildings')
-        .insert(prepared)
-        .select('*');
+      const { data, error } = await buildingsCreateBulk(prepared);
 
       if (error) {
         return { success: false, count: 0, error: error.message };
@@ -1479,29 +1478,7 @@ export const api = {
         }
       }
 
-      // Delete audit rows that reference this building before deleting the building
-      const buildingIdStr = String(buildingNumber);
-      const { error: auditError } = await api
-        .from('audit')
-        .delete()
-        .eq('entity_type', 'bulk_asset')
-        .eq('entity_id', buildingIdStr);
-      if (auditError) {
-        console.warn('[api.buildings.delete] Failed to delete audit rows for building:', auditError);
-      }
-      const { error: auditBuildingError } = await api
-        .from('audit')
-        .delete()
-        .eq('entity_type', 'building')
-        .eq('entity_id', buildingIdStr);
-      if (auditBuildingError) {
-        console.warn('[api.buildings.delete] Failed to delete building audit rows:', auditBuildingError);
-      }
-
-      const { error } = await api
-        .from('buildings')
-        .delete()
-        .eq('building_number', buildingNumber);
+      const { error } = await buildingsDeleteByNumber(buildingNumber);
 
       if (error) throw error;
 
@@ -1520,54 +1497,16 @@ export const api = {
     },
     // Distribution flag management API
     markBusinessDistributionNeeded: async (buildingNumber: number): Promise<void> => {
-      const { error } = await api
-        .from('buildings')
-        .update({ need_business_distribution: true })
-        .eq('building_number', buildingNumber);
-      
-      if (error) {
-        console.error('[api.buildings.markBusinessDistributionNeeded] Failed:', error);
-        throw error;
-      }
+      await api.buildings.update(buildingNumber, { need_business_distribution: true });
     },
     markBusinessDistributionDone: async (buildingNumber: number): Promise<void> => {
-      const { error } = await api
-        .from('buildings')
-        .update({ need_business_distribution: false })
-        .eq('building_number', buildingNumber);
-      
-      if (error) {
-        console.error('[api.buildings.markBusinessDistributionDone] Failed:', error);
-        throw error;
-      }
+      await api.buildings.update(buildingNumber, { need_business_distribution: false });
     },
     markResidenceDistributionNeeded: async (buildingNumber: number): Promise<void> => {
-      const { data, error } = await api
-        .from('buildings')
-        .update({ need_residence_distribution: true })
-        .eq('building_number', buildingNumber)
-        .select('building_number, need_residence_distribution');
-      
-      if (error) {
-        console.error('[api.buildings.markResidenceDistributionNeeded] Failed:', error);
-        throw error;
-      }
-      
-      if (data && data.length > 0) {
-      } else {
-        console.warn(`[api.buildings.markResidenceDistributionNeeded] ⚠ No rows updated for building ${buildingNumber} - building may not exist`);
-      }
+      await api.buildings.update(buildingNumber, { need_residence_distribution: true });
     },
     markResidenceDistributionDone: async (buildingNumber: number): Promise<void> => {
-      const { error } = await api
-        .from('buildings')
-        .update({ need_residence_distribution: false })
-        .eq('building_number', buildingNumber);
-      
-      if (error) {
-        console.error('[api.buildings.markResidenceDistributionDone] Failed:', error);
-        throw error;
-      }
+      await api.buildings.update(buildingNumber, { need_residence_distribution: false });
     },
     getDistributionStatus: async (buildingNumber: number): Promise<{ business: boolean | null; residence: boolean | null }> => {
       const { data, error } = await api
@@ -4476,11 +4415,11 @@ export const api = {
       return data ? api.operators._mapRow(data) : null;
     },
     create: async (input: Omit<Operator, 'id' | 'created_at' | 'updated_at'>): Promise<Operator> => {
-      const { data, error } = await api.from('operators').insert({
+      const { data, error } = await operatorsCreate({
         name: input.name,
         mail: input.email,
         phone: input.phone ?? null,
-      }).select().single();
+      });
       if (error) throw error;
       return api.operators._mapRow(data);
     },
@@ -4489,12 +4428,12 @@ export const api = {
       if (input.name !== undefined) payload.name = input.name;
       if (input.email !== undefined) payload.mail = input.email;
       if (input.phone !== undefined) payload.phone = input.phone;
-      const { data, error } = await api.from('operators').eq('operator_id', id).update(payload).select().single();
+      const { data, error } = await operatorsUpdate(id, payload);
       if (error) throw error;
       return api.operators._mapRow(data);
     },
     delete: async (id: number): Promise<void> => {
-      const { error } = await api.from('operators').delete().eq('operator_id', id);
+      const { error } = await operatorsDelete(id);
       if (error) throw error;
     },
   },
@@ -4529,12 +4468,12 @@ export const api = {
       return data ? api.managers._mapRow(data) : null;
     },
     create: async (input: Omit<Manager, 'id' | 'created_at' | 'updated_at'>): Promise<Manager> => {
-      const { data, error } = await api.from('managers').insert({
+      const { data, error } = await managersCreate({
         name: input.name,
         tax_regions: input.tax_regions,
         mail: input.email,
         phone: input.phone ?? null,
-      }).select().single();
+      });
       if (error) throw error;
       return api.managers._mapRow(data);
     },
@@ -4544,12 +4483,12 @@ export const api = {
       if (input.tax_regions !== undefined) payload.tax_regions = input.tax_regions;
       if (input.email !== undefined) payload.mail = input.email;
       if (input.phone !== undefined) payload.phone = input.phone;
-      const { data, error } = await api.from('managers').eq('manager_id', id).update(payload).select().single();
+      const { data, error } = await managersUpdate(id, payload);
       if (error) throw error;
       return api.managers._mapRow(data);
     },
     delete: async (id: number): Promise<void> => {
-      const { error } = await api.from('managers').delete().eq('manager_id', id);
+      const { error } = await managersDelete(id);
       if (error) throw error;
     },
   },

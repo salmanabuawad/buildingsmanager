@@ -364,6 +364,10 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
   const [operators, setOperators] = useState<Operator[]>([]);
   const fileInputRefs = useRef<Map<string, HTMLInputElement>>(new Map());
   const isRefreshingAfterSaveRef = useRef<boolean>(false);
+  // Set by distribution algorithm so save handler knows this is a distribution save even when all areas=0
+  const pendingDistributionTypeRef = useRef<'business' | 'residence' | null>(null);
+  // Timestamp of last distribution save — refreshBuilding skips flag overwrite for 10s after
+  const lastDistributionSaveAtRef = useRef<number>(0);
   // Track assets that were just saved to prevent re-marking them as dirty in fetchData
   const recentlySavedAssetsRef = useRef<Set<string>>(new Set());
   // Track cell values when editing starts - only mark dirty if value actually changed during edit
@@ -1374,13 +1378,25 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
       try {
         const updatedBuilding = await api.buildings.getOne(buildingNumber);
         setBuilding(prevBuilding => {
-          if (!prevBuilding || 
-              updatedBuilding.need_residence_distribution !== prevBuilding.need_residence_distribution ||
-              updatedBuilding.need_business_distribution !== prevBuilding.need_business_distribution ||
-              updatedBuilding.residence_shared_area !== prevBuilding.residence_shared_area ||
-              updatedBuilding.business_shared_area !== prevBuilding.business_shared_area) {
-            return updatedBuilding;
+          if (!prevBuilding) return updatedBuilding;
+          // If a distribution save happened in the last 10s, don't let stale DB flags overwrite local state
+          const distributionSaveRecent = (Date.now() - lastDistributionSaveAtRef.current) < 10000;
+          const flagsMatch =
+            updatedBuilding.need_residence_distribution === prevBuilding.need_residence_distribution &&
+            updatedBuilding.need_business_distribution === prevBuilding.need_business_distribution;
+          const areasMatch =
+            updatedBuilding.residence_shared_area === prevBuilding.residence_shared_area &&
+            updatedBuilding.business_shared_area === prevBuilding.business_shared_area;
+          if (distributionSaveRecent && !areasMatch) return updatedBuilding; // areas changed, allow full update
+          if (distributionSaveRecent && areasMatch) {
+            // Only update non-distribution fields; keep local distribution flags
+            return {
+              ...updatedBuilding,
+              need_business_distribution: prevBuilding.need_business_distribution,
+              need_residence_distribution: prevBuilding.need_residence_distribution,
+            };
           }
+          if (!flagsMatch || !areasMatch) return updatedBuilding;
           return prevBuilding;
         });
       } catch (err) {
@@ -2747,6 +2763,12 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
         }
       }
 
+      // Fallback: distribution algorithm set a pending type (handles clearing case where all areas = 0)
+      if (!isDistributionSave && pendingDistributionTypeRef.current) {
+        isDistributionSave = true;
+        distributionType = pendingDistributionTypeRef.current;
+      }
+
       // MIXED BATCH: If ANY asset has main_asset_type or asset_size change, we must use manual_update
       // so the DB runs set_distribution_flags_for_asset_type_change for those assets.
       // Using distribution actionType would pass p_set_distribution_flags_on_type_or_size_change=false
@@ -2759,6 +2781,9 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
           break;
         }
       }
+      // Remember distribution intent before overriding — we still need to clear the flag after save
+      const hadDistribution = isDistributionSave;
+      const hadDistributionType = distributionType;
       if (hasTypeOrSizeChange && isDistributionSave) {
         // Prefer manual_update so type-change assets get their flags; skip distribution actionType
         isDistributionSave = false;
@@ -2942,37 +2967,40 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
           // Update local building state immediately after successful distribution save
           // This ensures the UI updates instantly and flags disappear from screen right away
           // CRITICAL: Update building state BEFORE any other operations to ensure UI reflects changes immediately
-          if (isDistributionSave && distributionType && building) {
-            const updatedBuilding: Building = { ...building };
-            
-            // Clear the appropriate distribution flag (database already cleared it in the transaction)
-            if (distributionType === 'business') {
-              updatedBuilding.need_business_distribution = false;
-              // Use computed overload_ratio (from assets we saved) so it is always correct
-              const overloadRatioToSave = computedOverloadRatioForSave ?? (building.business_shared_area! <= 0 ? 0 : (building.overload_ratio ?? null));
-              updatedBuilding.overload_ratio = overloadRatioToSave;
-              
-              // Save overload_ratio to database in background (non-blocking, don't wait)
-              api.buildings.update(building.building_number, {
-                overload_ratio: overloadRatioToSave
-              }).catch(err => {
-                console.warn('Failed to save overload_ratio to building:', err);
-              });
-            } else if (distributionType === 'residence') {
-              updatedBuilding.need_residence_distribution = false;
-            }
-            
-            // Update building state immediately (synchronous state update)
-            setBuilding(updatedBuilding);
+          const effectiveDistribution = isDistributionSave || hadDistribution;
+          const effectiveDistributionType = distributionType || hadDistributionType;
+          if (effectiveDistribution && effectiveDistributionType && building) {
+            pendingDistributionTypeRef.current = null;
+            lastDistributionSaveAtRef.current = Date.now();
 
-            if (process.env.NODE_ENV === 'development') {
-            }
+            // Clear flag in DB, then re-fetch building to get authoritative state from server
+            const clearAndRefresh = async () => {
+              try {
+                if (effectiveDistributionType === 'business') {
+                  const overloadRatioToSave = computedOverloadRatioForSave ?? (building.business_shared_area! <= 0 ? 0 : (building.overload_ratio ?? null));
+                  await api.buildings.update(building.building_number, {
+                    overload_ratio: overloadRatioToSave,
+                    need_business_distribution: false
+                  });
+                } else if (effectiveDistributionType === 'residence') {
+                  await api.buildings.update(building.building_number, {
+                    need_residence_distribution: false
+                  });
+                }
+                // Re-fetch from server to get confirmed state
+                const freshBuilding = await api.buildings.getOne(building.building_number);
+                setBuilding(freshBuilding);
+              } catch (err) {
+                console.warn('Failed to clear distribution flag or refresh building:', err);
+              }
+            };
+            clearAndRefresh();
           }
-          
+
           // Update distribution history counter after successful distribution save (async, don't wait)
-          if (isDistributionSave && distributionType) {
+          if (effectiveDistribution && effectiveDistributionType) {
             // Don't wait for this - update counter in background
-            const actionType = distributionType === 'business' ? 'business_distribution' : 'residence_distribution';
+            const actionType = effectiveDistributionType === 'business' ? 'business_distribution' : 'residence_distribution';
             api.distributionAudit.getByBuilding(buildingNumber, actionType)
               .then(distributionHistory => {
                 setDistributionHistoryCount(distributionHistory.length);
@@ -3958,6 +3986,7 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
       }
 
       // Update state without saving to database
+      pendingDistributionTypeRef.current = 'residence';
       setAssets(updatedAssets);
       setDirtyAssets(updatedDirtyAssets);
       setIsValidatedForSave(false);
@@ -4428,6 +4457,7 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
       }
 
       // Update state without saving to database
+      pendingDistributionTypeRef.current = 'business';
       setAssets(updatedAssets);
       setDirtyAssets(updatedDirtyAssets);
       setIsValidatedForSave(false);

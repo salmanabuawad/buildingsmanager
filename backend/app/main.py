@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.config import settings
-from app.routers import auth, buildings, assets, asset_types, files, audit, email, data
+from app.routers import auth, buildings, assets, asset_types, files, audit, email, data, operators_managers
 
 app = FastAPI(
     title="AssetFlow API",
@@ -25,6 +25,7 @@ app.include_router(files.router, prefix="/api/files", tags=["Files"])
 app.include_router(audit.router, prefix="/api/audit", tags=["Audit"])
 app.include_router(email.router, prefix="/api/email", tags=["Email"])
 app.include_router(data.router, prefix="/api/data", tags=["Data"])
+app.include_router(operators_managers.router, prefix="/api", tags=["Operators & Managers"])
 
 
 @app.get("/")

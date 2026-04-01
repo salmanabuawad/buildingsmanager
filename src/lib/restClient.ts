@@ -168,6 +168,18 @@ export async function buildingsBulkDistributionFlags(payload: Record<string, unk
   return rest<unknown>('POST', '/buildings/bulk-distribution-flags', payload);
 }
 
+export async function buildingsCreate(body: Record<string, unknown>) {
+  return rest<Record<string, unknown>>('POST', '/buildings/create', body);
+}
+
+export async function buildingsCreateBulk(rows: Record<string, unknown>[]) {
+  return rest<{ success: boolean; count: number; buildings: Record<string, unknown>[] }>('POST', '/buildings/create-bulk', { rows });
+}
+
+export async function buildingsDeleteByNumber(buildingNumber: number) {
+  return rest<{ message: string }>('DELETE', `/buildings/${buildingNumber}`);
+}
+
 // ---- Asset types ----
 export async function assetTypesUpdateWithDistributionReset(payload: Record<string, unknown>) {
   return rest<unknown>('POST', '/asset-types/update-with-distribution-reset', payload);
@@ -209,6 +221,32 @@ export async function usersSetPassword(payload: Record<string, unknown>) {
 
 export async function usersEnsureDefaults() {
   return rest<unknown>('POST', '/users/ensure-defaults');
+}
+
+// ---- Operators ----
+export async function operatorsCreate(body: Record<string, unknown>) {
+  return rest<Record<string, unknown>>('POST', '/operators', body);
+}
+
+export async function operatorsUpdate(id: number, body: Record<string, unknown>) {
+  return rest<Record<string, unknown>>('PATCH', `/operators/${id}`, body);
+}
+
+export async function operatorsDelete(id: number) {
+  return rest<{ success: boolean }>('DELETE', `/operators/${id}`);
+}
+
+// ---- Managers ----
+export async function managersCreate(body: Record<string, unknown>) {
+  return rest<Record<string, unknown>>('POST', '/managers', body);
+}
+
+export async function managersUpdate(id: number, body: Record<string, unknown>) {
+  return rest<Record<string, unknown>>('PATCH', `/managers/${id}`, body);
+}
+
+export async function managersDelete(id: number) {
+  return rest<{ success: boolean }>('DELETE', `/managers/${id}`);
 }
 
 // ---- Metadata ----

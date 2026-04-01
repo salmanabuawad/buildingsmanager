@@ -7,6 +7,7 @@ from decimal import Decimal
 from typing import Any
 
 from sqlalchemy import text
+from sqlalchemy.engine import RowMapping
 from sqlalchemy.orm import Session
 
 
@@ -50,7 +51,10 @@ def _serialize_value(value: Any) -> Any:
 
 
 def _serialize_row(row: Any) -> dict[str, Any]:
-    mapping = row if isinstance(row, dict) else row._mapping
+    if isinstance(row, (dict, RowMapping)):
+        mapping = row
+    else:
+        mapping = row._mapping
     return {key: _serialize_value(value) for key, value in mapping.items()}
 
 
@@ -118,6 +122,22 @@ def _parse_uuid_or_none(value: Any) -> str | None:
     try:
         return str(uuid.UUID(str(value)))
     except Exception:
+        return None
+
+
+def _parse_user_id_int(value: Any) -> int | None:
+    """Parse integer user_id from 'uid:N' format or plain integer."""
+    if value is None:
+        return None
+    s = str(value).strip()
+    if s.startswith("uid:"):
+        try:
+            return int(s[4:])
+        except ValueError:
+            return None
+    try:
+        return int(s)
+    except (ValueError, TypeError):
         return None
 
 
@@ -207,15 +227,27 @@ def _insert_audit_row(
         payload["entity_id"] = entity_id
     if "action_type" in columns:
         payload["action_type"] = action_type
-    if "old_values" in columns:
-        payload["old_values"] = json.dumps(old_values, ensure_ascii=False) if old_values is not None else None
-    if "new_values" in columns:
-        payload["new_values"] = json.dumps(new_values, ensure_ascii=False) if new_values is not None else None
+    # Support both column naming conventions
+    before_col = "before_data" if "before_data" in columns else ("old_values" if "old_values" in columns else None)
+    after_col = "after_data" if "after_data" in columns else ("new_values" if "new_values" in columns else None)
+    if before_col:
+        payload[before_col] = json.dumps(old_values, ensure_ascii=False) if old_values is not None else None
+    if after_col:
+        payload[after_col] = json.dumps(new_values, ensure_ascii=False) if new_values is not None else None
+
     if "changed_at" in columns:
         payload["changed_at"] = datetime.utcnow().isoformat()
     if "tax_region" in columns and tax_region is not None:
         payload["tax_region"] = str(tax_region)
 
+    # user_id (integer, NOT NULL in current schema) — parsed from 'uid:N' format
+    user_id_int = _parse_user_id_int(changed_by)
+    if "user_id" in columns:
+        if user_id_int is None:
+            return  # cannot insert without required user_id
+        payload["user_id"] = user_id_int
+
+    # legacy changed_by (UUID) for older schemas
     changed_by_uuid = _parse_uuid_or_none(changed_by)
     if "changed_by" in columns and changed_by_uuid is not None:
         payload["changed_by"] = changed_by_uuid
@@ -422,6 +454,20 @@ def save_assets_bulk_transactional(
 
     for building_number in sorted(affected_buildings):
         update_building_total_area(db, building_number)
+
+    # Clear distribution flag atomically in the same transaction
+    if action_type == "business_distribution":
+        for building_number in sorted(affected_buildings):
+            db.execute(
+                text('UPDATE "buildings" SET "need_business_distribution" = false WHERE "building_number" = :bn'),
+                {"bn": building_number},
+            )
+    elif action_type == "residence_distribution":
+        for building_number in sorted(affected_buildings):
+            db.execute(
+                text('UPDATE "buildings" SET "need_residence_distribution" = false WHERE "building_number" = :bn'),
+                {"bn": building_number},
+            )
 
     return {
         "success": True,

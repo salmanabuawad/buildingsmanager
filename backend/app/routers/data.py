@@ -166,3 +166,78 @@ def get_table(
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
     return rows
+
+
+@router.post("/{table}")
+async def insert_table(
+    request: Request,
+    table: str,
+    _payload: dict = Depends(require_jwt),
+    db: Session = Depends(get_db),
+):
+    if table not in ALLOWED_TABLES:
+        raise HTTPException(status_code=404, detail="Not Found")
+    body = await request.json()
+    rows = body if isinstance(body, list) else [body]
+    if not rows:
+        return []
+    columns = _get_columns(db, table)
+    if not columns:
+        raise HTTPException(status_code=500, detail="Table not found")
+
+    def _serialize(v):
+        if v is None:
+            return None
+        if isinstance(v, (datetime, date)):
+            return v.isoformat()
+        if isinstance(v, Decimal):
+            return float(v)
+        return v
+
+    inserted = []
+    try:
+        for row in rows:
+            row_cols = [c for c in row.keys() if c in columns]
+            if not row_cols:
+                continue
+            col_sql = ", ".join(f'"{c}"' for c in row_cols)
+            val_sql = ", ".join(f":v_{c}" for c in row_cols)
+            params = {f"v_{c}": row[c] for c in row_cols}
+            returning = ", ".join(f'"{c}"' for c in columns)
+            sql = f'INSERT INTO "{table}" ({col_sql}) VALUES ({val_sql}) RETURNING {returning}'
+            result = db.execute(text(sql), params)
+            db_row = result.fetchone()
+            if db_row:
+                keys = list(db_row._mapping.keys())
+                inserted.append(dict((k, _serialize(db_row._mapping[k])) for k in keys))
+        db.commit()
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+    return inserted
+
+
+@router.delete("/{table}")
+def delete_table(
+    request: Request,
+    table: str,
+    _payload: dict = Depends(require_jwt),
+    db: Session = Depends(get_db),
+):
+    if table not in ALLOWED_TABLES:
+        raise HTTPException(status_code=404, detail="Not Found")
+    q = dict(request.query_params)
+    columns = _get_columns(db, table)
+    if not columns:
+        raise HTTPException(status_code=500, detail="Table not found")
+    where_sql, params = _build_where_and_params(columns, q)
+    if where_sql == "1=1":
+        raise HTTPException(status_code=400, detail="DELETE requires at least one filter")
+    try:
+        sql = f'DELETE FROM "{table}" WHERE {where_sql}'
+        db.execute(text(sql), params)
+        db.commit()
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+    return {"ok": True}

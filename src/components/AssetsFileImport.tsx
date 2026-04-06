@@ -133,6 +133,7 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
   const [buildingCreateData, setBuildingCreateData] = useState<Partial<Building>>({});
   const [isCreatingBuilding, setIsCreatingBuilding] = useState(false);
   const [showColumnMappingModal, setShowColumnMappingModal] = useState(false);
+  const [showFormatInfo, setShowFormatInfo] = useState(false);
   const [fileHeaders, setFileHeaders] = useState<string[]>([]);
   const [columnMapping, setColumnMapping] = useState<Record<number, string>>({});
   const [pendingFileLines, setPendingFileLines] = useState<string[][]>([]);
@@ -286,7 +287,7 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
       originalHeaders.forEach((header, index) => {
         if (!header) return;
         const headerTrimmed = header.trim();
-        
+
         // Check for exact match against known headers
         for (const [fieldName, exactHeaderName] of Object.entries(exactHeaders)) {
           if (headerTrimmed.toLowerCase() === exactHeaderName.toLowerCase()) {
@@ -3375,7 +3376,7 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
   }
 
   return (
-    <div className="max-w-[95vw] mx-auto px-4 py-6">
+    <div className={`flex flex-col flex-1 min-h-0 w-full${importedAssets.length === 0 ? ' overflow-y-auto' : ''}`} style={{ maxWidth: '100vw' }}><div className={`max-w-[95vw] mx-auto px-4 w-full${importedAssets.length > 0 ? ' flex flex-col flex-1 min-h-0 py-2' : ' py-6'}`}>
       <div className="mb-6 page-header rounded-lg px-3 py-2">
         <div className="flex items-center gap-2">
           <div className="page-header-icon shrink-0">
@@ -3385,9 +3386,9 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
         </div>
       </div>
 
-      <div className="bg-white rounded-lg shadow-md border border-theme-card-border p-6">
+      <div className={`bg-white rounded-lg shadow-md border border-theme-card-border${importedAssets.length > 0 ? ' flex flex-col flex-1 min-h-0 p-2' : ' p-6'}`}>
         {/* Regular Import Section */}
-        {mode === 'regular' && (
+        {mode === 'regular' && importedAssets.length === 0 && (
         <div className="mb-6 p-4 bg-theme-highlight border border-theme-card-border rounded-lg">
           <div className="flex items-center gap-2 mb-3">
             <Upload className="h-5 w-5 text-theme-tab-active flex-shrink-0" />
@@ -3469,7 +3470,7 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
         )}
 
         {/* Skeleton Import Section */}
-        {mode === 'skeleton' && (
+        {mode === 'skeleton' && importedAssets.length === 0 && (
         <div className="mb-6 p-4 bg-orange-50 border border-orange-200 rounded-lg">
           <div className="flex items-center gap-2 mb-3">
             <Upload className="h-5 w-5 text-orange-600 flex-shrink-0" />
@@ -3553,7 +3554,7 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
 
         {/* Imported Assets Grid */}
         {importedAssets.length > 0 && (
-          <div className="mb-6">
+          <div className="mb-4 flex flex-col flex-1 min-h-0">
             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 mb-4">
               <h2 className="text-lg font-bold text-slate-900">
                 נכסים מיובאים ({importedAssets.length})
@@ -3713,8 +3714,8 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
               </div>
             </div>
 
-            <div className="bg-white rounded-xl shadow-lg hover:shadow-xl transition-shadow duration-200 overflow-hidden border-2 border-theme-action-accent w-full">
-              <div className="ag-theme-alpine" style={{ height: '60vh', width: '100%', minWidth: '100%', overflowX: 'auto' }}>
+            <div className="flex-1 min-h-0 flex flex-col bg-white rounded-xl shadow-lg hover:shadow-xl transition-shadow duration-200 overflow-hidden border-2 border-theme-action-accent w-full">
+              <div className="ag-theme-alpine flex-1 min-h-[200px]" style={{ width: '100%', minWidth: '100%', overflowX: 'auto' }}>
                 <AgGridReact
                 ref={gridRef}
                 rowData={displayedImportedAssets}
@@ -3770,11 +3771,17 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
         )}
 
         {/* Info Section */}
-        <div className="border-t border-slate-200 pt-6 space-y-4">
-          <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2">
-            <FileText className="h-5 w-5 text-theme-tab-active" />
+        <div className="border-t border-slate-200 pt-4">
+          <button
+            type="button"
+            onClick={() => setShowFormatInfo(v => !v)}
+            className="flex items-center gap-2 text-sm font-semibold text-theme-tab-active hover:text-theme-tab-active-hover transition-colors mb-2"
+          >
+            <FileText className="h-4 w-4" />
             פורמט קובץ Excel
-          </h2>
+            <span className="text-xs text-slate-400">{showFormatInfo ? '▲' : '▼'}</span>
+          </button>
+        {showFormatInfo && <div className="space-y-4">
           
           {mode === 'skeleton' ? (
             <div className="bg-slate-50 rounded-lg p-4 border border-slate-200">
@@ -3820,6 +3827,7 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
               </div>
             </div>
           )}
+        </div>}
         </div>
       </div>
 
@@ -4500,6 +4508,7 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
           </div>
         </div>
       )}
+    </div>
     </div>
   );
 }

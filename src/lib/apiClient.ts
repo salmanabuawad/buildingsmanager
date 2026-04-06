@@ -51,10 +51,8 @@ async function request<T>(
             ? raw
             : res.statusText ?? 'Request failed';
       if (res.status === 401 || (typeof message === 'string' && message.toLowerCase().includes('could not validate credentials'))) {
-        logoutUsersTable();
         if (typeof window !== 'undefined') {
           window.dispatchEvent(new CustomEvent('auth:unauthorized', { detail: { message } }));
-          window.location.href = '/';
         }
         return { data: null, error: { message, code: String(res.status) } };
       }
@@ -215,7 +213,8 @@ function from(table: string) {
         },
         in(col: string, vals: (string | number)[]) {
           if (vals.length === 0) return Promise.resolve({ data: null, error: null });
-          return runDelete({ ...deleteFilters, [col]: vals });
+          if (vals.length === 1) return runDelete({ ...deleteFilters, [col]: vals[0] });
+          return runDelete({ ...deleteFilters, [col + '__in']: vals.join(',') });
         },
         then(
           resolve?: (r: { data: unknown; error: ApiError | null }) => unknown,

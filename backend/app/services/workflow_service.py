@@ -287,6 +287,21 @@ def copy_asset_to_history(db: Session, asset_id: int) -> bool:
     return True
 
 
+def _get_building_shared_areas(db: Session, building_number: Any) -> tuple[float, float]:
+    """Return (residence_shared_area, business_shared_area). Returns (0, 0) if building not found."""
+    row = db.execute(
+        text(
+            'SELECT COALESCE("residence_shared_area", 0) AS res_area, '
+            'COALESCE("business_shared_area", 0) AS biz_area '
+            'FROM "buildings" WHERE "building_number" = :building_number'
+        ),
+        {"building_number": building_number},
+    ).mappings().first()
+    if row is None:
+        return 0.0, 0.0
+    return float(row["res_area"]), float(row["biz_area"])
+
+
 def _get_asset_type_details(db: Session, type_name: Any) -> tuple[str | None, bool]:
     if type_name is None or str(type_name).strip() == "":
         return None, False
@@ -324,29 +339,46 @@ def _set_distribution_flags_for_asset_type_change(
         return {"business_flag_set": False, "residence_flag_set": False}
 
     business_residence = new_business_residence or old_business_residence
+    res_area, biz_area = _get_building_shared_areas(db, building_number)
+
     if business_residence == "business":
+        if biz_area > 0:
+            db.execute(
+                text('UPDATE "buildings" SET "need_business_distribution" = true WHERE "building_number" = :building_number'),
+                {"building_number": building_number},
+            )
+        return {"business_flag_set": biz_area > 0, "residence_flag_set": False}
+    if business_residence == "residence":
+        if res_area > 0:
+            db.execute(
+                text('UPDATE "buildings" SET "need_residence_distribution" = true WHERE "building_number" = :building_number'),
+                {"building_number": building_number},
+            )
+        return {"business_flag_set": False, "residence_flag_set": res_area > 0}
+
+    biz_set = biz_area > 0
+    res_set = res_area > 0
+    if biz_set and res_set:
+        db.execute(
+            text(
+                'UPDATE "buildings" SET '
+                '"need_business_distribution" = true, '
+                '"need_residence_distribution" = true '
+                'WHERE "building_number" = :building_number'
+            ),
+            {"building_number": building_number},
+        )
+    elif biz_set:
         db.execute(
             text('UPDATE "buildings" SET "need_business_distribution" = true WHERE "building_number" = :building_number'),
             {"building_number": building_number},
         )
-        return {"business_flag_set": True, "residence_flag_set": False}
-    if business_residence == "residence":
+    elif res_set:
         db.execute(
             text('UPDATE "buildings" SET "need_residence_distribution" = true WHERE "building_number" = :building_number'),
             {"building_number": building_number},
         )
-        return {"business_flag_set": False, "residence_flag_set": True}
-
-    db.execute(
-        text(
-            'UPDATE "buildings" SET '
-            '"need_business_distribution" = true, '
-            '"need_residence_distribution" = true '
-            'WHERE "building_number" = :building_number'
-        ),
-        {"building_number": building_number},
-    )
-    return {"business_flag_set": True, "residence_flag_set": True}
+    return {"business_flag_set": biz_set, "residence_flag_set": res_set}
 
 
 def save_assets_bulk_transactional(
@@ -500,26 +532,41 @@ def delete_asset_transactional(
     update_building_total_area(db, int(building_number))
 
     business_residence, _ = _get_asset_type_details(db, main_asset_type)
+    res_area, biz_area = _get_building_shared_areas(db, building_number)
+
     if business_residence == "business":
-        db.execute(
-            text('UPDATE "buildings" SET "need_business_distribution" = true WHERE "building_number" = :building_number'),
-            {"building_number": building_number},
-        )
+        if biz_area > 0:
+            db.execute(
+                text('UPDATE "buildings" SET "need_business_distribution" = true WHERE "building_number" = :building_number'),
+                {"building_number": building_number},
+            )
     elif business_residence == "residence":
-        db.execute(
-            text('UPDATE "buildings" SET "need_residence_distribution" = true WHERE "building_number" = :building_number'),
-            {"building_number": building_number},
-        )
+        if res_area > 0:
+            db.execute(
+                text('UPDATE "buildings" SET "need_residence_distribution" = true WHERE "building_number" = :building_number'),
+                {"building_number": building_number},
+            )
     else:
-        db.execute(
-            text(
-                'UPDATE "buildings" SET '
-                '"need_business_distribution" = true, '
-                '"need_residence_distribution" = true '
-                'WHERE "building_number" = :building_number'
-            ),
-            {"building_number": building_number},
-        )
+        if biz_area > 0 and res_area > 0:
+            db.execute(
+                text(
+                    'UPDATE "buildings" SET '
+                    '"need_business_distribution" = true, '
+                    '"need_residence_distribution" = true '
+                    'WHERE "building_number" = :building_number'
+                ),
+                {"building_number": building_number},
+            )
+        elif biz_area > 0:
+            db.execute(
+                text('UPDATE "buildings" SET "need_business_distribution" = true WHERE "building_number" = :building_number'),
+                {"building_number": building_number},
+            )
+        elif res_area > 0:
+            db.execute(
+                text('UPDATE "buildings" SET "need_residence_distribution" = true WHERE "building_number" = :building_number'),
+                {"building_number": building_number},
+            )
 
     _insert_audit_row(
         db,

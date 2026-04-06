@@ -3,10 +3,10 @@ import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
 import { Asset, Building, AssetType, AddressList, Operator, api, validateAndSaveBulkAssets } from '../lib/api';
 import { getAssetFileBlobForZip } from '../lib/apiClient';
-import { assetValidators, validateAll, inputValidators, validateEntity } from '../lib/validation';
+import { assetValidators } from '../lib/validation';
 import { AssetValidationHandler } from '../lib/assetValidationHandler';
 import { AgGridReact } from 'ag-grid-react';
-import { ColDef, IDetailCellRendererParams, ICellEditorParams } from 'ag-grid-community';
+import { ColDef, ICellEditorParams } from 'ag-grid-community';
 import { Building as BuildingIcon, AlertCircle, ChevronDown, ChevronRight, Loader2, Save, X, Plus, Trash2, Check, CheckCircle2, Download, MoveLeft, Upload, FileSpreadsheet, History, Share2, MapPin, MessageSquare, FileText, BarChart3, Copy } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { ValidationResultModal, BatchValidationResults, ValidationProgress } from './ValidationResultModal';
@@ -32,6 +32,33 @@ import { Toast } from './Toast';
 import { FileViewer } from './FileViewer';
 import { AssetFilesModal } from './AssetFilesModal';
 import { AssetStatisticsModal } from './AssetStatisticsModal';
+const ASSETS_GRID_DEFAULT_COL_DEF = {
+  resizable: false,
+  wrapHeaderText: true,
+  autoHeaderHeight: true,
+  wrapText: true,
+  autoHeight: false,
+  headerClass: 'ag-right-aligned-header',
+  headerStyle: { fontSize: '11px', textAlign: 'right' as const, fontWeight: 'normal', WebkitFontSmoothing: 'antialiased', MozOsxFontSmoothing: 'grayscale' },
+  cellStyle: { textAlign: 'right' as const },
+  minWidth: 40,
+};
+
+const ASSETS_GRID_OPTIONS = {
+  suppressColumnVirtualisation: false,
+  alwaysShowHorizontalScroll: true,
+  suppressMovableColumns: true,
+  suppressColumnMoveAnimation: true,
+  rowBuffer: 10,
+  debounceVerticalScrollbar: false,
+  suppressRowVirtualisation: false,
+  suppressCellFocus: false,
+  suppressScrollOnNewData: true,
+  enableCellTextSelection: false,
+  suppressAnimationFrame: false,
+  singleClickEdit: false,
+};
+
 interface AssetsListProps {
   buildingNumber: number;
   taxRegion?: string;
@@ -384,6 +411,16 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
   const [sourceAssetId, setSourceAssetId] = useState<string | null>(null);
   const [exportToAutomationCount, setExportToAutomationCount] = useState<number>(0);
 
+  // Original-format file import
+  const originalImportInputRef = useRef<HTMLInputElement>(null);
+  const [originalImportState, setOriginalImportState] = useState<{
+    status: 'idle' | 'parsing' | 'preview' | 'saving' | 'done';
+    assets: import('../lib/transformOriginalImportFile').TransformedAsset[];
+    totalSharedArea: number;
+    warnings: string[];
+    error: string | null;
+  }>({ status: 'idle', assets: [], totalSharedArea: 0, warnings: [], error: null });
+
   // Any change invalidates the last validation snapshot (user must re-validate).
   useEffect(() => {
     const hasChanges = dirtyAssets.size > 0 || newAssets.size > 0 || deletedAssets.size > 0;
@@ -393,6 +430,7 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [dirtyAssets, newAssets, deletedAssets]);
+
 
   
   // Save tax region in a variable for validation handler
@@ -3455,7 +3493,7 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
     // This includes restoring deleted assets and removing new assets
     const restored = JSON.parse(JSON.stringify(originalAssets));
     setAssets(restored);
-    
+
     // Clear all change tracking
     setDirtyAssets(new Map());
     setDeletedAssets(new Set());
@@ -4494,6 +4532,94 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
   }, [building, assets, assetTypes, dirtyAssets, deletedAssets, isAssetNotAccountableForDistribution]);
 
   // Export assets to Excel
+  // ---- Original-format file import ----
+  const handleOriginalImportFileChange = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    e.target.value = '';
+
+    const effectiveTaxRegion = taxRegion ? parseInt(taxRegion, 10) : (building?.tax_region ? parseInt(String(building.tax_region).split(',')[0].trim(), 10) : NaN);
+    if (!buildingNumber || isNaN(effectiveTaxRegion)) {
+      setToast({ message: 'לא ניתן לקבוע מספר מבנה או אזור מס', type: 'error' });
+      setTimeout(() => setToast(null), 4000);
+      return;
+    }
+
+    setOriginalImportState({ status: 'parsing', assets: [], totalSharedArea: 0, warnings: [], error: null });
+    try {
+      const { transformOriginalImportFile } = await import('../lib/transformOriginalImportFile');
+      const result = await transformOriginalImportFile(file, buildingNumber, effectiveTaxRegion);
+      setOriginalImportState({ status: 'preview', assets: result.assets, totalSharedArea: result.totalSharedArea, warnings: result.warnings, error: null });
+    } catch (err) {
+      setOriginalImportState({ status: 'idle', assets: [], totalSharedArea: 0, warnings: [], error: err instanceof Error ? err.message : String(err) });
+      setToast({ message: `שגיאה בקריאת הקובץ: ${err instanceof Error ? err.message : String(err)}`, type: 'error' });
+      setTimeout(() => setToast(null), 6000);
+    }
+  }, [buildingNumber, taxRegion, building]);
+
+  const handleOriginalImportConfirm = useCallback(async () => {
+    const { assets, totalSharedArea } = originalImportState;
+    if (!assets.length) return;
+    setOriginalImportState(s => ({ ...s, status: 'saving', error: null }));
+
+    try {
+      const { assetsSaveBulkTransactional } = await import('../lib/restClient');
+      const today = new Date();
+      const dd = String(today.getDate()).padStart(2, '0');
+      const mm = String(today.getMonth() + 1).padStart(2, '0');
+      const yyyy = today.getFullYear();
+      const measurementDate = `${dd}/${mm}/${yyyy}`;
+
+      const assetsPayload = assets.map(a => ({
+        ...a,
+        measurement_date: measurementDate,
+        sub_asset_type_1: a.sub_asset_type_1 || null,
+        sub_asset_size_1: a.sub_asset_size_1 || null,
+        sub_asset_type_2: a.sub_asset_type_2 || null,
+        sub_asset_size_2: a.sub_asset_size_2 || null,
+        sub_asset_type_3: a.sub_asset_type_3 || null,
+        sub_asset_size_3: a.sub_asset_size_3 || null,
+        sub_asset_type_4: a.sub_asset_type_4 || null,
+        sub_asset_size_4: a.sub_asset_size_4 || null,
+        sub_asset_type_5: a.sub_asset_type_5 || null,
+        sub_asset_size_5: a.sub_asset_size_5 || null,
+        sub_asset_type_6: a.sub_asset_type_6 || null,
+        sub_asset_size_6: a.sub_asset_size_6 || null,
+      }));
+
+      const { error: saveError } = await assetsSaveBulkTransactional({
+        p_assets_data: assetsPayload,
+        p_validation_passed: true,
+        p_action_type: 'manual_update',
+      }) as { error?: { message: string } };
+
+      if (saveError) {
+        setOriginalImportState(s => ({ ...s, status: 'preview', error: (saveError as { message: string }).message }));
+        return;
+      }
+
+      // Update building residence_shared_area = sum of type-251 areas
+      if (totalSharedArea > 0) {
+        const { buildingsBulkDistributionFlags } = await import('../lib/restClient');
+        await buildingsBulkDistributionFlags({
+          p_buildings_data: [{
+            building_number: buildingNumber,
+            updates: { residence_shared_area: totalSharedArea },
+          }],
+        });
+      }
+
+      setOriginalImportState({ status: 'done', assets: [], totalSharedArea: 0, warnings: [], error: null });
+      setToast({ message: `יובאו ${assets.length} נכסים בהצלחה${totalSharedArea > 0 ? ` | שטח משותף מגורים עודכן: ${totalSharedArea} מ"ר` : ''}`, type: 'success' });
+      setTimeout(() => setToast(null), 6000);
+
+      // Reload assets
+      fetchData(true);
+    } catch (err) {
+      setOriginalImportState(s => ({ ...s, status: 'preview', error: err instanceof Error ? err.message : String(err) }));
+    }
+  }, [originalImportState, buildingNumber]);
+
   const handleExportToExcel = useCallback(async () => {
     if (!assets || assets.length === 0) {
       setToast({ message: 'אין נכסים לייצוא', type: 'error' });
@@ -6248,6 +6374,27 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
               <span>{selectedAssets.size > 0 ? `אמת נבחרים (${selectedAssets.size})` : 'אמת הכל'}</span>
             </button>
             {!isErrorFixingMode && (
+              <>
+                <input
+                  ref={originalImportInputRef}
+                  type="file"
+                  accept=".xlsx,.xls"
+                  className="hidden"
+                  onChange={handleOriginalImportFileChange}
+                />
+                <button
+                  type="button"
+                  onClick={() => originalImportInputRef.current?.click()}
+                  disabled={originalImportState.status === 'parsing' || originalImportState.status === 'saving'}
+                  className="btn btn-action btn-primary"
+                  title="ייבוא מקובץ מקורי (פורמט עירייה)"
+                >
+                  <Upload className="h-5 w-5" />
+                  <span>{originalImportState.status === 'parsing' ? 'קורא...' : 'ייבוא מקורי'}</span>
+                </button>
+              </>
+            )}
+            {!isErrorFixingMode && (
               <button
                 type="button"
                 onClick={handleExportToExcel}
@@ -6496,31 +6643,8 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
             rowData={sortedAssets}
             columnDefs={configuredColumnDefs}
             getRowStyle={getRowStyle}
-            defaultColDef={{
-              resizable: false, // Disabled - use field configurations instead
-              wrapHeaderText: true,
-              autoHeaderHeight: true,
-              wrapText: true,
-              autoHeight: false,
-              headerClass: 'ag-right-aligned-header',
-              headerStyle: { fontSize: '11px', textAlign: 'right', fontWeight: 'normal', WebkitFontSmoothing: 'antialiased', MozOsxFontSmoothing: 'grayscale' },
-              cellStyle: { textAlign: 'right' },
-              minWidth: 40
-            }}
-            gridOptions={{
-              suppressColumnVirtualisation: false,
-              alwaysShowHorizontalScroll: true,
-              suppressMovableColumns: true,
-              suppressColumnMoveAnimation: true,
-              rowBuffer: 10,
-              debounceVerticalScrollbar: false,
-              suppressRowVirtualisation: false,
-              suppressCellFocus: false,
-              suppressScrollOnNewData: true,
-              enableCellTextSelection: false,
-              suppressAnimationFrame: false,
-              singleClickEdit: false, // Require double-click to edit
-            }}
+            defaultColDef={ASSETS_GRID_DEFAULT_COL_DEF}
+            gridOptions={ASSETS_GRID_OPTIONS}
             rowSelection={{
               mode: 'singleRow',
               enableClickSelection: true,
@@ -6823,6 +6947,58 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
         assetTypes={assetTypes}
         buildingNumber={buildingNumber}
       />
+
+      {/* Original-format import preview modal */}
+      {(originalImportState.status === 'preview' || originalImportState.status === 'saving') && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
+          <div className="bg-white rounded-lg shadow-xl max-w-lg w-full mx-4 flex flex-col max-h-[80vh]">
+            <div className="flex items-center justify-between p-4 border-b border-gray-200">
+              <h2 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+                <Upload className="h-5 w-5 text-theme-tab-active" />
+                ייבוא מקובץ מקורי
+              </h2>
+              <button onClick={() => setOriginalImportState(s => ({ ...s, status: 'idle' }))} className="text-gray-400 hover:text-gray-600">
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            <div className="p-4 overflow-y-auto flex-1 space-y-3 text-right">
+              <div className="bg-theme-highlight rounded-lg p-3 text-sm space-y-1">
+                <div><span className="font-semibold">נכסים לייבוא: </span>{originalImportState.assets.length}</div>
+                {originalImportState.totalSharedArea > 0 && (
+                  <div><span className="font-semibold">שטח משותף מגורים (251) שיעודכן למבנה: </span>{originalImportState.totalSharedArea.toLocaleString('he-IL')} מ"ר</div>
+                )}
+              </div>
+              {originalImportState.warnings.length > 0 && (
+                <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 text-xs space-y-1">
+                  {originalImportState.warnings.map((w, i) => <div key={i} className="text-yellow-800">⚠ {w}</div>)}
+                </div>
+              )}
+              {originalImportState.error && (
+                <div className="bg-red-50 border border-red-200 rounded-lg p-3 text-sm text-red-700">{originalImportState.error}</div>
+              )}
+              <div className="text-xs text-gray-500">
+                הנכסים ייובאו עם תאריך מדידה של היום. נכסים קיימים עם אותו מזהה יוחלפו.
+              </div>
+            </div>
+            <div className="flex justify-end gap-3 p-4 border-t border-gray-200">
+              <button
+                onClick={() => setOriginalImportState(s => ({ ...s, status: 'idle' }))}
+                disabled={originalImportState.status === 'saving'}
+                className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 disabled:opacity-50"
+              >
+                ביטול
+              </button>
+              <button
+                onClick={handleOriginalImportConfirm}
+                disabled={originalImportState.status === 'saving'}
+                className="px-4 py-2 text-sm font-medium text-white bg-green-600 rounded-lg hover:bg-green-700 disabled:opacity-50 flex items-center gap-2"
+              >
+                {originalImportState.status === 'saving' ? <><Loader2 className="h-4 w-4 animate-spin" />שומר...</> : <><Check className="h-4 w-4" />אשר ייבוא</>}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
     </>
   );

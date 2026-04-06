@@ -217,6 +217,77 @@ async def insert_table(
     return inserted
 
 
+@router.post("/{table}/upsert")
+async def upsert_table(
+    request: Request,
+    table: str,
+    _payload: dict = Depends(require_jwt),
+    db: Session = Depends(get_db),
+):
+    if table not in ALLOWED_TABLES:
+        raise HTTPException(status_code=404, detail="Not Found")
+    body = await request.json()
+    rows = body.get("rows", [])
+    on_conflict = body.get("onConflict", "")
+    if isinstance(rows, dict):
+        rows = [rows]
+    if not rows:
+        return []
+    columns = _get_columns(db, table)
+    if not columns:
+        raise HTTPException(status_code=500, detail="Table not found")
+
+    def _serialize(v):
+        if v is None:
+            return None
+        if isinstance(v, (datetime, date)):
+            return v.isoformat()
+        if isinstance(v, Decimal):
+            return float(v)
+        return v
+
+    upserted = []
+    try:
+        for row in rows:
+            row_cols = [c for c in row.keys() if c in columns]
+            if not row_cols:
+                continue
+            params = {f"v_{c}": row[c] for c in row_cols}
+            col_sql = ", ".join(f'"{c}"' for c in row_cols)
+            val_sql = ", ".join(f":v_{c}" for c in row_cols)
+            returning = ", ".join(f'"{c}"' for c in columns)
+
+            if on_conflict and on_conflict in columns:
+                # Columns to update on conflict (all except the conflict key and immutable cols)
+                update_cols = [c for c in row_cols if c != on_conflict and c not in ("id", "created_at", "created_by")]
+                if update_cols:
+                    set_sql = ", ".join(f'"{c}" = EXCLUDED."{c}"' for c in update_cols)
+                    sql = (
+                        f'INSERT INTO "{table}" ({col_sql}) VALUES ({val_sql}) '
+                        f'ON CONFLICT ("{on_conflict}") DO UPDATE SET {set_sql} '
+                        f'RETURNING {returning}'
+                    )
+                else:
+                    sql = (
+                        f'INSERT INTO "{table}" ({col_sql}) VALUES ({val_sql}) '
+                        f'ON CONFLICT ("{on_conflict}") DO NOTHING '
+                        f'RETURNING {returning}'
+                    )
+            else:
+                sql = f'INSERT INTO "{table}" ({col_sql}) VALUES ({val_sql}) RETURNING {returning}'
+
+            result = db.execute(text(sql), params)
+            db_row = result.fetchone()
+            if db_row:
+                keys = list(db_row._mapping.keys())
+                upserted.append(dict((k, _serialize(db_row._mapping[k])) for k in keys))
+        db.commit()
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+    return upserted
+
+
 @router.delete("/{table}")
 def delete_table(
     request: Request,

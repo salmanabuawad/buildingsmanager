@@ -6,6 +6,7 @@ set -e
 REMOTE_USER="root"
 REMOTE_HOST="profile.wavelync.com"
 REMOTE_APP_DIR="/home/profilegroup/app"
+REMOTE_WEB_ROOT="/var/www/buildingsmanager"
 SSH_KEY="$HOME/.ssh/id_ed25519"
 UVICORN_PID_CMD="pgrep -u profilegroup -f 'uvicorn app.main:app' | head -1"
 
@@ -46,12 +47,12 @@ echo "      Build complete."
 
 echo "[2/3] Deploying frontend to server..."
 # Clear remote assets dir to remove stale hashed files, then copy fresh
-ssh_run "rm -rf $REMOTE_APP_DIR/dist/assets && mkdir -p $REMOTE_APP_DIR/dist/assets"
-scp -i "$SSH_KEY" -r dist/assets/* "$REMOTE_USER@$REMOTE_HOST:$REMOTE_APP_DIR/dist/assets/"
-scp_file "dist/index.html" "$REMOTE_APP_DIR/dist/index.html"
+ssh_run "rm -rf $REMOTE_WEB_ROOT/assets && mkdir -p $REMOTE_WEB_ROOT/assets"
+scp -i "$SSH_KEY" -r dist/assets/* "$REMOTE_USER@$REMOTE_HOST:$REMOTE_WEB_ROOT/assets/"
+scp_file "dist/index.html" "$REMOTE_WEB_ROOT/index.html"
 # Copy any other top-level dist files (favicon, config.js, etc.) if present
 for f in dist/*.js dist/*.svg dist/*.ico dist/*.png dist/*.txt; do
-  [ -f "$f" ] && scp_file "$f" "$REMOTE_APP_DIR/dist/"
+  [ -f "$f" ] && scp_file "$f" "$REMOTE_WEB_ROOT/"
 done
 echo "      Frontend deployed."
 

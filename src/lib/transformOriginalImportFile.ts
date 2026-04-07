@@ -10,6 +10,7 @@
  */
 
 import * as XLSX from 'xlsx';
+import { getDefaultComplexTypeName } from './validation';
 
 export interface TransformedAsset {
   building_number: number;
@@ -44,7 +45,8 @@ const STORAGE_TYPE_CODE = '250';
 const SHARED_TYPE_CODE = '251';
 const POOL_DESCRIPTION = 'בריכה';
 const POOL_TYPE_CODE = '800';
-const MULTI_TYPE_CODE = '199';
+// Get the default complex type from asset_types table (fallback to '199' if not loaded yet)
+const getMultiTypeCode = (): string => getDefaultComplexTypeName() ?? '199';
 
 function toStr(v: unknown): string | null {
   if (v === null || v === undefined || v === '') return null;
@@ -177,7 +179,7 @@ export function transformOriginalImportFile(
               building_number: buildingNumber,
               asset_id: assetId,
               tax_region: taxRegion,
-              main_asset_type: MULTI_TYPE_CODE,
+              main_asset_type: getMultiTypeCode(),
               asset_size: Math.round(totalSize * 100) / 100,
               sub_asset_type_1: sub[0]?.type ?? '', sub_asset_size_1: sub[0]?.size ?? 0,
               sub_asset_type_2: sub[1]?.type ?? '', sub_asset_size_2: sub[1]?.size ?? 0,

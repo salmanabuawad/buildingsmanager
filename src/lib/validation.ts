@@ -71,7 +71,7 @@ export async function refreshAssetTypesCache(): Promise<void> {
     // Explicitly select all fields including business_residence
     const { data, error } = await api
       .from('asset_types')
-      .select('id, name, description, tax_region, elevator, single_double_family, penthouse, condo, townhouses, business_residence, min_size, max_size, active, non_accountable_for_total_area, non_accountable_for_distribution, not_accountable_for_statistics, area_description_for_tab, created_at, updated_at')
+      .select('id, name, description, tax_region, elevator, single_double_family, penthouse, condo, townhouses, business_residence, min_size, max_size, active, non_accountable_for_total_area, non_accountable_for_distribution, not_accountable_for_statistics, area_description_for_tab, can_be_subtype, min_sub_types_number, use_shared_area, use_for_parking_shared_area, created_at, updated_at')
       .order('name');
 
     if (error) {
@@ -229,7 +229,6 @@ export function getAssetTypesByName(name: string): any[] {
 /**
  * Returns true if the asset type is a "complex" type (can have sub-assets but cannot itself be a subtype).
  * Determined by can_be_subtype === false on the asset_types table.
- * Falls back to legacy '199'/'299' check if type not found in cache.
  */
 export function isComplexAssetType(typeName: string | undefined, assetTypes?: any[]): boolean {
   if (!typeName) return false;
@@ -237,8 +236,7 @@ export function isComplexAssetType(typeName: string | undefined, assetTypes?: an
   const typeStr = String(typeName).trim();
   const found = types.find((at: any) => String(at.name).trim() === typeStr);
   if (!found) {
-    // Fallback to legacy check when cache is not yet populated
-    return typeName === '199' || typeName === '299';
+    return false;
   }
   return found.can_be_subtype === false;
 }
@@ -246,7 +244,6 @@ export function isComplexAssetType(typeName: string | undefined, assetTypes?: an
 /**
  * Returns the minimum number of sub-assets required for an asset type.
  * Determined by min_sub_types_number on the asset_types table.
- * Falls back to 2 for legacy '199'/'299' if type not found in cache.
  */
 export function getMinSubtypesCount(typeName: string | undefined, assetTypes?: any[]): number {
   if (!typeName) return 0;
@@ -254,10 +251,19 @@ export function getMinSubtypesCount(typeName: string | undefined, assetTypes?: a
   const typeStr = String(typeName).trim();
   const found = types.find((at: any) => String(at.name).trim() === typeStr);
   if (!found) {
-    if (typeName === '199' || typeName === '299') return 2;
     return 0;
   }
   return found.min_sub_types_number ?? 0;
+}
+
+/**
+ * Returns the name of the first complex asset type (can_be_subtype=false) from the asset_types table.
+ * Used as the default complex type when converting a simple asset to have sub-assets.
+ */
+export function getDefaultComplexTypeName(assetTypes?: any[]): string | null {
+  const types = assetTypes ?? getAssetTypes();
+  const found = types.find((at: any) => at.can_be_subtype === false);
+  return found ? String(found.name).trim() : null;
 }
 
 // Memoization cache for getValidTaxRegionsForAssetType
@@ -1409,14 +1415,12 @@ export async function validateMinimumSubAssets(
 }
 
 /**
- * HARDCODED RULE: Only asset types 199 and 299 can have sub-assets
- * This is one of the ONLY hardcoded rules allowed:
- * 1. Only 199 and 299 can be main types (and have subtypes)
- * 2. 199 and 299 cannot be subtypes
- * 3. 199 and 299 require at least 2 subtypes
+ * Only complex asset types (can_be_subtype=false in asset_types table) can have sub-assets.
+ * Rules:
+ * 1. Only complex types can be main types (and have subtypes)
+ * 2. Complex types cannot themselves be subtypes
+ * 3. Complex types require at least min_sub_types_number subtypes (from asset_types table)
  * 4. Subtypes have no holes (must be consecutive, no gaps)
- * 
- * All other validations must use the asset_types table (no hardcoded tax region 40 or other validations)
  */
 export async function validateOnlyComplexTypesCanHaveSubAssets(
   mainAssetType: string | undefined,
@@ -1458,11 +1462,17 @@ export async function validateOnlyComplexTypesCanHaveSubAssets(
     return { valid: true };
   }
   
-  // Only complex types (can_be_subtype=false) can have sub-assets
+  // Only complex types (can_be_subtype=false in asset_types table) can have sub-assets
   if (!mainAssetType || !isComplexAssetType(mainAssetType)) {
+    // Build a list of complex type names for the error message
+    const assetTypes = getAssetTypes();
+    const complexTypeNames = assetTypes
+      .filter((at: any) => at.can_be_subtype === false)
+      .map((at: any) => String(at.name).trim());
+    const complexList = complexTypeNames.length > 0 ? complexTypeNames.join(', ') : '';
     return {
       valid: false,
-      error: 'רק סוגי נכס מורכבים (כגון 199, 299) יכולים לכלול נכסי משנה. נכסי משנה לא מותרים עבור סוגי נכס אחרים'
+      error: `רק סוגי נכס מורכבים${complexList ? ` (${complexList})` : ''} יכולים לכלול נכסי משנה. נכסי משנה לא מותרים עבור סוגי נכס אחרים`
     };
   }
 
@@ -1470,14 +1480,8 @@ export async function validateOnlyComplexTypesCanHaveSubAssets(
 }
 
 /**
- * HARDCODED RULE: Asset types 199 and 299 require at least 2 subtypes
- * This is one of the ONLY hardcoded rules allowed:
- * 1. Only 199 and 299 can be main types (and have subtypes)
- * 2. 199 and 299 cannot be subtypes
- * 3. 199 and 299 require at least 2 subtypes
- * 4. Subtypes have no holes (must be consecutive, no gaps)
- * 
- * All other validations must use the asset_types table
+ * Complex asset types (can_be_subtype=false) must have at least min_sub_types_number subtypes.
+ * Determined by min_sub_types_number field in the asset_types table.
  */
 export async function validateComplexTypesMustHaveSubAssets(
   mainAssetType: string | undefined,

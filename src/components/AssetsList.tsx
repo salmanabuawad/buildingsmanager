@@ -16,7 +16,7 @@ import { ChangeTaxRegionModal } from './ChangeTaxRegionModal';
 import { useValidationRules } from '../contexts/ValidationContext';
 import { compressFile } from '../lib/fileCompression';
 import { formatDateToDDMMYYYY } from '../lib/dateUtils';
-import { getAssetTypes, setLatestExportDate, isComplexAssetType } from '../lib/validation';
+import { getAssetTypes, setLatestExportDate, isComplexAssetType, getDefaultComplexTypeName } from '../lib/validation';
 import { createExcelBlob } from '../lib/excelExport';
 import { createAndDownloadZip } from '../lib/zipExport';
 import { numericValueParser, numericValueParserInt } from '../lib/numberUtils';
@@ -3940,8 +3940,11 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
               changes.sub_asset_size_1 = currentAssetSize || 0;
             }
 
-            // Set main type to 199
-            changes.main_asset_type = '199';
+            // Set main type to the default complex type from asset_types table
+            const defaultComplexType = getDefaultComplexTypeName();
+            if (defaultComplexType) {
+              changes.main_asset_type = defaultComplexType;
+            }
           }
 
           // Determine target position for shared area subtype
@@ -6375,16 +6378,7 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
                   className="hidden"
                   onChange={handleOriginalImportFileChange}
                 />
-                <button
-                  type="button"
-                  onClick={() => originalImportInputRef.current?.click()}
-                  disabled={originalImportState.status === 'parsing' || originalImportState.status === 'saving'}
-                  className="btn btn-action btn-primary hidden"
-                  title="ייבוא מקובץ מקורי (פורמט עירייה)"
-                >
-                  <Upload className="h-5 w-5" />
-                  <span>{originalImportState.status === 'parsing' ? 'קורא...' : 'ייבוא מקורי'}</span>
-                </button>
+                {/* Original import button - hidden, kept for future use */}
               </>
             )}
             {!isErrorFixingMode && (

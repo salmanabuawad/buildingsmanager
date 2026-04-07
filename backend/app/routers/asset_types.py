@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, status, Body
 from sqlalchemy.orm import Session
 from typing import List
 from app.database import get_db
-from app.models import AssetType, User
+from app.models import AssetType
 from app.schemas import AssetTypeBase, AssetTypeResponse
 from app.auth import get_current_user, require_jwt
 from app.services.workflow_service import (
@@ -16,7 +16,7 @@ router = APIRouter()
 @router.get("/", response_model=List[AssetTypeResponse])
 def get_asset_types(
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user=Depends(get_current_user)
 ):
     asset_types = db.query(AssetType).all()
     return asset_types
@@ -26,7 +26,7 @@ def get_asset_types(
 def get_asset_type(
     asset_type_id: int,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user=Depends(get_current_user)
 ):
     asset_type = db.query(AssetType).filter(AssetType.id == asset_type_id).first()
     if not asset_type:
@@ -38,7 +38,7 @@ def get_asset_type(
 def create_asset_type(
     asset_type: AssetTypeBase,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user=Depends(get_current_user)
 ):
     if current_user.role != "admin":
         raise HTTPException(status_code=403, detail="Admin access required")

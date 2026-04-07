@@ -5,7 +5,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import text
 from typing import List, Optional, Any
 from app.database import get_db
-from app.models import Asset, User
+from app.models import Asset
 from app.schemas import AssetCreate, AssetUpdate, AssetResponse
 from app.auth import get_current_user, require_jwt
 from app.services.workflow_service import (
@@ -23,13 +23,13 @@ router = APIRouter()
 def get_assets(
     skip: int = 0,
     limit: int = 5000,
-    building_id: Optional[int] = None,
+    building_number: Optional[int] = None,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user=Depends(get_current_user)
 ):
     query = db.query(Asset)
-    if building_id:
-        query = query.filter(Asset.building_id == building_id)
+    if building_number:
+        query = query.filter(Asset.building_number == building_number)
     assets = query.offset(skip).limit(limit).all()
     return assets
 
@@ -322,9 +322,9 @@ def asset_delete_bulk_transactional(
 
 @router.get("/{asset_id}", response_model=AssetResponse)
 def get_asset(
-    asset_id: str,
+    asset_id: int,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user=Depends(get_current_user)
 ):
     asset = db.query(Asset).filter(Asset.asset_id == asset_id).first()
     if not asset:
@@ -336,7 +336,7 @@ def get_asset(
 def create_asset(
     asset: AssetCreate,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user=Depends(get_current_user)
 ):
     if current_user.role not in ["admin", "editor"]:
         raise HTTPException(status_code=403, detail="Insufficient permissions")
@@ -345,11 +345,7 @@ def create_asset(
     if existing:
         raise HTTPException(status_code=400, detail="Asset ID already exists")
 
-    db_asset = Asset(
-        **asset.dict(),
-        created_by=current_user.id,
-        updated_by=current_user.id
-    )
+    db_asset = Asset(**asset.dict())
     db.add(db_asset)
     db.commit()
     db.refresh(db_asset)
@@ -358,10 +354,10 @@ def create_asset(
 
 @router.put("/{asset_id}", response_model=AssetResponse)
 def update_asset(
-    asset_id: str,
+    asset_id: int,
     asset_update: AssetUpdate,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user=Depends(get_current_user)
 ):
     if current_user.role not in ["admin", "editor"]:
         raise HTTPException(status_code=403, detail="Insufficient permissions")
@@ -373,7 +369,6 @@ def update_asset(
     for key, value in asset_update.dict(exclude_unset=True).items():
         setattr(db_asset, key, value)
 
-    db_asset.updated_by = current_user.id
     db.commit()
     db.refresh(db_asset)
     return db_asset
@@ -381,9 +376,9 @@ def update_asset(
 
 @router.delete("/{asset_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_asset(
-    asset_id: str,
+    asset_id: int,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user=Depends(get_current_user)
 ):
     if current_user.role != "admin":
         raise HTTPException(status_code=403, detail="Insufficient permissions")
@@ -401,7 +396,7 @@ def delete_asset(
 def bulk_create_or_update_assets(
     assets: List[AssetCreate],
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user=Depends(get_current_user)
 ):
     if current_user.role not in ["admin", "editor"]:
         raise HTTPException(status_code=403, detail="Insufficient permissions")
@@ -412,14 +407,9 @@ def bulk_create_or_update_assets(
         if existing:
             for key, value in asset_data.dict(exclude_unset=True).items():
                 setattr(existing, key, value)
-            existing.updated_by = current_user.id
             result_assets.append(existing)
         else:
-            new_asset = Asset(
-                **asset_data.dict(),
-                created_by=current_user.id,
-                updated_by=current_user.id
-            )
+            new_asset = Asset(**asset_data.dict())
             db.add(new_asset)
             result_assets.append(new_asset)
 

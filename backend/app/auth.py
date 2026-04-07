@@ -72,6 +72,8 @@ class _UserRow:
         self.id = m["user_id"]  # alias for compatibility
         self.user_name = m.get("user_name")
         self.user_email = m.get("user_email")
+        self.full_name = m.get("full_name")
+        self.phone = m.get("phone")
         self.active = m.get("active", True)
         self.role = "user"  # default; role comes from JWT, not DB
 

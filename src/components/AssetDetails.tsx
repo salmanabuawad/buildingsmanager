@@ -10,7 +10,7 @@ import { AssetFilesModal, AssetFilesModalRef } from './AssetFilesModal';
 import { compressFile } from '../lib/fileCompression';
 import { AgGridReact } from 'ag-grid-react';
 import { ColDef, CellClassParams } from 'ag-grid-community';
-import { assetValidators, validateAll, inputValidators } from '../lib/validation';
+import { assetValidators, validateAll, inputValidators, isComplexAssetType } from '../lib/validation';
 import { AssetValidationHandler } from '../lib/assetValidationHandler';
 import { ValidationResultModal, SingleAssetValidationResult, ValidationProgress } from './ValidationResultModal';
 import { RowEditModal } from './RowEditModal';
@@ -868,7 +868,7 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
           // Skip validation - proceed directly to save
         } else {
           // Validate the asset before saving
-          const shouldValidateSubAssets = currentAssetData.main_asset_type === '199' || currentAssetData.main_asset_type === '299';
+          const shouldValidateSubAssets = isComplexAssetType(currentAssetData.main_asset_type);
           const validations = [
           inputValidators.validateDateFormat(currentAssetData.measurement_date),
           assetValidators.validateBuildingNumber(currentAssetData.building_number),

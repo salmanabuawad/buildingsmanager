@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo, useCallback, useRef, forwardRef, useImper
 import { ValidationTooltipIcon } from './ValidationTooltipIcon';
 import { useTranslation } from 'react-i18next';
 import { api, Asset, Building, AssetType } from '../lib/api';
-import { assetValidators, validateAll, inputValidators } from '../lib/validation';
+import { assetValidators, validateAll, inputValidators, isComplexAssetType } from '../lib/validation';
 import { Save, Plus, Trash2, Check, FileText, AlertCircle, Loader2, X, Download, MessageSquare } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { AgGridReact } from 'ag-grid-react';
@@ -170,7 +170,7 @@ export const AssetDataEntry = forwardRef<AssetDataEntryRef, {}>((props, ref) => 
     // If main_asset_type changed from 199/299 to something else, clear all sub assets
     if (field === 'main_asset_type') {
       const newType = updatedRow.main_asset_type;
-      if (newType && newType !== '199' && newType !== '299') {
+      if (newType && !isComplexAssetType(newType)) {
         updatedRow.sub_asset_type_1 = null;
         updatedRow.sub_asset_type_2 = null;
         updatedRow.sub_asset_type_3 = null;
@@ -202,8 +202,8 @@ export const AssetDataEntry = forwardRef<AssetDataEntryRef, {}>((props, ref) => 
 
     // When "מתי להריץ אימות" is "אונליין", run validation on cell change
     if (shouldValidateOnBlur) {
-    // Only validate sub-assets if main type is 199 or 299
-    const shouldValidateSubAssets = updatedRow.main_asset_type === '199' || updatedRow.main_asset_type === '299';
+    // Only validate sub-assets if main type is a complex type
+    const shouldValidateSubAssets = isComplexAssetType(updatedRow.main_asset_type);
     const validations = [
       assetValidators.validateBuildingNumber(updatedRow.building_number),
       assetValidators.validateAssetId(updatedRow.asset_id),

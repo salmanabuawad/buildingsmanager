@@ -1,5 +1,5 @@
 import { Asset } from './api';
-import { assetValidators, inputValidators, ValidationResult } from './validation';
+import { assetValidators, inputValidators, ValidationResult, isComplexAssetType, getMinSubtypesCount } from './validation';
 
 export interface AssetValidationProgress {
   current: number;
@@ -632,8 +632,8 @@ export class AssetValidationHandler {
       ])
     );
 
-    // Validate sub-asset sizes match main asset size (required for 199 and 299)
-    const isComplexType = asset.main_asset_type === '199' || asset.main_asset_type === '299';
+    // Validate sub-asset sizes match main asset size (required for complex types)
+    const isComplexType = isComplexAssetType(asset.main_asset_type);
     if (isComplexType) {
       validationNames.push('אימות חלוקת שטח - גודל נכס ראשי חייב להיות שווה לסכום נכסי משנה');
     } else {
@@ -720,8 +720,8 @@ export class AssetValidationHandler {
       ])
     );
 
-    // Add minimum sub-assets validation if main type is 199 or 299
-    const shouldValidateSubAssets = asset.main_asset_type === '199' || asset.main_asset_type === '299';
+    // Add minimum sub-assets validation if main type is a complex type
+    const shouldValidateSubAssets = isComplexAssetType(asset.main_asset_type);
     if (shouldValidateSubAssets) {
       validationNames.push('מינימום נכסי משנה');
       validations.push(

@@ -100,6 +100,8 @@ export function AssetTypes() {
     not_accountable_for_statistics: false,
     use_shared_area: false,
     use_for_parking_shared_area: false,
+    can_be_subtype: true,
+    min_sub_types_number: '',
     min_size: '',
     max_size: '',
   });
@@ -146,8 +148,10 @@ export function AssetTypes() {
       not_accountable_for_statistics: false,
       use_shared_area: false,
       use_for_parking_shared_area: false,
-      min_size: '', 
-      max_size: '' 
+      can_be_subtype: true,
+      min_sub_types_number: '',
+      min_size: '',
+      max_size: ''
     });
     setIsAdding(false);
   }
@@ -186,6 +190,8 @@ export function AssetTypes() {
         not_accountable_for_statistics: formData.not_accountable_for_statistics || undefined,
         use_shared_area: formData.use_shared_area || undefined,
         use_for_parking_shared_area: formData.use_for_parking_shared_area || undefined,
+        can_be_subtype: formData.can_be_subtype,
+        min_sub_types_number: formData.min_sub_types_number !== '' ? parseInt(formData.min_sub_types_number) : 0,
         min_size: formData.min_size ? parseFloat(formData.min_size) : undefined,
         max_size: formData.max_size ? parseFloat(formData.max_size) : undefined,
       };
@@ -835,6 +841,54 @@ export function AssetTypes() {
         );
       },
       cellStyle: { textAlign: 'center', display: 'flex', alignItems: 'center', justifyContent: 'center' }
+    },
+    {
+      field: 'can_be_subtype',
+      headerName: 'יכול להיות תת-נכס',
+      editable: false,
+      cellRenderer: (params: any) => {
+        const assetType = params.data as AssetType;
+        if (!assetType) return null;
+        const currentValue = getCurrentValue(assetType, 'can_be_subtype');
+        const isDirty = isFieldDirty(assetType.id, 'can_be_subtype');
+        return (
+          <div className="flex items-center justify-center h-full">
+            <input
+              type="checkbox"
+              checked={currentValue !== false}
+              onChange={(e) => {
+                const newValue = e.target.checked;
+                params.setValue(newValue);
+                handleCellChange(assetType.id, 'can_be_subtype', newValue);
+                setTimeout(() => {
+                  if (gridRef.current?.api) {
+                    gridRef.current.api.refreshCells({ rowNodes: [params.node], force: true });
+                  }
+                }, 0);
+              }}
+              className={`w-4 h-4 text-theme-tab-active rounded ${isDirty ? 'ring-2 ring-yellow-400' : ''}`}
+            />
+          </div>
+        );
+      },
+      cellStyle: { textAlign: 'center', display: 'flex', alignItems: 'center', justifyContent: 'center' }
+    },
+    {
+      field: 'min_sub_types_number',
+      headerName: 'מינ. תתי-נכסים',
+      editable: true,
+      valueParser: (params: any) => {
+        const val = parseInt(params.newValue);
+        return isNaN(val) ? 0 : Math.max(0, val);
+      },
+      cellStyle: (params: any) => {
+        const isDirty = params.data && isFieldDirty(params.data.id, 'min_sub_types_number');
+        return {
+          textAlign: 'right',
+          backgroundColor: isDirty ? '#fef3c7' : undefined,
+          fontWeight: isDirty ? 'bold' : undefined
+        };
+      }
     },
     {
       field: 'min_size',

@@ -16,7 +16,7 @@ import { ChangeTaxRegionModal } from './ChangeTaxRegionModal';
 import { useValidationRules } from '../contexts/ValidationContext';
 import { compressFile } from '../lib/fileCompression';
 import { formatDateToDDMMYYYY } from '../lib/dateUtils';
-import { getAssetTypes, setLatestExportDate } from '../lib/validation';
+import { getAssetTypes, setLatestExportDate, isComplexAssetType } from '../lib/validation';
 import { createExcelBlob } from '../lib/excelExport';
 import { createAndDownloadZip } from '../lib/zipExport';
 import { numericValueParser, numericValueParserInt } from '../lib/numberUtils';
@@ -2782,10 +2782,10 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
       if (!isDistributionSave) {
         for (const [assetId, changes] of dirtyAssets.entries()) {
           if (deletedAssets.has(assetId)) continue;
-          if (changes.main_asset_type === '199' || changes.main_asset_type === 199) {
-            // Also check if original asset type was not 199 (to avoid false positives)
+          if (isComplexAssetType(String(changes.main_asset_type))) {
+            // Also check if original asset type was not complex (to avoid false positives)
             const asset = assets.find(a => String(a.asset_id) === String(assetId));
-            if (asset && String(asset.main_asset_type) !== '199') {
+            if (asset && !isComplexAssetType(String(asset.main_asset_type))) {
               isDistributionSave = true;
               distributionType = 'residence';
               break;
@@ -3802,7 +3802,7 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
           ? changes.main_asset_type 
           : currentAsset.main_asset_type;
 
-        const isMainType199 = String(currentMainType).trim() === '199';
+        const isMainType199 = isComplexAssetType(String(currentMainType).trim());
 
         if (isClearing) {
           // Clearing distribution: delete ALL occurrences of the shared area subtype and move back types

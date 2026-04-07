@@ -2,7 +2,7 @@ import { useEffect, useState, useMemo, useRef, useCallback, forwardRef, useImper
 import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
 import { Asset, Building, AssetType, api } from '../lib/api';
-import { assetValidators, validateAll, inputValidators } from '../lib/validation';
+import { assetValidators, validateAll, inputValidators, isComplexAssetType } from '../lib/validation';
 import { AgGridReact } from 'ag-grid-react';
 import { ColDef } from 'ag-grid-community';
 import { Building as BuildingIcon, Loader2, Save, X, AlertCircle, Copy, CheckCircle2, Download, Plus, MessageSquare } from 'lucide-react';
@@ -367,7 +367,7 @@ export const TransferAreas = forwardRef<TransferAreasRef, TransferAreasProps>(({
     // This ensures validateAssetTypeComplete uses the combined tax regions
     const assetForValidation = { ...asset, tax_region: combinedTaxRegion };
 
-    const shouldValidateSubAssets = asset.main_asset_type === '199' || asset.main_asset_type === '299';
+    const shouldValidateSubAssets = isComplexAssetType(asset.main_asset_type);
     const validations = [
       assetValidators.validateBuildingNumber(asset.building_number),
       assetValidators.validateAssetId(asset.asset_id),
@@ -802,7 +802,7 @@ export const TransferAreas = forwardRef<TransferAreasRef, TransferAreasProps>(({
 
           // Validate before saving
           // For new assets, skip asset_id validation (it's a temp ID)
-          const shouldValidateSubAssets = updatedData.main_asset_type === '199' || updatedData.main_asset_type === '299';
+          const shouldValidateSubAssets = isComplexAssetType(updatedData.main_asset_type);
           const validations = [
             assetValidators.validateBuildingNumber(updatedData.building_number),
             ...(isNewAsset ? [] : [assetValidators.validateAssetId(updatedData.asset_id)]), // Skip asset_id validation for new assets

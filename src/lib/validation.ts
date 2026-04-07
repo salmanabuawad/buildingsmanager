@@ -226,6 +226,40 @@ export function getAssetTypesByName(name: string): any[] {
   return assetTypes.filter(at => at.name === name && isTruthy(at.active));
 }
 
+/**
+ * Returns true if the asset type is a "complex" type (can have sub-assets but cannot itself be a subtype).
+ * Determined by can_be_subtype === false on the asset_types table.
+ * Falls back to legacy '199'/'299' check if type not found in cache.
+ */
+export function isComplexAssetType(typeName: string | undefined, assetTypes?: any[]): boolean {
+  if (!typeName) return false;
+  const types = assetTypes ?? getAssetTypes();
+  const typeStr = String(typeName).trim();
+  const found = types.find((at: any) => String(at.name).trim() === typeStr);
+  if (!found) {
+    // Fallback to legacy check when cache is not yet populated
+    return typeName === '199' || typeName === '299';
+  }
+  return found.can_be_subtype === false;
+}
+
+/**
+ * Returns the minimum number of sub-assets required for an asset type.
+ * Determined by min_sub_types_number on the asset_types table.
+ * Falls back to 2 for legacy '199'/'299' if type not found in cache.
+ */
+export function getMinSubtypesCount(typeName: string | undefined, assetTypes?: any[]): number {
+  if (!typeName) return 0;
+  const types = assetTypes ?? getAssetTypes();
+  const typeStr = String(typeName).trim();
+  const found = types.find((at: any) => String(at.name).trim() === typeStr);
+  if (!found) {
+    if (typeName === '199' || typeName === '299') return 2;
+    return 0;
+  }
+  return found.min_sub_types_number ?? 0;
+}
+
 // Memoization cache for getValidTaxRegionsForAssetType
 // Key: assetTypeName, Value: tax regions array
 const taxRegionsCache = new Map<string, number[]>();
@@ -1424,14 +1458,14 @@ export async function validateOnlyComplexTypesCanHaveSubAssets(
     return { valid: true };
   }
   
-  // HARDCODED RULE: Only 199 and 299 can have sub-assets
-  if (!mainAssetType || (mainAssetType !== '199' && mainAssetType !== '299')) {
+  // Only complex types (can_be_subtype=false) can have sub-assets
+  if (!mainAssetType || !isComplexAssetType(mainAssetType)) {
     return {
       valid: false,
-      error: 'רק סוגי נכס 199 ו-299 יכולים לכלול נכסי משנה. נכסי משנה לא מותרים עבור סוגי נכס אחרים'
+      error: 'רק סוגי נכס מורכבים (כגון 199, 299) יכולים לכלול נכסי משנה. נכסי משנה לא מותרים עבור סוגי נכס אחרים'
     };
   }
-  
+
   return { valid: true };
 }
 
@@ -1478,17 +1512,17 @@ export async function validateComplexTypesMustHaveSubAssets(
     }
   }
 
-  if (!mainAssetType || (mainAssetType !== '199' && mainAssetType !== '299')) {
+  if (!mainAssetType || !isComplexAssetType(mainAssetType)) {
     return { valid: true };
   }
 
   const validSubAssets = subAssetTypes.filter(type => type && type.trim() !== '');
 
-  // HARDCODED RULE: 199 and 299 must have at least 2 sub-assets
-  if (validSubAssets.length < 2) {
+  const minRequired = getMinSubtypesCount(mainAssetType);
+  if (minRequired > 0 && validSubAssets.length < minRequired) {
     return {
       valid: false,
-      error: `סוגי נכס 199 ו-299 חייבים לכלול לפחות 2 נכסי משנה. נמצאו ${validSubAssets.length} נכסי משנה בלבד`
+      error: `סוג נכס זה חייב לכלול לפחות ${minRequired} נכסי משנה. נמצאו ${validSubAssets.length} נכסי משנה בלבד`
     };
   }
 
@@ -1508,7 +1542,7 @@ export async function validateSubAssetsFor199Or299(
     return { valid: true };
   }
 
-  if (mainAssetType !== '199' && mainAssetType !== '299') {
+  if (!isComplexAssetType(mainAssetType)) {
     return { valid: true };
   }
 
@@ -1520,25 +1554,20 @@ export async function validateSubAssetsFor199Or299(
 
   const validSubAssets = subAssetTypes.filter(type => type && type.trim() !== '');
 
-  // HARDCODED RULE: Sub-assets cannot be 199 or 299 (complex types cannot be sub types)
-  // This is part of the ONLY hardcoded rules:
-  // 1. Only 199 and 299 can be main types (and have subtypes)
-  // 2. 199 and 299 cannot be subtypes
-  // 3. 199 and 299 require at least 2 subtypes
-  // 4. Subtypes have no holes (must be consecutive)
   for (const subAssetType of validSubAssets) {
-    if (subAssetType === '199' || subAssetType === '299') {
+    if (isComplexAssetType(subAssetType)) {
       return {
         valid: false,
-        error: `סוג משנה לא יכול להיות סוג מורכב (199, 299). נכסי משנה חייבים להיות סוגי נכס פשוטים`
+        error: `סוג משנה לא יכול להיות סוג מורכב. נכסי משנה חייבים להיות סוגי נכס פשוטים`
       };
     }
   }
 
-  if (validSubAssets.length < 2) {
+  const minRequired = getMinSubtypesCount(mainAssetType);
+  if (minRequired > 0 && validSubAssets.length < minRequired) {
     return {
       valid: false,
-      error: `כאשר סוג הנכס הראשי הוא ${mainAssetType}, חייב להיות לפחות 2 נכסי משנה. נמצאו ${validSubAssets.length} נכסי משנה בלבד`
+      error: `כאשר סוג הנכס הראשי הוא ${mainAssetType}, חייב להיות לפחות ${minRequired} נכסי משנה. נמצאו ${validSubAssets.length} נכסי משנה בלבד`
     };
   }
 
@@ -2103,13 +2132,11 @@ export const assetValidators = {
       return { valid: true };
     }
 
-    // HARDCODED RULE: Sub-assets cannot be 199 or 299 (complex types cannot be sub types)
-    // This is part of the ONLY hardcoded rule: only 199/299 can be main types (and have sub-assets)
-    // All other validations must use the asset_types table
-    if (subAssetType === '199' || subAssetType === '299') {
+    // Complex types (can_be_subtype=false) cannot be used as sub-assets
+    if (isComplexAssetType(subAssetType)) {
       return {
         valid: false,
-        error: 'סוג משנה לא יכול להיות סוג מורכב (199, 299). נכסי משנה חייבים להיות סוגי נכס פשוטים'
+        error: 'סוג משנה לא יכול להיות סוג מורכב. נכסי משנה חייבים להיות סוגי נכס פשוטים'
       };
     }
 

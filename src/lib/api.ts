@@ -603,6 +603,8 @@ export interface AssetType {
   not_accountable_for_statistics?: boolean; // לא נספר בסטטיסטיקה
   use_shared_area?: boolean; // שימוש בשטח משותף
   use_for_parking_shared_area?: boolean; // שימוש בשטח חניה משותף
+  can_be_subtype?: boolean; // יכול להיות תת-נכס
+  min_sub_types_number?: number; // מספר מינימלי של תתי-נכסים
   min_size?: number;
   max_size?: number;
   created_at: string;

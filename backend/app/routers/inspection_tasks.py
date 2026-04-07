@@ -82,10 +82,16 @@ def _enrich_task(db: Session, task: dict) -> dict:
             {"rid": report["id"]},
         ).fetchall()
         report["files"] = [_row_to_dict(f) for f in files]
-        # parse asset_ids jsonb for each file
+        # ensure asset_ids is a list for each file
         for f in report["files"]:
-            if isinstance(f.get("asset_ids"), str):
-                f["asset_ids"] = json.loads(f["asset_ids"])
+            aids = f.get("asset_ids")
+            if isinstance(aids, str):
+                try:
+                    f["asset_ids"] = json.loads(aids)
+                except (json.JSONDecodeError, ValueError):
+                    f["asset_ids"] = []
+            elif aids is None:
+                f["asset_ids"] = []
         task["report"] = report
     else:
         task["report"] = None
@@ -97,9 +103,16 @@ def _enrich_task(db: Session, task: dict) -> dict:
     ).fetchall()
     task["history"] = [_row_to_dict(h) for h in hist]
 
-    # parse asset_ids jsonb
-    if isinstance(task.get("asset_ids"), str):
-        task["asset_ids"] = json.loads(task["asset_ids"])
+    # asset_ids comes as a Python list from bigint[] column — ensure it's a list
+    aids = task.get("asset_ids")
+    if isinstance(aids, str):
+        try:
+            task["asset_ids"] = json.loads(aids)
+        except (json.JSONDecodeError, ValueError):
+            task["asset_ids"] = []
+    elif aids is None:
+        task["asset_ids"] = []
+    # else it's already a list from psycopg2 bigint[] handling
 
     return task
 
@@ -158,17 +171,18 @@ def create_task(
     db: Session = Depends(get_db),
 ):
     uid = _get_user_id(payload)
-    asset_ids = json.dumps(body.get("asset_ids", []))
+    raw_ids = body.get("asset_ids", [])
+    asset_ids_pg = "{" + ",".join(str(int(x)) for x in raw_ids) + "}" if raw_ids else "{}"
     row = db.execute(
         text("""
             INSERT INTO inspection_tasks (title, building_number, asset_ids, assigned_to, note, priority, created_by, status)
-            VALUES (:title, :building_number, :asset_ids::jsonb, :assigned_to, :note, :priority, :created_by, 'open')
+            VALUES (:title, :building_number, CAST(:asset_ids AS bigint[]), :assigned_to, :note, :priority, :created_by, 'new')
             RETURNING *
         """),
         {
             "title": body.get("title"),
             "building_number": body["building_number"],
-            "asset_ids": asset_ids,
+            "asset_ids": asset_ids_pg,
             "assigned_to": body.get("assigned_to"),
             "note": body.get("note"),
             "priority": body.get("priority", "medium"),
@@ -208,13 +222,13 @@ def update_task(
         raise HTTPException(status_code=400, detail="No valid fields to update")
     sets.append("updated_at = now()")
     sql = f"UPDATE inspection_tasks SET {', '.join(sets)} WHERE id = :id RETURNING *"
-    row = db.execute(text(sql), params).fetchone()
+    try:
+        row = db.execute(text(sql), params).fetchone()
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Update failed: {str(e)}")
     if not row:
         raise HTTPException(status_code=404, detail="Task not found")
-    db.execute(
-        text("INSERT INTO inspection_task_history (task_id, created_by, action) VALUES (:tid, :uid, 'updated')"),
-        {"tid": task_id, "uid": uid},
-    )
     db.commit()
     return _enrich_task(db, _row_to_dict(row))
 
@@ -255,7 +269,7 @@ def submit_task(
     row = db.execute(
         text("""
             UPDATE inspection_tasks
-            SET status = 'submitted', submitted_at = now(), updated_at = now()
+            SET status = 'pending_approval', submitted_at = now(), updated_at = now()
             WHERE id = :id RETURNING *
         """),
         {"id": task_id},
@@ -306,7 +320,7 @@ def return_task(
     row = db.execute(
         text("""
             UPDATE inspection_tasks
-            SET status = 'returned', updated_at = now()
+            SET status = 'cancelled', updated_at = now()
             WHERE id = :id RETURNING *
         """),
         {"id": task_id},
@@ -442,12 +456,13 @@ async def upload_report_file(
         f.write(contents)
 
     rel_path = f"inspection-reports/{report_id}/{safe_name}"
-    parsed_ids = json.dumps(json.loads(asset_ids)) if asset_ids else "[]"
+    raw_ids = json.loads(asset_ids) if asset_ids else []
+    parsed_ids = "{" + ",".join(str(int(x)) for x in raw_ids) + "}" if raw_ids else "{}"
 
     row = db.execute(
         text("""
             INSERT INTO inspection_report_files (report_id, file_path, file_name, file_type, uploaded_by, asset_ids)
-            VALUES (:rid, :fp, :fn, :ft, :uid, :aids::jsonb)
+            VALUES (:rid, :fp, :fn, :ft, :uid, CAST(:aids AS bigint[]))
             RETURNING *
         """),
         {

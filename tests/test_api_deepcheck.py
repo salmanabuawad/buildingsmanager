@@ -86,6 +86,10 @@ def cleanup_dc():
     _del(f"/api/data/inspection_tasks?building_number={TEST_BUILDING_DC}")
     _del(f"/api/data/assets?asset_id={TEST_ASSET_DC}")
     _del(f"/api/data/buildings?building_number={TEST_BUILDING_DC}")
+    # Throwaway records used in D06/D07
+    _del(f"/api/data/assets?asset_id={TEST_ASSET_DC + 1}")
+    _del(f"/api/data/buildings?building_number={TEST_BUILDING_DC + 1}")
+    _del(f"/api/data/buildings?building_number={TEST_BUILDING_DC + 2}")
     uid = STATE.get("dc_user_id")
     if uid:
         _del(f"/api/data/users?user_id={uid}")
@@ -115,10 +119,9 @@ def session_setup():
     STATE["token"]   = data["access_token"]
     STATE["headers"] = {"Authorization": f"Bearer {data['access_token']}"}
 
-    cleanup_dc()
+    cleanup_dc()  # clean before tests start
     yield
-    cleanup_dc()
-    client.close()
+    client.close()  # no cleanup on finish
 
 
 # ===========================================================================
@@ -387,17 +390,28 @@ def test_D05_asset_negative_size():
 
 
 def test_D06_delete_asset_dc():
-    """Clean up test asset."""
-    status, data = api_json("DELETE", f"/api/data/assets?asset_id={TEST_ASSET_DC}")
+    """DELETE endpoint works on an asset — uses a separate throwaway asset so main test data persists."""
+    throwaway_asset = TEST_ASSET_DC + 1  # 9997001002
+    throwaway_building = TEST_BUILDING_DC + 1  # 9997002
+    # Ensure throwaway building exists
+    api_json("POST", "/api/buildings/create", json={"building_number": throwaway_building, "total_building_area": 1.0})
+    # Ensure throwaway asset exists
+    api_json("POST", "/api/data/assets", json=[{"asset_id": throwaway_asset, "building_number": throwaway_building}])
+    # Delete it
+    status, data = api_json("DELETE", f"/api/data/assets?asset_id={throwaway_asset}")
     assert status in (200, 204), f"Delete asset failed: {data}"
-    print(f"  ✓ Deleted test asset {TEST_ASSET_DC}")
+    # Clean up throwaway building
+    api_json("DELETE", f"/api/data/buildings?building_number={throwaway_building}")
+    print(f"  ✓ DELETE asset endpoint works (used throwaway asset {throwaway_asset})")
 
 
 def test_D07_delete_building_dc():
-    """Clean up test building."""
-    status, data = api_json("DELETE", f"/api/data/buildings?building_number={TEST_BUILDING_DC}")
+    """DELETE endpoint works on a building — uses a separate throwaway building so main test data persists."""
+    throwaway_building = TEST_BUILDING_DC + 2  # 9997003
+    api_json("POST", "/api/buildings/create", json={"building_number": throwaway_building, "total_building_area": 1.0})
+    status, data = api_json("DELETE", f"/api/data/buildings?building_number={throwaway_building}")
     assert status in (200, 204), f"Delete building failed: {data}"
-    print(f"  ✓ Deleted test building {TEST_BUILDING_DC}")
+    print(f"  ✓ DELETE building endpoint works (used throwaway building {throwaway_building})")
 
 
 # ===========================================================================
@@ -580,10 +594,9 @@ def test_F10_patch_nonexistent_task():
 
 
 def test_F11_cleanup_state_machine_data():
-    """Clean up state-machine test data."""
-    api_json("DELETE", f"/api/data/assets?asset_id={TEST_ASSET_DC}")
-    api_json("DELETE", f"/api/buildings/by-number/{TEST_BUILDING_DC}")
-    print("  ✓ State machine test data cleaned up")
+    """Clean up inspection tasks created during state-machine tests (asset/building kept for post-run inspection)."""
+    api_json("DELETE", f"/api/data/inspection_tasks?building_number={TEST_BUILDING_DC}")
+    print("  ✓ State machine inspection tasks cleaned up (asset/building preserved)")
 
 
 # ===========================================================================

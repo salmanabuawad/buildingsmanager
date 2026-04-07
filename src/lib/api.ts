@@ -3302,25 +3302,21 @@ export const api = {
 
       // Prefer deleting by id, fallback to asset_type if schema differs
       let error: any = null;
-      let count: number | null = null;
+      let count: number | null = numericIds.length;
 
       const byId = await api
         .from('asset_types')
         .delete()
-        .in('id', numericIds)
-        .select('id', { count: 'exact', head: true });
+        .in('id', numericIds);
 
       error = byId.error;
-      count = byId.count ?? null;
 
       if (error && error.code === '42703') {
         const byLegacy = await api
           .from('asset_types')
           .delete()
-          .in('asset_type', numericIds)
-          .select('asset_type', { count: 'exact', head: true });
+          .in('asset_type', numericIds);
         error = byLegacy.error;
-        count = byLegacy.count ?? null;
       }
 
       if (error) throw error;
@@ -3406,14 +3402,13 @@ export const api = {
         return { success: true, count: 0 };
       }
 
-      const { error, count } = await api
+      const { error } = await api
         .from('address_list')
         .delete()
-        .in('street_code', codes)
-        .select('street_code', { count: 'exact', head: true });
+        .in('street_code', codes);
 
       if (error) throw error;
-      return { success: true, count: count || 0 };
+      return { success: true, count: codes.length };
     },
   },
   validationRules: {

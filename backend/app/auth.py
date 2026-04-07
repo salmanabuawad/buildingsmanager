@@ -48,25 +48,61 @@ def require_jwt(credentials: HTTPAuthorizationCredentials = Depends(security)):
     return decode_token(credentials.credentials)
 
 
+def _parse_uid(sub: str | None) -> int | None:
+    """Extract integer user_id from JWT sub claim ('uid:123' or plain int)."""
+    if sub is None:
+        return None
+    s = str(sub).strip()
+    if s.startswith("uid:"):
+        try:
+            return int(s[4:])
+        except ValueError:
+            return None
+    try:
+        return int(s)
+    except (ValueError, TypeError):
+        return None
+
+
+class _UserRow:
+    """Lightweight user object built from raw DB row (avoids ORM model mismatch)."""
+    def __init__(self, row):
+        m = row._mapping
+        self.user_id = m["user_id"]
+        self.id = m["user_id"]  # alias for compatibility
+        self.user_name = m.get("user_name")
+        self.user_email = m.get("user_email")
+        self.active = m.get("active", True)
+        self.role = "user"  # default; role comes from JWT, not DB
+
+
 def get_current_user(
     credentials: HTTPAuthorizationCredentials = Depends(security),
     db: Session = Depends(get_db)
 ):
     token = credentials.credentials
     payload = decode_token(token)
-    user_id: str = payload.get("sub")
-    if user_id is None:
+    sub: str = payload.get("sub")
+    if sub is None:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Could not validate credentials",
         )
 
-    # Query user from database
-    from app.models import User
-    user = db.query(User).filter(User.id == user_id).first()
-    if user is None:
+    uid = _parse_uid(sub)
+    if uid is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Could not parse user id",
+        )
+
+    from sqlalchemy import text
+    row = db.execute(text("SELECT * FROM users WHERE user_id = :uid"), {"uid": uid}).fetchone()
+    if row is None:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="User not found",
         )
+    user = _UserRow(row)
+    user.role = payload.get("role", "user")
     return user

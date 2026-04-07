@@ -4,12 +4,11 @@ from pathlib import Path
 
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, status, Query
 from sqlalchemy.orm import Session
+from sqlalchemy import text
 from typing import List
 from fastapi.responses import FileResponse
 from app.database import get_db
-from app.models import AssetFile, Asset, User
-from app.schemas import AssetFileResponse
-from app.auth import get_current_user
+from app.auth import require_jwt, _parse_uid
 from app.config import settings
 import uuid
 from datetime import datetime
@@ -76,32 +75,37 @@ def _guess_mime_type(file_name: str) -> str:
     return mt or "application/octet-stream"
 
 
-@router.post("/upload/{asset_id}", response_model=AssetFileResponse)
+def _row_to_dict(row) -> dict:
+    if row is None:
+        return None
+    m = row._mapping
+    d = {}
+    for k in m.keys():
+        v = m[k]
+        if isinstance(v, datetime):
+            d[k] = v.isoformat()
+        else:
+            d[k] = v
+    return d
+
+
+@router.post("/upload/{asset_id}")
 async def upload_file(
     asset_id: int,
     file: UploadFile = File(...),
     measurement_date: str = None,
     path: str | None = Query(default=None, description="Optional storage-relative path."),
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    payload: dict = Depends(require_jwt),
 ):
-    if current_user.role not in ["admin", "editor"]:
-        raise HTTPException(status_code=403, detail="Insufficient permissions")
-
-    # Verify asset exists
-    asset = db.query(Asset).filter(Asset.id == asset_id).first()
-    if not asset:
-        raise HTTPException(status_code=404, detail="Asset not found")
+    uid = _parse_uid(payload.get("sub"))
 
     # Generate unique file name
     file_extension = file.filename.split('.')[-1] if '.' in file.filename else ''
     unique_filename = f"{uuid.uuid4()}.{file_extension}"
     # Store under the structure-drawings-like layout by default so the existing frontend extraction works.
-    # If `path` is provided, preserve it (relative) and just append unique filename.
     if path:
-        # Keep only relative tail; don't allow absolute paths.
         safe_rel = _extract_structure_drawings_rel_path(path)
-        # If path already contains a filename, just treat it as a folder-like prefix.
         safe_rel_dir = safe_rel.rsplit("/", 1)[0] if "/" in safe_rel else str(asset_id)
         rel_path = f"{safe_rel_dir}/{unique_filename}"
     else:
@@ -114,58 +118,67 @@ async def upload_file(
         full_path.write_bytes(file_content)
 
         # Save file metadata to database
-        db_file = AssetFile(
-            asset_id=asset_id,
-            file_name=file.filename,
-            file_path=rel_path,
-            file_type=file.content_type,
-            file_size=len(file_content),
-            measurement_date=datetime.fromisoformat(measurement_date) if measurement_date else None,
-            uploaded_by=current_user.id
-        )
-        db.add(db_file)
+        # DB schema: file_url (not file_path), uploaded_by is text, measurement_date is text
+        row = db.execute(
+            text("""
+                INSERT INTO asset_files (asset_id, file_name, file_url, file_type, file_size, measurement_date, uploaded_by)
+                VALUES (:asset_id, :file_name, :file_url, :file_type, :file_size, :measurement_date, :uploaded_by)
+                RETURNING *
+            """),
+            {
+                "asset_id": asset_id,
+                "file_name": file.filename,
+                "file_url": rel_path,
+                "file_type": file.content_type,
+                "file_size": len(file_content),
+                "measurement_date": measurement_date or None,
+                "uploaded_by": str(uid) if uid else None,
+            },
+        ).fetchone()
         db.commit()
-        db.refresh(db_file)
 
-        return db_file
+        return _row_to_dict(row)
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"File upload failed: {str(e)}")
 
 
-@router.get("/asset/{asset_id}", response_model=List[AssetFileResponse])
+@router.get("/asset/{asset_id}")
 def get_asset_files(
     asset_id: int,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    payload: dict = Depends(require_jwt),
 ):
-    files = db.query(AssetFile).filter(AssetFile.asset_id == asset_id).all()
-    return files
+    rows = db.execute(
+        text("SELECT * FROM asset_files WHERE asset_id = :aid ORDER BY uploaded_at DESC"),
+        {"aid": asset_id},
+    ).fetchall()
+    return [_row_to_dict(r) for r in rows]
 
 
 @router.delete("/{file_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_file(
     file_id: int,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    payload: dict = Depends(require_jwt),
 ):
-    if current_user.role not in ["admin", "editor"]:
-        raise HTTPException(status_code=403, detail="Insufficient permissions")
-
-    db_file = db.query(AssetFile).filter(AssetFile.id == file_id).first()
-    if not db_file:
+    row = db.execute(
+        text("SELECT * FROM asset_files WHERE id = :fid"), {"fid": file_id}
+    ).fetchone()
+    if not row:
         raise HTTPException(status_code=404, detail="File not found")
 
+    fdata = _row_to_dict(row)
     try:
         # Delete from local filesystem
         local_root = Path(getattr(settings, "ASSET_FILES_STORAGE_PATH", settings.FILES_BASE_PATH))
-        rel = _extract_structure_drawings_rel_path(db_file.file_path or "")
+        rel = _extract_structure_drawings_rel_path(fdata.get("file_url") or fdata.get("file_path") or "")
         full = local_root / rel
         if full.exists():
             full.unlink()
 
         # Delete from database
-        db.delete(db_file)
+        db.execute(text("DELETE FROM asset_files WHERE id = :fid"), {"fid": file_id})
         db.commit()
         return None
 
@@ -198,8 +211,6 @@ def get_view_url(
     path: str = Query(..., description="Storage-relative path"),
     inline: bool = Query(True, description="Include inline=1 so file displays in window (e.g. for print)"),
 ):
-    # The frontend uses this to open/view without auth.
-    # We return the download URL with inline=1 so the file displays in the window (not download).
     q = f"path={path}" + ("&inline=1" if inline else "")
     return {"url": f"/api/files/download?{q}"}
 
@@ -208,16 +219,17 @@ def get_view_url(
 def get_file_url(
     file_id: int,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    payload: dict = Depends(require_jwt),
 ):
-    db_file = db.query(AssetFile).filter(AssetFile.id == file_id).first()
-    if not db_file:
+    row = db.execute(
+        text("SELECT * FROM asset_files WHERE id = :fid"), {"fid": file_id}
+    ).fetchone()
+    if not row:
         raise HTTPException(status_code=404, detail="File not found")
 
+    fdata = _row_to_dict(row)
     try:
-        # Provide a backend-relative download URL that the frontend can fetch.
-        rel = _extract_structure_drawings_rel_path(db_file.file_path or db_file.file_name or "")
-        return {"url": f"/api/files/download?path={rel}", "filename": db_file.file_name}
-
+        rel = _extract_structure_drawings_rel_path(fdata.get("file_url") or fdata.get("file_path") or fdata.get("file_name") or "")
+        return {"url": f"/api/files/download?path={rel}", "filename": fdata.get("file_name")}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to build download URL: {str(e)}")

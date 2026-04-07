@@ -2103,11 +2103,13 @@ function App() {
                     ) : (
                       <Building className="h-5 w-5 text-slate-600 shrink-0" />
                     )}
+                    {tab.type !== 'mobile-tasks-upload' && (
                     <span className={`whitespace-nowrap text-sm hidden sm:inline ${
                       activeTabId === tab.id ? 'text-app-text-primary' : 'text-app-text-muted'
                     }`}>
                       {tab.label}
                     </span>
+                    )}
                   </div>
                   {tab.type !== 'buildings' && tab.type !== 'measurement-progress-dashboard' && (
                     <button

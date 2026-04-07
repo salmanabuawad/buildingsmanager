@@ -13,12 +13,12 @@ A comprehensive real estate asset management application for tracking buildings,
 - 🔍 **Advanced Search** - Search assets by range with comprehensive filters
 - 📱 **Responsive Design** - Works on desktop, tablet, and mobile
 - ⚡ **Real-time Updates** - Live data synchronization with database
-- 🗄️ **PostgreSQL/Supabase** - Supports both local and cloud databases
+- 🗄️ **PostgreSQL** - Self-hosted PostgreSQL with FastAPI backend
 
 ## 🏗️ Architecture
 
 - **Frontend**: React 18 + TypeScript + Vite + Tailwind CSS
-- **Database**: PostgreSQL (local) or Supabase (cloud)
+- **Backend**: FastAPI + PostgreSQL (self-hosted)
 - **Data Grid**: AG Grid React
 - **State Management**: React hooks
 - **Validation**: Database-driven rules engine
@@ -56,21 +56,6 @@ npm run dev
 ```
 
 **See [QUICKSTART_LOCAL.md](QUICKSTART_LOCAL.md) for detailed instructions**
-
-### Option 2: Supabase Cloud
-
-1. Create a `.env` file:
-```env
-VITE_USE_LOCAL_DB=false
-VITE_SUPABASE_URL=your-supabase-project-url
-VITE_SUPABASE_ANON_KEY=your-supabase-anon-key
-```
-
-2. Install and run:
-```bash
-npm install
-npm run dev
-```
 
 The application will be available at `http://localhost:5173`
 
@@ -115,7 +100,6 @@ buildings-manager/
 │   ├── lib/
 │   │   ├── api.ts           # API client
 │   │   ├── db.ts            # Database client wrapper
-│   │   ├── supabase.ts      # Supabase configuration
 │   │   ├── validation.ts    # Validation engine
 │   │   └── sanitize.ts      # Input sanitization
 │   ├── i18n/
@@ -123,9 +107,6 @@ buildings-manager/
 │   │   └── translations.ts  # Translation strings
 │   ├── App.tsx              # Main app component
 │   └── main.tsx             # Entry point
-├── supabase/
-│   ├── migrations/          # Database migrations (150+ files)
-│   └── data/                # Sample CSV data
 ├── scripts/
 │   ├── setup-db.sh          # Mac/Linux setup script
 │   └── setup-db.bat         # Windows setup script
@@ -195,7 +176,7 @@ psql -U postgres buildings_manager < backup.sql
 
 # Import CSV
 psql -U postgres -d buildings_manager
-\copy asset_types FROM 'supabase/data/assettypes.csv' DELIMITER ',' CSV HEADER;
+\copy asset_types FROM 'scripts/data/assettypes.csv' DELIMITER ',' CSV HEADER;
 ```
 
 ## 🔧 Configuration
@@ -208,30 +189,9 @@ The application is deployed at: **https://buildingmanager.bolt.host/**
 
 Create a `.env` file in the project root:
 
-**Supabase (Production):**
 ```env
-VITE_USE_LOCAL_DB=false
-VITE_SUPABASE_URL=https://bolt-native-database-59857294.supabase.co
-VITE_SUPABASE_ANON_KEY=your-anon-key
+VITE_API_URL=https://your-server/api
 ```
-
-**Local PostgreSQL (Development):**
-```env
-VITE_USE_LOCAL_DB=true
-VITE_LOCAL_DB_URL=postgresql://postgres:password@localhost:5432/buildings_manager
-```
-
-### PostgREST (Optional)
-
-For full Supabase client compatibility with local PostgreSQL:
-
-1. Install PostgREST:
-   - Mac: `brew install postgrest`
-   - Linux: Download from [PostgREST releases](https://github.com/PostgREST/postgrest/releases)
-
-2. Run: `postgrest postgrest.conf`
-
-3. Update `.env`: `VITE_LOCAL_DB_URL=http://localhost:3000`
 
 ## 💻 Technologies Used
 
@@ -244,12 +204,9 @@ For full Supabase client compatibility with local PostgreSQL:
 - **i18next** - Internationalization
 - **react-pdf** - PDF viewing
 - **Lucide React** - Icon library
-- **@supabase/supabase-js** - Database client
-
-### Database
+### Backend
+- **FastAPI** - Python REST API framework
 - **PostgreSQL** - Relational database
-- **Supabase** - Backend-as-a-Service (optional)
-- **PostgREST** - REST API layer (optional)
 
 ## 🔍 Key Features Explained
 
@@ -315,29 +272,10 @@ psql -U postgres -d buildings_manager
 
 ## 🚀 Production Deployment
 
-### Using Supabase (Recommended)
-
-1. Create a Supabase project at [supabase.com](https://supabase.com)
-2. Apply migrations from `supabase/migrations/` folder
-3. Configure environment variables:
-   ```env
-   VITE_USE_LOCAL_DB=false
-   VITE_SUPABASE_URL=your-project-url
-   VITE_SUPABASE_ANON_KEY=your-anon-key
-   ```
-4. Build and deploy:
-   ```bash
-   npm run build
-   # Deploy dist/ folder to Netlify, Vercel, or any static host
-   ```
-
-### Using Self-Hosted PostgreSQL
-
-1. Set up PostgreSQL on your server
-2. Run `install_fresh_database.sql` to create schema (or use `./scripts/setup-db.sh`)
+1. Set up PostgreSQL on your server and run `install_fresh_database.sql` to create the schema
+2. Deploy the FastAPI backend (`backend/`)
 3. Configure environment variables with production credentials
-4. Use PostgREST for REST API layer
-5. Deploy with proper CORS and security settings
+4. Build and deploy the frontend: `npm run build`
 
 ## 📝 Data Model Notes
 
@@ -363,6 +301,6 @@ This project is licensed under the MIT License.
 ## 🙏 Acknowledgments
 
 - Built with React and TypeScript
-- Uses Supabase for cloud database
+- FastAPI backend with PostgreSQL
 - AG Grid for data grid functionality
 - Tailwind CSS for styling

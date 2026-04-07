@@ -1125,14 +1125,7 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
             const url: string | undefined = file?.file_url;
             if (typeof url === 'string' && url.length > 0) {
               const u = url.replace(/\\/g, '/');
-              // Supabase public URL format:
-              // .../storage/v1/object/public/structure-drawings/{assetId}/{filename}
-              const supabasePrefix = '/object/public/structure-drawings/';
-              const idxPublic = u.indexOf(supabasePrefix);
-              if (idxPublic !== -1) {
-                return u.substring(idxPublic + supabasePrefix.length).split('?')[0];
-              }
-              // Sometimes file_url may still contain "structure-drawings/{assetId}/{filename}"
+              // Handle structure-drawings path format: .../structure-drawings/{assetId}/{filename}
               const idxBucket = u.indexOf('structure-drawings/');
               if (idxBucket !== -1) {
                 return u.substring(idxBucket + 'structure-drawings/'.length).split('?')[0];
@@ -6386,7 +6379,7 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
                   type="button"
                   onClick={() => originalImportInputRef.current?.click()}
                   disabled={originalImportState.status === 'parsing' || originalImportState.status === 'saving'}
-                  className="btn btn-action btn-primary"
+                  className="btn btn-action btn-primary hidden"
                   title="ייבוא מקובץ מקורי (פורמט עירייה)"
                 >
                   <Upload className="h-5 w-5" />

@@ -2,7 +2,6 @@ import { useState, useEffect, useMemo } from 'react';
 import { Document, Page, pdfjs } from 'react-pdf';
 import { ZoomIn, ZoomOut, Download, RotateCw, ChevronLeft, ChevronRight } from 'lucide-react';
 import { sanitizeFilename } from '../lib/sanitize';
-import { api } from '../lib/api';
 import 'react-pdf/dist/Page/AnnotationLayer.css';
 import 'react-pdf/dist/Page/TextLayer.css';
 
@@ -22,66 +21,14 @@ export function PDFViewer({ fileUrl, fileName }: PDFViewerProps) {
   const [actualFileUrl, setActualFileUrl] = useState<string | null>(null);
   const [isPreparingUrl, setIsPreparingUrl] = useState<boolean>(true);
 
-  // Try to get signed URL if the file is from a private bucket
   useEffect(() => {
     let cancelled = false;
-
-    const getSignedUrlIfNeeded = async () => {
-      setIsPreparingUrl(true);
-      setLoadError(null);
-
-      // Check if URL is already a signed URL (ref: origin)
-      if (fileUrl.includes('.supabase.co/storage/v1/object/sign/')) {
-        if (!cancelled) setActualFileUrl(fileUrl);
-        setIsPreparingUrl(false);
-        return;
-      }
-
-      try {
-        const urlObj = new URL(fileUrl);
-        const pathMatch = urlObj.pathname.match(/\/storage\/v1\/object\/(?:public|sign)\/([^/]+)\/(.+)/);
-
-        if (pathMatch) {
-          const [, bucket, path] = pathMatch;
-
-          const { data, error } = await api.storage
-            .from(bucket)
-            .createSignedUrl(path, 3600); // 1 hour expiry
-
-          if (cancelled) return;
-
-          if (!error && data?.signedUrl) {
-            if (process.env.NODE_ENV === 'development') {
-            }
-            setActualFileUrl(data.signedUrl);
-            setIsPreparingUrl(false);
-            return;
-          }
-          if (error) {
-            // Check for bucket not found error
-            if (error.message?.includes('Bucket not found') || error.statusCode === '404') {
-              const errorMsg = `Storage bucket "${bucket}" not found. Configure backend file storage.`;
-              console.error(errorMsg);
-              setLoadError(errorMsg);
-              // Still try to use original URL in case bucket gets created
-            } else if (process.env.NODE_ENV === 'development') {
-              console.warn('Failed to create signed URL, using original:', error);
-            }
-          }
-        }
-      } catch (error) {
-        if (process.env.NODE_ENV === 'development') {
-          console.warn('Could not parse file URL for signed URL generation:', error);
-        }
-      }
-
-      if (!cancelled) {
-        setActualFileUrl(fileUrl);
-        setIsPreparingUrl(false);
-      }
-    };
-
-    getSignedUrlIfNeeded();
+    setIsPreparingUrl(true);
+    setLoadError(null);
+    if (!cancelled) {
+      setActualFileUrl(fileUrl);
+      setIsPreparingUrl(false);
+    }
     return () => { cancelled = true; };
   }, [fileUrl]);
 
@@ -93,19 +40,7 @@ export function PDFViewer({ fileUrl, fileName }: PDFViewerProps) {
 
   function onDocumentLoadError(error: Error) {
     console.error('PDF load error:', error);
-    
-    // Check if it's a bucket not found error from the error message
-    const errorMessage = error.message || '';
-    if (errorMessage.includes('Bucket not found') || errorMessage.includes('404')) {
-      const bucketMatch = fileUrl.match(/\/storage\/v1\/object\/(?:public|sign)\/([^/]+)\//);
-      const bucketName = bucketMatch ? bucketMatch[1] : 'unknown';
-      setLoadError(
-        `Storage bucket "${bucketName}" not found. ` +
-        `Storage bucket "${bucketName}" not found. Configure backend file storage.`
-      );
-    } else {
-      setLoadError(error.message || 'Failed to load PDF file. The file may be corrupted or inaccessible.');
-    }
+    setLoadError(error.message || 'Failed to load PDF file. The file may be corrupted or inaccessible.');
   }
 
   const documentOptions = useMemo(() => ({
@@ -139,7 +74,6 @@ export function PDFViewer({ fileUrl, fileName }: PDFViewerProps) {
 
   async function handleDownload() {
     try {
-      // Use actualFileUrl if available (signed URL), otherwise fallback to fileUrl
       const urlToDownload = actualFileUrl || fileUrl;
       
       if (!urlToDownload) {

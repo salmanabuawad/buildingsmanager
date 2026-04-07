@@ -1,17 +1,15 @@
 import mimetypes
 import os
 from pathlib import Path
-from urllib.parse import urlparse
-from urllib.request import urlopen, Request
 
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, status, Query
 from sqlalchemy.orm import Session
 from typing import List
-from fastapi.responses import FileResponse, Response
+from fastapi.responses import FileResponse
 from app.database import get_db
 from app.models import AssetFile, Asset, User
 from app.schemas import AssetFileResponse
-from app.auth import get_current_user, require_jwt
+from app.auth import get_current_user
 from app.config import settings
 import uuid
 from datetime import datetime
@@ -83,7 +81,7 @@ async def upload_file(
     asset_id: int,
     file: UploadFile = File(...),
     measurement_date: str = None,
-    path: str | None = Query(default=None, description="Optional storage-relative path (legacy supabase-style)."),
+    path: str | None = Query(default=None, description="Optional storage-relative path."),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
@@ -175,36 +173,6 @@ def delete_file(
         raise HTTPException(status_code=500, detail=f"File deletion failed: {str(e)}")
 
 
-def _is_allowed_fetch_host(netloc: str) -> bool:
-    """Allow Supabase storage and same-origin to avoid SSRF."""
-    n = (netloc or "").lower().split(":")[0]
-    if n in ("localhost", "127.0.0.1"):
-        return True
-    if n.endswith(".supabase.co") or n == "supabase.co":
-        return True
-    return False
-
-
-@router.get("/fetch-for-export")
-def fetch_file_for_export(
-    url: str = Query(..., description="Full URL of the file to fetch (e.g. Supabase storage). Used when file is not on backend disk."),
-    _payload: dict = Depends(require_jwt),
-):
-    """Fetch file from URL server-side and return bytes. Used for ZIP export when file is at Supabase/external URL (avoids CORS)."""
-    parsed = urlparse(url)
-    if parsed.scheme not in ("http", "https"):
-        raise HTTPException(status_code=400, detail="Invalid URL scheme")
-    if not _is_allowed_fetch_host(parsed.netloc):
-        raise HTTPException(status_code=400, detail="URL host not allowed")
-    try:
-        req = Request(url, headers={"User-Agent": "AssetFlow-Export/1.0"})
-        with urlopen(req, timeout=30) as resp:
-            content = resp.read()
-            content_type = resp.headers.get("Content-Type") or "application/octet-stream"
-        return Response(content=content, media_type=content_type)
-    except Exception as e:
-        raise HTTPException(status_code=502, detail=f"Failed to fetch file: {str(e)}")
-
 
 @router.get("/download")
 def download_by_path(
@@ -248,7 +216,6 @@ def get_file_url(
 
     try:
         # Provide a backend-relative download URL that the frontend can fetch.
-        # If file_path contains a supabase-style structure-drawings URL, extract the tail.
         rel = _extract_structure_drawings_rel_path(db_file.file_path or db_file.file_name or "")
         return {"url": f"/api/files/download?path={rel}", "filename": db_file.file_name}
 

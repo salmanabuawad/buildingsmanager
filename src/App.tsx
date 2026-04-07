@@ -5,7 +5,7 @@
  * training data, or automated analysis) is prohibited. See COPYRIGHT.
  */
 import { useState, useEffect, useCallback, useRef, lazy, Suspense } from 'react';
-import { X, Settings, Building, Home, Tag, Search, Plus, Building2, Upload, ChevronDown, ChevronLeft, Trash2, Database, CheckCircle2, AlertCircle, Loader2, Menu, MapPin, Edit, Save, FileText, RefreshCw, Download, LogOut, Users, UserCog, BarChart3, Mail, ClipboardList, HelpCircle, User, Sun, SlidersHorizontal } from 'lucide-react';
+import { X, Settings, Building, Home, Tag, Search, Plus, Building2, Upload, ChevronDown, ChevronLeft, Trash2, Database, CheckCircle2, AlertCircle, Loader2, Menu, MapPin, Edit, Save, FileText, RefreshCw, Download, LogOut, Users, UserCog, BarChart3, ClipboardList, HelpCircle, User, Sun, SlidersHorizontal } from 'lucide-react';
 import { api, AssetType } from './lib/api';
 import { getSession, logoutUsersTable, loginByTaskToken } from './lib/usersTableAuth';
 import { assetValidators, validateEntity, getAssetTypes, getLatestExportDate as getCachedLatestExportDate } from './lib/validation';
@@ -18,6 +18,8 @@ import { useFieldConfigBumpVersion } from './contexts/FieldConfigContext';
 import { Login } from './components/Login';
 import { HelpModal } from './components/HelpModal';
 import { useIsMobile } from './hooks/useIsMobile';
+import { useHeartbeat } from './hooks/useHeartbeat';
+import { SessionExpiredModal } from './components/SessionExpiredModal';
 import { FontSizeProvider } from './contexts/FontSizeContext';
 import { setFontSizeStore } from './lib/fontSizeStore';
 import type { BuildingsListRef } from './components/BuildingsList';
@@ -76,9 +78,11 @@ function TabContentFallback() {
 
 function App() {
   const { isLoading: roleLoading, isReadOnly, isAdmin, isInspector, isDev, userRole, refreshRole } = useUserRole();
+  useHeartbeat();
   const roleLabel = userRole === 'admin' ? 'מנהל' : userRole === 'inspector' ? 'פקח' : 'משתמש';
   const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
   const [checkingAuth, setCheckingAuth] = useState(true);
+  const [showSessionExpired, setShowSessionExpired] = useState(false);
 
   const [tabs, setTabs] = useState<Tab[]>(() => {
     const s = getSession();
@@ -221,6 +225,13 @@ function App() {
       setCheckingAuth(false);
     })();
   }, [refreshRole]);
+
+  // Show session-expired modal instead of hard redirect on 401
+  useEffect(() => {
+    const handler = () => setShowSessionExpired(true);
+    window.addEventListener('auth:unauthorized', handler);
+    return () => window.removeEventListener('auth:unauthorized', handler);
+  }, []);
 
   // Inspector: only inspection-tasks tab; hide other pages
   useEffect(() => {
@@ -2505,6 +2516,13 @@ function App() {
       )}
 
       <HelpModal />
+
+      {showSessionExpired && (
+        <SessionExpiredModal
+          onResolved={() => setShowSessionExpired(false)}
+          onLogout={() => { setShowSessionExpired(false); handleLogout(); }}
+        />
+      )}
     </div>
     </FontSizeProvider>
   );

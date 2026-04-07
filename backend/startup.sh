@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Azure App Service startup script for FastAPI
+# Startup script for FastAPI
 
 echo "Starting AssetFlow API..."
 

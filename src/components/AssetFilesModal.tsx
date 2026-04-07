@@ -142,7 +142,7 @@ export function AssetFilesModal({ isOpen, onClose, assetId, measurementDate, onF
     setCurrentViewingIndex(0);
   };
 
-  /** URL to load the file (for FileViewer). Prefer backend URL so files are served from the app server, not Supabase. */
+  /** URL to load the file (for FileViewer). Files are served from the backend. */
   const getFileViewUrl = (file: AssetFile): string =>
     toBackendFileUrl(file.file_url, (file as { file_path?: string }).file_path) || file.file_url?.trim() || '';
 

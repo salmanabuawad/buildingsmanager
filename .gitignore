@@ -1,4 +1,17 @@
-logs
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+dist-ssr/
+
+# Environment files
+.env
+.env.local
+*.local
+
+# Logs
+logs/
 *.log
 npm-debug.log*
 yarn-debug.log*
@@ -6,26 +19,67 @@ yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
 
-node_modules
-dist
-dist-ssr
-*.local
-
+# IDE / editor config
 .vscode/*
 !.vscode/extensions.json
-.idea
+.idea/
 .DS_Store
 *.suo
 *.ntvs*
 *.njsproj
 *.sln
 *.sw?
-.env
 
-# Migrate-data exports (contain live DB data)
-scripts/migrate-data/export_*.json
+# Bolt IDE
+.bolt/
 
-# Playwright
+# Claude Code session data
+.claude/
+
+# Supabase (no longer used)
+supabase/
+
+# Test artifacts
 playwright-report/
 test-results/
 playwright/.cache/
+tests/
+
+# Data export files (contain live DB data)
+scripts/migrate-data/export_*.json
+
+# Excel / data files (not source code)
+*.xlsx
+*.xls
+
+# PowerShell scripts (Windows-only deployment artifacts)
+*.ps1
+
+# Temporary dev docs & guides
+ARCHITECTURE_*.md
+ASSETLIST_*.md
+BUILD_AND_DEPLOY.md
+COMPARISON_*.md
+CREATE_AUTH_USERS.md
+CREATE_BUCKETS_NOW.sql
+CREATE_STORAGE_BUCKETS.md
+CRITICAL_ARCHITECTURE_*.md
+DEDUP*.md
+DEPLOY_*.md
+FILE_UPLOAD_*.md
+FIX_INSTRUCTIONS.md
+FRESH_INSTALLATION.md
+GET_ANON_KEY.md
+IMPLEMENTATION_COMPLETE.md
+LOCAL_SETUP.md
+MANUAL_*.html
+MANUAL_HE.md
+NODE_VERSION_UPGRADE.md
+QUICKSTART_LOCAL.md
+REDUNDANT_*.md
+SCHEMA_*.md
+SETUP_SUMMARY.md
+SIMULATIONS*.md
+TRANSACTIONAL_*.md
+USER_ROLES_*.md
+VALIDATION_*.md

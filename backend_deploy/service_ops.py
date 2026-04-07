@@ -1,5 +1,5 @@
 """
-Service-layer REST endpoints (replaces supabase.rpc calls).
+Service-layer REST endpoints.
 All require JWT / session auth.
 """
 from fastapi import APIRouter, Depends, HTTPException

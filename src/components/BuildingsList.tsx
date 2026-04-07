@@ -109,9 +109,6 @@ const AddressCellEditor = React.forwardRef<any, AddressCellEditorParams>((props,
 
   const { addressList = [] } = props;
   
-  // Debug: Log addressList when it changes
-  useEffect(() => {
-  }, [addressList]);
 
   // Get the field name from column (address is the default now)
   const fieldName = props.column?.getColId() || 'address';
@@ -462,6 +459,25 @@ const AddressCellEditor = React.forwardRef<any, AddressCellEditorParams>((props,
     </div>
   );
 });
+
+const BUILDINGS_GRID_DEFAULT_COL_DEF = {
+  resizable: false,
+  wrapHeaderText: true,
+  autoHeaderHeight: true,
+  wrapText: true,
+  autoHeight: false,
+  cellStyle: { textAlign: 'right' as const, fontSize: '16px' },
+  headerClass: 'buildings-list-header',
+  headerStyle: { fontSize: '11px', textAlign: 'right' as const, fontWeight: 'normal', WebkitFontSmoothing: 'antialiased', MozOsxFontSmoothing: 'grayscale' },
+  minWidth: 40,
+};
+
+const BUILDINGS_GRID_OPTIONS = {
+  suppressColumnVirtualisation: true,
+  alwaysShowHorizontalScroll: true,
+  suppressMovableColumns: true,
+  suppressColumnMoveAnimation: true,
+};
 
 interface BuildingsListProps {
   onSelectBuilding: (buildingNumber: number, taxRegions?: string) => void;
@@ -3802,23 +3818,8 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
               ref={gridRef}
               rowData={sortedBuildings}
               columnDefs={configuredColumnDefs}
-                defaultColDef={{
-                  resizable: false, // Disabled - use field configurations instead
-                wrapHeaderText: true,
-                autoHeaderHeight: true,
-                wrapText: true,
-                autoHeight: false,
-                cellStyle: { textAlign: 'right', fontSize: '16px' },
-                headerClass: 'buildings-list-header',
-                headerStyle: { fontSize: '11px', textAlign: 'right', fontWeight: 'normal', WebkitFontSmoothing: 'antialiased', MozOsxFontSmoothing: 'grayscale' },
-                minWidth: 40
-              }}
-              gridOptions={{
-                suppressColumnVirtualisation: true,
-                alwaysShowHorizontalScroll: true,
-                suppressMovableColumns: true,
-                suppressColumnMoveAnimation: true,
-              }}
+                defaultColDef={BUILDINGS_GRID_DEFAULT_COL_DEF}
+              gridOptions={BUILDINGS_GRID_OPTIONS}
               onCellValueChanged={onCellValueChanged}
               onCellEditingStopped={onCellEditingStopped}
               onCellEditingStarted={onCellEditingStarted}

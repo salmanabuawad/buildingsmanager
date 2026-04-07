@@ -1,18 +1,21 @@
 from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.orm import Session
 from sqlalchemy import text
 from datetime import timedelta
 from app.database import get_db
 from app.models import User
 from app.schemas import UserLogin, Token, UserResponse, SessionLogin, SessionLoginResponse
-from app.auth import verify_password, create_access_token, get_current_user
+from app.auth import verify_password, create_access_token, get_current_user, decode_token
 from app.config import settings
+
+_bearer = HTTPBearer()
 
 router = APIRouter()
 
 
 def _session_login_from_users_table(body: SessionLogin, db: Session) -> SessionLoginResponse:
-    """Query the actual users table (user_id, user_name, user_role, password_hash) used by Supabase/migration."""
+    """Query the users table (user_id, user_name, user_role, password_hash)."""
     row = db.execute(
         text(
             "SELECT user_id, user_name, user_role, password_hash, active FROM users WHERE user_name = :un LIMIT 1"
@@ -102,3 +105,16 @@ def get_current_user_info(current_user: User = Depends(get_current_user)):
         role=current_user.role,
         active=current_user.active
     )
+
+
+@router.post("/heartbeat")
+def heartbeat(credentials: HTTPAuthorizationCredentials = Depends(_bearer)):
+    """Heartbeat / keep-alive: validate the current token and return a fresh one with a reset expiry."""
+    payload = decode_token(credentials.credentials)
+    if not payload:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid or expired token")
+    new_token = create_access_token(
+        data={"sub": payload.get("sub"), "role": payload.get("role", "user")},
+        expires_delta=timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES),
+    )
+    return {"access_token": new_token}

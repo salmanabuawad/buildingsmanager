@@ -11,7 +11,7 @@ function createConfigKey(gridName: string, fieldName: string): string {
 
 /**
  * Load all field configurations from the database and cache them in memory.
- * Uses api.fieldConfigurations.getAll() (origin pattern) - goes through api layer which uses Supabase.
+ * Uses api.fieldConfigurations.getAll() via the backend API layer.
  */
 export async function loadFieldConfigurations(gridName?: string): Promise<Map<string, FieldConfiguration>> {
   if (isCacheLoaded && fieldConfigCache) {

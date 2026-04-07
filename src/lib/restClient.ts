@@ -39,8 +39,7 @@ async function rest<T>(method: string, path: string, body?: unknown): Promise<{ 
       const detail = (data as { detail?: string })?.detail ?? res.statusText ?? 'Request failed';
       const message = typeof detail === 'string' ? detail : JSON.stringify(detail);
       if (res.status === 401 || (typeof message === 'string' && message.toLowerCase().includes('could not validate credentials'))) {
-        logoutUsersTable();
-        window.location.href = '/';
+        window.dispatchEvent(new CustomEvent('auth:unauthorized', { detail: { message } }));
         return { data: null, error: { message, code: String(res.status) } };
       }
       return { data: null, error: { message, code: String(res.status) } };
@@ -77,6 +76,10 @@ export interface SessionByOtpResponse {
 
 export async function authSessionLogin(user_name: string, password: string) {
   return rest<SessionLoginResponse>('POST', '/auth/session', { user_name, password });
+}
+
+export async function authRefreshToken() {
+  return rest<{ access_token: string }>('POST', '/auth/heartbeat');
 }
 
 export async function authSessionByTaskToken(token: string) {

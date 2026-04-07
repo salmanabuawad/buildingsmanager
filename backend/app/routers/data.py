@@ -1,5 +1,5 @@
 """
-Generic /api/data/{table} endpoint for frontend Supabase-style queries.
+Generic /api/data/{table} endpoint for frontend queries.
 GET /api/data/{table}?select=*&limit=1000&offset=0&order=col&col=val&col__neq=val&col__notnull=1&col__isnull=1&col__in=a,b,c
 """
 from datetime import date, datetime

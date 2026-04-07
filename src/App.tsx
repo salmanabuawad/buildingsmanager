@@ -937,6 +937,29 @@ function App() {
             setActiveTabId(allAssetsTabId);
           }, 0);
         }
+      } else {
+        // No tax region info — open a plain all-assets tab for this building
+        const allAssetsTabId = `assets-${buildingNumber}-all`;
+        setTabs(prev => {
+          if (prev.find(t => t.id === allAssetsTabId)) return prev;
+          const dashboardTab = prev.find(t => t.type === 'measurement-progress-dashboard');
+          const buildingsTab = prev.find(t => t.id === 'buildings');
+          const otherTabs = prev.filter(t =>
+            t.type !== 'measurement-progress-dashboard' &&
+            t.id !== 'buildings' &&
+            t.type !== 'assets'
+          );
+          const dashboardTabToKeep: Tab = dashboardTab || { id: 'measurement-progress-dashboard', type: 'measurement-progress-dashboard', label: 'התקדמות פעילות מדידות', refreshKey: Date.now() };
+          const buildingsTabToKeep: Tab = buildingsTab || { id: 'buildings', type: 'buildings', label: 'מבנים', refreshKey: Date.now() };
+          const allAssetsTab: Tab = {
+            id: allAssetsTabId,
+            type: 'assets',
+            buildingNumber,
+            label: `מבנה ${buildingNumber}`
+          };
+          return [dashboardTabToKeep, buildingsTabToKeep, ...otherTabs, allAssetsTab];
+        });
+        setActiveTabId(allAssetsTabId);
       }
     });
   }

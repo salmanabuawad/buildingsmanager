@@ -26,7 +26,7 @@ def require_jwt(credentials: HTTPAuthorizationCredentials = Depends(security)):
 ALLOWED_TABLES = frozenset({
     "validation_rules", "buildings", "assets", "asset_types", "system_configuration",
     "field_configurations", "audit", "assets_history", "asset_files", "address_list",
-    "asset_measurements", "operators", "managers",
+    "asset_measurements", "operators", "managers", "users",
 })
 
 

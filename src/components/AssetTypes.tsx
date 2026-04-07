@@ -845,6 +845,7 @@ export function AssetTypes() {
     {
       field: 'can_be_subtype',
       headerName: 'יכול להיות תת-נכס',
+      width: 80,
       editable: false,
       cellRenderer: (params: any) => {
         const assetType = params.data as AssetType;
@@ -876,6 +877,7 @@ export function AssetTypes() {
     {
       field: 'min_sub_types_number',
       headerName: 'מינ. תתי-נכסים',
+      width: 60,
       editable: true,
       valueParser: (params: any) => {
         const val = parseInt(params.newValue);
@@ -1081,8 +1083,6 @@ export function AssetTypes() {
         return allTooltips.length > 0 ? allTooltips.join('\n') : 'אין פרטים נוספים';
       },
       tooltipComponent: CustomTooltip,
-      tooltipShowDelay: 500, // Show tooltip after 500ms delay
-      tooltipHideDelay: 120000, // Keep tooltip visible for 120 seconds (2 minutes)
       cellStyle: (params: any) => {
         const isDirty = params.data && isFieldDirty(params.data.id, 'name');
         return { 

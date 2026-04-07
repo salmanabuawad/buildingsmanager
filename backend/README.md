@@ -9,7 +9,7 @@ FastAPI backend for AssetFlow - Building and Asset Management System
 - PostgreSQL database integration
 - Local filesystem storage for file uploads
 - Comprehensive audit logging
-- Role-based access control (Admin, Editor, Viewer)
+- Role-based access control (Admin, User, Inspector)
 
 ## Requirements
 
@@ -57,7 +57,7 @@ ENVIRONMENT=development
 createdb assetflow
 
 # Import schema
-psql assetflow < ../azure_postgres_schema.sql
+psql assetflow < ../schema.sql
 ```
 
 ### 4. Run Development Server
@@ -89,7 +89,11 @@ backend/
 │       ├── assets.py        # Assets CRUD
 │       ├── asset_types.py   # Asset types CRUD
 │       ├── files.py         # File upload/download
-│       └── audit.py         # Audit log endpoints
+│       ├── audit.py         # Audit log endpoints
+│       ├── data.py          # Generic table query endpoint
+│       ├── users.py         # User management endpoints
+│       ├── operators_managers.py  # Operators & managers
+│       └── inspection_tasks.py   # Inspection tasks & reports
 ├── requirements.txt
 ├── startup.sh              # Production startup script
 └── .env.example
@@ -98,19 +102,23 @@ backend/
 ## API Endpoints
 
 ### Authentication
-- `POST /api/auth/login` - Login with username/password
+- `POST /api/auth/session` - Login with username/password
+- `POST /api/auth/heartbeat` - Refresh token
 - `GET /api/auth/me` - Get current user info
+
+### Users
+- `POST /api/users/internal` - Create user with hashed password
+- `POST /api/users/set-password` - Change user password
 
 ### Buildings
 - `GET /api/buildings` - List all buildings
 - `GET /api/buildings/{building_id}` - Get building details
 - `POST /api/buildings` - Create building
 - `PUT /api/buildings/{building_id}` - Update building
-- `DELETE /api/buildings/{building_id}` - Delete building
+- `DELETE /api/buildings/by-number/{building_number}` - Delete building and related data
 
 ### Assets
 - `GET /api/assets` - List all assets
-- `GET /api/assets/{asset_id}` - Get asset details
 - `POST /api/assets` - Create asset
 - `PUT /api/assets/{asset_id}` - Update asset
 - `DELETE /api/assets/{asset_id}` - Delete asset
@@ -118,22 +126,36 @@ backend/
 
 ### Asset Types
 - `GET /api/asset-types` - List all asset types
-- `GET /api/asset-types/{id}` - Get asset type details
 - `POST /api/asset-types` - Create asset type
+- `PUT /api/asset-types/{id}` - Update asset type
+- `DELETE /api/asset-types/{id}` - Delete asset type
 
 ### Files
-- `POST /api/files/upload/{asset_id}` - Upload file
+- `POST /api/files/upload/{asset_id}` - Upload file for asset
 - `GET /api/files/asset/{asset_id}` - List asset files
-- `GET /api/files/download/{file_id}` - Get download URL
+- `GET /api/files/download` - Download file by path
 - `DELETE /api/files/{file_id}` - Delete file
+
+### Generic Data
+- `GET /api/data/{table}` - Query any allowed table
+- `POST /api/data/{table}` - Insert rows
+- `POST /api/data/{table}/upsert` - Upsert rows
+- `DELETE /api/data/{table}` - Delete rows by filter
+
+### Inspection Tasks
+- `GET /api/inspection-tasks` - List tasks
+- `POST /api/inspection-tasks` - Create task
+- `PATCH /api/inspection-tasks/{id}` - Update task
+- `POST /api/inspection-tasks/{id}/take` - Take task
+- `POST /api/inspection-tasks/{id}/submit` - Submit task
+- `POST /api/inspection-tasks/{id}/approve` - Approve task
 
 ### Audit
 - `GET /api/audit` - List audit logs
-- `GET /api/audit/{audit_id}` - Get audit log details
 
 ## Authentication
 
-The API uses JWT bearer tokens for authentication. After logging in, include the token in all requests:
+The API uses JWT bearer tokens. After logging in, include the token in all requests:
 
 ```bash
 curl -H "Authorization: Bearer <your_token>" http://localhost:8000/api/buildings
@@ -141,49 +163,24 @@ curl -H "Authorization: Bearer <your_token>" http://localhost:8000/api/buildings
 
 ## User Roles
 
-- **Admin**: Full access to all resources
-- **Editor**: Can create, read, and update resources
-- **Viewer**: Read-only access
-
-## Default Credentials
-
-After setting up the database, you can login with:
-
-- **Username**: admin
-- **Password**: admin123
-
-**Important**: Change the default password immediately after first login!
-
-## Testing
-
-### Manual Testing with curl
-
-```bash
-# Login
-curl -X POST http://localhost:8000/api/auth/login \
-  -H "Content-Type: application/json" \
-  -d '{"username": "admin", "password": "admin123"}'
-
-# Get buildings (replace TOKEN with your actual token)
-curl http://localhost:8000/api/buildings \
-  -H "Authorization: Bearer TOKEN"
-```
-
-### Using Swagger UI
-
-Navigate to http://localhost:8000/docs for interactive API documentation.
+- **admin**: Full access to all resources
+- **user**: Standard access
+- **inspector**: Mobile inspection access
 
 ## Deployment
 
-See [AZURE_DEPLOYMENT_GUIDE.md](../AZURE_DEPLOYMENT_GUIDE.md) for detailed deployment instructions.
-
-### Deploy
+The app is deployed to `profile.wavelync.com` using `deploy.sh` from the project root:
 
 ```bash
 # From project root
-chmod +x deploy-to-azure.sh
-./deploy-to-azure.sh
+bash deploy.sh
 ```
+
+This script:
+1. Builds the frontend (`npm run build`)
+2. Copies `dist/` to `/var/www/buildingsmanager` on the server
+3. Copies backend Python files to `/home/profilegroup/app/backend/`
+4. Sends `SIGHUP` to the running uvicorn process to reload
 
 ## Environment Variables Reference
 
@@ -194,7 +191,7 @@ chmod +x deploy-to-azure.sh
 | ALGORITHM | JWT algorithm | HS256 |
 | ACCESS_TOKEN_EXPIRE_MINUTES | Token expiration time | 30 |
 | FILES_BASE_PATH | Local base path for file uploads | `/home/profilegroup/app/uploads` |
-| ASSET_FILES_STORAGE_PATH | Local path for structure-drawings / asset files | `/home/profilegroup/app/asset_files_storage` |
+| ASSET_FILES_STORAGE_PATH | Local path for asset files storage | `/home/profilegroup/app/asset_files_storage` |
 | ALLOWED_ORIGINS | CORS allowed origins (comma-separated) | http://localhost:5173 |
 | ENVIRONMENT | Environment name | development |
 
@@ -204,37 +201,24 @@ chmod +x deploy-to-azure.sh
 
 Check your DATABASE_URL format:
 ```
-postgresql://username:password@host:port/database?sslmode=require
+postgresql://username:password@host:port/database
 ```
-
-If your PostgreSQL requires SSL, set `sslmode=require` in `DATABASE_URL`.
 
 ### CORS Issues
 
-Make sure your frontend URL is in the ALLOWED_ORIGINS environment variable.
+Make sure your frontend URL is in the `ALLOWED_ORIGINS` environment variable.
 
 ### File Upload Issues
 
-Verify that:
-1. `FILES_BASE_PATH` / `ASSET_FILES_STORAGE_PATH` directories exist and are writable by the app user
+Verify that `FILES_BASE_PATH` and `ASSET_FILES_STORAGE_PATH` directories exist and are writable by the app user.
 
 ## Security Best Practices
 
-1. Use strong SECRET_KEY (generate with: `openssl rand -hex 32`)
-2. Enable HTTPS in production
-3. Rotate JWT tokens regularly
-4. Use environment variables for all secrets
-5. Use a secrets manager for production secrets (e.g. Key Vault / environment variables)
-6. Set up rate limiting for API endpoints
-7. Regular security updates for dependencies
-
-## Performance Tips
-
-1. Use connection pooling (already configured in database.py)
-2. Add database indexes for frequently queried fields
-3. Enable Redis for caching (optional)
-4. Use async endpoints for I/O-bound operations
-5. Monitor with Application Insights
+1. Use a strong `SECRET_KEY` (generate with: `openssl rand -hex 32`)
+2. Enable HTTPS in production (nginx with Let's Encrypt)
+3. Use environment variables for all secrets
+4. Set up rate limiting for API endpoints
+5. Keep dependencies up to date
 
 ## License
 

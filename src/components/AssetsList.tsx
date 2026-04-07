@@ -4805,6 +4805,10 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
         // Compress other file types
         setUploadProgress({ assetId, progress: 10, fileName: file.name });
         compressedFile = await compressFile(file);
+        // Preserve original filename (imageCompression may return a File named "blob")
+        if (compressedFile.name !== file.name) {
+          compressedFile = new File([compressedFile], file.name, { type: compressedFile.type || file.type });
+        }
         originalSizeKB = (file.size / 1024).toFixed(2);
         compressedSizeKB = (compressedFile.size / 1024).toFixed(2);
       }
@@ -4812,7 +4816,7 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
       setUploadProgress({ assetId, progress: 30, fileName: file.name });
 
       // Step 2: Prepare file for upload (use asset_id folder and timestamp to avoid overwriting)
-      const fileExt = compressedFile.name.split('.').pop() || file.name.split('.').pop();
+      const fileExt = file.name.split('.').pop() || 'bin';
       const timestamp = Date.now();
       // Use sanitized filename for storage path (no Hebrew or special chars)
       const sanitizedName = `${timestamp}.${fileExt}`;
@@ -4829,8 +4833,10 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
 
       setUploadProgress({ assetId, progress: 40, fileName: file.name });
 
-      // Preserve content-type to prevent file corruption (especially important for PDFs)
-      const uploadOptions: { contentType?: string; upsert: boolean } = { upsert: false };
+      // Preserve content-type and pass measurement_date so backend inserts the correct DB record
+      const asset = assets.find(a => a.asset_id === assetId);
+      const measurementDate = asset?.measurement_date || null;
+      const uploadOptions: { contentType?: string; upsert: boolean; measurementDate?: string | null; originalFileName?: string } = { upsert: false, measurementDate, originalFileName: file.name };
       if (compressedFile.type) {
         uploadOptions.contentType = compressedFile.type;
       }
@@ -4842,31 +4848,8 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
       clearInterval(progressInterval);
 
       if (uploadError) {
-        // Check for bucket not found error
-        if (uploadError.message?.includes('Bucket not found') || uploadError.statusCode === '404') {
-          throw new Error(
-            'Storage bucket "structure-drawings" not found. ' +
-            'Storage bucket "structure-drawings" not found. Configure backend file storage.'
-          );
-        }
         throw uploadError;
       }
-
-      setUploadProgress({ assetId, progress: 90, fileName: file.name });
-
-      // Step 4: Get public URL
-      const { data: { publicUrl } } = api.storage
-        .from('structure-drawings')
-        .getPublicUrl(filePath);
-
-      setUploadProgress({ assetId, progress: 95, fileName: file.name });
-
-      // Step 5: Add file to asset_files table (instead of updating structure_drawing_url)
-      // For AssetsList, we always add to the latest measurement (undefined = no measurement_date filter, shows all)
-      // But we want to associate files with the latest measurement, so we get the asset's measurement_date
-      const asset = assets.find(a => a.asset_id === assetId);
-      const measurementDate = asset?.measurement_date || null;
-      await api.assets.files.add(assetId, publicUrl, file.name, file.size, file.type, measurementDate);
 
       setUploadProgress({ assetId, progress: 100, fileName: file.name });
 

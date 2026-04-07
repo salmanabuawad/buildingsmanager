@@ -43,7 +43,13 @@ export function UserManagement() {
     user_role: 'user' as 'admin' | 'user' | 'inspector',
   });
   const [creatingUser, setCreatingUser] = useState(false);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const gridRef = useRef<AgGridReact<User>>(null);
+
+  const showSuccess = (msg: string) => {
+    setSuccessMessage(msg);
+    setTimeout(() => setSuccessMessage(null), 3000);
+  };
 
   const fetchUsers = async () => {
     try {
@@ -213,7 +219,7 @@ export function UserManagement() {
       setNewPassword('');
       setConfirmPassword('');
       setError(null);
-      alert('הסיסמה עודכנה בהצלחה');
+      showSuccess('הסיסמה עודכנה בהצלחה');
     } catch (err) {
       console.error('Error changing password:', err);
       const errorMessage = err instanceof Error ? err.message : 'שגיאה בעדכון הסיסמה';
@@ -269,8 +275,8 @@ export function UserManagement() {
         user_email: newUser.user_email,
         password: newUser.password,
         user_role: newUser.user_role,
-        full_name: newUser.full_name.trim() || undefined,
-        phone: newUser.phone.trim() || undefined,
+        full_name: newUser.full_name?.trim() || undefined,
+        phone: newUser.phone?.trim() || undefined,
       });
 
       // Refresh users list
@@ -288,7 +294,7 @@ export function UserManagement() {
         user_role: 'user',
       });
       setError(null);
-      alert('המשתמש נוצר בהצלחה');
+      showSuccess('המשתמש נוצר בהצלחה');
     } catch (err) {
       console.error('Error creating user:', err);
       setError(err instanceof Error ? err.message : 'שגיאה ביצירת המשתמש');
@@ -315,7 +321,7 @@ export function UserManagement() {
       // Close confirmation modal
       setDeleteConfirmOpen(null);
       setError(null);
-      alert('המשתמש נמחק בהצלחה');
+      showSuccess('המשתמש נמחק בהצלחה');
     } catch (err) {
       console.error('Error deleting user:', err);
       setError(err instanceof Error ? err.message : 'שגיאה במחיקת המשתמש');
@@ -377,6 +383,13 @@ export function UserManagement() {
       {error && (
         <div className="mb-2 px-3 py-2 rounded-md text-sm bg-red-50 text-red-700 border border-red-200">
           {error}
+        </div>
+      )}
+
+      {successMessage && (
+        <div className="mb-2 px-3 py-2 rounded-md text-sm bg-green-50 text-green-700 border border-green-200 flex items-center gap-2">
+          <CheckCircle2 className="h-4 w-4 shrink-0" />
+          {successMessage}
         </div>
       )}
 

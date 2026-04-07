@@ -347,12 +347,14 @@ export async function getFileViewUrl(path: string): Promise<GetFileViewUrlResult
 function storageFrom(bucket: string) {
   const base = `${getRequestBase()}/api/files`;
   return {
-    upload: async (path: string, file: File | Blob, opts?: { upsert?: boolean }) => {
+    upload: async (path: string, file: File | Blob, opts?: { upsert?: boolean; measurementDate?: string | null; originalFileName?: string }) => {
       const form = new FormData();
-      form.append('file', file);
+      const fileName = opts?.originalFileName || (file instanceof File && file.name && file.name !== 'blob' ? file.name : 'file');
+      form.append('file', file, fileName);
       const firstSegment = path.split('/')[0];
       const assetId = firstSegment && /^\d+$/.test(firstSegment) ? firstSegment : '0';
-      const url = `${base}/upload/${assetId}?path=${encodeURIComponent(path)}`;
+      let url = `${base}/upload/${assetId}?path=${encodeURIComponent(path)}`;
+      if (opts?.measurementDate) url += `&measurement_date=${encodeURIComponent(opts.measurementDate)}`;
       const res = await fetch(url, {
         method: 'POST',
         body: form,

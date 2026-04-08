@@ -361,9 +361,19 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
   const [deletedAssets, setDeletedAssets] = useState<Set<string>>(new Set());
   const [originalAssets, setOriginalAssets] = useState<Asset[]>([]);
   const [validationErrors, setValidationErrors] = useState<Map<string, string>>(new Map());
+  const [showOnlyInvalid, setShowOnlyInvalid] = useState(false);
   // Save is gated behind an explicit Validate action.
   // Any edit resets this back to false.
   const [isValidatedForSave, setIsValidatedForSave] = useState(false);
+
+  // Draft recovery state
+  const draftKey = `assets-draft-${buildingNumber}-${taxRegion ?? 'all'}`;
+  const [pendingRecovery, setPendingRecovery] = useState<{
+    timestamp: number;
+    dirtyAssets: Array<[string, Partial<Asset>]>;
+    newAssets: string[];
+    newAssetRows: Asset[];
+  } | null>(null);
   const [selectedAssets, setSelectedAssets] = useState<Set<string>>(new Set());
   const gridRef = useRef<AgGridReact<Asset>>(null);
   
@@ -401,6 +411,8 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
   const cellEditStartValues = useRef<Map<string, any>>(new Map());
   // Track if user actually interacted with the editor (typed, selected, etc.) - not just clicked
   const cellEditUserInteracted = useRef<Map<string, boolean>>(new Map());
+  // Always-current ref to runValidationProgrammatically — used in setTimeout to avoid stale closures
+  const runValidationRef = useRef<(() => Promise<{ hasErrors: boolean; errorMessage?: string }>) | null>(null);
   const [distributionModalOpen, setDistributionModalOpen] = useState(false);
   const [distributionResult, setDistributionResult] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'assets' | 'distribution-history' | 'transfer-history'>('assets');
@@ -422,11 +434,11 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
   }>({ status: 'idle', assets: [], totalSharedArea: 0, warnings: [], error: null });
 
   // Any change invalidates the last validation snapshot (user must re-validate).
+  // We do NOT clear individual asset errors here — that is handled per-asset in onCellValueChanged/onCellEditingStopped.
   useEffect(() => {
     const hasChanges = dirtyAssets.size > 0 || newAssets.size > 0 || deletedAssets.size > 0;
     if (hasChanges) {
       setIsValidatedForSave(false);
-      setValidationErrors(new Map());
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [dirtyAssets, newAssets, deletedAssets]);
@@ -1463,6 +1475,53 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
       }, 50);
     }
   }, [validationErrors]);
+
+  // On mount: check for an unsaved draft in localStorage
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem(draftKey);
+      if (!saved) return;
+      const draft = JSON.parse(saved);
+      const hasChanges = (draft.dirtyAssets?.length ?? 0) > 0 || (draft.newAssets?.length ?? 0) > 0;
+      if (hasChanges) {
+        setPendingRecovery({
+          timestamp: draft.timestamp,
+          dirtyAssets: draft.dirtyAssets ?? [],
+          newAssets: draft.newAssets ?? [],
+          newAssetRows: draft.newAssetRows ?? [],
+        });
+      } else {
+        localStorage.removeItem(draftKey);
+      }
+    } catch {
+      localStorage.removeItem(draftKey);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // only on mount
+
+  // Auto-save draft to localStorage whenever dirty state changes
+  useEffect(() => {
+    if (dirtyAssets.size === 0 && newAssets.size === 0) {
+      localStorage.removeItem(draftKey);
+      return;
+    }
+    const timer = setTimeout(() => {
+      try {
+        const newAssetRows = assets.filter(a => newAssets.has(String(a.asset_id)));
+        const draft = {
+          timestamp: Date.now(),
+          dirtyAssets: Array.from(dirtyAssets.entries()),
+          newAssets: Array.from(newAssets),
+          newAssetRows,
+        };
+        localStorage.setItem(draftKey, JSON.stringify(draft));
+      } catch {
+        // localStorage quota exceeded or unavailable — silently ignore
+      }
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [dirtyAssets, newAssets, assets, draftKey]);
+
   async function fetchData(showLoading = true, skipBuildingFetch = false) {
     try {
       if (showLoading) setLoading(true);
@@ -2045,11 +2104,19 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
       // We'll update our state in onCellEditingStopped
       // Also don't refresh cells here - wait until editing stops to prevent re-renders during typing
 
-      // No online validation on edit: user must click Validate.
-      // Use startTransition to prevent blocking the UI during typing
+      // Follow validation mode config:
+      // - Inline mode: clear this asset's error (will be re-validated on blur)
+      // - Before save / None: keep the error visible — only explicit validate can clear it
       startTransition(() => {
         setIsValidatedForSave(false);
-        setValidationErrors(new Map());
+        if (shouldValidateOnBlur) {
+          setValidationErrors(prev => {
+            if (!prev.has(assetId)) return prev;
+            const next = new Map(prev);
+            next.delete(assetId);
+            return next;
+          });
+        }
       });
 
     } catch (error) {
@@ -2057,7 +2124,7 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
       setToast({ message: 'Failed to track change', type: 'error' });
       setTimeout(() => setToast(null), 3000);
     }
-  }, [validationTaxRegion, assetTypes, building, setAssets, taxRegion, newAssets, originalAssets, operators]);
+  }, [validationTaxRegion, assetTypes, building, setAssets, taxRegion, newAssets, originalAssets, operators, shouldValidateOnBlur]);
 
   // Track when cell editing starts - store initial value
   const onCellEditingStarted = useCallback((event: any) => {
@@ -2157,10 +2224,38 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
     
     // Only update if value changed (or if it's a new asset)
     if (isNew || valueChanged) {
+      // Compact subtypes only when sub_asset_size_N is explicitly cleared AND its paired type is also empty.
+      // Clearing just the type (without clearing the size) does NOT trigger compaction — the user
+      // must explicitly clear both type and size to remove a slot.
+      let extraChanges: Record<string, any> = {};
+      // Compact when sub_asset_size_N is cleared and its paired type is already empty
+      if (field?.startsWith('sub_asset_size_') && (newValue === null || newValue === '' || Number(newValue) === 0)) {
+        const idx = parseInt(field.slice(-1), 10);
+        const typeField = `sub_asset_type_${idx}`;
+        const currentType = (data as any)[typeField];
+        const typeAlsoClear = currentType == null || String(currentType).trim() === '';
+        if (typeAlsoClear) {
+          const merged: Record<string, any> = { ...data, [typeField]: null, [field]: 0 };
+          const pairs: Array<{ type: any; size: any }> = [];
+          for (let i = 1; i <= 6; i++) {
+            const t = merged[`sub_asset_type_${i}`];
+            const s = merged[`sub_asset_size_${i}`];
+            if (t != null && String(t).trim() !== '') pairs.push({ type: t, size: s ?? 0 });
+          }
+          for (let i = 1; i <= 6; i++) {
+            const p = pairs[i - 1];
+            extraChanges[`sub_asset_type_${i}`] = p ? p.type : null;
+            extraChanges[`sub_asset_size_${i}`] = p ? (p.size ?? 0) : 0;
+          }
+        }
+      }
+
+      const hasCompaction = Object.keys(extraChanges).length > 0;
       setDirtyAssets(prev => {
         const next = new Map(prev);
         const existing = next.get(assetId) || {};
-        next.set(assetId, { ...existing, [field]: newValue });
+        // extraChanges spreads last so compacted values win over [field]: newValue
+        next.set(assetId, { ...existing, [field]: newValue, ...extraChanges });
         return next;
       });
       // Update assets state only when editing stops (not on every keystroke)
@@ -2168,14 +2263,28 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
       // Use startTransition to prevent blocking the UI
       startTransition(() => {
         setAssets(prev => prev.map(a =>
-          String(a.asset_id) === assetId ? { ...a, [field]: newValue } : a
+          String(a.asset_id) === assetId ? { ...a, [field]: newValue, ...extraChanges } : a
         ));
         setIsValidatedForSave(false);
-        setValidationErrors(new Map());
+        if (shouldValidateOnBlur) {
+          setValidationErrors(prev => {
+            if (!prev.has(assetId)) return prev;
+            const next = new Map(prev);
+            next.delete(assetId);
+            return next;
+          });
+        }
       });
+      // Refresh the grid row so all compacted cells re-render immediately
+      if (hasCompaction) {
+        setTimeout(() => {
+          gridRef.current?.api?.refreshCells({ rowNodes: undefined, force: true });
+        }, 50);
+      }
       // When "מתי להריץ אימות" is "אונליין", run validation after cell edit (on blur)
+      // Use runValidationRef.current to avoid stale closure — ensures the latest dirtyAssets is used
       if (shouldValidateOnBlur) {
-        setTimeout(() => runValidationProgrammatically().catch(() => {}), 0);
+        setTimeout(() => runValidationRef.current?.().catch(() => {}), 0);
       }
     }
   }, [newAssets, originalAssets, shouldValidateOnBlur]);
@@ -2264,6 +2373,7 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
 
       // Check if there are any validation errors
       const hasAnyValidationErrors = resultsWithDiscountErrors.some(r => !r.valid || (r.errors && r.errors.length > 0));
+      const validatedIds = new Set(assetsWithChanges.map(a => String(a.asset_id)));
 
       if (hasAnyValidationErrors) {
         // Build error message
@@ -2309,21 +2419,30 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
             }
           }
         }
-        // Set validation errors and ensure they're visible
-        setValidationErrors(() => newValidationErrors);
-        
-        if (process.env.NODE_ENV === 'development') {
-        }
+        // Merge: update only the validated assets' errors; preserve errors for untouched assets
+        setValidationErrors(prev => {
+          const next = new Map(prev);
+          // Clear previous errors for validated assets (they will be re-added below if still invalid)
+          for (const id of validatedIds) next.delete(id);
+          // Add new errors for validated assets
+          for (const [id, msg] of newValidationErrors) next.set(id, msg);
+          return next;
+        });
 
         return {
           hasErrors: true,
           errorMessage: `נמצאו שגיאות אימות ב-${errorAssets.length} נכסים:\n${errorAssets.slice(0, 5).join('\n')}${errorAssets.length > 5 ? `\n...ועוד ${errorAssets.length - 5} נכסים` : ''}`,
-          validationErrors: newValidationErrors // Return errors so caller can use them immediately
+          validationErrors: newValidationErrors
         };
       }
 
-      // Clear validation errors if validation passed
-      setValidationErrors(new Map());
+      // Validation passed: clear errors only for the assets that were validated
+      setValidationErrors(prev => {
+        if (prev.size === 0) return prev;
+        const next = new Map(prev);
+        for (const id of validatedIds) next.delete(id);
+        return next.size === prev.size ? prev : next;
+      });
       return { hasErrors: false };
     } catch (err) {
       console.error('Error running validation:', err);
@@ -2333,6 +2452,8 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
       };
     }
   }
+  // Keep the ref pointing to the latest version so setTimeout callbacks don't use stale closures
+  runValidationRef.current = runValidationProgrammatically;
 
   async function handleBatchValidateBuildingAssets() {
     setShowBatchValidationModal(true);
@@ -3086,7 +3207,10 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
         }
         return next;
       });
-      
+
+      // Clear draft from localStorage — changes have been saved
+      localStorage.removeItem(draftKey);
+
       // Clear validation errors for successfully saved/deleted assets
       setValidationErrors(prev => {
         const next = new Map(prev);
@@ -3492,6 +3616,9 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
     setDeletedAssets(new Set());
     setNewAssets(new Set());
     setValidationErrors(new Map());
+
+    // Clear draft from localStorage
+    localStorage.removeItem(draftKey);
     setSourceAssetId(null);
     setToast({ message: 'השינויים בוטלו', type: 'info' });
     setTimeout(() => setToast(null), 3000);
@@ -3502,6 +3629,36 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
         gridRef.current.api.refreshCells({ force: false });
       }
     }, 0);
+  };
+
+  // Restore an unsaved draft from localStorage
+  const handleRestoreDraft = () => {
+    if (!pendingRecovery) return;
+    const { dirtyAssets: savedDirty, newAssets: savedNew, newAssetRows } = pendingRecovery;
+
+    // Re-apply dirty changes to assets state
+    const dirtyMap = new Map<string, Partial<Asset>>(savedDirty);
+    setDirtyAssets(dirtyMap);
+    setAssets(prev => {
+      // Merge dirty changes into existing assets
+      const merged = prev.map(a => {
+        const changes = dirtyMap.get(String(a.asset_id));
+        return changes ? { ...a, ...changes } : a;
+      });
+      // Add back new asset rows that aren't already present
+      const existingIds = new Set(merged.map(a => String(a.asset_id)));
+      const toAdd = newAssetRows.filter(a => !existingIds.has(String(a.asset_id)));
+      return [...toAdd, ...merged];
+    });
+    setNewAssets(new Set(savedNew));
+    setPendingRecovery(null);
+    setToast({ message: 'השינויים שוחזרו בהצלחה', type: 'success' });
+    setTimeout(() => setToast(null), 3000);
+  };
+
+  const handleDiscardDraft = () => {
+    localStorage.removeItem(draftKey);
+    setPendingRecovery(null);
   };
 
   // Distribute shared area to all residential assets
@@ -6075,22 +6232,12 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
   const [configuredColumnDefs, fieldConfigLoading] = useFieldConfig(columnDefs, 'assets-list');
 
   // Check if all visible assets are residential assets (מגורים)
-  // Sort assets to put errored rows first
-  const sortedAssets = useMemo(() => {
-    return [...assets].map((asset, idx) => ({ asset, idx }))
-      .sort((a, b) => {
-        const aId = String(a.asset.asset_id);
-        const bId = String(b.asset.asset_id);
-        const aHasError = validationErrors.has(aId);
-        const bHasError = validationErrors.has(bId);
-        if (aHasError !== bHasError) {
-          return aHasError ? -1 : 1;
-        }
-        // Preserve original order within error/non-error groups
-        return a.idx - b.idx;
-      })
-      .map(x => x.asset);
-  }, [assets, validationErrors]);
+  const filteredAssets = useMemo(() => {
+    const filtered = showOnlyInvalid && validationErrors.size > 0
+      ? assets.filter(a => validationErrors.has(String(a.asset_id)))
+      : assets;
+    return filtered;
+  }, [assets, validationErrors, showOnlyInvalid]);
 
   const areAllAssetsResidence = useMemo(() => {
     if (!assets || assets.length === 0 || !assetTypes || assetTypes.length === 0) {
@@ -6537,7 +6684,27 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
               );
             })()}
           </div>
-          
+          {/* Invalid-only filter — persistent, below buttons */}
+          <div className="flex justify-start mt-1.5">
+            <label className={`flex items-center gap-1.5 select-none text-sm font-medium border rounded px-2 py-1 transition-colors ${
+              validationErrors.size > 0
+                ? 'cursor-pointer text-red-600 border-red-300 bg-red-50 hover:bg-red-100'
+                : 'cursor-not-allowed text-gray-400 border-gray-200 bg-gray-50'
+            }`}>
+              <input
+                type="checkbox"
+                checked={showOnlyInvalid}
+                onChange={e => setShowOnlyInvalid(e.target.checked)}
+                disabled={validationErrors.size === 0}
+                className="accent-red-600 disabled:opacity-50"
+              />
+              <span>
+                הצג רק לא תקינים
+                {validationErrors.size > 0 && ` (${validationErrors.size})`}
+              </span>
+            </label>
+          </div>
+
           {/* Tab Navigation - hidden in error fixing mode */}
           {!isErrorFixingMode && building && (
               <div className="flex items-center gap-1 border-2 border-b-0 border-blue-400 bg-gradient-to-b from-gray-50 to-gray-100 rounded-t-xl shadow-sm mt-2">
@@ -6601,6 +6768,33 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
         {/* Tab Content */}
         {activeTab === 'assets' && (
           <div className="flex-1 min-h-0 flex flex-col bg-white rounded-b-xl shadow-lg hover:shadow-xl transition-shadow duration-200 overflow-hidden border-2 border-theme-action-accent w-full">
+            {/* Draft recovery banner */}
+            {pendingRecovery && (
+              <div className="flex items-center gap-3 px-4 py-3 bg-amber-50 border-b-2 border-amber-300 text-sm">
+                <span className="text-amber-700 font-semibold flex-1">
+                  ⚠️ נמצאו שינויים שלא נשמרו מהפעם הקודמת
+                  {` — `}
+                  {pendingRecovery.dirtyAssets.length > 0 && `${pendingRecovery.dirtyAssets.length} נכסים שונו`}
+                  {pendingRecovery.dirtyAssets.length > 0 && pendingRecovery.newAssets.length > 0 && ', '}
+                  {pendingRecovery.newAssets.length > 0 && `${pendingRecovery.newAssets.length} נכסים חדשים`}
+                  {` (${new Date(pendingRecovery.timestamp).toLocaleString('he-IL')})`}
+                </span>
+                <button
+                  type="button"
+                  onClick={handleRestoreDraft}
+                  className="px-3 py-1 rounded bg-amber-500 hover:bg-amber-600 text-white font-medium"
+                >
+                  שחזר שינויים
+                </button>
+                <button
+                  type="button"
+                  onClick={handleDiscardDraft}
+                  className="px-3 py-1 rounded border border-amber-400 hover:bg-amber-100 text-amber-700 font-medium"
+                >
+                  התעלם
+                </button>
+              </div>
+            )}
             {fieldConfigLoading ? (
               <div className="flex-1 min-h-[200px] flex items-center justify-center">
                 <Loader2 className="h-8 w-8 animate-spin text-theme-tab-active" />
@@ -6610,7 +6804,7 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
               <AgGridReact
             key={`assets-grid-${configVersion}-${fontSize}`}
             ref={gridRef}
-            rowData={sortedAssets}
+            rowData={filteredAssets}
             columnDefs={configuredColumnDefs}
             getRowStyle={getRowStyle}
             defaultColDef={ASSETS_GRID_DEFAULT_COL_DEF}

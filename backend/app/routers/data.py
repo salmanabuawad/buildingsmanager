@@ -257,20 +257,24 @@ async def upsert_table(
             val_sql = ", ".join(f":v_{c}" for c in row_cols)
             returning = ", ".join(f'"{c}"' for c in columns)
 
-            if on_conflict and on_conflict in columns:
-                # Columns to update on conflict (all except the conflict key and immutable cols)
-                update_cols = [c for c in row_cols if c != on_conflict and c not in ("id", "created_at", "created_by")]
+            # on_conflict may be a single column ("id") or composite ("grid_name,field_name")
+            conflict_cols = [c.strip() for c in on_conflict.split(",") if c.strip() in columns] if on_conflict else []
+            if conflict_cols:
+                conflict_sql = ", ".join(f'"{c}"' for c in conflict_cols)
+                # Columns to update on conflict (all except the conflict keys and immutable cols)
+                immutable = set(conflict_cols) | {"id", "created_at", "created_by"}
+                update_cols = [c for c in row_cols if c not in immutable]
                 if update_cols:
                     set_sql = ", ".join(f'"{c}" = EXCLUDED."{c}"' for c in update_cols)
                     sql = (
                         f'INSERT INTO "{table}" ({col_sql}) VALUES ({val_sql}) '
-                        f'ON CONFLICT ("{on_conflict}") DO UPDATE SET {set_sql} '
+                        f'ON CONFLICT ({conflict_sql}) DO UPDATE SET {set_sql} '
                         f'RETURNING {returning}'
                     )
                 else:
                     sql = (
                         f'INSERT INTO "{table}" ({col_sql}) VALUES ({val_sql}) '
-                        f'ON CONFLICT ("{on_conflict}") DO NOTHING '
+                        f'ON CONFLICT ({conflict_sql}) DO NOTHING '
                         f'RETURNING {returning}'
                     )
             else:

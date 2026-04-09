@@ -1627,15 +1627,6 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
       const applyBuildingUpdate = (b: Building) => {
         if (getBuildingKey(b) !== buildingKey) return b;
         const updated = { ...b, [field]: newValue };
-        // Recalculate total_building_area when any shared area field changes (formula: net + residence + business + parking)
-        if (['residence_shared_area', 'business_shared_area', 'shared_parking_area'].includes(field)) {
-          const total =
-            (Number(updated.net_area) || 0) +
-            (Number(updated.residence_shared_area) || 0) +
-            (Number(updated.business_shared_area) || 0) +
-            (Number(updated.shared_parking_area) || 0);
-          return { ...updated, total_building_area: total };
-        }
         return updated;
       };
       setBuildings(prev => prev.map(applyBuildingUpdate));

@@ -6840,12 +6840,24 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
                 const columnState = params.api.getColumnState();
                 const actionsCol = columnState.find((col: any) => col.colId === 'actions');
                 if (actionsCol) {
-                  const updatedState = columnState.map((col: any) => ({
-                    ...col,
-                    pinned: col.colId === 'actions' ? 'right' : col.pinned,
-                    lockPosition: col.colId === 'actions',
-                    lockPinned: col.colId === 'actions',
-                  }));
+                  // Build a map of pinned values from configuredColumnDefs (field config is source of truth)
+                  // This ensures pinning from field_configurations is applied even if field configs
+                  // loaded after onGridReady fired (column state would have null at that point)
+                  const pinnedFromConfig = new Map<string, string | null>();
+                  configuredColumnDefs.forEach((col: any) => {
+                    const colId = col.colId || col.field;
+                    if (colId) pinnedFromConfig.set(colId, col.pinned ?? null);
+                  });
+                  const updatedState = columnState.map((col: any) => {
+                    if (col.colId === 'actions') {
+                      return { ...col, pinned: 'right', lockPosition: true, lockPinned: true };
+                    }
+                    // Use field config pinned value; fall back to current state
+                    const configPinned = pinnedFromConfig.has(col.colId)
+                      ? pinnedFromConfig.get(col.colId)
+                      : col.pinned;
+                    return { ...col, pinned: configPinned ?? null, lockPosition: false, lockPinned: false };
+                  });
                   params.api.applyColumnState({
                     state: updatedState,
                     applyOrder: true,

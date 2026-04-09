@@ -26,13 +26,14 @@ BEGIN
     AND (at.non_accountable_for_total_area IS NULL OR at.non_accountable_for_total_area = false);
 
   -- net_area: same but also exclude shared-area-type assets
+  -- use_for_parking_shared_area may be stored as text on some envs, cast defensively
   SELECT COALESCE(SUM(a.asset_size), 0) INTO v_net_area
   FROM assets a
   LEFT JOIN asset_types at ON at.name = a.main_asset_type
   WHERE a.building_number = p_building_number
-    AND (at.non_accountable_for_total_area    IS NULL OR at.non_accountable_for_total_area    = false)
-    AND (at.use_shared_area                   IS NULL OR at.use_shared_area                   = false)
-    AND (at.use_for_parking_shared_area       IS NULL OR at.use_for_parking_shared_area       = false);
+    AND (at.non_accountable_for_total_area IS NULL OR at.non_accountable_for_total_area = false)
+    AND (at.use_shared_area               IS NULL OR at.use_shared_area               = false)
+    AND (at.use_for_parking_shared_area   IS NULL OR at.use_for_parking_shared_area::text NOT IN ('true', 't', '1'));
 
   UPDATE buildings
   SET

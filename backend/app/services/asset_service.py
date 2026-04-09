@@ -128,12 +128,54 @@ async def _update_building_total_area(conn, building_number: int) -> None:
     For each asset in the building, look up its type flags once (cached),
     then decide whether to include it in total and/or net area.
 
-    total_building_area: include unless non_accountable_for_total_area
-    net_area:            same, also exclude use_shared_area and use_for_parking_shared_area
+    net_area:            SUM(asset_size) excluding non_accountable, use_shared_area, use_for_parking_shared_area types
+    total_building_area: net_area + residence_shared_area + business_shared_area + shared_parking_area
     """
     assets = await conn.fetch(
         "SELECT asset_size, main_asset_type FROM assets WHERE building_number = $1",
         building_number,
+    )
+
+    type_cache: dict = {}
+
+    async def get_type_flags(type_name: str) -> dict:
+        if type_name not in type_cache:
+            row = await conn.fetchrow(
+                """SELECT non_accountable_for_total_area, use_shared_area, use_for_parking_shared_area
+                   FROM asset_types WHERE name = $1 LIMIT 1""",
+                type_name,
+            )
+            type_cache[type_name] = dict(row) if row else {}
+        return type_cache[type_name]
+
+    net_area = 0.0
+
+    for asset in assets:
+        size = float(asset["asset_size"] or 0)
+        type_name = asset["main_asset_type"]
+        flags = await get_type_flags(type_name) if type_name else {}
+
+        if flags.get("non_accountable_for_total_area"):
+            continue
+        if flags.get("use_shared_area") or str(flags.get("use_for_parking_shared_area", "") or "").lower() in ("true", "t", "1"):
+            continue
+
+        net_area += size
+
+    building = await conn.fetchrow(
+        "SELECT residence_shared_area, business_shared_area, shared_parking_area FROM buildings WHERE building_number = $1",
+        building_number,
+    )
+    total_area = (
+        net_area
+        + float(building["residence_shared_area"] or 0)
+        + float(building["business_shared_area"] or 0)
+        + float(building["shared_parking_area"] or 0)
+    )
+
+    await conn.execute(
+        "UPDATE buildings SET total_building_area = $1, net_area = $2 WHERE building_number = $3",
+        total_area, net_area, building_number,
     )
 
     type_cache: dict = {}

@@ -2224,29 +2224,42 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
     
     // Only update if value changed (or if it's a new asset)
     if (isNew || valueChanged) {
-      // Compact subtypes only when sub_asset_size_N is explicitly cleared AND its paired type is also empty.
-      // Clearing just the type (without clearing the size) does NOT trigger compaction — the user
-      // must explicitly clear both type and size to remove a slot.
+      // Compact subtypes when a slot's type AND size are both empty/zero.
+      // Two scenarios trigger this:
+      // 1. Size cleared → type already empty (size-last clear)
+      // 2. Type cleared → size already empty/zero (type-last clear, e.g. size cleared first)
       let extraChanges: Record<string, any> = {};
-      // Compact when sub_asset_size_N is cleared and its paired type is already empty
+      const runCompaction = (mergedData: Record<string, any>) => {
+        const pairs: Array<{ type: any; size: any }> = [];
+        for (let i = 1; i <= 6; i++) {
+          const t = mergedData[`sub_asset_type_${i}`];
+          const s = mergedData[`sub_asset_size_${i}`];
+          if (t != null && String(t).trim() !== '') pairs.push({ type: t, size: s ?? 0 });
+        }
+        for (let i = 1; i <= 6; i++) {
+          const p = pairs[i - 1];
+          extraChanges[`sub_asset_type_${i}`] = p ? p.type : null;
+          extraChanges[`sub_asset_size_${i}`] = p ? (p.size ?? 0) : 0;
+        }
+      };
+      // Scenario 1: size cleared, check if paired type is already empty
       if (field?.startsWith('sub_asset_size_') && (newValue === null || newValue === '' || Number(newValue) === 0)) {
         const idx = parseInt(field.slice(-1), 10);
         const typeField = `sub_asset_type_${idx}`;
         const currentType = (data as any)[typeField];
         const typeAlsoClear = currentType == null || String(currentType).trim() === '';
         if (typeAlsoClear) {
-          const merged: Record<string, any> = { ...data, [typeField]: null, [field]: 0 };
-          const pairs: Array<{ type: any; size: any }> = [];
-          for (let i = 1; i <= 6; i++) {
-            const t = merged[`sub_asset_type_${i}`];
-            const s = merged[`sub_asset_size_${i}`];
-            if (t != null && String(t).trim() !== '') pairs.push({ type: t, size: s ?? 0 });
-          }
-          for (let i = 1; i <= 6; i++) {
-            const p = pairs[i - 1];
-            extraChanges[`sub_asset_type_${i}`] = p ? p.type : null;
-            extraChanges[`sub_asset_size_${i}`] = p ? (p.size ?? 0) : 0;
-          }
+          runCompaction({ ...data, [typeField]: null, [field]: 0 });
+        }
+      }
+      // Scenario 2: type cleared, check if paired size is already empty/zero
+      if (field?.startsWith('sub_asset_type_') && (newValue === null || newValue === '' || String(newValue).trim() === '')) {
+        const idx = parseInt(field.slice(-1), 10);
+        const sizeField = `sub_asset_size_${idx}`;
+        const currentSize = (data as any)[sizeField];
+        const sizeAlsoClear = currentSize == null || currentSize === '' || Number(currentSize) === 0;
+        if (sizeAlsoClear) {
+          runCompaction({ ...data, [field]: null, [sizeField]: 0 });
         }
       }
 

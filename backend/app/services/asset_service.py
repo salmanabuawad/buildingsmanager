@@ -125,11 +125,11 @@ async def _copy_to_history_conn(conn, asset_id: int) -> None:
 async def _update_building_total_area(conn, building_number: int) -> None:
     """Recompute total_building_area and net_area from assets.
 
-    For each asset in the building, look up its type flags once (cached),
-    then decide whether to include it in total and/or net area.
+    For each asset in the building, look up its type flags once (cached).
 
     net_area:            SUM(asset_size) excluding non_accountable, use_shared_area, use_for_parking_shared_area types
-    total_building_area: net_area + residence_shared_area + business_shared_area + shared_parking_area
+    total_building_area: SUM(asset_size) excluding only non_accountable types
+                         (shared area asset types ARE included in total but not in net)
     """
     assets = await conn.fetch(
         "SELECT asset_size, main_asset_type FROM assets WHERE building_number = $1",
@@ -148,6 +148,7 @@ async def _update_building_total_area(conn, building_number: int) -> None:
             type_cache[type_name] = dict(row) if row else {}
         return type_cache[type_name]
 
+    total_area = 0.0
     net_area = 0.0
 
     for asset in assets:
@@ -157,21 +158,13 @@ async def _update_building_total_area(conn, building_number: int) -> None:
 
         if flags.get("non_accountable_for_total_area"):
             continue
+
+        total_area += size
+
         if flags.get("use_shared_area") or str(flags.get("use_for_parking_shared_area", "") or "").lower() in ("true", "t", "1"):
             continue
 
         net_area += size
-
-    building = await conn.fetchrow(
-        "SELECT residence_shared_area, business_shared_area, shared_parking_area FROM buildings WHERE building_number = $1",
-        building_number,
-    )
-    total_area = (
-        net_area
-        + float(building["residence_shared_area"] or 0)
-        + float(building["business_shared_area"] or 0)
-        + float(building["shared_parking_area"] or 0)
-    )
 
     await conn.execute(
         "UPDATE buildings SET total_building_area = $1, net_area = $2 WHERE building_number = $3",

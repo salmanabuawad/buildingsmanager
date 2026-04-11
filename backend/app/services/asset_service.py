@@ -178,41 +178,6 @@ async def _update_building_total_area(conn, building_number: int) -> None:
         total_area, net_area, building_number,
     )
 
-    type_cache: dict = {}
-
-    async def get_type_flags(type_name: str) -> dict:
-        if type_name not in type_cache:
-            row = await conn.fetchrow(
-                """SELECT non_accountable_for_total_area, use_shared_area, use_for_parking_shared_area
-                   FROM asset_types WHERE name = $1 LIMIT 1""",
-                type_name,
-            )
-            type_cache[type_name] = dict(row) if row else {}
-        return type_cache[type_name]
-
-    total_area = 0.0
-    net_area = 0.0
-
-    for asset in assets:
-        size = float(asset["asset_size"] or 0)
-        type_name = asset["main_asset_type"]
-        flags = await get_type_flags(type_name) if type_name else {}
-
-        if flags.get("non_accountable_for_total_area"):
-            continue
-
-        total_area += size
-
-        if flags.get("use_shared_area") or str(flags.get("use_for_parking_shared_area", "") or "").lower() in ("true", "t", "1"):
-            continue
-
-        net_area += size
-
-    await conn.execute(
-        "UPDATE buildings SET total_building_area = $1, net_area = $2 WHERE building_number = $3",
-        total_area, net_area, building_number,
-    )
-
 
 async def _recompute_distribution_flags(conn, building_number: int) -> None:
     """

@@ -10,6 +10,7 @@ from sqlalchemy import text
 from app.database import get_db
 from app.auth import decode_token
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from app.services.workflow_service import update_building_total_area
 
 router = APIRouter()
 security = HTTPBearer()
@@ -286,6 +287,18 @@ async def upsert_table(
                 keys = list(db_row._mapping.keys())
                 upserted.append(dict((k, _serialize(db_row._mapping[k])) for k in keys))
         db.commit()
+        # Recalculate building net/total area when shared area fields change
+        if table == "buildings":
+            SHARED_AREA_FIELDS = {"residence_shared_area", "business_shared_area", "shared_parking_area"}
+            for row in rows:
+                if SHARED_AREA_FIELDS & set(row.keys()):
+                    bn = row.get("building_number")
+                    if bn is not None:
+                        try:
+                            update_building_total_area(db, int(bn))
+                            db.commit()
+                        except Exception:
+                            pass
     except Exception as e:
         db.rollback()
         raise HTTPException(status_code=500, detail=str(e))

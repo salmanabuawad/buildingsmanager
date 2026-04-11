@@ -664,14 +664,34 @@ def update_building_total_area(db: Session, building_number: int) -> dict[str, A
     Recompute net_area and total_building_area for a building.
 
     net_area:            SUM(asset_size) excluding non_accountable, use_shared_area,
-                         use_for_parking_shared_area types
+                         use_for_parking_shared_area types. For complex assets (type 199),
+                         sub-asset sizes belonging to shared-area types (e.g. residence
+                         distribution) are subtracted so they are not double-counted.
     total_building_area: net_area + residence_shared_area + business_shared_area
                          + shared_parking_area (from building table)
     """
-    # Fetch all assets for this building with their type flags in one query
+    # Collect all asset type names that are non-accountable (any exclusion flag)
+    excluded_type_rows = db.execute(
+        text("""
+            SELECT name FROM asset_types
+            WHERE non_accountable_for_total_area = true
+               OR use_shared_area = true
+               OR use_for_parking_shared_area = true
+        """)
+    ).fetchall()
+    non_accountable_type_names = {str(r[0]).strip() for r in excluded_type_rows if r[0]}
+
+    # Fetch all assets for this building with their type flags and sub-asset fields
     rows = db.execute(
         text("""
-            SELECT a.asset_size, at.non_accountable_for_total_area,
+            SELECT a.asset_size,
+                   a.sub_asset_type_1, a.sub_asset_size_1,
+                   a.sub_asset_type_2, a.sub_asset_size_2,
+                   a.sub_asset_type_3, a.sub_asset_size_3,
+                   a.sub_asset_type_4, a.sub_asset_size_4,
+                   a.sub_asset_type_5, a.sub_asset_size_5,
+                   a.sub_asset_type_6, a.sub_asset_size_6,
+                   at.non_accountable_for_total_area,
                    at.use_shared_area, at.use_for_parking_shared_area
             FROM assets a
             LEFT JOIN LATERAL (
@@ -685,13 +705,23 @@ def update_building_total_area(db: Session, building_number: int) -> dict[str, A
 
     net_area = 0.0
     for row in rows:
-        size = float(row["asset_size"] or 0)
-        if row["non_accountable_for_total_area"]:
-            continue
+        # Main asset_size: include only if main type is accountable
         parking = str(row["use_for_parking_shared_area"] or "").lower()
-        if row["use_shared_area"] or parking in ("true", "t", "1"):
-            continue
-        net_area += size
+        main_accountable = (
+            not row["non_accountable_for_total_area"]
+            and not row["use_shared_area"]
+            and parking not in ("true", "t", "1")
+        )
+        if main_accountable:
+            net_area += float(row["asset_size"] or 0)
+
+        # Each sub-type is checked independently — accountable sub-types count
+        # even if the main type is non-accountable (e.g. type 199 container)
+        for i in range(1, 7):
+            sub_type = row.get(f"sub_asset_type_{i}")
+            sub_size = row.get(f"sub_asset_size_{i}")
+            if sub_type and str(sub_type).strip() not in non_accountable_type_names:
+                net_area += float(sub_size or 0)
 
     building_row = db.execute(
         text("""

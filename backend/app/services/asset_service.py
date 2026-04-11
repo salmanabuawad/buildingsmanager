@@ -125,14 +125,26 @@ async def _copy_to_history_conn(conn, asset_id: int) -> None:
 async def _update_building_total_area(conn, building_number: int) -> None:
     """Recompute total_building_area and net_area from assets.
 
-    net_area:            SUM(asset_size) excluding non_accountable, use_shared_area, use_for_parking_shared_area types
+    Each element is checked independently:
+    - Main asset_size counts if main type is accountable (not non_accountable, not use_shared_area, not parking)
+    - Each sub_asset_size_N counts if that sub-type has non_accountable_for_total_area = false
+    Even if main type is non-accountable (e.g. type 199 container), accountable sub-types still count.
+
     total_building_area: net_area + residence_shared_area + business_shared_area + shared_parking_area (from building)
     """
     assets = await conn.fetch(
-        "SELECT asset_size, main_asset_type FROM assets WHERE building_number = $1",
+        """SELECT asset_size, main_asset_type,
+                  sub_asset_type_1, sub_asset_size_1,
+                  sub_asset_type_2, sub_asset_size_2,
+                  sub_asset_type_3, sub_asset_size_3,
+                  sub_asset_type_4, sub_asset_size_4,
+                  sub_asset_type_5, sub_asset_size_5,
+                  sub_asset_type_6, sub_asset_size_6
+           FROM assets WHERE building_number = $1""",
         building_number,
     )
 
+    # Cache: type_name -> flags dict
     type_cache: dict = {}
 
     async def get_type_flags(type_name: str) -> dict:
@@ -148,16 +160,34 @@ async def _update_building_total_area(conn, building_number: int) -> None:
     net_area = 0.0
 
     for asset in assets:
-        size = float(asset["asset_size"] or 0)
-        type_name = asset["main_asset_type"]
-        flags = await get_type_flags(type_name) if type_name else {}
+        main_type = asset["main_asset_type"]
+        flags = await get_type_flags(main_type) if main_type else {}
 
-        if flags.get("non_accountable_for_total_area"):
-            continue
-        if flags.get("use_shared_area") or str(flags.get("use_for_parking_shared_area", "") or "").lower() in ("true", "t", "1"):
-            continue
+        # Main asset_size: include only if main type is accountable
+        parking = str(flags.get("use_for_parking_shared_area") or "").lower()
+        main_accountable = (
+            not flags.get("non_accountable_for_total_area")
+            and not flags.get("use_shared_area")
+            and parking not in ("true", "t", "1")
+        )
+        if main_accountable:
+            net_area += float(asset["asset_size"] or 0)
 
-        net_area += size
+        # Each sub-type is checked independently — accountable sub-types always count
+        # even if main type is non-accountable (e.g. type 199 container)
+        for i in range(1, 7):
+            sub_type = asset[f"sub_asset_type_{i}"]
+            sub_size = asset[f"sub_asset_size_{i}"]
+            if sub_type:
+                sub_flags = await get_type_flags(str(sub_type))
+                sub_parking = str(sub_flags.get("use_for_parking_shared_area") or "").lower()
+                sub_accountable = (
+                    not sub_flags.get("non_accountable_for_total_area")
+                    and not sub_flags.get("use_shared_area")
+                    and sub_parking not in ("true", "t", "1")
+                )
+                if sub_accountable:
+                    net_area += float(sub_size or 0)
 
     building = await conn.fetchrow(
         "SELECT residence_shared_area, business_shared_area, shared_parking_area FROM buildings WHERE building_number = $1",

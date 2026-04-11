@@ -660,61 +660,65 @@ def get_assets_with_history(db: Session, building_number: int) -> list[dict[str,
 
 
 def update_building_total_area(db: Session, building_number: int) -> dict[str, Any]:
-    building_columns = _get_columns(db, "buildings")
-    asset_columns = _get_columns(db, "assets")
+    """
+    Recompute net_area and total_building_area for a building.
 
-    if "asset_size" not in asset_columns:
-        raise ValueError("assets.asset_size column not found")
+    net_area:            SUM(asset_size) excluding non_accountable, use_shared_area,
+                         use_for_parking_shared_area types
+    total_building_area: net_area + residence_shared_area + business_shared_area
+                         + shared_parking_area (from building table)
+    """
+    # Fetch all assets for this building with their type flags in one query
+    rows = db.execute(
+        text("""
+            SELECT a.asset_size, at.non_accountable_for_total_area,
+                   at.use_shared_area, at.use_for_parking_shared_area
+            FROM assets a
+            LEFT JOIN LATERAL (
+                SELECT non_accountable_for_total_area, use_shared_area, use_for_parking_shared_area
+                FROM asset_types WHERE name = a.main_asset_type LIMIT 1
+            ) at ON true
+            WHERE a.building_number = :bn
+        """),
+        {"bn": building_number},
+    ).mappings().all()
 
-    totals_row = db.execute(
-        text(
-            'SELECT COALESCE(SUM(COALESCE("asset_size", 0)), 0) AS net_area, '
-            'COUNT(*) AS asset_count '
-            'FROM "assets" WHERE "building_number" = :building_number'
-        ),
-        {"building_number": building_number},
+    net_area = 0.0
+    for row in rows:
+        size = float(row["asset_size"] or 0)
+        if row["non_accountable_for_total_area"]:
+            continue
+        parking = str(row["use_for_parking_shared_area"] or "").lower()
+        if row["use_shared_area"] or parking in ("true", "t", "1"):
+            continue
+        net_area += size
+
+    building_row = db.execute(
+        text("""
+            SELECT residence_shared_area, business_shared_area, shared_parking_area
+            FROM buildings WHERE building_number = :bn
+        """),
+        {"bn": building_number},
     ).mappings().first()
 
-    if totals_row is None:
-        raise ValueError(f"Could not calculate totals for building {building_number}")
+    if building_row is None:
+        raise ValueError(f"Building {building_number} not found")
 
-    updates: dict[str, Any] = {}
-    net_area = totals_row["net_area"]
-    asset_count = totals_row["asset_count"]
-
-    if "net_area" in building_columns:
-        updates["net_area"] = net_area
-    if "asset_count" in building_columns:
-        updates["asset_count"] = asset_count
-
-    total_expr_parts = [":net_area"]
-    params: dict[str, Any] = {"building_number": building_number, "net_area": net_area}
-
-    if "residence_shared_area" in building_columns:
-        total_expr_parts.append('COALESCE("residence_shared_area", 0)')
-    if "business_shared_area" in building_columns:
-        total_expr_parts.append('COALESCE("business_shared_area", 0)')
-    if "shared_parking_area" in building_columns:
-        total_expr_parts.append('COALESCE("shared_parking_area", 0)')
-
-    set_clauses = []
-    if "total_building_area" in building_columns:
-        set_clauses.append(f'"total_building_area" = {" + ".join(total_expr_parts)}')
-    if "net_area" in updates:
-        set_clauses.append('"net_area" = :net_area')
-    if "asset_count" in updates:
-        params["asset_count"] = asset_count
-        set_clauses.append('"asset_count" = :asset_count')
-    if "updated_at" in building_columns:
-        set_clauses.append('"updated_at" = NOW()')
+    total_area = (
+        net_area
+        + float(building_row["residence_shared_area"] or 0)
+        + float(building_row["business_shared_area"] or 0)
+        + float(building_row["shared_parking_area"] or 0)
+    )
 
     updated_row = db.execute(
-        text(
-            'UPDATE "buildings" SET '
-            + ", ".join(set_clauses)
-            + ' WHERE "building_number" = :building_number RETURNING *'
-        ),
-        params,
+        text("""
+            UPDATE buildings
+            SET net_area = :net_area, total_building_area = :total_area, updated_at = NOW()
+            WHERE building_number = :bn
+            RETURNING *
+        """),
+        {"net_area": net_area, "total_area": total_area, "bn": building_number},
     ).mappings().first()
 
     if updated_row is None:

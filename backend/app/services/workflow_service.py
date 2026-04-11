@@ -714,7 +714,7 @@ def update_building_total_area(db: Session, building_number: int) -> dict[str, A
     updated_row = db.execute(
         text("""
             UPDATE buildings
-            SET net_area = :net_area, total_building_area = :total_area, updated_at = NOW()
+            SET net_area = :net_area, total_building_area = :total_area
             WHERE building_number = :bn
             RETURNING *
         """),

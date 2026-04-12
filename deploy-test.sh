@@ -21,18 +21,13 @@ BACKEND_FILES=(
   "backend/app/routers/asset_types.py"
   "backend/app/routers/inspection_tasks.py"
   "backend/app/routers/users.py"
-  "backend/app/routers/navvis.py"
   "backend/app/services/workflow_service.py"
-  "backend/app/services/asset_service.py"
-  "backend/app/services/e57_reader.py"
-  "backend/app/services/floorplan_generator.py"
   "backend/app/main.py"
   "backend/app/models.py"
   "backend/app/schemas.py"
   "backend/app/auth.py"
   "backend/app/database.py"
   "backend/app/config.py"
-  "backend/requirements.txt"
 )
 
 ssh_run() {
@@ -72,9 +67,6 @@ for FILE in "${BACKEND_FILES[@]}"; do
   ssh_run "mkdir -p $REMOTE_DIR"
   scp_file "$LOCAL" "$REMOTE" 2>/dev/null || echo "      (skipped: $FILE — not found locally)"
 done
-
-echo "      Installing Python dependencies..."
-ssh_run "/home/profilegroup/app/venv/bin/pip install -q -r $REMOTE_APP_DIR/backend/requirements.txt 2>&1 | tail -5" || echo "      (pip install may have warnings — continuing)"
 
 echo "      Restarting test service..."
 ssh_run "systemctl restart $UVICORN_SERVICE"

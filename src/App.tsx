@@ -5,7 +5,7 @@
  * training data, or automated analysis) is prohibited. See COPYRIGHT.
  */
 import { useState, useEffect, useCallback, useRef, lazy, Suspense } from 'react';
-import { X, Settings, Building, Home, Tag, Search, Plus, Building2, Upload, ChevronDown, ChevronLeft, Trash2, Database, CheckCircle2, AlertCircle, Loader2, Menu, MapPin, Edit, Save, FileText, RefreshCw, Download, LogOut, Users, UserCog, BarChart3, ClipboardList, HelpCircle, User, Sun, SlidersHorizontal } from 'lucide-react';
+import { X, Settings, Building, Home, Tag, Search, Plus, Building2, Upload, ChevronDown, ChevronLeft, Trash2, Database, CheckCircle2, AlertCircle, Loader2, Menu, MapPin, Edit, Save, FileText, RefreshCw, Download, LogOut, Users, UserCog, BarChart3, ClipboardList, HelpCircle, User, Sun, SlidersHorizontal, ScanLine } from 'lucide-react';
 import { api, AssetType } from './lib/api';
 import { getSession, logoutUsersTable, loginByTaskToken } from './lib/usersTableAuth';
 import { assetValidators, validateEntity, getAssetTypes, getLatestExportDate as getCachedLatestExportDate } from './lib/validation';
@@ -49,10 +49,11 @@ const MeasuredNotExportedAssets = lazy(() => import('./components/MeasuredNotExp
 const MeasurementProgressDashboard = lazy(() => import('./components/MeasurementProgressDashboard').then((mod) => ({ default: mod.MeasurementProgressDashboard })));
 const MobileTasksAndUpload = lazy(() => import('./components/MobileTasksAndUpload').then((mod) => ({ default: mod.MobileTasksAndUpload })));
 const InspectionTasksManager = lazy(() => import('./components/InspectionTasksManager').then((mod) => ({ default: mod.InspectionTasksManager })));
+const NavVisComponent = lazy(() => import('./components/NavVis').then((mod) => ({ default: mod.NavVis })));
 
 interface Tab {
   id: string;
-  type: 'buildings' | 'assets' | 'admin' | 'asset-types' | 'asset-search' | 'validation-rules' | 'building-list-import' | 'assets-file-import' | 'assets-skeleton-import' | 'asset-details' | 'transfer-areas' | 'address-list' | 'field-config' | 'asset-data-entry' | 'audit-log' | 'user-management' | 'system-configuration' | 'operators' | 'managers' | 'measured-not-exported-assets' | 'measurement-progress-dashboard' | 'mobile-tasks-upload' | 'inspection-tasks';
+  type: 'buildings' | 'assets' | 'admin' | 'asset-types' | 'asset-search' | 'validation-rules' | 'building-list-import' | 'assets-file-import' | 'assets-skeleton-import' | 'asset-details' | 'transfer-areas' | 'address-list' | 'field-config' | 'asset-data-entry' | 'audit-log' | 'user-management' | 'system-configuration' | 'operators' | 'managers' | 'measured-not-exported-assets' | 'measurement-progress-dashboard' | 'mobile-tasks-upload' | 'inspection-tasks' | 'navvis';
   buildingNumber?: number;
   label: string;
   refreshKey?: number;
@@ -2048,8 +2049,21 @@ function App() {
             )}
           </div>
           )}
+          {!isInspector && (
+            <button
+              onClick={() => {
+                closeSidebarAndMenus();
+                const tab: Tab = { id: 'navvis', type: 'navvis', label: 'NavVis', refreshKey: Date.now() };
+                openTab(tab);
+              }}
+              className={`w-full flex items-center justify-center p-2.5 rounded transition-all duration-200 text-white relative ${isSidebarItemActive('navvis') ? 'bg-app-sidebar-active border-r-[3px] border-r-app-sidebar-indicator' : 'hover:bg-app-sidebar-hover'}`}
+              title="NavVis"
+            >
+              <ScanLine className="h-5 w-5 shrink-0" />
+            </button>
+          )}
         </nav>
-        
+
         <div className="p-2 border-t border-white/10 flex flex-col items-center gap-1">
           <p className="text-[9px] text-white/50 pt-1">© Kortex</p>
         </div>
@@ -2279,6 +2293,9 @@ function App() {
             )}
             {activeTab?.type === 'inspection-tasks' && (
               <InspectionTasksManager key={activeTab.refreshKey} />
+            )}
+            {activeTab?.type === 'navvis' && (
+              <NavVisComponent key={activeTab.refreshKey} />
             )}
             </Suspense>
           </div>

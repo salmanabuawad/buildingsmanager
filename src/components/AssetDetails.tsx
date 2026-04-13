@@ -10,7 +10,7 @@ import { AssetFilesModal, AssetFilesModalRef } from './AssetFilesModal';
 import { compressFile } from '../lib/fileCompression';
 import { AgGridReact } from 'ag-grid-react';
 import { ColDef, CellClassParams } from 'ag-grid-community';
-import { assetValidators, validateAll, inputValidators, isComplexAssetType } from '../lib/validation';
+import { assetValidators, validateAll, inputValidators, isComplexAssetType, getAssetTypes } from '../lib/validation';
 import { AssetValidationHandler } from '../lib/assetValidationHandler';
 import { ValidationResultModal, SingleAssetValidationResult, ValidationProgress } from './ValidationResultModal';
 import { RowEditModal } from './RowEditModal';
@@ -22,7 +22,8 @@ import { formatNumberToTwoDecimals, numericValueParserInt } from '../lib/numberU
 import { useGridPreferences } from '../lib/useGridPreferences';
 import { processColumnHeader } from '../lib/gridHeaderUtils';
 import { useFieldConfig } from '../lib/useFieldConfig';
-import { exportToExcel } from '../lib/excelExport';
+import { exportToExcel, createExcelBlob } from '../lib/excelExport';
+import { getAssetFileBlobForZip } from '../lib/apiClient';
 import { useUIConfig } from '../contexts/UIConfigContext';
 
 interface AssetDetailsProps {
@@ -42,7 +43,7 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
   const { t } = useTranslation();
   const { preferences, setEditMode } = usePreferences();
   const { validationRules } = useValidationRules(); // Get validation rules from context
-  const { shouldValidateOnBlur } = useUIConfig();
+  const { shouldValidateOnBlur, shouldValidateBeforeSave } = useUIConfig();
   const editMode = preferences.editMode;
   const [asset, setAsset] = useState<Asset | null>(null);
   const [allMeasurements, setAllMeasurements] = useState<Asset[]>([]);
@@ -58,6 +59,7 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
   const validationErrorsRef = useRef<Map<number, Map<string, string>>>(new Map());
   const [isSaving, setIsSaving] = useState(false);
   const [isValidating, setIsValidating] = useState(false);
+  const [isExporting, setIsExporting] = useState(false);
   const [selectedDrawingUrl, setSelectedDrawingUrl] = useState<string | null>(null);
   const [selectedFileName, setSelectedFileName] = useState<string | null>(null);
   const [validationModalOpen, setValidationModalOpen] = useState(false);
@@ -69,7 +71,7 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
   const [validationErrorModalClosing, setValidationErrorModalClosing] = useState(false);
   const [newMeasurementDate, setNewMeasurementDate] = useState<string>('');
   const [fileViewerClosing, setFileViewerClosing] = useState(false);
-  const [uploadProgress, setUploadProgress] = useState<{ assetId: number; progress: number; fileName: string } | null>(null);
+  const [uploadProgress, setUploadProgress] = useState<{ assetId: number; progress: number; fileName: string; currentIndex: number; total: number } | null>(null);
   const [uploadingAssetId, setUploadingAssetId] = useState<number | null>(null);
 
   const [isRowEditModalOpen, setIsRowEditModalOpen] = useState(false);
@@ -78,7 +80,7 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
   const [selectedAssetIdForFiles, setSelectedAssetIdForFiles] = useState<number | null>(null);
   const [selectedMeasurementDateForFiles, setSelectedMeasurementDateForFiles] = useState<string | null | undefined>(undefined);
   const assetFilesModalRef = useRef<AssetFilesModalRef>(null);
-  const [assetsWithFiles, setAssetsWithFiles] = useState<Set<number>>(new Set()); // Track which assets have files
+  const [assetsWithFiles, setAssetsWithFiles] = useState<Set<string>>(new Set()); // Track which measurements have files — key: `${asset_id}|${measurement_date}`
   const [operators, setOperators] = useState<Operator[]>([]);
   
   // Refs for audit detail grid (unified grid for all assets)
@@ -319,12 +321,24 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
       // Use asset_id as key since only latest measurement is editable
       const assetId = data.asset_id;
       
-      // Only allow editing for latest records
+      // History record — update assets_history directly
       if (data.is_latest !== true) {
-        if (process.env.NODE_ENV === 'development') {
-          console.warn('[AssetDetails] Attempted to edit non-latest record, ignoring change');
+        const historyCreatedAt = data.history_created_at || data.created_at;
+        if (!historyCreatedAt || !assetId) {
+          event.api.refreshCells({ rowNodes: [node], columns: [field], force: true });
+          return;
         }
-        event.api.refreshCells({ rowNodes: [node], columns: [field], force: true });
+        try {
+          const { error: patchErr } = await api.data.patch(
+            'assets_history',
+            { asset_id: assetId, history_created_at: historyCreatedAt },
+            { [field]: event.newValue }
+          );
+          if (patchErr) throw new Error(patchErr.message);
+        } catch (err) {
+          console.error('[AssetDetails] Failed to save history record edit:', err);
+          event.api.refreshCells({ rowNodes: [node], columns: [field], force: true });
+        }
         return;
       }
       
@@ -1405,15 +1419,27 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
         }
       }
 
-      // Clone files from current measurement to new measurement
-      try {
-        const currentMeasurementDate = latestMeasurement.measurement_date;
-        await api.assets.files.clone(oldAssetId, currentMeasurementDate, finalMeasurementDate);
-        if (process.env.NODE_ENV === 'development') {
+      // Pin ALL active (null-date) files to the old measurement date so they belong
+      // exclusively to the history record. The new assets-table record will have no files.
+      // This runs unconditionally — even if oldMeasurementDate is null we use today's date as fallback.
+      const oldMeasurementDate = currentAsset.measurement_date;
+      if (oldAssetId) {
+        try {
+          const numericOldAssetId = typeof oldAssetId === 'string' ? parseInt(oldAssetId, 10) : oldAssetId;
+          // Use the old measurement date, or today as a fallback when the old record had no date
+          let dateToPin = oldMeasurementDate;
+          if (!dateToPin) {
+            const _today = new Date();
+            const _d = String(_today.getDate()).padStart(2, '0');
+            const _m = String(_today.getMonth() + 1).padStart(2, '0');
+            const _y = _today.getFullYear();
+            dateToPin = `${_d}/${_m}/${_y}`;
+          }
+          await api.assets.files.claimForMeasurement(numericOldAssetId, dateToPin);
+        } catch (err) {
+          console.warn('[AssetDetails] Could not pin active files to history record:', err);
+          // Non-fatal — files remain unlinked but won't appear in export (export uses NULL filter)
         }
-      } catch (fileCloneError) {
-        console.error('[AssetDetails] Error cloning files for new measurement:', fileCloneError);
-        // Don't fail the entire save if file cloning fails - just log it
       }
 
       setToast({ message: 'נשמרה מדידה חדשה בהצלחה', type: 'success' });
@@ -1452,6 +1478,27 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
           
           setAllMeasurements(allAssetMeasurements);
           setOriginalMeasurements(allAssetMeasurements);
+
+          // Rebuild assetsWithFiles so the file icon reflects the new state:
+          // active record has no files (they were pinned to history), history record has files.
+          const filesMap = new Set<string>();
+          await Promise.all(
+            allAssetMeasurements.map(async (m) => {
+              const mId = m.asset_id;
+              if (!mId) return;
+              try {
+                if (m.is_latest) {
+                  const files = await api.assets.files.getAll(mId, null);
+                  if (files && files.length > 0) filesMap.add(`${mId}|ACTIVE`);
+                } else {
+                  const mDate = m.measurement_date ?? null;
+                  const files = await api.assets.files.getAll(mId, mDate);
+                  if (files && files.length > 0) filesMap.add(`${mId}|${mDate}`);
+                }
+              } catch { /* ignore */ }
+            })
+          );
+          setAssetsWithFiles(filesMap);
         } catch (fetchErr) {
           const fetchErrorMessage = fetchErr instanceof Error ? fetchErr.message : 'Failed to fetch asset data after save';
           if (process.env.NODE_ENV === 'development') {
@@ -1480,108 +1527,116 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
     }
   }
 
-  const handleFileUpload = useCallback(async (assetId: number, file: File) => {
-    try {
-      setUploadingAssetId(assetId);
-      setUploadProgress({ assetId, progress: 0, fileName: file.name });
+  /** Upload a single file silently — no toast, no modal refresh. Returns compression info string or throws. */
+  const uploadSingleFile = useCallback(async (
+    assetId: number,
+    file: File,
+    onProgress: (p: number) => void
+  ): Promise<{ sizeReduction: string }> => {
+    // Step 1: Compress (skip for PDF)
+    const isPdf = file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf');
+    let compressedFile: File;
+    let originalSizeKB: string;
+    let compressedSizeKB: string;
 
-      // Step 1: Compress file (skip compression for PDF files)
-      const isPdf = file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf');
-      let compressedFile: File;
-      let originalSizeKB: string;
-      let compressedSizeKB: string;
-      
-      if (isPdf) {
-        // Skip compression for PDF files
-      setUploadProgress({ assetId, progress: 10, fileName: file.name });
-        compressedFile = file;
-        originalSizeKB = (file.size / 1024).toFixed(2);
-        compressedSizeKB = originalSizeKB;
-      } else {
-        // Compress other file types
-        setUploadProgress({ assetId, progress: 10, fileName: file.name });
-        compressedFile = await compressFile(file);
-        // Preserve original filename (imageCompression may return a File named "blob")
-        if (compressedFile.name !== file.name) {
-          compressedFile = new File([compressedFile], file.name, { type: compressedFile.type || file.type });
-        }
-        originalSizeKB = (file.size / 1024).toFixed(2);
-        compressedSizeKB = (compressedFile.size / 1024).toFixed(2);
+    onProgress(10);
+    if (isPdf) {
+      compressedFile = file;
+      originalSizeKB = (file.size / 1024).toFixed(2);
+      compressedSizeKB = originalSizeKB;
+    } else {
+      compressedFile = await compressFile(file);
+      if (compressedFile.name !== file.name) {
+        compressedFile = new File([compressedFile], file.name, { type: compressedFile.type || file.type });
       }
-
-      setUploadProgress({ assetId, progress: 30, fileName: file.name });
-
-      // Step 2: Prepare file for upload
-      const fileExt = file.name.split('.').pop() || 'bin';
-      const timestamp = Date.now();
-      // Use sanitized filename for storage path (no Hebrew or special chars)
-      const sanitizedName = `${timestamp}.${fileExt}`;
-      const filePath = `${assetId}/${sanitizedName}`;
-
-      // Step 3: Upload with simulated progress tracking
-      // Simulate upload progress (backend does not provide real-time progress)
-      const progressInterval = setInterval(() => {
-        setUploadProgress((prev) => {
-          if (!prev || prev.assetId !== assetId) return prev;
-          const newProgress = Math.min(prev.progress + 5, 90);
-          return { ...prev, progress: newProgress };
-        });
-      }, 200);
-
-      setUploadProgress({ assetId, progress: 40, fileName: file.name });
-
-      // Pass measurement_date so backend inserts the correct DB record in one step
-      const currentAsset = allMeasurements.find(a => a.asset_id === assetId && a.is_latest === true);
-      const measurementDate = currentAsset?.measurement_date || null;
-      const uploadOptions: { contentType?: string; upsert: boolean; measurementDate?: string | null; originalFileName?: string } = { upsert: false, measurementDate, originalFileName: file.name };
-      if (compressedFile.type) {
-        uploadOptions.contentType = compressedFile.type;
-      }
-
-      const { error: uploadError } = await api.storage
-        .from('structure-drawings')
-        .upload(filePath, compressedFile, uploadOptions);
-
-      clearInterval(progressInterval);
-
-      if (uploadError) {
-        throw uploadError;
-      }
-
-      setUploadProgress({ assetId, progress: 100, fileName: file.name });
-
-      // Show success message with compression info
-      const sizeReduction = compressedSizeKB !== originalSizeKB 
-        ? ` (${originalSizeKB}KB → ${compressedSizeKB}KB)`
-        : '';
-      setToast({ 
-        message: `${t('drawingUploadedSuccessfully')}${sizeReduction}`, 
-        type: 'success' 
-      });
-      
-      // Update assetsWithFiles to include this asset
-      setAssetsWithFiles(prev => new Set(prev).add(assetId));
-      
-      // Refresh files modal if it's open for this asset
-      if (assetFilesModalOpen && selectedAssetIdForFiles === assetId) {
-        assetFilesModalRef.current?.refreshFiles();
-      }
-    } catch (err) {
-      const errorMessage = err instanceof Error 
-        ? err.message 
-        : typeof err === 'object' && err !== null && 'message' in err
-        ? String(err.message)
-        : t('failedToUploadDrawing');
-      
-      setToast({
-        message: errorMessage,
-        type: 'error'
-      });
-    } finally {
-      setUploadProgress(null);
-      setUploadingAssetId(null);
+      originalSizeKB = (file.size / 1024).toFixed(2);
+      compressedSizeKB = (compressedFile.size / 1024).toFixed(2);
     }
-  }, [t, assetFilesModalOpen, selectedAssetIdForFiles]);
+    onProgress(30);
+
+    // Step 2: Build storage path
+    const fileExt = file.name.split('.').pop() || 'bin';
+    const sanitizedName = `${Date.now()}.${fileExt}`;
+    const filePath = `${assetId}/${sanitizedName}`;
+
+    // Step 3: Upload with simulated progress
+    const progressInterval = setInterval(() => onProgress(Math.min(90, 40 + 5)), 200);
+    onProgress(40);
+
+    const measurementDate: null = null;
+    const uploadOptions: { contentType?: string; upsert: boolean; measurementDate?: string | null; originalFileName?: string } = {
+      upsert: false,
+      measurementDate,
+      originalFileName: file.name,
+    };
+    if (compressedFile.type) uploadOptions.contentType = compressedFile.type;
+
+    const { error: uploadError } = await api.storage
+      .from('structure-drawings')
+      .upload(filePath, compressedFile, uploadOptions);
+
+    clearInterval(progressInterval);
+    if (uploadError) throw uploadError;
+    onProgress(100);
+
+    const sizeReduction = compressedSizeKB !== originalSizeKB
+      ? ` (${originalSizeKB}KB → ${compressedSizeKB}KB)`
+      : '';
+    return { sizeReduction };
+  }, []);
+
+  /** Upload one or more files for an asset, showing combined progress and a single result toast. */
+  const handleFileUpload = useCallback(async (assetId: number, files: File | File[]) => {
+    const fileList = Array.isArray(files) ? files : [files];
+    if (fileList.length === 0) return;
+
+    setUploadingAssetId(assetId);
+    const errors: string[] = [];
+
+    for (let i = 0; i < fileList.length; i++) {
+      const file = fileList[i];
+      setUploadProgress({ assetId, progress: 0, fileName: file.name, currentIndex: i, total: fileList.length });
+      try {
+        await uploadSingleFile(assetId, file, (p) => {
+          setUploadProgress({ assetId, progress: p, fileName: file.name, currentIndex: i, total: fileList.length });
+        });
+      } catch (err) {
+        const msg = err instanceof Error ? err.message
+          : typeof err === 'object' && err !== null && 'message' in err ? String((err as any).message)
+          : t('failedToUploadDrawing');
+        errors.push(`${file.name}: ${msg}`);
+      }
+    }
+
+    // Mark asset as having files (if at least one succeeded)
+    const anySucceeded = errors.length < fileList.length;
+    if (anySucceeded) {
+      setAssetsWithFiles(prev => new Set(prev).add(`${assetId}|ACTIVE`));
+    }
+
+    // Refresh modal once after all uploads
+    if (assetFilesModalOpen && selectedAssetIdForFiles === assetId) {
+      assetFilesModalRef.current?.refreshFiles();
+    }
+
+    setUploadProgress(null);
+    setUploadingAssetId(null);
+
+    // Single result toast
+    if (errors.length === 0) {
+      const msg = fileList.length === 1
+        ? t('drawingUploadedSuccessfully')
+        : `${fileList.length} קבצים הועלו בהצלחה`;
+      setToast({ message: msg, type: 'success' });
+    } else if (errors.length === fileList.length) {
+      setToast({ message: errors[0], type: 'error' });
+    } else {
+      setToast({
+        message: `${fileList.length - errors.length} מתוך ${fileList.length} קבצים הועלו. שגיאות: ${errors.join(', ')}`,
+        type: 'error',
+      });
+    }
+  }, [t, assetFilesModalOpen, selectedAssetIdForFiles, uploadSingleFile]);
 
   const handleViewDrawing = useCallback((assetId: number, measurementDate?: string | null) => {
     setSelectedAssetIdForFiles(assetId);
@@ -1726,6 +1781,263 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
     }
   }
 
+
+  async function handleExportToAutomation() {
+    if (!latestMeasurement?.asset_id) {
+      setToast({ message: 'לא נמצא נכס לשליחה', type: 'error' });
+      setTimeout(() => setToast(null), 3000);
+      return;
+    }
+    const numericAssetId = typeof latestMeasurement.asset_id === 'string'
+      ? parseInt(latestMeasurement.asset_id, 10)
+      : latestMeasurement.asset_id;
+    if (isNaN(numericAssetId) || numericAssetId <= 0) {
+      setToast({ message: 'מזהה נכס לא תקין', type: 'error' });
+      setTimeout(() => setToast(null), 3000);
+      return;
+    }
+
+    setIsExporting(true);
+    document.body.style.cursor = 'wait';
+    setToast({ message: 'מתחיל שליחה...', type: 'info' });
+    // Yield to React so the spinner state commits before any synchronous work
+    await Promise.resolve();
+
+    try {
+      // STEP 1: Optional validation before export
+      if (shouldValidateBeforeSave) {
+        setToast({ message: 'מאמת נכס לפני שליחה...', type: 'info' });
+        const cachedData = {
+          assetTypes: assetTypes.length > 0 ? assetTypes : await api.assetTypes.getAll(),
+          building: building || undefined,
+        };
+        const batchResult = await AssetValidationHandler.validateBuildingAssets(
+          [latestMeasurement],
+          latestMeasurement.building_number,
+          {
+            mode: 'building',
+            validateOnlyLatest: false,
+            cachedData,
+            taxRegion: taxRegion,
+          }
+        );
+        const invalid = batchResult.results.filter(r => !r.valid && r.errors && r.errors.length > 0);
+        if (invalid.length > 0) {
+          const errorMessages = invalid[0].errors.join(', ');
+          setToast({ message: `לא ניתן לשלוח - נכס לא תקין: ${errorMessages}`, type: 'error' });
+          setTimeout(() => setToast(null), 10000);
+          setIsExporting(false);
+          document.body.style.cursor = '';
+          return;
+        }
+      }
+
+      // STEP 2: Build Excel data for this single asset
+      const assetTypesData = assetTypes.length > 0 ? assetTypes : getAssetTypes();
+
+      const getExportAssetSize = (a: Asset): number | string => {
+        const assetSize = (a as any).asset_size || 0;
+        if ((a as any).main_asset_type && assetTypesData.length > 0) {
+          const assetTypeName = String((a as any).main_asset_type).trim();
+          let assetType = assetTypesData.find((at: any) => String(at.name || '').trim() === assetTypeName);
+          if (!assetType) {
+            const n = parseInt(assetTypeName, 10);
+            if (!isNaN(n)) assetType = assetTypesData.find((at: any) => parseInt(String(at.name || ''), 10) === n);
+          }
+          if (assetType && (assetType as any).is_business === true) {
+            const dist = (a as any).business_distribution_area || 0;
+            return assetSize + dist;
+          }
+        }
+        return assetSize || '';
+      };
+
+      const headers = [
+        'זיהוי משלם', 'זיהוי נכס', 'תחילת שינוי', 'סוף שינוי', 'סוג נכס', 'גודל נכס',
+        'נכס משנה 1', 'גודל נכס משנה 1', 'נכס משנה 2', 'גודל נכס משנה 2',
+        'נכס משנה 3', 'גודל נכס משנה 3', 'נכס משנה 4', 'גודל נכס משנה 4',
+        'נכס משנה 5', 'גודל נכס משנה 5', 'נכס משנה 6', 'גודל נכס משנה 6',
+        'מנה', 'מקום גביה', 'מספר פקודה', 'שנת כספים', 'תאריך גביה', 'יום ערך',
+      ];
+
+      const a = latestMeasurement as any;
+      const row = [
+        a.payer_id || '',
+        numericAssetId != null ? String(numericAssetId) : '',
+        formatDateToDDMMYYYY(a.discount_date_from) || '',
+        formatDateToDDMMYYYY(a.discount_date_to) || '',
+        a.main_asset_type || '',
+        getExportAssetSize(latestMeasurement),
+        a.sub_asset_type_1 || '', a.sub_asset_size_1 || '',
+        a.sub_asset_type_2 || '', a.sub_asset_size_2 || '',
+        a.sub_asset_type_3 || '', a.sub_asset_size_3 || '',
+        a.sub_asset_type_4 || '', a.sub_asset_size_4 || '',
+        a.sub_asset_type_5 || '', a.sub_asset_size_5 || '',
+        a.sub_asset_type_6 || '', a.sub_asset_size_6 || '',
+        '', '', '', '', '', '',
+      ];
+
+      const now = new Date();
+      const dateStr = now.toISOString().split('T')[0].replace(/-/g, '');
+      const assetTaxRegion = a.tax_region ? String(a.tax_region).trim() : (taxRegion || 'unknown');
+
+      const excelFilename = `שליחת_נתונים_${assetTaxRegion}_${dateStr}.xlsx`;
+      const excelBlob = createExcelBlob({
+        filename: excelFilename,
+        sheetName: 'נכסים',
+        data: [headers, row],
+        decimalFormatColumnIndices: [5, 7, 9, 11, 13, 15, 17],
+        columnWidths: [
+          { wch: 15 }, { wch: 15 }, { wch: 20 }, { wch: 20 }, { wch: 12 }, { wch: 12 },
+          { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 },
+          { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 },
+          { wch: 10 }, { wch: 12 }, { wch: 12 }, { wch: 12 }, { wch: 15 }, { wch: 15 },
+        ],
+      });
+
+      // STEP 3: Get ACTIVE files only (measurement_date IS NULL).
+      // Active files are stored with NULL date — they belong to the current assets-table record.
+      // History files have a specific date and are excluded here automatically.
+      setToast({ message: 'טוען קבצים...', type: 'info' });
+      const assetFiles = await api.assets.files.getAll(numericAssetId, null);
+
+      const zipFiles: Array<{ filename: string; data: Blob }> = [];
+      zipFiles.push({ filename: `${assetTaxRegion}/${excelFilename}`, data: excelBlob });
+
+      // STEP 4: Download files and add to ZIP
+      const fileListData: any[][] = [['מזהה נכס', 'מזהה משלם', 'שם קובץ']];
+      const payerId = a.payer_id || '';
+
+      const extractFilenameFromUrl = (url: string | undefined): string => {
+        if (!url) return '';
+        const u = url.replace(/\\/g, '/');
+        return u.split('/').pop()?.split('?')[0] ?? '';
+      };
+      const getFilePathForDownload = (file: any): string => {
+        const filePath = typeof file?.file_path === 'string' ? file.file_path.trim() : '';
+        if (filePath && !filePath.startsWith('http') && !filePath.startsWith('/')) {
+          if (!filePath.includes('/')) return `${numericAssetId}/${filePath}`;
+          return filePath;
+        }
+        const url: string | undefined = file?.file_url;
+        if (typeof url === 'string' && url.length > 0) {
+          const u = url.replace(/\\/g, '/');
+          const idxBucket = u.indexOf('structure-drawings/');
+          if (idxBucket !== -1) return u.substring(idxBucket + 'structure-drawings/'.length).split('?')[0];
+          const filename = extractFilenameFromUrl(url);
+          if (filename) return `${numericAssetId}/${filename}`;
+        }
+        const name = typeof file?.file_name === 'string' ? file.file_name.trim() : '';
+        if (name) return `${numericAssetId}/${name}`;
+        return `${numericAssetId}/unknown`;
+      };
+
+      for (const file of assetFiles) {
+        let fileName = file.file_name;
+        if (!fileName && file.file_url) fileName = extractFilenameFromUrl(file.file_url);
+        fileListData.push([numericAssetId, payerId, fileName || '']);
+        try {
+          const filePath = getFilePathForDownload(file);
+          if (!filePath) continue;
+          const result = await getAssetFileBlobForZip(filePath, file.file_url);
+          if (result.error || !result.data) continue;
+          zipFiles.push({ filename: `${assetTaxRegion}/${numericAssetId}_${fileName || extractFilenameFromUrl(file.file_url)}`, data: result.data });
+        } catch (err) {
+          console.warn('[AssetDetails] Error processing file for ZIP:', err);
+        }
+      }
+
+      if (fileListData.length > 1) {
+        const fileListFilename = `רשימת_קבצים_${assetTaxRegion}_${dateStr}.xlsx`;
+        const fileListBlob = createExcelBlob({
+          filename: fileListFilename,
+          sheetName: 'רשימת קבצים',
+          data: fileListData,
+          columnWidths: [{ wch: 15 }, { wch: 15 }, { wch: 30 }],
+        });
+        zipFiles.push({ filename: `${assetTaxRegion}/${fileListFilename}`, data: fileListBlob });
+      }
+
+      // STEP 5: Send emails to operators and managers
+      setToast({ message: 'שולח מיילים...', type: 'info' });
+      const dateStrHe = now.toLocaleDateString('he-IL');
+      const { emailService } = await import('../lib/emailService');
+      const [templateOp, templateMgr] = await Promise.all([
+        api.systemConfiguration.getEmailTemplate('email_template_operator'),
+        api.systemConfiguration.getEmailTemplate('email_template_manager'),
+      ]).catch(() => [null, null]);
+      const applyTpl = (t: string, name: string, count?: number) =>
+        t.replace(/\{\{name\}\}/g, name).replace(/\{\{date\}\}/g, dateStrHe).replace(/\{\{assetCount\}\}/g, count != null ? String(count) : '');
+
+      const operatorsList = await api.operators.getAll();
+      const sendItems: Array<{ to: string; subject: string; body: string; attachmentFilename: string; attachmentBlob: Blob }> = [];
+
+      const operatorId = a.operator_id;
+      if (operatorId != null) {
+        const operator = operatorsList.find((o: any) => o.id === operatorId);
+        if (operator?.email?.includes('@')) {
+          const subj = templateOp ? applyTpl(templateOp.subject, operator.name, 1) : `שליחת נתונים - ${dateStrHe}`;
+          const body = templateOp ? applyTpl(templateOp.body, operator.name, 1) : `שלום ${operator.name},\n\nמצורף קובץ הנתונים.\nתאריך: ${dateStrHe}\n\nבברכה,\nמערכת ניהול נכסים`;
+          sendItems.push({ to: operator.email, subject: subj, body, attachmentFilename: `נכסים_מפעיל_${operatorId}_${dateStr}_1נכסים.xlsx`, attachmentBlob: excelBlob });
+        }
+      }
+
+      const managersList = await api.managers.getAll();
+      for (const manager of managersList) {
+        if (!manager.email?.includes('@')) continue;
+        const regionStrs = (manager.tax_regions || '').split(',').map((s: string) => s.trim()).filter(Boolean);
+        const regionSet = new Set(regionStrs.map((s: string) => { const n = parseInt(s, 10); return isNaN(n) ? null : n; }).filter((n: number | null): n is number => n !== null));
+        const assetTaxRegionNum = a.tax_region != null ? (typeof a.tax_region === 'string' ? parseInt(a.tax_region, 10) : a.tax_region) : null;
+        if (assetTaxRegionNum == null || !regionSet.has(assetTaxRegionNum)) continue;
+        const subj = templateMgr ? applyTpl(templateMgr.subject, manager.name, 1) : `שליחת נתונים - ${dateStrHe}`;
+        const body = templateMgr ? applyTpl(templateMgr.body, manager.name, 1) : `שלום ${manager.name},\n\nמצורף קובץ הנתונים.\nתאריך: ${dateStrHe}\n\nבברכה,\nמערכת ניהול נכסים`;
+        sendItems.push({ to: manager.email, subject: subj, body, attachmentFilename: `נכסים_מנהל_${manager.id}_${dateStr}_1נכסים.xlsx`, attachmentBlob: excelBlob });
+      }
+
+      let sentCount = 0;
+      if (sendItems.length > 0) {
+        const { sentCount: n } = await emailService.sendExportEmailsWithProgress(
+          sendItems,
+          { concurrency: 3, onProgress: () => {} }
+        );
+        sentCount = n;
+      }
+
+      // STEP 6: Download ZIP
+      setToast({ message: 'מוריד קובץ ZIP...', type: 'info' });
+      const zipFilename = `שליחת_נתונים_${dateStr}.zip`;
+      const { createAndDownloadZip } = await import('../lib/zipExport');
+      await createAndDownloadZip(zipFilename, zipFiles);
+
+      // STEP 7: Mark as exported (only after successful send)
+      await api.assets.markExportedByIds([numericAssetId]);
+
+      // Update local state
+      const today = new Date().toISOString().split('T')[0];
+      setAllMeasurements(prev =>
+        prev.map(m =>
+          m.is_latest === true
+            ? { ...m, exported_to_automation: true, export_to_automation_at: today }
+            : m
+        )
+      );
+      if (asset?.is_latest === true) {
+        setAsset(prev => prev ? { ...prev, exported_to_automation: true, export_to_automation_at: today } : prev);
+      }
+      window.dispatchEvent(new CustomEvent('exportToAutomationSuccess'));
+
+      let successMessage = 'הנכס נשלח לעירייה בהצלחה. הקובץ הורד.';
+      if (sentCount > 0) successMessage += ` ${sentCount} מיילים נשלחו.`;
+      setToast({ message: successMessage, type: 'success' });
+      setTimeout(() => setToast(null), 6000);
+    } catch (err: any) {
+      setToast({ message: err?.message || 'שגיאה בשליחה לעירייה', type: 'error' });
+      setTimeout(() => setToast(null), 5000);
+    } finally {
+      setIsExporting(false);
+      document.body.style.cursor = '';
+    }
+  }
 
   // Helper function to get cell style for dirty fields and validation errors
   // Memoize getCellStyle to prevent recreation on every render
@@ -1895,9 +2207,7 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
                 onChange={async (e) => {
                   const files = e.target.files;
                   if (!files?.length || !asset.asset_id) return;
-                  for (let i = 0; i < files.length; i++) {
-                    await handleFileUpload(asset.asset_id, files[i]);
-                  }
+                  await handleFileUpload(asset.asset_id, Array.from(files));
                   e.target.value = '';
                 }}
                 disabled={uploadingAssetId === asset.asset_id}
@@ -1924,19 +2234,20 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
         <button
           onClick={(e) => {
             e.stopPropagation();
-            if (assetsWithFiles.has(asset.asset_id)) {
-              // Pass measurement_date if this is a history record
-              const measurementDate = asset.is_latest ? undefined : asset.measurement_date;
-              handleViewDrawing(asset.asset_id, measurementDate);
+            // Active records: files are stored with NULL date → use ACTIVE key; history records: use their date
+            const measurementKey = asset.is_latest ? `${asset.asset_id}|ACTIVE` : `${asset.asset_id}|${asset.measurement_date ?? null}`;
+            if (assetsWithFiles.has(measurementKey)) {
+              // Pass null for active records so the modal fetches NULL-date files; pass actual date for history
+              handleViewDrawing(asset.asset_id, asset.is_latest ? null : (asset.measurement_date ?? null));
             }
           }}
-          disabled={!assetsWithFiles.has(asset.asset_id)}
+          disabled={!(asset.is_latest ? assetsWithFiles.has(`${asset.asset_id}|ACTIVE`) : assetsWithFiles.has(`${asset.asset_id}|${asset.measurement_date ?? null}`))}
             className={`p-1 transition-colors hover:scale-110 ${
-            assetsWithFiles.has(asset.asset_id)
+            (asset.is_latest ? assetsWithFiles.has(`${asset.asset_id}|ACTIVE`) : assetsWithFiles.has(`${asset.asset_id}|${asset.measurement_date ?? null}`))
               ? 'text-green-600 hover:text-green-700 cursor-pointer'
               : 'text-gray-300 cursor-not-allowed opacity-50'
           }`}
-          title={assetsWithFiles.has(asset.asset_id) ? (t('viewFiles') || 'צפה בקבצים') : (t('noFiles') || 'אין קבצים')}
+          title={(asset.is_latest ? assetsWithFiles.has(`${asset.asset_id}|ACTIVE`) : assetsWithFiles.has(`${asset.asset_id}|${asset.measurement_date ?? null}`)) ? (t('viewFiles') || 'צפה בקבצים') : (t('noFiles') || 'אין קבצים')}
           >
             <FileText className="h-5 w-5" />
           </button>
@@ -3048,25 +3359,34 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
     });
   }, [t, assetTypes, isFieldEditable, getCellStyle, structureDrawingCellRenderer, actionsCellRenderer, asset, isBusinessAsset, isBusinessContext, operators]);
 
-  // Apply field configurations to column definitions for main grid
-  const [configuredColumnDefs] = useFieldConfig(columnDefs, 'asset-details-main');
+  // Apply field configurations to column definitions for main grid — uses same config as assets-list
+  const [configuredColumnDefs] = useFieldConfig(columnDefs, 'assets-list');
 
-  // Column definitions for history grid - no validation
+  // Column definitions for history grid — same field config as assets-list, all fields editable
   const historyColumnDefs: ColDef<Asset>[] = useMemo(() => {
     return columnDefs.map(colDef => {
-      // Replace actions cell renderer with null renderer for history grid
       if (colDef.colId === 'actions') {
-        return {
-          ...colDef,
-          cellRenderer: historyActionsCellRenderer
-        };
+        return { ...colDef, cellRenderer: historyActionsCellRenderer };
       }
-      return colDef;
+      // Override editable to always return true for history rows (bypass is_latest check)
+      const originalEditable = colDef.editable;
+      if (originalEditable === false) return colDef; // keep explicitly-false columns read-only
+      return {
+        ...colDef,
+        editable: (params: any) => {
+          if (!params?.data) return false;
+          if (typeof originalEditable === 'function') {
+            // Re-run original check with is_latest forced true so the logic passes
+            return originalEditable({ ...params, data: { ...params.data, is_latest: true } });
+          }
+          return true;
+        },
+      };
     });
   }, [columnDefs, historyActionsCellRenderer]);
 
-  // Apply field configurations to column definitions for history grid
-  const [configuredHistoryColumnDefs] = useFieldConfig(historyColumnDefs, 'asset-details-history');
+  // Apply field configurations to history grid — same grid name = same widths/visibility as assets-list
+  const [configuredHistoryColumnDefs] = useFieldConfig(historyColumnDefs, 'assets-list');
 
   useEffect(() => {
     api.operators.getAll().then(setOperators).catch(() => setOperators([]));
@@ -3377,25 +3697,37 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
         setOriginalMeasurements(allAssetMeasurements.map(asset => ({ ...asset })));
       }
       
-      // Check which assets have files
+      // Check which measurements have files.
+      // Active records (is_latest=true): files stored with NULL date → key: `${asset_id}|ACTIVE`
+      // History records (is_latest=false): files stored with specific date → key: `${asset_id}|${date}`
       if (allAssetMeasurements.length > 0) {
-        const assetIds = allAssetMeasurements.map(a => a.asset_id).filter(id => id != null);
-        const filesMap = new Set<number>();
-        
-        // Check files for all assets in parallel
+        const filesMap = new Set<string>();
+
         await Promise.all(
-          assetIds.map(async (assetId) => {
+          allAssetMeasurements.map(async (m) => {
+            const assetId = m.asset_id;
+            if (!assetId) return;
             try {
-              const files = await api.assets.files.getAll(assetId);
-              if (files && files.length > 0) {
-                filesMap.add(assetId);
+              if (m.is_latest) {
+                // Active record — check NULL-date files
+                const files = await api.assets.files.getAll(assetId, null);
+                if (files && files.length > 0) {
+                  filesMap.add(`${assetId}|ACTIVE`);
+                }
+              } else {
+                // History record — check files with this specific date
+                const measurementDate = m.measurement_date ?? null;
+                const files = await api.assets.files.getAll(assetId, measurementDate);
+                if (files && files.length > 0) {
+                  filesMap.add(`${assetId}|${measurementDate}`);
+                }
               }
             } catch (err) {
               // Ignore errors - asset might not have files
             }
           })
         );
-        
+
         setAssetsWithFiles(filesMap);
       } else {
         setAssetsWithFiles(new Set());
@@ -3456,7 +3788,6 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
           message={toast.message}
           type={toast.type}
           onClose={() => setToast(null)}
-          duration={0}
         />
       )}
 
@@ -3478,9 +3809,13 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
       {/* Loading overlay modal for file upload */}
       {uploadProgress && (
         <div className="fixed inset-0 bg-black bg-opacity-50 z-[9999] flex items-center justify-center" style={{ cursor: 'wait' }}>
-          <div className="bg-white rounded-lg p-6 shadow-xl flex flex-col items-center gap-4 min-w-[200px]">
+          <div className="bg-white rounded-lg p-6 shadow-xl flex flex-col items-center gap-4 min-w-[240px]">
             <Loader2 className="h-12 w-12 text-theme-tab-active animate-spin" />
-            <p className="text-slate-700 font-medium text-lg">{t('uploading') || 'מעלה קובץ...'}</p>
+            <p className="text-slate-700 font-medium text-lg">
+              {uploadProgress.total > 1
+                ? `מעלה קובץ ${uploadProgress.currentIndex + 1} מתוך ${uploadProgress.total}`
+                : (t('uploading') || 'מעלה קובץ...')}
+            </p>
             <p className="text-slate-500 text-sm truncate max-w-[280px]" title={uploadProgress.fileName}>{uploadProgress.fileName}</p>
             <div className="w-full max-w-[200px] h-2 bg-slate-200 rounded-full overflow-hidden">
               <div className="h-full bg-theme-tab-active transition-all duration-300" style={{ width: `${uploadProgress.progress}%` }} />
@@ -3650,7 +3985,7 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
         </div>
       )}
 
-      <div className="flex flex-col flex-1 min-h-0 w-full px-2 sm:px-4 md:px-6 py-1.5 sm:py-2">
+      <div className="flex flex-col flex-1 min-h-0 w-full py-2" style={{ maxWidth: '100vw', width: '100%', paddingLeft: '0.5rem', paddingRight: '0.5rem' }}>
       <div className="page-header mb-2 rounded-lg px-3 py-2 w-full">
         <div className="flex items-center gap-2 flex-wrap w-full">
           <div className="page-header-icon shrink-0">
@@ -3726,13 +4061,22 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
       </div>
 
       {allMeasurements.length > 0 && (
-        <div className="bg-white rounded-xl shadow-lg border border-theme-card-border hover:shadow-xl transition-shadow duration-200">
-          <div className="p-2">
-            {/* Latest Measurement Grid */}
-            <div className="mb-2">
-              <div className="flex items-center justify-between mb-1">
-                <h3 className="text-sm font-semibold text-slate-800">מדידה אחרונה</h3>
-                <div className="action-bar flex justify-end gap-2 py-1 px-2">
+        <div className="action-bar mb-2">
+          <div className="flex flex-wrap items-center gap-2 justify-end">
+                  <button
+                    type="button"
+                    onClick={handleExportToAutomation}
+                    disabled={isSaving || isExporting || !latestMeasurement?.asset_id}
+                    className={`btn btn-action ${latestMeasurement?.exported_to_automation ? 'btn-secondary' : 'btn-primary'} disabled:opacity-50 disabled:cursor-not-allowed`}
+                    title={latestMeasurement?.exported_to_automation ? 'הנכס כבר נשלח לעירייה' : 'שלח נכס זה לעירייה'}
+                  >
+                    {isExporting ? (
+                      <Loader2 className="h-5 w-5 animate-spin" />
+                    ) : (
+                      <Upload className="h-5 w-5" />
+                    )}
+                    <span>{latestMeasurement?.exported_to_automation ? 'נשלח לעירייה' : 'שלח לעירייה'}</span>
+                  </button>
                   <button
                     onClick={async () => {
                       if (!pinnedTopRowData || pinnedTopRowData.length === 0) {
@@ -3818,9 +4162,14 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
                     <X className="h-5 w-5" />
                     <span>{t('cancel')}</span>
                   </button>
-                </div>
-              </div>
-              <div className="ag-theme-alpine rounded-xl shadow-lg border border-theme-card-border asset-details-pinned-grid" style={{ height: '140px', width: '100%', overflowX: 'auto' }}>
+          </div>
+        </div>
+      )}
+
+      {allMeasurements.length > 0 && (
+        <div className="flex flex-col flex-1 min-h-0">
+          {/* Latest Measurement Grid */}
+          <div className="ag-theme-alpine asset-details-pinned-grid mb-2" style={{ height: '120px', width: '100%', overflowX: 'auto' }}>
                 <style>{`
                   .asset-details-pinned-grid .ag-header-cell-label,
                   .asset-details-pinned-grid .ag-header-cell-text,
@@ -3914,16 +4263,15 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
                 tooltipShowDelay={200}
                 tooltipHideDelay={10000}
               />
-              </div>
-            </div>
+          </div>
 
-            {/* History Records Grid */}
-            {historyRows.length > 0 && (
-              <div className="mt-4">
-                <h3 className="text-lg font-semibold text-gray-800 mb-2" style={{ direction: 'rtl', textAlign: 'right' }}>
-                  היסטוריית מדידות
-                </h3>
-                <div className="ag-theme-alpine rounded-xl shadow-lg border-2 border-gray-200 bg-gradient-to-br from-white to-gray-50" style={{ height: '300px', width: '100%', overflowX: 'auto' }}>
+          {/* History Records Grid */}
+          {historyRows.length > 0 && (
+            <div className="flex flex-col flex-1 min-h-0">
+              <h3 className="text-sm font-semibold text-slate-700 mb-1" style={{ direction: 'rtl', textAlign: 'right' }}>
+                היסטוריית מדידות
+              </h3>
+              <div className="ag-theme-alpine flex-1 min-h-[200px]" style={{ width: '100%', overflowX: 'auto' }}>
                     <style>{`
                       .ag-theme-alpine .ag-header {
                         background: #f8f9fa !important;
@@ -3968,6 +4316,8 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
                       ref={historyGridRef}
                       rowData={historyRowsWithDetails}
                       columnDefs={configuredHistoryColumnDefs}
+                      onCellValueChanged={onCellValueChanged}
+                      singleClickEdit={true}
                     defaultColDef={{
                       resizable: true,
                       wrapHeaderText: true,
@@ -4093,11 +4443,14 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
                     tooltipShowDelay={200}
                     tooltipHideDelay={10000}
                   />
-                </div>
               </div>
-            )}
+            </div>
+          )}
 
-            {/* Row Edit Modal */}
+        </div>
+      )}
+
+        {/* Row Edit Modal */}
             <RowEditModal
               isOpen={isRowEditModalOpen}
               onClose={() => {
@@ -4157,9 +4510,6 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
                 </div>
               </div>
             )}
-          </div>
-        </div>
-      )}
 
       {/* Asset Files Modal */}
       {assetFilesModalOpen && selectedAssetIdForFiles && (
@@ -4174,12 +4524,16 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
           measurementDate={selectedMeasurementDateForFiles}
           isUploading={uploadingAssetId === selectedAssetIdForFiles}
           onFilesDeleted={(assetId, hasFiles) => {
+            // When measurementDate is null, we're viewing active files → use ACTIVE key
+            const key = selectedMeasurementDateForFiles === null
+              ? `${assetId}|ACTIVE`
+              : `${assetId}|${selectedMeasurementDateForFiles}`;
             if (hasFiles) {
-              setAssetsWithFiles(prev => new Set(prev).add(assetId));
+              setAssetsWithFiles(prev => new Set(prev).add(key));
             } else {
               setAssetsWithFiles(prev => {
                 const next = new Set(prev);
-                next.delete(assetId);
+                next.delete(key);
                 return next;
               });
             }

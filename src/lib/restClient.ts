@@ -278,6 +278,22 @@ export async function exportGetZipStatus(job_id: string) {
   );
 }
 
+/**
+ * PATCH /api/data/{table}?key=val&...  with JSON body of fields to update.
+ * filters: plain object whose keys become WHERE conditions.
+ * body: plain object of fields to set.
+ */
+export async function dataPatch(
+  table: string,
+  filters: Record<string, unknown>,
+  body: Record<string, unknown>
+) {
+  const qs = Object.entries(filters)
+    .map(([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(String(v))}`)
+    .join('&');
+  return rest<{ ok: boolean }>('PATCH', `/data/${table}?${qs}`, body);
+}
+
 /** Returns the download URL for the ZIP (same origin). Call when status is "ready". */
 export function exportGetZipDownloadUrl(job_id: string): string {
   const base = getApiBaseUrl();

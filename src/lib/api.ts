@@ -38,6 +38,7 @@ import {
   buildingsCreate,
   buildingsCreateBulk,
   buildingsDeleteByNumber,
+  dataPatch,
 } from './restClient';
 import { getSession, getAuthUserIdForBackend } from './usersTableAuth';
 import i18n from '../i18n/i18n';
@@ -1661,9 +1662,17 @@ export const api = {
       const sorted = (data || []).sort((a, b) =>
         parseDate(b.measurement_date).getTime() - parseDate(a.measurement_date).getTime()
       );
-      
+
       // Convert any Hebrew boolean strings to actual booleans when loading from DB
       return sorted.map(asset => convertHebrewBooleans(asset));
+    },
+    /** Delete ALL history records for an asset from assets_history. */
+    deleteAllHistory: async (assetId: string | number): Promise<void> => {
+      const { error } = await api
+        .from('assets_history')
+        .delete()
+        .eq('asset_id', assetId);
+      if (error) throw error;
     },
     getAssetWithHistory: async (assetId: string | number, buildingNumber?: number): Promise<Asset[]> => {
       try {
@@ -2603,13 +2612,24 @@ export const api = {
       }
     },
     files: {
-      getAll: async (assetId: number): Promise<AssetFile[]> => {
-        const { data, error } = await api
+      getAll: async (assetId: number, measurementDate?: string | null): Promise<AssetFile[]> => {
+        let query = api
           .from('asset_files')
           .select('*')
-          .eq('asset_id', assetId)
-          .order('file_name', { ascending: true });
+          .eq('asset_id', assetId);
 
+        if (measurementDate !== undefined) {
+          if (measurementDate === null) {
+            // Active files only — stored with measurement_date IS NULL (belong to current assets table record)
+            query = query.is('measurement_date', null);
+          } else {
+            // History files only — stored with this specific date (belong to an assets_history record)
+            query = query.eq('measurement_date', measurementDate);
+          }
+        }
+        // if measurementDate is undefined → return all files (no filter)
+
+        const { data, error } = await query.order('file_name', { ascending: true });
         if (error) throw error;
         return (data || []).map((row: Record<string, unknown> & { id: number; asset_id: number; uploaded_at: string }) => normalizeAssetFile(row));
       },
@@ -2623,10 +2643,12 @@ export const api = {
         const allData: Array<Record<string, unknown> & { id: number; asset_id: number; uploaded_at: string }> = [];
         for (let i = 0; i < assetIds.length; i += CHUNK_SIZE) {
           const chunk = assetIds.slice(i, i + CHUNK_SIZE);
+          // Only fetch active files (measurement_date IS NULL) — history files are excluded
           const { data, error } = await api
             .from('asset_files')
             .select('*')
             .in('asset_id', chunk)
+            .is('measurement_date', null)
             .order('file_name', { ascending: true });
           if (error) throw error;
           if (data?.length) allData.push(...(data as typeof allData));
@@ -2773,6 +2795,16 @@ export const api = {
         }
         
         return clonedFiles;
+      },
+      /** Pin all null-date (shared) files for an asset to a specific measurement date.
+       *  Called after save-as-new-measurement so files belong exclusively to the archived record. */
+      claimForMeasurement: async (assetId: number, measurementDate: string): Promise<void> => {
+        const { error } = await dataPatch(
+          'asset_files',
+          { asset_id: assetId, measurement_date__isnull: 1 },
+          { measurement_date: measurementDate }
+        );
+        if (error) throw error;
       },
       delete: async (fileIds: number[]): Promise<{ success: boolean; error?: string }> => {
         const { error } = await api
@@ -3497,6 +3529,11 @@ export const api = {
       if (error) throw error;
       return { message: 'Validation rule deleted successfully' };
     },
+  },
+  data: {
+    /** PATCH a row in any allowed table by filter keys. */
+    patch: (table: string, filters: Record<string, unknown>, body: Record<string, unknown>) =>
+      dataPatch(table, filters, body),
   },
   deleteBuilding: async (buildingNumber: number): Promise<{ message: string }> => {
     return api.buildings.delete(buildingNumber);

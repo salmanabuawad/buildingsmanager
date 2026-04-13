@@ -305,6 +305,73 @@ async def upsert_table(
     return upserted
 
 
+@router.patch("/{table}")
+async def patch_table(
+    request: Request,
+    table: str,
+    _payload: dict = Depends(require_jwt),
+    db: Session = Depends(get_db),
+):
+    """UPDATE rows matching query-param filters with body JSON fields."""
+    if table not in ALLOWED_TABLES:
+        raise HTTPException(status_code=404, detail="Not Found")
+    q = dict(request.query_params)
+    columns = _get_columns(db, table)
+    if not columns:
+        raise HTTPException(status_code=500, detail="Table not found")
+    where_sql, where_params = _build_where_and_params(columns, q)
+    if where_sql == "1=1":
+        raise HTTPException(status_code=400, detail="PATCH requires at least one filter")
+    body = await request.json()
+    if not body:
+        raise HTTPException(status_code=400, detail="PATCH requires a JSON body")
+    set_clauses = []
+    set_params: dict = dict(where_params)
+    for key, value in body.items():
+        if key in columns:
+            param_key = f"set_{key}"
+            set_clauses.append(f'"{key}" = :{param_key}')
+            set_params[param_key] = value
+    if not set_clauses:
+        raise HTTPException(status_code=400, detail="No valid fields to update")
+    try:
+        sql = f'UPDATE "{table}" SET {", ".join(set_clauses)} WHERE {where_sql}'
+        db.execute(text(sql), set_params)
+        db.commit()
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+    return {"ok": True}
+
+
+@router.post("/migrate/asset-files-to-null")
+def migrate_asset_files_to_null(
+    _payload: dict = Depends(require_jwt),
+    db: Session = Depends(get_db),
+):
+    """One-time migration: mark active asset files as NULL measurement_date.
+
+    Before the NULL=active convention, files were stored with measurement_date = asset.measurement_date.
+    This migration resets those files to NULL so the new query (IS NULL = active) can find them.
+    Only affects files whose measurement_date matches the CURRENT assets table record —
+    history files (whose date matches only assets_history) are untouched.
+    """
+    try:
+        result = db.execute(text("""
+            UPDATE asset_files af
+            SET measurement_date = NULL
+            FROM assets a
+            WHERE af.asset_id = a.asset_id
+              AND af.measurement_date = a.measurement_date
+              AND a.measurement_date IS NOT NULL
+        """))
+        db.commit()
+        return {"ok": True, "updated": result.rowcount}
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @router.delete("/{table}")
 def delete_table(
     request: Request,

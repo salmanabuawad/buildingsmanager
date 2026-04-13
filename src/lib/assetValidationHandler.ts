@@ -517,16 +517,14 @@ export class AssetValidationHandler {
     // if (process.env.NODE_ENV === 'development' && Math.random() < 0.001) { // Log only 0.1% of validations
     // }
     
-    // Skip validation if main_asset_type is not set
+    // Require main_asset_type — an asset without a type is invalid
     if (!asset.main_asset_type || String(asset.main_asset_type).trim() === '') {
-      if (process.env.NODE_ENV === 'development') {
-      }
       return {
         assetId: asset.asset_id,
         assetIdentifier,
-        valid: true,
-        errors: [],
-        passed: ['סוג נכס ראשי לא מוגדר - דילוג על אימות']
+        valid: false,
+        errors: ['סוג נכס ראשי נדרש'],
+        passed: []
       };
     }
     

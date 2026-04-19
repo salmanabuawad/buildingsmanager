@@ -159,6 +159,7 @@ class Asset(Base):
     number_of_parking_units     = Column(Integer)
     use_nature                  = Column(Text)
     shared_parking_area         = Column(Numeric)
+    import_order                = Column(BigInteger, index=True)
     created_at                  = Column(DateTime(timezone=True), server_default=func.now())
     updated_at                  = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 

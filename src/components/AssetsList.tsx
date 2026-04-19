@@ -7,7 +7,7 @@ import { assetValidators } from '../lib/validation';
 import { AssetValidationHandler } from '../lib/assetValidationHandler';
 import { AgGridReact } from 'ag-grid-react';
 import { ColDef, ICellEditorParams } from 'ag-grid-community';
-import { Building as BuildingIcon, AlertCircle, ChevronDown, ChevronRight, Loader2, Save, X, Plus, Trash2, Check, CheckCircle2, Download, MoveLeft, Upload, FileSpreadsheet, History, Share2, MapPin, MessageSquare, FileText, BarChart3, Copy } from 'lucide-react';
+import { Building as BuildingIcon, AlertCircle, ChevronDown, ChevronRight, Loader2, Save, X, Plus, Trash2, Check, CheckCircle2, Download, MoveLeft, Upload, FileSpreadsheet, History, Share2, MapPin, MessageSquare, FileText, BarChart3, Copy, ArrowUpDown } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { ValidationResultModal, BatchValidationResults, ValidationProgress } from './ValidationResultModal';
 import { DistributionHistoryModal } from './DistributionHistoryModal';
@@ -6511,6 +6511,23 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
             >
               <CheckCircle2 className="h-5 w-5" />
               <span>{selectedAssets.size > 0 ? `אמת נבחרים (${selectedAssets.size})` : 'אמת הכל'}</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                if (gridRef.current?.api) {
+                  // Clear any column sort applied by user; data falls back to
+                  // the original API order (import_order ASC NULLS LAST, asset_id ASC)
+                  gridRef.current.api.applyColumnState({
+                    defaultState: { sort: null }
+                  });
+                }
+              }}
+              className="btn btn-action btn-secondary"
+              title="נקה מיון והחזר לסדר ברירת המחדל"
+            >
+              <ArrowUpDown className="h-5 w-5" />
+              <span>נקה מיון</span>
             </button>
             {!isErrorFixingMode && (
               <>

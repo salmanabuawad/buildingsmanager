@@ -1333,7 +1333,9 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
       }
 
       // Prepare skeleton assets for insert (building_number, asset_id, tax_region, and payer_id)
-      const assetsToInsert: Partial<Asset>[] = validatedSkeletonAssets.map(asset => ({
+      // import_order preserves Excel row order across batches: batchBase * 10000 + index.
+      const importBatchBase = Date.now() * 10000;
+      const assetsToInsert: Partial<Asset>[] = validatedSkeletonAssets.map((asset, index) => ({
         building_number: asset.building_number!,
         payer_id: asset.payer_id!,
         asset_id: asset.asset_id,
@@ -1360,7 +1362,8 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
         discount_type: null,
         discount_date_from: null,
         discount_date_to: null,
-        comment: null
+        comment: null,
+        import_order: importBatchBase + index
       }));
 
       // Sanitize assets before insert (same as regular mode)
@@ -1870,8 +1873,10 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
 
       // Prepare all valid assets for bulk insert.
       // On import with distribution: compute scaled sizes and building business_shared_area only; do NOT set asset business_distribution_area.
+      // import_order preserves Excel row order across batches: batchBase * 10000 + index.
       const buildingDistributionSumMap = new Map<number, number>();
-      let assetsToInsert: Partial<Asset>[] = validAssets.map(asset => {
+      const importBatchBase = Date.now() * 10000;
+      let assetsToInsert: Partial<Asset>[] = validAssets.map((asset, importOrderIndex) => {
         const buildingNum = typeof asset.building_number === 'number'
           ? asset.building_number
           : parseInt(String(asset.building_number), 10);
@@ -1978,7 +1983,8 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
           // Any later edit in the app will flip this back to false via DB trigger.
           data_from_automation: importFromAutomation ? true : false,
           // When data is from automation, do not mark as needing to send to automation (already there).
-          exported_to_automation: importFromAutomation ? true : false
+          exported_to_automation: importFromAutomation ? true : false,
+          import_order: importBatchBase + importOrderIndex
         };
 
         assetData.penthouse = asset.penthouse === true;

@@ -490,6 +490,7 @@ export interface Asset {
   operator_id?: number | null; // Operator responsible for this asset (for grouping export and emailing)
   shared_parking_area?: number | null; // Per-asset shared parking area (sqm)
   number_of_parking_units?: number | null; // Number of parking units for this asset
+  import_order?: number | null; // Preserves Excel import row order; sorted ASC NULLS LAST before asset_id
 }
 
 export interface AssetFile {
@@ -790,6 +791,9 @@ export function sanitizeAssetInput(input: any): any {
       : undefined,
     number_of_parking_units: ('number_of_parking_units' in preConverted)
       ? (preConverted.number_of_parking_units != null && preConverted.number_of_parking_units !== '' ? sanitizeInteger(preConverted.number_of_parking_units) : null)
+      : undefined,
+    import_order: ('import_order' in preConverted)
+      ? (preConverted.import_order != null && preConverted.import_order !== '' ? sanitizeInteger(preConverted.import_order) : null)
       : undefined,
   };
 
@@ -1539,6 +1543,7 @@ export const api = {
         let query = api
           .from('assets')
           .select('*')
+          .order('import_order', { ascending: true, nullsFirst: false })
           .order('asset_id')
           .offset(offset)
           .limit(limit);
@@ -1559,6 +1564,17 @@ export const api = {
       };
 
       const sortedData = (data || []).sort((a, b) => {
+        // Primary: import_order ASC with NULLs last (matches DB order clause)
+        const aOrder = a.import_order;
+        const bOrder = b.import_order;
+        if (aOrder != null && bOrder != null) {
+          if (aOrder !== bOrder) return aOrder - bOrder;
+        } else if (aOrder != null) {
+          return -1;
+        } else if (bOrder != null) {
+          return 1;
+        }
+        // Secondary: asset_id ASC
         if (a.asset_id !== b.asset_id) {
           return a.asset_id - b.asset_id;
         }
@@ -1572,6 +1588,7 @@ export const api = {
       let query = api
         .from('assets')
         .select('*')
+        .order('import_order', { ascending: true, nullsFirst: false })
         .order('asset_id');
 
       if (buildingNumber) {
@@ -1591,6 +1608,15 @@ export const api = {
       };
 
       const sortedData = (data || []).sort((a, b) => {
+        const aOrder = a.import_order;
+        const bOrder = b.import_order;
+        if (aOrder != null && bOrder != null) {
+          if (aOrder !== bOrder) return aOrder - bOrder;
+        } else if (aOrder != null) {
+          return -1;
+        } else if (bOrder != null) {
+          return 1;
+        }
         if (a.asset_id !== b.asset_id) {
           return a.asset_id - b.asset_id;
         }

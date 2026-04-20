@@ -520,6 +520,22 @@ function fileTypeFromFileName(fileName: string): string | undefined {
   return undefined;
 }
 
+/**
+ * Compare apartment_number values for natural ascending sort with NULLs last.
+ * Numeric-aware: "2" < "10" < "10A" < "B". Used as the primary default sort
+ * on the asset list.
+ */
+function compareApartmentNumber(a: unknown, b: unknown): number {
+  const aEmpty = a == null || a === '';
+  const bEmpty = b == null || b === '';
+  if (aEmpty && bEmpty) return 0;
+  if (aEmpty) return 1;   // NULLs last
+  if (bEmpty) return -1;
+  const sa = String(a);
+  const sb = String(b);
+  return sa.localeCompare(sb, undefined, { numeric: true, sensitivity: 'base' });
+}
+
 /** Normalize asset file from API row: ensure file_name, file_type, file_path from file_url/path when missing. */
 function normalizeAssetFile(row: Record<string, unknown> & { id: number; asset_id: number; uploaded_at: string }): AssetFile {
   const file = { ...row } as AssetFile;
@@ -1552,6 +1568,7 @@ export const api = {
         let query = api
           .from('assets')
           .select('*')
+          .order('apartment_number', { ascending: true, nullsFirst: false })
           .order('import_order', { ascending: true, nullsFirst: false })
           .order('asset_id')
           .offset(offset)
@@ -1573,7 +1590,10 @@ export const api = {
       };
 
       const sortedData = (data || []).sort((a, b) => {
-        // Primary: import_order ASC with NULLs last (matches DB order clause)
+        // Primary: apartment_number (numeric-aware) ASC, NULLs last
+        const apCmp = compareApartmentNumber(a.apartment_number, b.apartment_number);
+        if (apCmp !== 0) return apCmp;
+        // Secondary: import_order ASC with NULLs last
         const aOrder = a.import_order;
         const bOrder = b.import_order;
         if (aOrder != null && bOrder != null) {
@@ -1583,7 +1603,7 @@ export const api = {
         } else if (bOrder != null) {
           return 1;
         }
-        // Secondary: asset_id ASC
+        // Tertiary: asset_id ASC
         if (a.asset_id !== b.asset_id) {
           return a.asset_id - b.asset_id;
         }
@@ -1597,6 +1617,7 @@ export const api = {
       let query = api
         .from('assets')
         .select('*')
+        .order('apartment_number', { ascending: true, nullsFirst: false })
         .order('import_order', { ascending: true, nullsFirst: false })
         .order('asset_id');
 
@@ -1617,6 +1638,8 @@ export const api = {
       };
 
       const sortedData = (data || []).sort((a, b) => {
+        const apCmp = compareApartmentNumber(a.apartment_number, b.apartment_number);
+        if (apCmp !== 0) return apCmp;
         const aOrder = a.import_order;
         const bOrder = b.import_order;
         if (aOrder != null && bOrder != null) {

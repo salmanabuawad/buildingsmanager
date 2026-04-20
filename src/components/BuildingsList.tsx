@@ -995,8 +995,15 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
     const { data, colDef } = event;
     const field = colDef?.field;
     const building = data as Building;
-    const buildingKey = getBuildingKey(building);
     const isNew = isNewBuilding(building);
+    // For new buildings that already have a valid building_number typed in,
+    // use that as the dirty-tracking key rather than _tempId. Otherwise any
+    // later edit (e.g. tax_region) would resurrect a stale _tempId entry in
+    // dirtyBuildings, and handleSaveAll would send the same building twice.
+    const buildingKey: string | number =
+      isNew && typeof building.building_number === 'number' && building.building_number > 0
+        ? building.building_number
+        : getBuildingKey(building);
     const newValue = event.newValue;
     const oldValue = event.oldValue;
 

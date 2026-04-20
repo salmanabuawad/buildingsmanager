@@ -1110,7 +1110,89 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
           filename: `${taxRegion}/${excelFilename}`,
           data: regionExcelBlob
         });
-        
+
+        // ---- "עדכון פרטי נכס" — all asset fields NOT in the per-tax-region excel above ----
+        const updateHeaders = [
+          'מזהה מבנה',           // building_number
+          'מזהה נכס',            // asset_id
+          'תאריך מדידה',         // measurement_date
+          'אזור מס',             // tax_region
+          'מספר דירה',           // apartment_number
+          'קומת דירה',           // apartment_floor
+          'מספר מחסן',           // storage_number
+          'קומת מחסן',           // storage_floor
+          'דירת גג',             // penthouse
+          'מעלית',               // elevator
+          'חד/דו משפחתי',        // single_double_family
+          'דירה בבית משותף',     // condo
+          'בתים טוריים',         // townhouses
+          'סוג הנחה',            // discount_type
+          'שטח חניה משותף',      // shared_parking_area
+          'מספר יחידות חניה',    // number_of_parking_units
+          'שטח פיזור לעסק',      // business_distribution_area
+          'סה"כ שטח עסקי',       // business_total_area
+          'מהות שימוש',          // use_nature
+          'הערה'                  // comment
+        ];
+        const boolToHe = (v: any): string => (v === true ? 'כן' : v === false ? 'לא' : '');
+        const updateRows = regionAssetsForExcel.map((asset: any) => [
+          asset.building_number != null ? String(asset.building_number) : '',
+          asset.asset_id != null ? String(asset.asset_id) : '',
+          asset.measurement_date || '',
+          asset.tax_region != null ? String(asset.tax_region) : '',
+          asset.apartment_number || '',
+          asset.apartment_floor || '',
+          asset.storage_number || '',
+          asset.storage_floor || '',
+          boolToHe(asset.penthouse),
+          boolToHe(asset.elevator),
+          boolToHe(asset.single_double_family),
+          boolToHe(asset.condo),
+          boolToHe(asset.townhouses),
+          asset.discount_type || '',
+          asset.shared_parking_area ?? '',
+          asset.number_of_parking_units ?? '',
+          asset.business_distribution_area ?? '',
+          asset.business_total_area ?? '',
+          asset.use_nature || '',
+          asset.comment || ''
+        ]);
+        const updateExcelFilename = `עדכון_פרטי_נכס_${taxRegion}_${dateStr}.xlsx`;
+        const updateBlob = createExcelBlob({
+          filename: updateExcelFilename,
+          sheetName: 'עדכון פרטי נכס',
+          data: [updateHeaders, ...updateRows],
+          // Numeric cells: shared_parking_area, number_of_parking_units,
+          // business_distribution_area, business_total_area (indices 14..17)
+          decimalFormatColumnIndices: [14, 15, 16, 17],
+          columnWidths: [
+            { wch: 15 }, // מזהה מבנה
+            { wch: 15 }, // מזהה נכס
+            { wch: 14 }, // תאריך מדידה
+            { wch: 10 }, // אזור מס
+            { wch: 12 }, // מספר דירה
+            { wch: 12 }, // קומת דירה
+            { wch: 12 }, // מספר מחסן
+            { wch: 12 }, // קומת מחסן
+            { wch: 10 }, // דירת גג
+            { wch: 8 },  // מעלית
+            { wch: 16 }, // חד/דו משפחתי
+            { wch: 20 }, // דירה בבית משותף
+            { wch: 14 }, // בתים טוריים
+            { wch: 14 }, // סוג הנחה
+            { wch: 18 }, // שטח חניה משותף
+            { wch: 18 }, // מספר יחידות חניה
+            { wch: 18 }, // שטח פיזור לעסק
+            { wch: 18 }, // סה"כ שטח עסקי
+            { wch: 18 }, // מהות שימוש
+            { wch: 30 }  // הערה
+          ]
+        });
+        zipFiles.push({
+          filename: `${taxRegion}/${updateExcelFilename}`,
+          data: updateBlob
+        });
+
         // Prepare file list data for this tax region
         const fileListData: any[][] = [
           ['מזהה נכס', 'מזהה משלם', 'שם קובץ']

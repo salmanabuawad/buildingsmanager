@@ -987,7 +987,7 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
     }
 
     const errors: string[] = [];
-    let skeletonAssets: Array<{ building_number: number | null; asset_id: string; tax_region?: number; payer_id?: string }> = [];
+    let skeletonAssets: Array<{ building_number: number | null; asset_id: string; tax_region?: number; payer_id?: string; apartment_number?: string }> = [];
 
     try {
       const lines = await parseExcelFile(file);
@@ -1010,11 +1010,13 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
       let assetIdIndex = -1;
       let taxRegionIndex = -1;
       let payerIdIndex = -1;
+      let apartmentNumberIndex = -1;
 
       const exactBuildingNumberHeader = 'מזהה מבנה';
       const exactAssetIdHeader = 'מזהה נכס';
       const exactTaxRegionHeader = 'אזור מס';
       const exactPayerIdHeader = 'מזהה משלם';
+      const exactApartmentNumberHeader = 'מספר דירה';
 
       originalHeaders.forEach((header, index) => {
         const headerTrimmed = header.trim();
@@ -1029,6 +1031,9 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
         }
         if (headerTrimmed.toLowerCase() === exactPayerIdHeader.toLowerCase()) {
           payerIdIndex = index;
+        }
+        if (headerTrimmed.toLowerCase() === exactApartmentNumberHeader.toLowerCase()) {
+          apartmentNumberIndex = index;
         }
       });
 
@@ -1057,6 +1062,10 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
         const assetId = values[assetIdIndex] ? String(values[assetIdIndex]).trim() : '';
         const taxRegion = values[taxRegionIndex] ? parseInt(String(values[taxRegionIndex]), 10) : null;
         const payerId = values[payerIdIndex] ? String(values[payerIdIndex]).trim() : '';
+        // apartment_number is optional — only read when the column exists
+        const apartmentNumber = apartmentNumberIndex !== -1 && values[apartmentNumberIndex]
+          ? String(values[apartmentNumberIndex]).trim()
+          : undefined;
 
         // All fields are required
         if (buildingNumber && !isNaN(buildingNumber) && assetId && taxRegion && !isNaN(taxRegion) && payerId) {
@@ -1064,7 +1073,8 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
             building_number: buildingNumber,
             asset_id: assetId,
             tax_region: taxRegion,
-            payer_id: payerId
+            payer_id: payerId,
+            apartment_number: apartmentNumber || undefined
           });
         } else {
           // Log row errors for missing required fields
@@ -1115,7 +1125,8 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
         sub_asset_type_5: '',
         sub_asset_size_5: 0,
         sub_asset_type_6: '',
-        sub_asset_size_6: 0
+        sub_asset_size_6: 0,
+        apartment_number: asset.apartment_number
       }));
 
       // Create deep copy for original state
@@ -1355,7 +1366,7 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
         sub_asset_size_5: 0,
         sub_asset_type_6: null,
         sub_asset_size_6: 0,
-        apartment_number: null,
+        apartment_number: asset.apartment_number ?? null,
         apartment_floor: null,
         storage_number: null,
         storage_floor: null,
@@ -2723,6 +2734,15 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
         {
           field: 'payer_id',
           headerName: t('payerId'),
+          editable: (params) => {
+            const fieldName = params.colDef?.field || '';
+            return isFieldEditable(params, fieldName);
+          },
+          cellStyle: getCellStyle
+        },
+        {
+          field: 'apartment_number',
+          headerName: 'מספר דירה',
           editable: (params) => {
             const fieldName = params.colDef?.field || '';
             return isFieldEditable(params, fieldName);

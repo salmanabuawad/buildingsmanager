@@ -5779,14 +5779,32 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
       headerName: 'מספר דירה',
       editable: (params) => isFieldEditable(params, 'apartment_number'),
       headerClass: 'ag-right-aligned-header',
-      cellStyle: (params: any) => getCellStyle(params)
+      cellStyle: (params: any) => getCellStyle(params),
+      // apartment_number is conceptually numeric (stored as TEXT), so sort numerically:
+      // "2" < "10" < "10A". NULL/empty go last in ascending order.
+      comparator: (a: any, b: any) => {
+        const aEmpty = a == null || a === '';
+        const bEmpty = b == null || b === '';
+        if (aEmpty && bEmpty) return 0;
+        if (aEmpty) return 1;
+        if (bEmpty) return -1;
+        return String(a).localeCompare(String(b), undefined, { numeric: true, sensitivity: 'base' });
+      }
     },
     {
       field: 'apartment_floor',
       headerName: 'קומת דירה',
       editable: (params) => isFieldEditable(params, 'apartment_floor'),
       headerClass: 'ag-right-aligned-header',
-      cellStyle: (params: any) => getCellStyle(params)
+      cellStyle: (params: any) => getCellStyle(params),
+      comparator: (a: any, b: any) => {
+        const aEmpty = a == null || a === '';
+        const bEmpty = b == null || b === '';
+        if (aEmpty && bEmpty) return 0;
+        if (aEmpty) return 1;
+        if (bEmpty) return -1;
+        return String(a).localeCompare(String(b), undefined, { numeric: true, sensitivity: 'base' });
+      }
     },
     {
       field: 'storage_number',

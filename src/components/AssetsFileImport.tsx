@@ -3382,7 +3382,8 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
       'מזהה מבנה',
       'מזהה נכס',
       'אזור מס',
-      'מזהה משלם'
+      'מזהה משלם',
+      'מספר דירה' // optional
     ];
 
     const data = [headers];
@@ -3555,7 +3556,7 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
                 type="button"
                 onClick={() => downloadSkeletonTemplate('excel')}
                 className="flex items-center justify-center gap-2 px-4 py-2.5 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors text-sm font-medium"
-                title="הורד תבנית שלד Excel - מזהה מבנה, מזהה נכס, אזור מס, מזהה משלם (כל השדות חובה)"
+                title="הורד תבנית שלד Excel - מזהה מבנה, מזהה נכס, אזור מס, מזהה משלם (חובה) ומספר דירה (אופציונלי)"
               >
                 <Download className="h-4 w-4" />
                 <span>הורד תבנית שלד Excel</span>
@@ -3572,7 +3573,7 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
               </button>
             </div>
             <p className="text-xs text-orange-700">
-              ייבוא ישיר של נכסים. הקובץ חייב לכלול עמודות: מזהה מבנה, מזהה נכס, אזור מס ומזהה משלם (כל השדות חובה)
+              ייבוא ישיר של נכסים. הקובץ חייב לכלול עמודות חובה: מזהה מבנה, מזהה נכס, אזור מס, מזהה משלם. עמודה אופציונלית: מספר דירה
             </p>
           </div>
         </div>

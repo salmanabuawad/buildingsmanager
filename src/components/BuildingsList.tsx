@@ -835,10 +835,16 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
   // Helper function to find building by key
   const findBuildingByKey = useCallback((key: string | number): Building | undefined => {
     return buildings.find(b => {
-      const bKey = getBuildingKey(b);
-      return bKey === key;
+      // Match by tempId (new buildings) OR by building_number (after user entered one).
+      // When a new row gets its building_number typed in, newBuildings/dirtyBuildings
+      // are re-keyed from tempId to the number, but the Building object keeps _tempId
+      // until the save round-trip. Without this dual-match, handleSaveAll could not
+      // find the row and silently skipped the POST.
+      if (b._tempId !== undefined && b._tempId === key) return true;
+      if (b.building_number != null && b.building_number === key) return true;
+      return false;
     });
-  }, [buildings, getBuildingKey]);
+  }, [buildings]);
 
   // Validate tax region removal - check if removing tax regions would orphan assets
   const validateTaxRegionRemoval = useCallback(async (

@@ -1456,9 +1456,14 @@ export const api = {
         return { success: false, count: 0, error: error.message };
       }
 
+      // Backend returns { success, count, buildings: [...] } — unwrap the array.
+      const createdBuildings: Record<string, unknown>[] = Array.isArray(data)
+        ? (data as Record<string, unknown>[])
+        : ((data?.buildings as Record<string, unknown>[]) || []);
+
       // Log changes asynchronously (one per created building)
       try {
-        (data || []).forEach((b: any) => {
+        createdBuildings.forEach((b: any) => {
           logChangeAsync(
             'buildings',
             'INSERT',
@@ -1471,7 +1476,11 @@ export const api = {
         console.warn('[api.buildings.createBulk] Failed to log changes:', err);
       }
 
-      return { success: true, count: data?.length || prepared.length, buildings: (data || []).map((b: Record<string, unknown>) => normalizeBuildingForUi(b)) };
+      return {
+        success: true,
+        count: (data?.count as number) ?? createdBuildings.length ?? prepared.length,
+        buildings: createdBuildings.map((b) => normalizeBuildingForUi(b))
+      };
     },
     delete: async (buildingNumber: number): Promise<{ message: string }> => {
       // Get building data before deletion (for change log)

@@ -7,7 +7,7 @@ import { assetValidators } from '../lib/validation';
 import { AssetValidationHandler } from '../lib/assetValidationHandler';
 import { AgGridReact } from 'ag-grid-react';
 import { ColDef, ICellEditorParams } from 'ag-grid-community';
-import { Building as BuildingIcon, AlertCircle, ChevronDown, ChevronRight, Loader2, Save, X, Plus, Trash2, Check, CheckCircle2, Download, MoveLeft, Upload, FileSpreadsheet, History, Share2, MapPin, MessageSquare, FileText, BarChart3, Copy, ArrowUpDown } from 'lucide-react';
+import { Building as BuildingIcon, AlertCircle, ChevronDown, ChevronRight, Loader2, Save, X, Plus, Trash2, Check, CheckCircle2, Download, MoveLeft, Upload, FileSpreadsheet, History, Share2, MapPin, MessageSquare, FileText, BarChart3, Copy } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { ValidationResultModal, BatchValidationResults, ValidationProgress } from './ValidationResultModal';
 import { DistributionHistoryModal } from './DistributionHistoryModal';
@@ -6697,8 +6697,8 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
               );
             })()}
           </div>
-          {/* Invalid-only filter + Clear-sort — persistent, below buttons */}
-          <div className="flex justify-start items-center gap-2 mt-1.5">
+          {/* Invalid-only filter — persistent, below buttons */}
+          <div className="flex justify-start mt-1.5">
             <label className={`flex items-center gap-1.5 select-none text-sm font-medium border rounded px-2 py-1 transition-colors ${
               validationErrors.size > 0
                 ? 'cursor-pointer text-red-600 border-red-300 bg-red-50 hover:bg-red-100'
@@ -6716,21 +6716,6 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
                 {validationErrors.size > 0 && ` (${validationErrors.size})`}
               </span>
             </label>
-            <button
-              type="button"
-              onClick={() => {
-                // Clear any column sort applied by user; data falls back to
-                // the original API order (import_order ASC NULLS LAST, asset_id ASC)
-                gridRef.current?.api?.applyColumnState({
-                  defaultState: { sort: null }
-                });
-              }}
-              className="flex items-center gap-1 text-xs font-medium text-gray-600 border border-gray-300 bg-white hover:bg-gray-50 rounded px-2 py-1 transition-colors"
-              title="נקה מיון והחזר לסדר ברירת המחדל"
-            >
-              <ArrowUpDown className="h-3.5 w-3.5" />
-              <span>נקה מיון</span>
-            </button>
           </div>
 
           {/* Tab Navigation - hidden in error fixing mode */}

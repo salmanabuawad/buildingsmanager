@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, status, Body
 from sqlalchemy.orm import Session
 from sqlalchemy import text
+from sqlalchemy.exc import IntegrityError
 from typing import Any
 from typing import List
 from app.auth import get_current_user, require_jwt
@@ -95,10 +96,21 @@ def create_building_raw(
         raise HTTPException(status_code=400, detail="No valid fields provided")
     cols = ", ".join(f'"{k}"' for k in payload)
     vals = ", ".join(f":{k}" for k in payload)
-    row = db.execute(
-        text(f'INSERT INTO "buildings" ({cols}) VALUES ({vals}) RETURNING *'),
-        payload,
-    ).mappings().first()
+    try:
+        row = db.execute(
+            text(f'INSERT INTO "buildings" ({cols}) VALUES ({vals}) RETURNING *'),
+            payload,
+        ).mappings().first()
+    except IntegrityError as e:
+        db.rollback()
+        bn = payload.get("building_number")
+        msg = str(getattr(e, "orig", e))
+        if "buildings_pkey" in msg or "duplicate key" in msg.lower():
+            raise HTTPException(
+                status_code=409,
+                detail=f"מבנה {bn} כבר קיים במערכת",
+            )
+        raise HTTPException(status_code=400, detail=f"שגיאה ביצירת המבנה: {msg}")
     if row is None:
         raise HTTPException(status_code=500, detail="Failed to create building")
     db.commit()
@@ -117,20 +129,34 @@ def create_buildings_bulk(
     columns = _get_columns(db, "buildings")
     allowed = {c for c in columns if c not in ("id", "created_at")}
     results = []
+    conflicts: list[int] = []
     for item in rows_input:
         payload = {k: v for k, v in item.items() if k in allowed}
         if not payload:
             continue
         cols = ", ".join(f'"{k}"' for k in payload)
         vals = ", ".join(f":{k}" for k in payload)
-        row = db.execute(
-            text(f'INSERT INTO "buildings" ({cols}) VALUES ({vals}) RETURNING *'),
-            payload,
-        ).mappings().first()
+        try:
+            row = db.execute(
+                text(f'INSERT INTO "buildings" ({cols}) VALUES ({vals}) RETURNING *'),
+                payload,
+            ).mappings().first()
+        except IntegrityError as e:
+            db.rollback()
+            bn = payload.get("building_number")
+            msg = str(getattr(e, "orig", e))
+            if "buildings_pkey" in msg or "duplicate key" in msg.lower():
+                # One duplicate aborts the transaction — surface it clearly and
+                # stop so the client can show which number already exists.
+                raise HTTPException(
+                    status_code=409,
+                    detail=f"מבנה {bn} כבר קיים במערכת",
+                )
+            raise HTTPException(status_code=400, detail=f"שגיאה ביצירת מבנה {bn}: {msg}")
         if row:
             results.append(_serialize_row(row))
     db.commit()
-    return {"success": True, "count": len(results), "buildings": results}
+    return {"success": True, "count": len(results), "buildings": results, "conflicts": conflicts}
 
 
 @router.delete("/{building_number}")

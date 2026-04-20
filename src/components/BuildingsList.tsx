@@ -2760,10 +2760,20 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
       });
 
       if (errors.length > 0) {
-        const successMsg = [];
-        if (savedCount > 0) successMsg.push(`נשמרו ${savedCount} מבנים`);
-        if (deletedCount > 0) successMsg.push(`נמחקו ${deletedCount} מבנים`);
-        setToast({ message: `${successMsg.join(', ')}. ${errors.length} שגיאות:\n${errors.slice(0, 5).join('\n')}${errors.length > 5 ? `\n...ועוד ${errors.length - 5}` : ''}`, type: 'error' });
+        const successParts = [];
+        if (savedCount > 0) successParts.push(`נשמרו ${savedCount} מבנים`);
+        if (deletedCount > 0) successParts.push(`נמחקו ${deletedCount} מבנים`);
+        const successPrefix = successParts.length > 0 ? `${successParts.join(', ')}. ` : '';
+        const shownErrors = errors.slice(0, 5).join('\n');
+        const overflow = errors.length > 5 ? `\n...ועוד ${errors.length - 5}` : '';
+        let message: string;
+        if (successParts.length === 0 && errors.length === 1) {
+          // Single error, no successes: show it bare, no "1 שגיאות:" prefix
+          message = errors[0];
+        } else {
+          message = `${successPrefix}${errors.length} שגיאות:\n${shownErrors}${overflow}`;
+        }
+        setToast({ message, type: 'error' });
       } else {
         const successMsg = [];
         if (savedCount > 0) successMsg.push(`נשמרו ${savedCount} מבנים`);

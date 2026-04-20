@@ -159,25 +159,52 @@ def create_buildings_bulk(
     return {"success": True, "count": len(results), "buildings": results, "conflicts": conflicts}
 
 
+def _delete_building_cascade(building_number: int, db: Session) -> dict:
+    """Shared implementation: audit cleanup + count assets + delete building (FK cascades to assets)."""
+    # Count assets for the response (CASCADE will remove them when the building row goes)
+    assets_count = db.execute(
+        text('SELECT COUNT(*) FROM "assets" WHERE "building_number" = :bn'),
+        {"bn": building_number},
+    ).scalar() or 0
+
+    # Delete audit rows that reference this building or its bulk-asset operations
+    db.execute(
+        text('DELETE FROM "audit" WHERE "entity_type" IN (\'bulk_asset\', \'building\') AND "entity_id" = :eid'),
+        {"eid": str(building_number)},
+    )
+
+    result = db.execute(
+        text('DELETE FROM "buildings" WHERE "building_number" = :building_number'),
+        {"building_number": building_number},
+    )
+    if result.rowcount == 0:
+        raise HTTPException(status_code=404, detail=f"מבנה {building_number} לא נמצא")
+    db.commit()
+    return {
+        "success": True,
+        "building_number": building_number,
+        "deleted_assets_count": int(assets_count),
+        "message": "Building deleted successfully",
+    }
+
+
+@router.delete("/by-number/{building_number}")
+def delete_building_with_related(
+    building_number: int,
+    _payload: dict = Depends(require_jwt),
+    db: Session = Depends(get_db),
+):
+    """Frontend-facing delete that returns deleted_assets_count."""
+    return _delete_building_cascade(building_number, db)
+
+
 @router.delete("/{building_number}")
 def delete_building_by_number(
     building_number: int,
     _payload: dict = Depends(require_jwt),
     db: Session = Depends(get_db),
 ):
-    # Delete related audit rows first
-    db.execute(
-        text('DELETE FROM "audit" WHERE "entity_type" IN (\'bulk_asset\', \'building\') AND "entity_id" = :eid'),
-        {"eid": str(building_number)},
-    )
-    result = db.execute(
-        text('DELETE FROM "buildings" WHERE "building_number" = :building_number'),
-        {"building_number": building_number},
-    )
-    db.commit()
-    if result.rowcount == 0:
-        raise HTTPException(status_code=404, detail="Building not found")
-    return {"message": "Building deleted successfully"}
+    return _delete_building_cascade(building_number, db)
 
 
 @router.post("/bulk-distribution-flags")

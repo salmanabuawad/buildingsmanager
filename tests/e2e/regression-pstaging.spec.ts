@@ -22,26 +22,46 @@ async function waitForGrid(page: Page) {
 }
 
 /**
- * Click a building_number cell in the buildings grid to open its asset
- * list. onCellClicked is wired only for the building_number column.
- * AG Grid is virtualized so we use the search input first to narrow the
- * grid down to a single row — that guarantees the row is rendered.
+ * Login lands on the dashboard — click the sidebar 'מבנים' button so
+ * subsequent assertions see the actual buildings grid + toolbar.
+ */
+async function gotoBuildings(page: Page) {
+  // There may be multiple elements containing "מבנים" (nav button, card title).
+  // The sidebar nav button is the reliable one.
+  const navButton = page.locator('nav button:has-text("מבנים"), button[aria-label*="מבנים"]').first();
+  if (await navButton.isVisible({ timeout: 3000 }).catch(() => false)) {
+    await navButton.click();
+  } else {
+    // Fallback: click the "סה\"כ מבנים" stats card which opens the list
+    const card = page.locator('text=סה"כ מבנים').first();
+    if (await card.isVisible({ timeout: 3000 }).catch(() => false)) await card.click();
+  }
+  // The buildings toolbar has the search placeholder "חיפוש לפי מזהה מבנה"
+  await expect(
+    page.locator('input[placeholder*="מזהה מבנה"], input[placeholder*="Building Number" i]').first(),
+  ).toBeVisible({ timeout: 15_000 });
+  await waitForGrid(page);
+}
+
+/**
+ * Filter the buildings grid to a single row, then click its building_number
+ * cell to open the asset list. AG Grid is virtualized so filter-down-to-one
+ * is what guarantees the row is rendered.
  */
 async function openBuildingInUI(page: Page, buildingNumber: number) {
-  await waitForGrid(page);
-  // Type the number into the search input (placeholder 'searchByBuildingNumber')
-  const search = page.locator('input[placeholder]').filter({ hasText: /./ }).first();
-  const searchInput = page.locator('input').first();
+  await gotoBuildings(page);
+  const searchInput = page
+    .locator('input[placeholder*="מזהה מבנה"], input[placeholder*="Building Number" i]')
+    .first();
   await searchInput.click();
   await searchInput.fill(String(buildingNumber));
-  await page.waitForTimeout(300); // filter debounce-free but grid rerender time
+  await page.waitForTimeout(400);
 
   const cell = page.locator(
     `.ag-row .ag-cell[col-id="building_number"]:has-text("${buildingNumber}")`,
   ).first();
   await expect(cell).toBeVisible({ timeout: 15_000 });
   await cell.click();
-  // Wait for the assets-list header-bar "הוסף נכס" button to appear
   await expect(page.locator('button:has-text("הוסף נכס")').first()).toBeVisible({ timeout: 20_000 });
 }
 
@@ -195,21 +215,18 @@ test.describe('2. Buildings CRUD', () => {
     expect(del.deleted_assets_count).toBe(2);
   });
 
-  test('2.8 UI: login lands on buildings grid', async ({ page }) => {
+  test('2.8 UI: can navigate to buildings grid', async ({ page }) => {
     await login(page);
-    await waitForGrid(page);
-    // A known prod-snapshot building should be visible in the grid
+    await gotoBuildings(page);
     const anyRow = page.locator(selectors.buildingRow).first();
     await expect(anyRow).toBeVisible({ timeout: 15_000 });
   });
 
   test('2.9 UI: הוסף מבנה button is visible and clickable', async ({ page }) => {
     await login(page);
-    await waitForGrid(page);
+    await gotoBuildings(page);
     const addBtn = page.locator('button:has-text("הוסף מבנה")').first();
     await expect(addBtn).toBeVisible({ timeout: 15_000 });
-    // Clicking should add a new row (the state mutation we can't easily
-    // verify here without saving — just make sure it doesn't throw).
     await addBtn.click();
   });
 });

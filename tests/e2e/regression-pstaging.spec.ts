@@ -420,12 +420,14 @@ test.describe('5. Assets list UI', () => {
 
   test.beforeAll(async () => {
     api = await loginViaApi();
+    // Use a real residence asset_type (211) so the assets show up in the
+    // default 'מגורים אזור 1' tax-region tab the UI opens on.
     await provisionFixtureBuilding(api, BN, {
       business_shared_area: 0,
       assets: [
-        { asset_id: BN * 10 + 1, main_asset_type: null, asset_size: 0, apartment_number: '2' },
-        { asset_id: BN * 10 + 2, main_asset_type: null, asset_size: 0, apartment_number: '10' },
-        { asset_id: BN * 10 + 3, main_asset_type: null, asset_size: 0, apartment_number: '3' },
+        { asset_id: BN * 10 + 1, main_asset_type: '211', asset_size: 50, apartment_number: '2' },
+        { asset_id: BN * 10 + 2, main_asset_type: '211', asset_size: 50, apartment_number: '10' },
+        { asset_id: BN * 10 + 3, main_asset_type: '211', asset_size: 50, apartment_number: '3' },
       ],
     });
   });
@@ -461,22 +463,22 @@ test.describe('5. Assets list UI', () => {
   });
 
   test('5.4 non_accountable asset_type does NOT freeze the row (gate scope check)', async ({ page }) => {
-    // Type 199 is non_accountable_for_total_area; editability must still apply.
-    // Insert a 199 asset into our fixture building.
+    // Type 199 is non_accountable_for_total_area AND is a complex residence
+    // type — so it lands on the same 'מגורים אזור 1' tab as the base fixtures.
     const AID = BN * 10 + 99;
     await apiPost(api, '/api/assets/save-bulk-transactional', {
-      p_assets_data: [{ asset_id: AID, building_number: BN, payer_id: 'PX', tax_region: 10, main_asset_type: '199', asset_size: 100, sub_asset_type_1: '212', sub_asset_size_1: 60, sub_asset_type_2: '216', sub_asset_size_2: 40, measurement_date: '01/01/2026' }],
+      p_assets_data: [{ asset_id: AID, building_number: BN, payer_id: 'PX', tax_region: 10, main_asset_type: '199', asset_size: 100, apartment_number: '77', sub_asset_type_1: '212', sub_asset_size_1: 60, sub_asset_type_2: '216', sub_asset_size_2: 40, measurement_date: '01/01/2026' }],
       p_validation_passed: true, p_action_type: 'manual_update', p_user_id: 'uid:101',
     });
     await login(page);
     await openBuildingInUI(page, BN);
 
-    // Cell for payer_id on the 199 row should open an editor when double-clicked
-    const row = page.locator(`.ag-row:has(.ag-cell[col-id="asset_id"]:has-text("${AID}"))`).first();
+    // Find our 199 row by its distinctive apartment_number '77'
+    const row = page.locator(`.ag-row:has(.ag-cell[col-id="apartment_number"]:has-text("77"))`).first();
+    await expect(row).toBeVisible({ timeout: 15_000 });
     const cell = row.locator('.ag-cell[col-id="payer_id"]').first();
-    await expect(cell).toBeVisible({ timeout: 15_000 });
+    await cell.scrollIntoViewIfNeeded();
     await cell.dblclick();
-    // Editor input should mount
     await expect(row.locator('input, textarea, .ag-cell-edit-input').first()).toBeVisible({ timeout: 5000 });
   });
 });

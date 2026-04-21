@@ -541,59 +541,10 @@ export class AssetValidationHandler {
       };
     }
     
-    // Check if asset type is non_accountable_for_total_area - skip all validation if true
-    if (asset.main_asset_type) {
-      let assetTypes = cachedData?.assetTypes;
-      if (!assetTypes || assetTypes.length === 0) {
-        // Use cached asset types from validation (synchronous, no API call)
-        try {
-          const { getAssetTypes } = await import('./validation');
-          assetTypes = getAssetTypes();
-        } catch (error) {
-          // Fallback to API if cache not available
-          try {
-            const { api } = await import('./api');
-            assetTypes = await api.assetTypes.getAll();
-          } catch (apiError) {
-            console.error('[AssetValidationHandler] Failed to fetch asset types:', apiError);
-          }
-        }
-      }
-      
-      if (assetTypes && assetTypes.length > 0) {
-        const assetTypeNameStr = String(asset.main_asset_type).trim();
-        // Try multiple matching strategies
-        let assetType = assetTypes.find(at => {
-          const atNameStr = String(at.name).trim();
-          return atNameStr === assetTypeNameStr;
-        });
-        
-        // If not found, try numeric comparison
-        if (!assetType) {
-          const assetTypeNum = parseInt(assetTypeNameStr, 10);
-          if (!isNaN(assetTypeNum)) {
-            assetType = assetTypes.find(at => {
-              const atNameNum = parseInt(String(at.name).trim(), 10);
-              return !isNaN(atNameNum) && atNameNum === assetTypeNum;
-            });
-          }
-        }
-        
-        if (assetType && assetType.non_accountable_for_total_area === true) {
-          // Asset type is non_accountable_for_total_area - skip all validation
-          if (process.env.NODE_ENV === 'development') {
-          }
-          return {
-            assetId: asset.asset_id,
-            assetIdentifier,
-            valid: true,
-            errors: [],
-            passed: ['נכס לא נספר - דילוג על אימות']
-          };
-        }
-      }
-    }
-    
+    // non_accountable_for_total_area is strictly a building-total accounting
+    // flag (used by update_building_total_area to exclude these assets from
+    // total_building_area / net_area). It MUST NOT be used to skip validation.
+
     const allErrors: string[] = [];
     const passedRules: string[] = [];
     let matchedAssetTypeRecord: string | undefined;

@@ -526,30 +526,17 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
     return false;
   }, [assetTypes]);
 
-  // Helper function to check if a field should be editable
-  // For non-accountable-for-total-area assets (e.g. complex types like 199),
-  // only main_asset_type and asset_size are locked — main_asset_type because
-  // switching it invalidates the sub-types, and asset_size because it is
-  // derived from the sub_asset_size_* sum. All other fields (payer_id,
-  // apartment_*, storage_*, sub_asset_type_*, sub_asset_size_*, comment, …)
-  // must remain editable, otherwise users can't maintain 199-type assets.
-  const isFieldEditable = useCallback((params: any, fieldName: string): boolean => {
+  // Helper function to check if a field should be editable.
+  // non_accountable_for_total_area is a building-area accounting flag only
+  // (used by update_building_total_area to exclude these assets from
+  // total_building_area / net_area). It MUST NOT gate editability.
+  const isFieldEditable = useCallback((params: any, _fieldName: string): boolean => {
     if (isReadOnly) return false;
     if (!params || !params.data) return false;
     const asset = params.data as Asset;
     const assetId = String(asset.asset_id);
-    const baseEditable = newAssets.has(assetId) || !!taxRegion;
-
-    if (isAssetNotAccountableForTotalArea(asset)) {
-      // Lock the two fields that are structurally owned by sub-types, keep
-      // everything else editable.
-      if (fieldName === 'main_asset_type' || fieldName === 'asset_size') {
-        return false;
-      }
-    }
-
-    return baseEditable;
-  }, [isAssetNotAccountableForTotalArea, newAssets, taxRegion, isReadOnly]);
+    return newAssets.has(assetId) || !!taxRegion;
+  }, [newAssets, taxRegion, isReadOnly]);
 
   // Helper function to get area_description_for_tab from tax region number
   const getAreaDescriptionForTaxRegion = useCallback((taxRegionNum: string | number | null | undefined): string => {
@@ -2398,10 +2385,11 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
       // Use the assets currently displayed in the grid (not fetching from API)
       const gridAssets = assets || [];
       
-      // Filter out historical records and non-accountable assets
+      // Filter out historical records only. non_accountable_for_total_area
+      // is strictly a building-total accounting flag and must not skip
+      // validation.
       let latestAssets = gridAssets.filter(asset => {
         if (asset.is_latest === false) return false;
-        if (isAssetNotAccountableForTotalArea(asset)) return false;
         return true;
       });
       
@@ -2571,16 +2559,12 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
       const gridAssets = assets || [];
       
 
-      // IMPORTANT: Filter out historical records - only validate latest measurements (is_latest === true)
-      // Historical records (is_latest === false) should NOT be validated
-      // Also filter out non-accountable assets - they should NOT be validated
+      // IMPORTANT: Filter out historical records only - only validate latest
+      // measurements (is_latest === true). non_accountable_for_total_area is
+      // a building-total accounting flag and must NOT be used to skip
+      // validation.
       let latestAssets = gridAssets.filter(asset => {
-        // If is_latest is not explicitly set, assume it's latest (for backward compatibility)
         if (asset.is_latest === false) return false;
-        
-        // Skip non-accountable assets - they should not be validated
-        if (isAssetNotAccountableForTotalArea(asset)) return false;
-        
         return true;
       });
       

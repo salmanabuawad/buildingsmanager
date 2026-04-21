@@ -1069,19 +1069,8 @@ export async function validateAssetTypeComplete(
       }
     }
 
-    // ============================================
-    // STEP: Check if asset type is not_accountable (only for main assets)
-    // ============================================
-    // If the main asset type has not_accountable = true, skip all remaining validations
-    // This check happens AFTER we've verified the asset type exists and is valid for the tax region
-    if (!isSubAsset && assetTypes.length > 0) {
-      const hasNotAccountable = assetTypes.some(at => at.non_accountable_for_total_area === true);
-      if (hasNotAccountable) {
-        // Asset type exists, is valid for tax region, and is not_accountable
-        // Skip all remaining validations (size, building attributes, etc.)
-        return { valid: true };
-      }
-    }
+    // non_accountable_for_total_area is strictly a building-total accounting
+    // flag — it must NOT be used here to skip validation.
 
     // Helper function to check if a single asset type entry matches all requirements
     // MATCHING ORDER (as per requirements):
@@ -1427,34 +1416,9 @@ export async function validateOnlyComplexTypesCanHaveSubAssets(
   subAssetTypes: (string | undefined)[]
 ): Promise<ValidationResult> {
   // Skip validation if asset type is not_accountable
-  if (mainAssetType) {
-    // Use cached asset types from memory (synchronous, no API call)
-    const assetTypes = getAssetTypes();
-    if (assetTypes && assetTypes.length > 0) {
-      const assetTypeNameStr = String(mainAssetType).trim();
-      let assetType = assetTypes.find(at => {
-        const atNameStr = String(at.name).trim();
-        return atNameStr === assetTypeNameStr;
-      });
-      
-      // If not found, try numeric comparison
-      if (!assetType) {
-        const assetTypeNum = parseInt(assetTypeNameStr, 10);
-        if (!isNaN(assetTypeNum)) {
-          assetType = assetTypes.find(at => {
-            const atNameNum = parseInt(String(at.name).trim(), 10);
-            return !isNaN(atNameNum) && atNameNum === assetTypeNum;
-          });
-        }
-      }
-      
-      if (assetType && assetType.non_accountable_for_total_area === true) {
-        // Asset type is not_accountable - skip validation
-        return { valid: true };
-      }
-    }
-  }
-  
+  // Note: non_accountable_for_total_area is a building-total accounting flag
+  // only and must NOT be used here to skip validation.
+
   const validSubAssets = subAssetTypes.filter(type => type && type.trim() !== '');
   
   // If there are no sub assets, validation passes
@@ -1487,34 +1451,8 @@ export async function validateComplexTypesMustHaveSubAssets(
   mainAssetType: string | undefined,
   subAssetTypes: (string | undefined)[]
 ): Promise<ValidationResult> {
-  // Skip validation if asset type is not_accountable
-  if (mainAssetType) {
-    // Use cached asset types from memory (synchronous, no API call)
-    const assetTypes = getAssetTypes();
-    if (assetTypes && assetTypes.length > 0) {
-      const assetTypeNameStr = String(mainAssetType).trim();
-      let assetType = assetTypes.find(at => {
-        const atNameStr = String(at.name).trim();
-        return atNameStr === assetTypeNameStr;
-      });
-      
-      // If not found, try numeric comparison
-      if (!assetType) {
-        const assetTypeNum = parseInt(assetTypeNameStr, 10);
-        if (!isNaN(assetTypeNum)) {
-          assetType = assetTypes.find(at => {
-            const atNameNum = parseInt(String(at.name).trim(), 10);
-            return !isNaN(atNameNum) && atNameNum === assetTypeNum;
-          });
-        }
-      }
-      
-      if (assetType && assetType.non_accountable_for_total_area === true) {
-        // Asset type is not_accountable - skip validation
-        return { valid: true };
-      }
-    }
-  }
+  // Note: non_accountable_for_total_area is a building-total accounting flag
+  // only and must NOT be used here to skip validation.
 
   if (!mainAssetType || !isComplexAssetType(mainAssetType)) {
     return { valid: true };

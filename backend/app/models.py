@@ -105,7 +105,17 @@ class AssetType(Base):
     created_at                       = Column(DateTime(timezone=True), server_default=func.now())
     updated_at                       = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
-    assets = relationship("Asset", back_populates="asset_type")
+    # main_asset_type on assets is TEXT and intentionally has no FK to
+    # asset_types(name) because (name, tax_region) together identify a row
+    # and a type can span multiple tax regions. Give the ORM an explicit
+    # join so mapper configuration doesn't fail at first touch of an
+    # AssetType query.
+    assets = relationship(
+        "Asset",
+        back_populates="asset_type",
+        primaryjoin="foreign(Asset.main_asset_type) == cast(AssetType.name, Text)",
+        viewonly=True,
+    )
 
 
 # ---------------------------------------------------------------------------

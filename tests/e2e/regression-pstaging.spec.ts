@@ -24,9 +24,18 @@ async function waitForGrid(page: Page) {
 /**
  * Click a building_number cell in the buildings grid to open its asset
  * list. onCellClicked is wired only for the building_number column.
+ * AG Grid is virtualized so we use the search input first to narrow the
+ * grid down to a single row — that guarantees the row is rendered.
  */
 async function openBuildingInUI(page: Page, buildingNumber: number) {
   await waitForGrid(page);
+  // Type the number into the search input (placeholder 'searchByBuildingNumber')
+  const search = page.locator('input[placeholder]').filter({ hasText: /./ }).first();
+  const searchInput = page.locator('input').first();
+  await searchInput.click();
+  await searchInput.fill(String(buildingNumber));
+  await page.waitForTimeout(300); // filter debounce-free but grid rerender time
+
   const cell = page.locator(
     `.ag-row .ag-cell[col-id="building_number"]:has-text("${buildingNumber}")`,
   ).first();
@@ -328,7 +337,7 @@ test.describe('4. Distribution flag + audit', () => {
 
   test('4.1 setting business_shared_area flips flag true', async () => {
     await apiPost(api, '/api/buildings/bulk-distribution-flags', {
-      rows: [{ building_number: BN, updates: { business_shared_area: 500 } }],
+      p_buildings_data: [{ building_number: BN, updates: { business_shared_area: 500 } }],
     });
     const b = await readBuilding(api, BN);
     expect(b.need_business_distribution).toBe(true);
@@ -336,7 +345,7 @@ test.describe('4. Distribution flag + audit', () => {
 
   test('4.2 running business_distribution clears flag and writes bulk_asset audit', async () => {
     await apiPost(api, '/api/buildings/bulk-distribution-flags', {
-      rows: [{ building_number: BN, updates: { business_shared_area: 500 } }],
+      p_buildings_data: [{ building_number: BN, updates: { business_shared_area: 500 } }],
     });
     await apiPost(api, '/api/assets/save-bulk-transactional', {
       p_assets_data: [{ asset_id: AID_1, building_number: BN, payer_id: `P-${AID_1}`, tax_region: 10, main_asset_type: '800', asset_size: 100, business_distribution_area: 50, measurement_date: '01/01/2026' }],
@@ -352,7 +361,7 @@ test.describe('4. Distribution flag + audit', () => {
 
   test('4.3 adding a new accountable asset after distribution re-flips the flag', async () => {
     await apiPost(api, '/api/buildings/bulk-distribution-flags', {
-      rows: [{ building_number: BN, updates: { business_shared_area: 500 } }],
+      p_buildings_data: [{ building_number: BN, updates: { business_shared_area: 500 } }],
     });
     await apiPost(api, '/api/assets/save-bulk-transactional', {
       p_assets_data: [{ asset_id: AID_1, building_number: BN, payer_id: `P-${AID_1}`, tax_region: 10, main_asset_type: '800', asset_size: 100, business_distribution_area: 50, measurement_date: '01/01/2026' }],
@@ -370,7 +379,7 @@ test.describe('4. Distribution flag + audit', () => {
   test('4.4 resizing an accountable asset re-flags', async () => {
     // Clear flag via a distribution
     await apiPost(api, '/api/buildings/bulk-distribution-flags', {
-      rows: [{ building_number: BN, updates: { business_shared_area: 500 } }],
+      p_buildings_data: [{ building_number: BN, updates: { business_shared_area: 500 } }],
     });
     await apiPost(api, '/api/assets/save-bulk-transactional', {
       p_assets_data: [{ asset_id: AID_1, building_number: BN, payer_id: `P-${AID_1}`, tax_region: 10, main_asset_type: '800', asset_size: 100, business_distribution_area: 50, measurement_date: '01/01/2026' }],
@@ -535,7 +544,7 @@ test.describe('8. Distribution history', () => {
 
   test('8.1 bulk_asset audit row contains before_data and after_data with building + assets', async () => {
     await apiPost(api, '/api/buildings/bulk-distribution-flags', {
-      rows: [{ building_number: BN, updates: { business_shared_area: 500 } }],
+      p_buildings_data: [{ building_number: BN, updates: { business_shared_area: 500 } }],
     });
     await apiPost(api, '/api/assets/save-bulk-transactional', {
       p_assets_data: [{ asset_id: AID, building_number: BN, payer_id: 'P1', tax_region: 10, main_asset_type: '800', asset_size: 100, business_distribution_area: 50, measurement_date: '01/01/2026' }],

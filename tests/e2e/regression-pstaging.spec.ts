@@ -608,12 +608,378 @@ test.describe('9. Address list', () => {
   });
 });
 
-// -------- 10. UI smoke: navigate back from asset list to buildings --------
+// -------- 10. Asset files (upload → list → download → delete) --------
 
-test.describe('10. Navigation', () => {
-  test('10.1 login → buildings → open building → back to buildings', async ({ page }) => {
+test.describe('10. Asset files', () => {
+  let api: AuthedApi;
+  const BN = 999_001_100;
+  const AID = BN * 10;
+
+  test.beforeAll(async () => {
+    api = await loginViaApi();
+    await provisionFixtureBuilding(api, BN, {
+      assets: [{ asset_id: AID, main_asset_type: '211', asset_size: 20 }],
+    });
+  });
+  test.afterAll(async () => {
+    await deleteBuildingIfExists(api, BN).catch(() => {});
+    await api.close();
+  });
+
+  test('10.1 upload → list → delete round-trip', async () => {
+    // Multipart upload
+    const uploadRes = await api.ctx.post(`/api/files/upload/${AID}`, {
+      headers: { Authorization: `Bearer ${api.token}` },
+      multipart: {
+        file: {
+          name: 'regression.txt',
+          mimeType: 'text/plain',
+          buffer: Buffer.from('hello pstaging regression'),
+        },
+      },
+    });
+    expect(uploadRes.ok()).toBe(true);
+    const uploaded = await uploadRes.json() as { id: number; asset_id: number; file_name: string; file_size: number };
+    expect(uploaded.asset_id).toBe(AID);
+    expect(uploaded.file_name).toBe('regression.txt');
+    expect(uploaded.file_size).toBe(25);
+
+    // List files — ours should be there
+    const listed: any[] = await apiGet(api, `/api/files/asset/${AID}`);
+    expect(listed.some(f => f.id === uploaded.id)).toBe(true);
+
+    // Delete
+    const delRes = await api.ctx.delete(`/api/files/${uploaded.id}`, {
+      headers: { Authorization: `Bearer ${api.token}` },
+    });
+    expect([200, 204]).toContain(delRes.status());
+
+    // List again — ours gone
+    const listed2: any[] = await apiGet(api, `/api/files/asset/${AID}`);
+    expect(listed2.some(f => f.id === uploaded.id)).toBe(false);
+  });
+
+  test('10.2 upload with explicit measurement_date tags the row', async () => {
+    const uploadRes = await api.ctx.post(`/api/files/upload/${AID}?measurement_date=15/03/2026`, {
+      headers: { Authorization: `Bearer ${api.token}` },
+      multipart: {
+        file: {
+          name: 'tagged.txt',
+          mimeType: 'text/plain',
+          buffer: Buffer.from('pinned'),
+        },
+      },
+    });
+    expect(uploadRes.ok()).toBe(true);
+    const uploaded = await uploadRes.json() as { id: number; measurement_date: string };
+    expect(uploaded.measurement_date).toBe('15/03/2026');
+    // Cleanup
+    await api.ctx.delete(`/api/files/${uploaded.id}`, {
+      headers: { Authorization: `Bearer ${api.token}` },
+    });
+  });
+
+  test('10.3 delete nonexistent file returns 404', async () => {
+    const res = await api.ctx.delete('/api/files/999999999', {
+      headers: { Authorization: `Bearer ${api.token}` },
+    });
+    expect(res.status()).toBe(404);
+  });
+});
+
+// -------- 11. Export to automation (mark + reset) --------
+
+test.describe('11. Export to automation', () => {
+  let api: AuthedApi;
+  const BN = 999_001_200;
+  const AID_1 = BN * 10;
+  const AID_2 = BN * 10 + 1;
+
+  test.beforeAll(async () => {
+    api = await loginViaApi();
+    await provisionFixtureBuilding(api, BN, {
+      assets: [
+        { asset_id: AID_1, main_asset_type: '211', asset_size: 10 },
+        { asset_id: AID_2, main_asset_type: '211', asset_size: 10 },
+      ],
+    });
+  });
+  test.afterAll(async () => {
+    await deleteBuildingIfExists(api, BN).catch(() => {});
+    await api.close();
+  });
+
+  test('11.1 mark-exported-by-ids flips flags and stamps export date', async () => {
+    const res = await apiPost(api, '/api/assets/mark-exported-by-ids', { asset_ids: [AID_1, AID_2] });
+    expect(res.updated_count).toBe(2);
+
+    const a1: any[] = await apiGet(api, `/api/data/assets?asset_id=${AID_1}&select=*&limit=1`);
+    const asset = Array.isArray(a1) ? a1[0] : a1;
+    expect(asset.exported_to_automation).toBe(true);
+    expect(typeof asset.export_to_automation_at).toBe('string');
+    expect(asset.export_to_automation_at).toMatch(/^\d{2}\/\d{2}\/\d{4}$/);
+  });
+
+  test('11.2 measured-not-exported excludes them after marking', async () => {
+    const res: any = await apiGet(api, `/api/assets/measured-not-exported?building_number=${BN}`);
+    const rows = Array.isArray(res) ? res : (res.data || []);
+    // None of our freshly marked assets should be there
+    expect(rows.some((a: any) => Number(a.asset_id) === AID_1 || Number(a.asset_id) === AID_2)).toBe(false);
+  });
+
+  test('11.3 empty asset_ids list is a no-op', async () => {
+    const res = await apiPost(api, '/api/assets/mark-exported-by-ids', { asset_ids: [] });
+    expect(res.updated_count).toBe(0);
+  });
+});
+
+// -------- 12. Asset lookups --------
+
+test.describe('12. Asset lookups', () => {
+  let api: AuthedApi;
+  const BN = 999_001_300;
+  const AID_1 = BN * 10;
+  const AID_2 = BN * 10 + 1;
+
+  test.beforeAll(async () => {
+    api = await loginViaApi();
+    await provisionFixtureBuilding(api, BN, {
+      assets: [
+        { asset_id: AID_1, main_asset_type: '211', asset_size: 15 },
+        { asset_id: AID_2, main_asset_type: '211', asset_size: 25 },
+      ],
+    });
+  });
+  test.afterAll(async () => {
+    await deleteBuildingIfExists(api, BN).catch(() => {});
+    await api.close();
+  });
+
+  test('12.1 by-ids returns only requested assets', async () => {
+    const rows = await apiPost<any[]>(api, '/api/assets/by-ids', { p_asset_ids: [AID_1, AID_2] });
+    const arr: any[] = Array.isArray(rows) ? rows : ((rows as any).data || []);
+    expect(arr.length).toBe(2);
+    const ids = arr.map((a: any) => Number(a.asset_id)).sort();
+    expect(ids).toEqual([AID_1, AID_2]);
+  });
+
+  test('12.2 GET /assets/{id} returns the asset row or 404', async () => {
+    const found = await apiGet<any>(api, `/api/assets/${AID_1}`);
+    expect(Number(found.asset_id)).toBe(AID_1);
+
+    const res = await api.ctx.get('/api/assets/999999999999', {
+      headers: { Authorization: `Bearer ${api.token}` },
+    });
+    expect(res.status()).toBe(404);
+  });
+
+  test('12.3 copy-to-history creates an assets_history snapshot', async () => {
+    const before: any[] = await apiGet(api, `/api/data/assets_history?asset_id=${AID_1}&select=*&limit=100`);
+    const beforeCount = Array.isArray(before) ? before.length : 0;
+    await apiPost(api, '/api/assets/copy-to-history', { p_asset_id: AID_1 });
+    const after: any[] = await apiGet(api, `/api/data/assets_history?asset_id=${AID_1}&select=*&limit=100`);
+    const afterCount = Array.isArray(after) ? after.length : 0;
+    expect(afterCount).toBeGreaterThan(beforeCount);
+  });
+});
+
+// -------- 13. Data table generic endpoint --------
+
+test.describe('13. /api/data/{table}', () => {
+  let api: AuthedApi;
+  test.beforeAll(async () => { api = await loginViaApi(); });
+  test.afterAll(async () => { await api.close(); });
+
+  test('13.1 select=* on buildings returns an array', async () => {
+    const res = await apiGet<any>(api, '/api/data/buildings?select=*&limit=5');
+    const arr = Array.isArray(res) ? res : (res.data || []);
+    expect(Array.isArray(arr)).toBe(true);
+  });
+
+  test('13.2 limit + offset pagination is honored', async () => {
+    const p1: any = await apiGet(api, '/api/data/buildings?select=building_number&limit=2&offset=0&order=building_number');
+    const p2: any = await apiGet(api, '/api/data/buildings?select=building_number&limit=2&offset=2&order=building_number');
+    const a1 = Array.isArray(p1) ? p1 : (p1.data || []);
+    const a2 = Array.isArray(p2) ? p2 : (p2.data || []);
+    expect(a1.length).toBeLessThanOrEqual(2);
+    expect(a2.length).toBeLessThanOrEqual(2);
+    // Pages don't overlap
+    const set1 = new Set(a1.map((r: any) => r.building_number));
+    for (const r of a2) expect(set1.has(r.building_number)).toBe(false);
+  });
+
+  test('13.3 unknown table returns 4xx', async () => {
+    const res = await api.ctx.get('/api/data/non_existing_table?select=*&limit=1', {
+      headers: { Authorization: `Bearer ${api.token}` },
+    });
+    expect(res.status()).toBeGreaterThanOrEqual(400);
+    expect(res.status()).toBeLessThan(500);
+  });
+});
+
+// -------- 14. Audit queries --------
+
+test.describe('14. Audit', () => {
+  let api: AuthedApi;
+  const BN = 999_001_400;
+  const AID = BN * 10;
+
+  test.beforeAll(async () => {
+    api = await loginViaApi();
+    await provisionFixtureBuilding(api, BN, {
+      assets: [{ asset_id: AID, main_asset_type: '211', asset_size: 10 }],
+    });
+  });
+  test.afterAll(async () => {
+    await deleteBuildingIfExists(api, BN).catch(() => {});
+    await api.close();
+  });
+
+  test('14.1 editing an asset produces a manual_update audit row', async () => {
+    await apiPost(api, '/api/assets/save-bulk-transactional', {
+      p_assets_data: [{ asset_id: AID, building_number: BN, payer_id: 'E14', tax_region: 10, main_asset_type: '211', asset_size: 33, measurement_date: '01/01/2026' }],
+      p_validation_passed: true, p_action_type: 'manual_update', p_user_id: 'uid:101',
+    });
+    const rows: any = await apiGet(api, `/api/data/audit?entity_type=asset&entity_id=${AID}&action_type=manual_update&select=*&order=created_at.desc&limit=5`);
+    const arr = Array.isArray(rows) ? rows : (rows.data || []);
+    expect(arr.length).toBeGreaterThanOrEqual(1);
+    const latest = arr[0];
+    // Before / after snapshots exist
+    const before = typeof latest.before_data === 'string' ? JSON.parse(latest.before_data) : latest.before_data;
+    const after  = typeof latest.after_data  === 'string' ? JSON.parse(latest.after_data)  : latest.after_data;
+    expect(Number(after.asset_size)).toBe(33);
+  });
+
+  test('14.2 delete-transactional writes action_type=delete', async () => {
+    const aid2 = AID + 1;
+    await apiPost(api, '/api/assets/save-bulk-transactional', {
+      p_assets_data: [{ asset_id: aid2, building_number: BN, payer_id: 'E14D', tax_region: 10, main_asset_type: '211', asset_size: 10, measurement_date: '01/01/2026' }],
+      p_validation_passed: true, p_action_type: 'manual_update', p_user_id: 'uid:101',
+    });
+    await apiPost(api, '/api/assets/delete-transactional', { p_asset_id: aid2, p_user_id: 'uid:101' });
+    const rows: any = await apiGet(api, `/api/data/audit?entity_type=asset&entity_id=${aid2}&action_type=delete&select=*&limit=5`);
+    const arr = Array.isArray(rows) ? rows : (rows.data || []);
+    expect(arr.length).toBeGreaterThanOrEqual(1);
+  });
+});
+
+// -------- 15. Asset types list (read) --------
+
+test.describe('15. Asset types list (ORM endpoint)', () => {
+  let api: AuthedApi;
+  test.beforeAll(async () => { api = await loginViaApi(); });
+  test.afterAll(async () => { await api.close(); });
+
+  test('15.1 GET /api/asset-types returns rows matching /api/data/asset_types', async () => {
+    const viaOrm = await apiGet<any[]>(api, '/api/asset-types/?limit=1000');
+    const viaData = await apiGet<any[]>(api, '/api/data/asset_types?select=*&limit=1000');
+    const a = Array.isArray(viaOrm) ? viaOrm : ((viaOrm as any).data || []);
+    const b = Array.isArray(viaData) ? viaData : ((viaData as any).data || []);
+    expect(a.length).toBe(b.length);
+  });
+});
+
+// -------- 16. Multi-tax-region building tabs --------
+
+test.describe('16. Multi-tax-region building', () => {
+  let api: AuthedApi;
+  const BN = 999_001_600;
+  const AID_R = BN * 10;     // residence tax_region 10
+  const AID_B = BN * 10 + 1; // business  tax_region 20
+
+  test.beforeAll(async () => {
+    api = await loginViaApi();
+    await deleteBuildingIfExists(api, BN).catch(() => {});
+    await apiPost(api, '/api/buildings/create', {
+      building_number: BN,
+      tax_region: '10,20',
+      business_shared_area: 0,
+      residence_shared_area: 0,
+    });
+    await apiPost(api, '/api/assets/save-bulk-transactional', {
+      p_assets_data: [
+        { asset_id: AID_R, building_number: BN, payer_id: 'RES', tax_region: 10, main_asset_type: '211', asset_size: 50, measurement_date: '01/01/2026' },
+        { asset_id: AID_B, building_number: BN, payer_id: 'BIZ', tax_region: 20, main_asset_type: '800', asset_size: 50, measurement_date: '01/01/2026' },
+      ],
+      p_validation_passed: true, p_action_type: 'manual_update', p_user_id: 'uid:101',
+    });
+  });
+  test.afterAll(async () => {
+    await deleteBuildingIfExists(api, BN).catch(() => {});
+    await api.close();
+  });
+
+  test('16.1 both tax regions persisted on the building', async () => {
+    const b = await readBuilding(api, BN);
+    expect(String(b.tax_region)).toBe('10,20');
+  });
+
+  test('16.2 building exposes two tax-region asset groups', async () => {
+    const all: any[] = await apiGet(api, `/api/data/assets?building_number=${BN}&select=asset_id,tax_region&limit=100`);
+    const arr = Array.isArray(all) ? all : ((all as any).data || []);
+    const regions = new Set(arr.map((a: any) => Number(a.tax_region)));
+    expect(regions.has(10)).toBe(true);
+    expect(regions.has(20)).toBe(true);
+  });
+});
+
+// -------- 17. Operators & Managers reference data --------
+
+test.describe('17. Operators & Managers', () => {
+  let api: AuthedApi;
+  test.beforeAll(async () => { api = await loginViaApi(); });
+  test.afterAll(async () => { await api.close(); });
+
+  test('17.1 operators list endpoint returns an array', async () => {
+    const rows: any = await apiGet(api, '/api/data/operators?select=*&limit=50');
+    expect(Array.isArray(Array.isArray(rows) ? rows : (rows.data || []))).toBe(true);
+  });
+
+  test('17.2 managers list endpoint returns an array', async () => {
+    const rows: any = await apiGet(api, '/api/data/managers?select=*&limit=50');
+    expect(Array.isArray(Array.isArray(rows) ? rows : (rows.data || []))).toBe(true);
+  });
+});
+
+// -------- 18. Field configurations --------
+
+test.describe('18. Field configurations', () => {
+  let api: AuthedApi;
+  test.beforeAll(async () => { api = await loginViaApi(); });
+  test.afterAll(async () => { await api.close(); });
+
+  test('18.1 field_configurations endpoint returns config rows', async () => {
+    const rows: any = await apiGet(api, '/api/data/field_configurations?select=*&limit=100');
+    const arr = Array.isArray(rows) ? rows : (rows.data || []);
+    expect(arr.length).toBeGreaterThan(0);
+  });
+});
+
+// -------- 19. Address-list streetcode lookup --------
+
+test.describe('19. Address lookup', () => {
+  let api: AuthedApi;
+  test.beforeAll(async () => { api = await loginViaApi(); });
+  test.afterAll(async () => { await api.close(); });
+
+  test('19.1 lookup by street_code returns at most 1 row', async () => {
+    const any: any = await apiGet(api, '/api/data/address_list?select=*&limit=1');
+    const arr = Array.isArray(any) ? any : (any.data || []);
+    if (arr.length === 0) test.skip();
+    const code = arr[0].street_code;
+    const rows: any = await apiGet(api, `/api/data/address_list?street_code=${code}&select=*&limit=1`);
+    const a = Array.isArray(rows) ? rows : (rows.data || []);
+    expect(a.length).toBe(1);
+    expect(Number(a[0].street_code)).toBe(Number(code));
+  });
+});
+
+// -------- 20. UI smoke: navigate back from asset list to buildings --------
+
+test.describe('20. Navigation', () => {
+  test('20.1 login → buildings → open building → back to buildings', async ({ page }) => {
     const api = await loginViaApi();
-    const BN = 999_001_000;
+    const BN = 999_002_000;
     await provisionFixtureBuilding(api, BN);
     try {
       await login(page);

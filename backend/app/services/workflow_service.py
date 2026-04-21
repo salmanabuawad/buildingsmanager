@@ -471,6 +471,41 @@ def save_assets_bulk_transactional(
     affected_asset_ids: list[int] = []
     affected_buildings: set[int] = set()
 
+    # ── Bulk audit: pre-snapshot for distribution-class actions ──────────
+    # The UI's DistributionHistoryModal reads entity_type='bulk_asset' audit
+    # rows (one per building per distribution) with before_data / after_data
+    # each containing { building, assets[] }. Per-asset audit rows (written
+    # inside the loop below) are kept as-is for fine-grained tracking.
+    DISTRIBUTION_BULK_ACTIONS = {
+        "business_distribution",
+        "residence_distribution",
+        "distribute_shared",
+        "transfer_area",
+    }
+    distribution_bulk = action_type in DISTRIBUTION_BULK_ACTIONS
+    pre_building_snapshots: dict[int, dict[str, Any]] = {}
+    if distribution_bulk:
+        pre_building_nums: set[int] = set()
+        for _ad in assets_data:
+            try:
+                _bn = int(_ad.get("building_number"))
+                pre_building_nums.add(_bn)
+            except (TypeError, ValueError):
+                continue
+        for _bn in pre_building_nums:
+            _b_row = db.execute(
+                text('SELECT * FROM "buildings" WHERE "building_number" = :bn'),
+                {"bn": _bn},
+            ).mappings().first()
+            _a_rows = db.execute(
+                text('SELECT * FROM "assets" WHERE "building_number" = :bn ORDER BY "asset_id"'),
+                {"bn": _bn},
+            ).mappings().all()
+            pre_building_snapshots[_bn] = {
+                "building": _serialize_row(_b_row) if _b_row else None,
+                "assets": [_serialize_row(r) for r in _a_rows],
+            }
+
     for asset_data in assets_data:
         asset_id = asset_data.get("asset_id")
         building_number = asset_data.get("building_number")
@@ -576,6 +611,41 @@ def save_assets_bulk_transactional(
             db.execute(
                 text('UPDATE "buildings" SET "need_residence_distribution" = false WHERE "building_number" = :bn'),
                 {"bn": building_number},
+            )
+
+    # ── Bulk audit: one entity_type='bulk_asset' row per affected building
+    # when the action is a distribution/transfer. DistributionHistoryModal
+    # reads these rows (per-asset rows are kept for the detail view inside).
+    if distribution_bulk:
+        for bn in sorted(affected_buildings):
+            b_row = db.execute(
+                text('SELECT * FROM "buildings" WHERE "building_number" = :bn'),
+                {"bn": bn},
+            ).mappings().first()
+            a_rows = db.execute(
+                text('SELECT * FROM "assets" WHERE "building_number" = :bn ORDER BY "asset_id"'),
+                {"bn": bn},
+            ).mappings().all()
+            after_snapshot = {
+                "building": _serialize_row(b_row) if b_row else None,
+                "assets": [_serialize_row(r) for r in a_rows],
+            }
+            before_snapshot = pre_building_snapshots.get(bn, {"building": None, "assets": []})
+            # tax_region tag lets the UI filter business vs. residence history
+            tax_tag = None
+            if action_type == "residence_distribution":
+                tax_tag = "residence"
+            elif action_type == "business_distribution":
+                tax_tag = "business"
+            _insert_audit_row(
+                db,
+                entity_type="bulk_asset",
+                entity_id=str(bn),
+                action_type=action_type,
+                old_values=before_snapshot,
+                new_values=after_snapshot,
+                changed_by=user_id,
+                tax_region=tax_tag,
             )
 
     return {

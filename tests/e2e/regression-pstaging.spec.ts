@@ -451,15 +451,23 @@ test.describe('5. Assets list UI', () => {
     await login(page);
     await openBuildingInUI(page, BN);
 
-    // Click header so user-sort kicks in (even though API default is already apartment_number ASC)
+    // Fixtures: asset_id ending in 1 → apt 2, ending in 2 → apt 10, ending in 3 → apt 3
+    // After ascending numeric sort of apartments, rows should come in the
+    // order: apt 2 (asset 1), apt 3 (asset 3), apt 10 (asset 2).
     const header = page.locator('.ag-header-cell:has-text("מספר דירה")').first();
+    await expect(header).toBeVisible({ timeout: 10_000 });
     await header.click();
-    await page.waitForTimeout(400);
+    await page.waitForTimeout(500);
 
-    const values = (await page.locator('[col-id="apartment_number"] .ag-cell-value').allTextContents())
+    // Read asset_id cells in row order (AG Grid row DOM is already sorted)
+    const ids = (await page.locator('.ag-row .ag-cell[col-id="asset_id"]').allTextContents())
       .map((v) => v.trim()).filter(Boolean);
-    // We inserted 2, 10, 3 — ascending numeric should be 2, 3, 10
-    expect(values.slice(0, 3)).toEqual(['2', '3', '10']);
+    // Expected row order by asset_id (derived from apartment_number asc): 1, 3, 2
+    expect(ids.slice(0, 3)).toEqual([
+      String(BN * 10 + 1),
+      String(BN * 10 + 3),
+      String(BN * 10 + 2),
+    ]);
   });
 
   test('5.4 non_accountable asset_type does NOT freeze the row (gate scope check)', async ({ page }) => {

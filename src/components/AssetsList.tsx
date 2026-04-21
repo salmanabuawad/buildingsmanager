@@ -527,19 +527,27 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
   }, [assetTypes]);
 
   // Helper function to check if a field should be editable
-  // For non-accountable assets, all fields are readonly (main_asset_type is readonly in all tabs except TransferAreas)
+  // For non-accountable-for-total-area assets (e.g. complex types like 199),
+  // only main_asset_type and asset_size are locked — main_asset_type because
+  // switching it invalidates the sub-types, and asset_size because it is
+  // derived from the sub_asset_size_* sum. All other fields (payer_id,
+  // apartment_*, storage_*, sub_asset_type_*, sub_asset_size_*, comment, …)
+  // must remain editable, otherwise users can't maintain 199-type assets.
   const isFieldEditable = useCallback((params: any, fieldName: string): boolean => {
     if (isReadOnly) return false;
     if (!params || !params.data) return false;
     const asset = params.data as Asset;
     const assetId = String(asset.asset_id);
     const baseEditable = newAssets.has(assetId) || !!taxRegion;
-    
-    // For non-accountable assets, all fields are readonly (including main_asset_type)
+
     if (isAssetNotAccountableForTotalArea(asset)) {
-      return false;
+      // Lock the two fields that are structurally owned by sub-types, keep
+      // everything else editable.
+      if (fieldName === 'main_asset_type' || fieldName === 'asset_size') {
+        return false;
+      }
     }
-    
+
     return baseEditable;
   }, [isAssetNotAccountableForTotalArea, newAssets, taxRegion, isReadOnly]);
 

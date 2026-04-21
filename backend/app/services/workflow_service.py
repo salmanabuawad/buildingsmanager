@@ -381,6 +381,75 @@ def _set_distribution_flags_for_asset_type_change(
     return {"business_flag_set": biz_set, "residence_flag_set": res_set}
 
 
+def _re_flag_distribution_for_asset_change(
+    db: Session,
+    *,
+    building_number: Any,
+    main_asset_type: Any,
+    existing_row: Any,
+    new_row: Any,
+    action_type: str,
+) -> None:
+    """
+    Re-flag need_business/residence_distribution when an accountable asset
+    in a building with matching shared_area > 0 is inserted or has a
+    distribution-relevant size change. Complements the narrower
+    `_set_distribution_flags_for_asset_type_change` (which only triggers on
+    accountable↔non-accountable transitions) so that adding a new business
+    asset, or resizing one, doesn't leave stale per-asset distribution
+    values unreviewed.
+    """
+    if building_number is None:
+        return
+    # The distribution actions themselves write per-asset fields; they must
+    # never re-flag (would undo the clearing that happens in the same tx).
+    if action_type in ("business_distribution", "residence_distribution"):
+        return
+
+    business_residence, non_accountable = _get_asset_type_details(db, main_asset_type)
+    if non_accountable:
+        return  # non-accountable assets never participate in distribution
+
+    is_insert = existing_row is None
+    size_fields = ("asset_size", "sub_asset_size_1")
+    size_changed = False
+    if not is_insert:
+        for fld in size_fields:
+            old_v = existing_row.get(fld) if existing_row is not None else None
+            new_v = new_row.get(fld) if new_row is not None else None
+            if old_v != new_v:
+                size_changed = True
+                break
+    if not is_insert and not size_changed:
+        return
+
+    res_area, biz_area = _get_building_shared_areas(db, building_number)
+
+    if business_residence == "business" and biz_area > 0:
+        db.execute(
+            text('UPDATE "buildings" SET "need_business_distribution" = true WHERE "building_number" = :building_number'),
+            {"building_number": building_number},
+        )
+    elif business_residence == "residence" and res_area > 0:
+        db.execute(
+            text('UPDATE "buildings" SET "need_residence_distribution" = true WHERE "building_number" = :building_number'),
+            {"building_number": building_number},
+        )
+    elif business_residence is None:
+        # Unknown / unmapped asset type: be conservative — flag whichever
+        # shared area exists.
+        if biz_area > 0:
+            db.execute(
+                text('UPDATE "buildings" SET "need_business_distribution" = true WHERE "building_number" = :building_number'),
+                {"building_number": building_number},
+            )
+        if res_area > 0:
+            db.execute(
+                text('UPDATE "buildings" SET "need_residence_distribution" = true WHERE "building_number" = :building_number'),
+                {"building_number": building_number},
+            )
+
+
 def save_assets_bulk_transactional(
     db: Session,
     *,
@@ -482,6 +551,14 @@ def save_assets_bulk_transactional(
             building_number=new_row.get("building_number"),
             old_main_asset_type=old_main_asset_type,
             new_main_asset_type=new_row.get("main_asset_type"),
+        )
+        _re_flag_distribution_for_asset_change(
+            db,
+            building_number=new_row.get("building_number"),
+            main_asset_type=new_row.get("main_asset_type"),
+            existing_row=existing_row,
+            new_row=new_row,
+            action_type=action_type,
         )
 
     for building_number in sorted(affected_buildings):

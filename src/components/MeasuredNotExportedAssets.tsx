@@ -743,6 +743,21 @@ export const MeasuredNotExportedAssets = ({ onSelectAsset, onOpenAssetsTab }: Me
       headerName: 'סה"כ שטח עסקים',
       editable: false,
       type: 'numericColumn',
+      // DB column is unused (always 0). Compute for business rows only:
+      // total = asset_size + business_distribution_area.
+      valueGetter: (params: any) => {
+        const row = params.data;
+        if (!row) return '';
+        const typeName = row.main_asset_type ? String(row.main_asset_type).trim() : '';
+        const types = getAssetTypes();
+        if (!typeName || !types || types.length === 0) return '';
+        const at = types.find((t: AssetType) => String(t.name).trim() === typeName);
+        if (!at || at.business_residence !== 'עסקים') return '';
+        const size = Number(row.asset_size) || 0;
+        const dist = Number(row.business_distribution_area) || 0;
+        const total = size + dist;
+        return total > 0 ? total : '';
+      },
       valueFormatter: (params) => {
         const val = params.value;
         if (val === null || val === undefined || val === '' || val === 0) return '';

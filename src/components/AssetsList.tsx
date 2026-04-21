@@ -6293,6 +6293,21 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
       headerName: 'סה"כ שטח עסקים',
       editable: false, // Always readonly - calculated field
       type: 'numericColumn',
+      // The DB column is unused (stays 0; no trigger populates it). Compute
+      // on the fly: for business assets only, total = asset_size +
+      // business_distribution_area.
+      valueGetter: (params: any) => {
+        const row = params.data as Asset | undefined;
+        if (!row) return '';
+        const typeName = row.main_asset_type ? String(row.main_asset_type).trim() : '';
+        if (!typeName || !assetTypes || assetTypes.length === 0) return '';
+        const at = assetTypes.find(t => String(t.name).trim() === typeName);
+        if (!at || at.business_residence !== 'עסקים') return '';
+        const size = Number(row.asset_size) || 0;
+        const dist = Number(row.business_distribution_area) || 0;
+        const total = size + dist;
+        return total > 0 ? total : '';
+      },
       valueFormatter: (params) => {
         const val = params.value;
         if (val === null || val === undefined || val === '' || val === 0) return '';

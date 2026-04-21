@@ -2639,6 +2639,16 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
       filter: true,
       headerClass: 'ag-right-aligned-header',
       cellStyle: { textAlign: 'right' },
+      // DB column is unused (always 0). Compute on the fly for business
+      // rows: total = asset_size + business_distribution_area.
+      valueGetter: (params: any) => {
+        const row = params.data;
+        if (!row || !isBusinessContext) return '';
+        const size = Number(row.asset_size) || 0;
+        const dist = Number(row.business_distribution_area) || 0;
+        const total = size + dist;
+        return total > 0 ? total : '';
+      },
       valueFormatter: (params: any) => formatNumberToTwoDecimals(params.value),
       hide: !isBusinessContext // Hide for residence assets (business_total_area is only for business assets)
     }

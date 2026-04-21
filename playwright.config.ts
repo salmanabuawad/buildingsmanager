@@ -53,6 +53,25 @@ export default defineConfig({
       },
     },
 
+    /**
+     * pstaging project: runs every spec against https://pstaging.wavelync.com/.
+     * Credentials come from env (TEST_USER_NAME / TEST_PASSWORD).
+     * Usage:
+     *   TEST_USER_NAME=regression_tester TEST_PASSWORD=... \
+     *     npx playwright test --project=pstaging
+     */
+    {
+      name: 'pstaging',
+      use: {
+        ...devices['Desktop Chrome'],
+        baseURL: 'https://pstaging.wavelync.com/',
+        launchOptions: {
+          headless: process.env.HEADLESS === 'true' || !!process.env.CI,
+          args: ['--disable-extensions'],
+        },
+      },
+    },
+
     // Uncomment to test on other browsers
     // {
     //   name: 'firefox',

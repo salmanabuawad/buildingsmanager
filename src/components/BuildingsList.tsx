@@ -1185,52 +1185,19 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
     const normalizedOriginalValue = normalizeForCompare(originalDataValue);
     const normalizedNewValue = normalizeForCompare(newValue);
     
-    // Value equals the original DB value — the edit has CANCELLED any
-    // prior dirty change on this field. Flush state + dirty back to the
-    // original so no previously-entered wrong value lingers in React state.
-    // (Errors + re-validation were already cleared at the top of the fn.)
-    if (!isNew && normalizedOriginalValue === normalizedNewValue) {
-      setBuildings(prevBuildings => prevBuildings.map(b =>
-        getBuildingKey(b) === buildingKey ? { ...b, [field]: originalDataValue } : b,
-      ));
-      setFilteredBuildings(prevBuildings => prevBuildings.map(b =>
-        getBuildingKey(b) === buildingKey ? { ...b, [field]: originalDataValue } : b,
-      ));
-      setDirtyBuildings(prev => {
-        if (!prev.has(buildingKey)) return prev;
-        const next = new Map(prev);
-        const current = { ...(next.get(buildingKey) || {}) } as Record<string, unknown>;
-        delete current[field];
-        if (Object.keys(current).length === 0) next.delete(buildingKey);
-        else next.set(buildingKey, current as any);
-        return next;
-      });
-      cellEditStartValues.current.delete(cellKey);
-      cellEditUserInteracted.current.delete(cellKey);
-      return;
-    }
-    
-    // Check edit start value if available (MOST RELIABLE - compares with value when editing started)
-    if (editStartValue !== undefined) {
-      const normalizedStartValue = normalizeForCompare(editStartValue);
-      if (normalizedNewValue === normalizedStartValue) {
-        // Clean up tracking
-        cellEditStartValues.current.delete(cellKey);
-        cellEditUserInteracted.current.delete(cellKey);
-        return; // EARLY RETURN - don't mark dirty, don't update state
-      }
-    }
-    
-    // Also check oldValue === newValue as final safeguard
-    if (!isNew && oldValue !== undefined && newValue !== undefined) {
-      const normalizedOld = normalizeForCompare(oldValue);
-      if (normalizedOld === normalizedNewValue) {
-        cellEditStartValues.current.delete(cellKey);
-        cellEditUserInteracted.current.delete(cellKey);
-        return; // EARLY RETURN - don't mark dirty, don't update state
-      }
-    }
-    
+    // NOTE: Earlier versions of this function had three early-return paths
+    // here that skipped setBuildings + setDirtyBuildings when the new value
+    // matched the DB original, the edit start value, or the AG Grid oldValue.
+    // Those returns left React state out of sync with the grid cell after
+    // the user typed-and-reverted, causing the validator to read a stale
+    // "previously entered wrong value" on the next Save.
+    //
+    // The AssetsList pattern (which works correctly) lets every edit flow
+    // through to the state + dirty updates below, and then lets the
+    // `valueChanged` computation decide whether to add/remove the field from
+    // the dirty map. We mirror that here — no premature returns based on
+    // value equality. The only skip is the "user clicked without typing"
+    // case already handled further up.
     // If we get here, value actually changed - mark user as interacted
     if (editStartValue !== undefined && userInteracted !== true) {
       cellEditUserInteracted.current.set(cellKey, true);

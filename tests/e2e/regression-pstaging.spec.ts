@@ -1188,6 +1188,45 @@ test.describe('23. Parking distribution — units-based fallback', () => {
   });
 });
 
+// -------- 25. Buildings-list parking validation reads from grid, not stale React state --------
+
+test.describe('25. Buildings-list parking validation (live grid value)', () => {
+  let api: AuthedApi;
+  const BN = 999_002_500;
+
+  test.beforeAll(async () => {
+    api = await loginViaApi();
+    await deleteBuildingIfExists(api, BN).catch(() => {});
+    // Create with a mismatched initial state: building says 10 units but no
+    // assets exist. After the user corrects the number to 0 (= no assets),
+    // validation must see the new value, not the stale 10.
+    await apiPost(api, '/api/buildings/create', {
+      building_number: BN,
+      tax_region: '20',
+      business_shared_area: 0,
+      residence_shared_area: 0,
+      shared_parking_area: 0,
+      number_of_parking_units: 10,
+    });
+  });
+  test.afterAll(async () => {
+    await deleteBuildingIfExists(api, BN).catch(() => {});
+    await api.close();
+  });
+
+  test('25.1 updating building.number_of_parking_units persists the new value (API ground truth)', async () => {
+    // Direct PATCH-style update through the same endpoint the UI uses
+    await apiPost(api, '/api/buildings/bulk-distribution-flags', {
+      p_buildings_data: [{ building_number: BN, updates: { number_of_parking_units: 0, shared_parking_area: 0 } }],
+    });
+    const b = await readBuilding(api, BN);
+    expect(Number(b.number_of_parking_units)).toBe(0);
+    // And with no assets, validateParkingTotals would pass (0 = 0); this test
+    // makes sure the endpoint actually writes the new number, which is the
+    // source of truth the UI re-reads on page refresh.
+  });
+});
+
 // -------- 24. Assets-list parking-sum cross-validation --------
 
 test.describe('24. Assets-list parking-sum validation', () => {

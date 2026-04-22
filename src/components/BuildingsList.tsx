@@ -909,27 +909,44 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
     try {
       const newValidationErrors = new Map<string | number, Record<string, string>>();
       const buildingsToValidate: Array<{ building: Building; key: string | number }> = [];
-      
+
+      // Read live row data directly from AG Grid — AG Grid's valueSetter
+      // mutates the row object synchronously as the user types, so this is
+      // guaranteed to reflect the most recent typed value (setBuildings may
+      // still be in an in-flight React batch at this point).
+      const liveByKey = new Map<string | number, Building>();
+      try {
+        gridRef.current?.api?.forEachNode((node) => {
+          const b = node?.data as Building | undefined;
+          if (!b) return;
+          liveByKey.set(getBuildingKey(b), b);
+        });
+      } catch {
+        // If grid isn't mounted, fall back to state below.
+      }
+
       // Collect only buildings with dirty changes (or new buildings)
       for (const building of buildings) {
         const buildingKey = getBuildingKey(building);
-        
+
         // Only validate buildings with changes (or new buildings), except those marked for deletion
         if (!buildingsToDelete.has(buildingKey) && (dirtyBuildings.has(buildingKey) || newBuildings.has(buildingKey))) {
-          buildingsToValidate.push({ building, key: buildingKey });
+          // Prefer live grid row (reflects in-flight valueSetter mutation)
+          const effective = liveByKey.get(buildingKey) ?? building;
+          buildingsToValidate.push({ building: effective, key: buildingKey });
         }
       }
-      
+
       if (buildingsToValidate.length === 0) {
         return { hasErrors: false };
       }
-      
+
       // Validate each building
       for (const { building, key } of buildingsToValidate) {
         const dirtyChanges = dirtyBuildings.get(key) || {};
         const updatedBuilding = { ...building, ...dirtyChanges };
         const validation = await buildingValidators.validateAllFields(updatedBuilding);
-        
+
         if (!validation.valid) {
           newValidationErrors.set(key, validation.errors);
         }
@@ -1748,18 +1765,31 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
   const handleValidateAll = useCallback(async () => {
     // Don't set loading to avoid refreshing the tab
     setToast(null);
-    
+
     try {
       const newValidationErrors = new Map<string | number, Record<string, string>>();
       const buildingsToValidate: Array<{ building: Building; key: string | number }> = [];
-      
+
+      // Pull live rows from the grid; valueSetter mutates these synchronously
+      // on keystroke, so this always reflects the user's in-flight edits
+      // regardless of React state flush timing.
+      const liveByKey = new Map<string | number, Building>();
+      try {
+        gridRef.current?.api?.forEachNode((node) => {
+          const b = node?.data as Building | undefined;
+          if (!b) return;
+          liveByKey.set(getBuildingKey(b), b);
+        });
+      } catch { /* fallback to React state below */ }
+
       // Collect all buildings to validate (always validate all buildings, not just those with changes)
       for (const building of buildings) {
         const buildingKey = getBuildingKey(building);
-        
+
         // Validate all buildings except those marked for deletion
         if (!buildingsToDelete.has(buildingKey)) {
-          buildingsToValidate.push({ building, key: buildingKey });
+          const effective = liveByKey.get(buildingKey) ?? building;
+          buildingsToValidate.push({ building: effective, key: buildingKey });
         }
       }
       

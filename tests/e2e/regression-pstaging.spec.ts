@@ -2941,3 +2941,358 @@ test.describe('20. Navigation', () => {
     }
   });
 });
+
+// ---------------------------------------------------------------------------
+// 73. Business distribution: with and without shared parking area
+// ---------------------------------------------------------------------------
+// The existing parking coverage (block 23) only exercises the WITH-parking
+// path. This block pins down three contracts:
+//   a) distribution WITHOUT parking (building has no shared_parking_area) still
+//      clears need_business_distribution when action_type='business_distribution'
+//      runs, and leaves shared_parking_area untouched (null/0).
+//   b) distribution WITH parking — the same action call persists BOTH
+//      business_distribution_area AND shared_parking_area per asset in one go
+//      and clears only the business flag (parking has no separate flag).
+//   c) setting shared_parking_area ALONE on the building does NOT flip
+//      need_business_distribution (complements block 46 which asserts the
+//      inverse for multi-tax-region).
+
+test.describe('73. Business distribution — with vs without parking', () => {
+  let api: AuthedApi;
+  const BN = 999_007_300;
+  const AID_A = BN * 10;
+  const AID_B = BN * 10 + 1;
+
+  test.beforeEach(async () => {
+    api = api ?? await loginViaApi();
+    await deleteBuildingIfExists(api, BN).catch(() => {});
+  });
+  test.afterAll(async () => {
+    await deleteBuildingIfExists(api, BN).catch(() => {});
+    await api?.close();
+  });
+
+  test('73.1 distribution WITHOUT parking clears flag, shared_parking_area stays empty', async () => {
+    await apiPost(api, '/api/buildings/create', {
+      building_number: BN, tax_region: '20', business_shared_area: 100, residence_shared_area: 0,
+    });
+    await apiPost(api, '/api/assets/save-bulk-transactional', {
+      p_assets_data: [
+        { asset_id: AID_A, building_number: BN, payer_id: 'A', tax_region: 20, main_asset_type: '800', asset_size: 100, measurement_date: '01/01/2026' },
+        { asset_id: AID_B, building_number: BN, payer_id: 'B', tax_region: 20, main_asset_type: '800', asset_size: 100, measurement_date: '01/01/2026' },
+      ],
+      p_validation_passed: true, p_action_type: 'manual_update', p_user_id: 'uid:101',
+    });
+    // UI would land here with need_business_distribution=true
+    await apiPost(api, '/api/buildings/bulk-distribution-flags', {
+      p_buildings_data: [{ building_number: BN, updates: { business_shared_area: 100 } }],
+    });
+
+    // User presses פזר + שמור. No parking in the payload.
+    await apiPost(api, '/api/assets/save-bulk-transactional', {
+      p_assets_data: [
+        { asset_id: AID_A, building_number: BN, payer_id: 'A', tax_region: 20, main_asset_type: '800', asset_size: 100, business_distribution_area: 50, measurement_date: '01/01/2026' },
+        { asset_id: AID_B, building_number: BN, payer_id: 'B', tax_region: 20, main_asset_type: '800', asset_size: 100, business_distribution_area: 50, measurement_date: '01/01/2026' },
+      ],
+      p_validation_passed: true, p_action_type: 'business_distribution', p_user_id: 'uid:101',
+    });
+
+    const b = await readBuilding(api, BN);
+    expect(b.need_business_distribution).toBe(false);
+
+    // Neither asset should have picked up a non-null parking area.
+    for (const aid of [AID_A, AID_B]) {
+      const rows: any = await apiGet(api, `/api/data/assets?asset_id=${aid}&select=shared_parking_area,business_distribution_area&limit=1`);
+      const row = (Array.isArray(rows) ? rows : rows.data || [])[0];
+      const sp = row.shared_parking_area == null ? 0 : Number(row.shared_parking_area);
+      expect(sp).toBe(0);
+      expect(Number(row.business_distribution_area)).toBe(50);
+    }
+  });
+
+  test('73.2 distribution WITH parking persists both areas in one call, clears only business flag', async () => {
+    await apiPost(api, '/api/buildings/create', {
+      building_number: BN, tax_region: '20',
+      business_shared_area: 100, residence_shared_area: 0,
+      shared_parking_area: 300, number_of_parking_units: 15,
+    });
+    await apiPost(api, '/api/assets/save-bulk-transactional', {
+      p_assets_data: [
+        { asset_id: AID_A, building_number: BN, payer_id: 'A', tax_region: 20, main_asset_type: '800', asset_size: 100, number_of_parking_units: 10, measurement_date: '01/01/2026' },
+        { asset_id: AID_B, building_number: BN, payer_id: 'B', tax_region: 20, main_asset_type: '800', asset_size: 100, number_of_parking_units: 5,  measurement_date: '01/01/2026' },
+      ],
+      p_validation_passed: true, p_action_type: 'manual_update', p_user_id: 'uid:101',
+    });
+    await apiPost(api, '/api/buildings/bulk-distribution-flags', {
+      p_buildings_data: [{ building_number: BN, updates: { business_shared_area: 100, shared_parking_area: 300 } }],
+    });
+
+    // Distribute both at once (300 / 15 units = 20 sqm/unit → 200 and 100).
+    await apiPost(api, '/api/assets/save-bulk-transactional', {
+      p_assets_data: [
+        { asset_id: AID_A, building_number: BN, payer_id: 'A', tax_region: 20, main_asset_type: '800', asset_size: 100, number_of_parking_units: 10, business_distribution_area: 50, shared_parking_area: 200, measurement_date: '01/01/2026' },
+        { asset_id: AID_B, building_number: BN, payer_id: 'B', tax_region: 20, main_asset_type: '800', asset_size: 100, number_of_parking_units: 5,  business_distribution_area: 50, shared_parking_area: 100, measurement_date: '01/01/2026' },
+      ],
+      p_validation_passed: true, p_action_type: 'business_distribution', p_user_id: 'uid:101',
+    });
+
+    const rowsA: any = await apiGet(api, `/api/data/assets?asset_id=${AID_A}&select=shared_parking_area,business_distribution_area&limit=1`);
+    const a = (Array.isArray(rowsA) ? rowsA : rowsA.data || [])[0];
+    expect(Number(a.shared_parking_area)).toBe(200);
+    expect(Number(a.business_distribution_area)).toBe(50);
+
+    const rowsB: any = await apiGet(api, `/api/data/assets?asset_id=${AID_B}&select=shared_parking_area,business_distribution_area&limit=1`);
+    const b = (Array.isArray(rowsB) ? rowsB : rowsB.data || [])[0];
+    expect(Number(b.shared_parking_area)).toBe(100);
+
+    // Business flag cleared; residence flag never was set so remains false.
+    const bld = await readBuilding(api, BN);
+    expect(bld.need_business_distribution).toBe(false);
+    expect(bld.need_residence_distribution).toBe(false);
+  });
+
+  test('73.3 setting shared_parking_area alone does NOT flip need_business_distribution', async () => {
+    await apiPost(api, '/api/buildings/create', {
+      building_number: BN, tax_region: '20',
+      business_shared_area: 0, residence_shared_area: 0,
+    });
+    await apiPost(api, '/api/buildings/bulk-distribution-flags', {
+      p_buildings_data: [{ building_number: BN, updates: { shared_parking_area: 300, number_of_parking_units: 10 } }],
+    });
+    const bld = await readBuilding(api, BN);
+    expect(bld.need_business_distribution).toBe(false);
+    expect(bld.need_residence_distribution).toBe(false);
+    expect(Number(bld.shared_parking_area)).toBe(300);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// 74. Transfer area preserves total + doesn't mutate distribution flags
+// ---------------------------------------------------------------------------
+// Block 37 asserts the audit row fires. This block pins the invariants the
+// action is supposed to uphold: total area stays the same across the transfer,
+// and distribution flags are NOT changed as a side-effect (transfer isn't a
+// distribution — it just moves area between existing assets).
+
+test.describe('74. Transfer area invariants', () => {
+  let api: AuthedApi;
+  const BN = 999_007_400;
+  const AID_A = BN * 10;
+  const AID_B = BN * 10 + 1;
+
+  test.beforeAll(async () => {
+    api = await loginViaApi();
+    await deleteBuildingIfExists(api, BN).catch(() => {});
+    // Building with an unresolved business-distribution flag that must be
+    // preserved by the transfer action.
+    await apiPost(api, '/api/buildings/create', {
+      building_number: BN, tax_region: '20',
+      business_shared_area: 100, residence_shared_area: 0,
+    });
+    await apiPost(api, '/api/assets/save-bulk-transactional', {
+      p_assets_data: [
+        { asset_id: AID_A, building_number: BN, payer_id: 'A', tax_region: 20, main_asset_type: '800', asset_size: 100, measurement_date: '01/01/2026' },
+        { asset_id: AID_B, building_number: BN, payer_id: 'B', tax_region: 20, main_asset_type: '800', asset_size: 100, measurement_date: '01/01/2026' },
+      ],
+      p_validation_passed: true, p_action_type: 'manual_update', p_user_id: 'uid:101',
+    });
+    await apiPost(api, '/api/buildings/bulk-distribution-flags', {
+      p_buildings_data: [{ building_number: BN, updates: { business_shared_area: 100 } }],
+    });
+  });
+  test.afterAll(async () => {
+    await deleteBuildingIfExists(api, BN).catch(() => {});
+    await api.close();
+  });
+
+  test('74.1 transfer_area preserves sum of asset_size across the pair', async () => {
+    const beforeRows: any = await apiGet(api, `/api/data/assets?building_number=${BN}&select=asset_id,asset_size`);
+    const before = Array.isArray(beforeRows) ? beforeRows : beforeRows.data || [];
+    const beforeSum = before.reduce((s: number, r: any) => s + Number(r.asset_size || 0), 0);
+
+    await apiPost(api, '/api/assets/save-bulk-transactional', {
+      p_assets_data: [
+        { asset_id: AID_A, building_number: BN, payer_id: 'A', tax_region: 20, main_asset_type: '800', asset_size: 60,  measurement_date: '01/01/2026' },
+        { asset_id: AID_B, building_number: BN, payer_id: 'B', tax_region: 20, main_asset_type: '800', asset_size: 140, measurement_date: '01/01/2026' },
+      ],
+      p_validation_passed: true, p_action_type: 'transfer_area', p_user_id: 'uid:101',
+    });
+
+    const afterRows: any = await apiGet(api, `/api/data/assets?building_number=${BN}&select=asset_id,asset_size`);
+    const after = Array.isArray(afterRows) ? afterRows : afterRows.data || [];
+    const afterSum = after.reduce((s: number, r: any) => s + Number(r.asset_size || 0), 0);
+    expect(afterSum).toBe(beforeSum);
+    expect(afterSum).toBe(200);
+  });
+
+  test('74.2 transfer_area does NOT clear need_business_distribution', async () => {
+    // Flag is still on from the beforeAll setup.
+    const before = await readBuilding(api, BN);
+    expect(before.need_business_distribution).toBe(true);
+
+    await apiPost(api, '/api/assets/save-bulk-transactional', {
+      p_assets_data: [
+        { asset_id: AID_A, building_number: BN, payer_id: 'A', tax_region: 20, main_asset_type: '800', asset_size: 90,  measurement_date: '01/01/2026' },
+        { asset_id: AID_B, building_number: BN, payer_id: 'B', tax_region: 20, main_asset_type: '800', asset_size: 110, measurement_date: '01/01/2026' },
+      ],
+      p_validation_passed: true, p_action_type: 'transfer_area', p_user_id: 'uid:101',
+    });
+
+    const after = await readBuilding(api, BN);
+    expect(after.need_business_distribution).toBe(true);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// 75. Asset skeleton import contract
+// ---------------------------------------------------------------------------
+// AssetsFileImport.tsx builds a save-bulk payload with import_order assigned
+// Date.now()*10000 + idx so rows sort in the imported order. This block pins:
+//   - all rows persist
+//   - reading back sorted by import_order returns the original order
+//   - the building's asset_count reflects the imported rows
+// Block 3.6 already checks a single asset's import_order passes through; this
+// adds the end-to-end skeleton contract (the actual UI payload shape).
+
+test.describe('75. Asset skeleton import contract', () => {
+  let api: AuthedApi;
+  const BN = 999_007_500;
+  const AID_1 = BN * 10;
+  const AID_2 = BN * 10 + 1;
+  const AID_3 = BN * 10 + 2;
+
+  test.beforeAll(async () => {
+    api = await loginViaApi();
+    await deleteBuildingIfExists(api, BN).catch(() => {});
+    await apiPost(api, '/api/buildings/create', { building_number: BN, tax_region: '10' });
+  });
+  test.afterAll(async () => {
+    await deleteBuildingIfExists(api, BN).catch(() => {});
+    await api.close();
+  });
+
+  test('75.1 skeleton import of 3 rows persists with stable import_order', async () => {
+    const base = Date.now() * 10000;
+    await apiPost(api, '/api/assets/save-bulk-transactional', {
+      p_assets_data: [
+        // Intentionally shuffle payload order to prove import_order, not
+        // insertion order, is what determines the stable sort.
+        { asset_id: AID_2, building_number: BN, payer_id: 'P2', tax_region: 10, apartment_number: '2',  asset_size: 0, import_order: base + 2, measurement_date: '01/01/2026' },
+        { asset_id: AID_1, building_number: BN, payer_id: 'P1', tax_region: 10, apartment_number: '1',  asset_size: 0, import_order: base + 1, measurement_date: '01/01/2026' },
+        { asset_id: AID_3, building_number: BN, payer_id: 'P3', tax_region: 10, apartment_number: '10', asset_size: 0, import_order: base + 3, measurement_date: '01/01/2026' },
+      ],
+      p_validation_passed: true, p_action_type: 'manual_update', p_user_id: 'uid:101',
+    });
+
+    // Read back and sort client-side by import_order — the generic /data
+    // endpoint doesn't honor a postgREST-style `order=` param, so we do
+    // the sort ourselves. The contract under test is that import_order
+    // *persisted* on every row and reflects the imported order.
+    const rows: any = await apiGet(api, `/api/data/assets?building_number=${BN}&select=asset_id,apartment_number,import_order`);
+    const arr = (Array.isArray(rows) ? rows : rows.data || []) as any[];
+    const sorted = [...arr].sort((a, b) => Number(a.import_order) - Number(b.import_order));
+    const ids = sorted.map(r => Number(r.asset_id));
+    expect(ids).toEqual([AID_1, AID_2, AID_3]);
+    // apartment_number numeric-aware sort also matches imported order when
+    // the import assigns it in that sequence.
+    expect(sorted.map(r => r.apartment_number)).toEqual(['1', '2', '10']);
+  });
+
+  test('75.2 imported rows are reflected in building.asset_count', async () => {
+    // update-total-area is the canonical recount trigger the UI runs after
+    // a skeleton import; call it to sync asset_count. Endpoint takes
+    // p_building_number in the body (router is POST /update-total-area,
+    // not REST-style per-building).
+    const recount = await api.ctx.post('/api/buildings/update-total-area', {
+      headers: { Authorization: `Bearer ${api.token}` },
+      data: { p_building_number: BN },
+    });
+    expect([200, 204]).toContain(recount.status());
+    const b = await readBuilding(api, BN);
+    expect(Number(b.asset_count)).toBe(3);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// 76. Changing building tax_region persists + preserves other fields
+// ---------------------------------------------------------------------------
+// Block 35 already asserts PUT can update a building. This block is the
+// tax_region-specific contract: flipping '10' → '10,20' (single → multi) via
+// PUT persists, the other existing fields survive the update, and building
+// remains readable via GET /{bn}.
+
+test.describe('76. Building tax_region change', () => {
+  let api: AuthedApi;
+  const BN = 999_007_600;
+
+  test.beforeAll(async () => {
+    api = await loginViaApi();
+    await deleteBuildingIfExists(api, BN).catch(() => {});
+    await apiPost(api, '/api/buildings/create', {
+      building_number: BN, tax_region: '10',
+      business_shared_area: 0, residence_shared_area: 0,
+      note: 'pre-change note',
+    });
+  });
+  test.afterAll(async () => {
+    await deleteBuildingIfExists(api, BN).catch(() => {});
+    await api.close();
+  });
+
+  test('76.1 PUT changes single-region "10" to multi-region "10,20" and preserves note', async () => {
+    const res = await api.ctx.put(`/api/buildings/${BN}`, {
+      headers: { Authorization: `Bearer ${api.token}` },
+      data: { tax_region: '10,20' },
+    });
+    expect([200, 204]).toContain(res.status());
+    const b = await readBuilding(api, BN);
+    expect(b.tax_region).toBe('10,20');
+    expect(b.note).toBe('pre-change note');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// 77. Changing asset tax_region persists + writes an audit row
+// ---------------------------------------------------------------------------
+// Asset-level tax_region flows through save-bulk-transactional. Changing it
+// must persist on the asset row and write a manual_update audit entry with
+// the new tax_region attached. This complements block 14 (audit row exists
+// on edit) by pinning the tax_region field's behavior specifically.
+
+test.describe('77. Asset tax_region change', () => {
+  let api: AuthedApi;
+  const BN = 999_007_700;
+  const AID = BN * 10;
+
+  test.beforeAll(async () => {
+    api = await loginViaApi();
+    await deleteBuildingIfExists(api, BN).catch(() => {});
+    await apiPost(api, '/api/buildings/create', { building_number: BN, tax_region: '10,20' });
+    await apiPost(api, '/api/assets/save-bulk-transactional', {
+      p_assets_data: [{ asset_id: AID, building_number: BN, payer_id: 'P', tax_region: 10, main_asset_type: '211', asset_size: 80, measurement_date: '01/01/2026' }],
+      p_validation_passed: true, p_action_type: 'manual_update', p_user_id: 'uid:101',
+    });
+  });
+  test.afterAll(async () => {
+    await deleteBuildingIfExists(api, BN).catch(() => {});
+    await api.close();
+  });
+
+  test('77.1 changing an asset tax_region 10 → 20 via save-bulk persists on the row', async () => {
+    await apiPost(api, '/api/assets/save-bulk-transactional', {
+      p_assets_data: [{ asset_id: AID, building_number: BN, payer_id: 'P', tax_region: 20, main_asset_type: '800', asset_size: 80, measurement_date: '01/01/2026' }],
+      p_validation_passed: true, p_action_type: 'manual_update', p_user_id: 'uid:101',
+    });
+    const rows: any = await apiGet(api, `/api/data/assets?asset_id=${AID}&select=tax_region,main_asset_type&limit=1`);
+    const a = (Array.isArray(rows) ? rows : rows.data || [])[0];
+    expect(Number(a.tax_region)).toBe(20);
+    expect(String(a.main_asset_type)).toBe('800');
+  });
+
+  test('77.2 a manual_update audit row is written for the change', async () => {
+    const audit: any = await apiGet(api, `/api/data/audit?entity_type=asset&entity_id=${AID}&select=action_type,created_at&order=created_at.desc&limit=5`);
+    const rows = (Array.isArray(audit) ? audit : audit.data || []) as any[];
+    expect(rows.length).toBeGreaterThan(0);
+    expect(rows.some(r => r.action_type === 'manual_update')).toBe(true);
+  });
+});

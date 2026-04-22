@@ -25,7 +25,9 @@ def get_audit_logs(
     if entity_id:
         query = query.filter(AuditLog.entity_id == entity_id)
 
-    audit_logs = query.order_by(AuditLog.changed_at.desc()).offset(skip).limit(limit).all()
+    # DB column is `created_at` (see audit table schema); earlier code used
+    # a legacy `changed_at` name that doesn't exist, making this endpoint 500.
+    audit_logs = query.order_by(AuditLog.created_at.desc()).offset(skip).limit(limit).all()
     return audit_logs
 
 

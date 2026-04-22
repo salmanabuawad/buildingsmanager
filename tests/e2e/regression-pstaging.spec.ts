@@ -2062,12 +2062,20 @@ test.describe('45. Files view-url', () => {
     await api.close();
   });
 
-  test('45.1 GET /api/files/view-url returns 200 for a valid file', async () => {
+  test('45.1 GET /api/files/view-url returns a download URL for a storage path', async () => {
     if (fileId == null) test.skip();
-    const res = await api.ctx.get(`/api/files/view-url?file_id=${fileId}`, {
+    // Endpoint takes ?path= (storage-relative path) and returns {url}
+    const meta: any[] = await apiGet(api, `/api/files/asset/${AID}`);
+    const uploaded = Array.isArray(meta) ? meta[0] : null;
+    expect(uploaded).toBeTruthy();
+    const storagePath = uploaded.file_url || uploaded.file_path;
+    expect(typeof storagePath).toBe('string');
+    const res = await api.ctx.get(`/api/files/view-url?path=${encodeURIComponent(storagePath)}`, {
       headers: { Authorization: `Bearer ${api.token}` },
     });
-    expect([200, 302, 307]).toContain(res.status());
+    expect(res.ok()).toBe(true);
+    const body = await res.json() as { url: string };
+    expect(body.url).toContain('/api/files/download');
   });
 });
 

@@ -984,20 +984,19 @@ test.describe('21. Post-distribution lock', () => {
 
   test.beforeAll(async () => {
     api = await loginViaApi();
-    // Manually create the building with tax_region='20' so the UI default
-    // tab ('עסקים אזור 2') matches the assets we insert and the distribute
-    // button is the 'עסקים' one visible from that tab.
+    // Use tax_region=40 + business asset type '301' — that combination exists
+    // in asset_types and maps to the 'עסקים אזור 1' tab the UI opens on.
     await deleteBuildingIfExists(api, BN).catch(() => {});
     await apiPost(api, '/api/buildings/create', {
       building_number: BN,
-      tax_region: '20',
+      tax_region: '40',
       business_shared_area: 0,
       residence_shared_area: 0,
     });
     await apiPost(api, '/api/assets/save-bulk-transactional', {
       p_assets_data: [
-        { asset_id: AID_1, building_number: BN, payer_id: `P-${AID_1}`, tax_region: 20, main_asset_type: '800', asset_size: 100, measurement_date: '01/01/2026' },
-        { asset_id: AID_2, building_number: BN, payer_id: `P-${AID_2}`, tax_region: 20, main_asset_type: '800', asset_size: 100, measurement_date: '01/01/2026' },
+        { asset_id: AID_1, building_number: BN, payer_id: `P-${AID_1}`, tax_region: 40, main_asset_type: '301', asset_size: 100, measurement_date: '01/01/2026' },
+        { asset_id: AID_2, building_number: BN, payer_id: `P-${AID_2}`, tax_region: 40, main_asset_type: '301', asset_size: 100, measurement_date: '01/01/2026' },
       ],
       p_validation_passed: true, p_action_type: 'manual_update', p_user_id: 'uid:101',
     });

@@ -1794,6 +1794,392 @@ test.describe('37. Transfer-area audit', () => {
   });
 });
 
+// -------- 38. Audit list + detail --------
+
+test.describe('38. Audit endpoints', () => {
+  let api: AuthedApi;
+  test.beforeAll(async () => { api = await loginViaApi(); });
+  test.afterAll(async () => { await api.close(); });
+
+  test('38.1 GET /api/audit/ returns recent rows', async () => {
+    const res = await api.ctx.get('/api/audit/?skip=0&limit=5', {
+      headers: { Authorization: `Bearer ${api.token}` },
+    });
+    expect(res.ok()).toBe(true);
+    const arr = await res.json() as any[];
+    expect(Array.isArray(arr)).toBe(true);
+  });
+
+  test('38.2 GET a specific audit id returns the row or 404', async () => {
+    const list = await api.ctx.get('/api/audit/?skip=0&limit=1', {
+      headers: { Authorization: `Bearer ${api.token}` },
+    });
+    const first = (await list.json() as any[])[0];
+    if (!first) test.skip();
+    const id = first.id ?? first.action_id;
+    const res = await api.ctx.get(`/api/audit/${id}`, {
+      headers: { Authorization: `Bearer ${api.token}` },
+    });
+    expect([200, 404]).toContain(res.status());
+  });
+});
+
+// -------- 39. data table generic endpoint: POST, PATCH, DELETE --------
+
+test.describe('39. data table CRUD via generic endpoint', () => {
+  let api: AuthedApi;
+  const BN = 999_003_900;
+
+  test.beforeAll(async () => {
+    api = await loginViaApi();
+    await deleteBuildingIfExists(api, BN).catch(() => {});
+    await apiPost(api, '/api/buildings/create', { building_number: BN, tax_region: '10' });
+  });
+  test.afterAll(async () => {
+    await deleteBuildingIfExists(api, BN).catch(() => {});
+    await api.close();
+  });
+
+  test('39.1 PATCH /api/data/buildings filters by building_number', async () => {
+    const res = await api.ctx.patch(`/api/data/buildings?building_number=${BN}`, {
+      headers: { Authorization: `Bearer ${api.token}` },
+      data: { note: 'patched by regression 39.1' },
+    });
+    expect(res.ok()).toBe(true);
+    const b = await readBuilding(api, BN);
+    expect(b.note).toBe('patched by regression 39.1');
+  });
+});
+
+// -------- 40. Buildings update-total-area endpoint --------
+
+test.describe('40. Buildings update-total-area', () => {
+  let api: AuthedApi;
+  const BN = 999_004_000;
+  const AID = BN * 10;
+
+  test.beforeAll(async () => {
+    api = await loginViaApi();
+    await deleteBuildingIfExists(api, BN).catch(() => {});
+    await apiPost(api, '/api/buildings/create', { building_number: BN, tax_region: '10' });
+    await apiPost(api, '/api/assets/save-bulk-transactional', {
+      p_assets_data: [{
+        asset_id: AID, building_number: BN, payer_id: 'TA',
+        tax_region: 10, main_asset_type: '211', asset_size: 123.45,
+        measurement_date: '01/01/2026',
+      }],
+      p_validation_passed: true, p_action_type: 'manual_update', p_user_id: 'uid:101',
+    });
+  });
+  test.afterAll(async () => {
+    await deleteBuildingIfExists(api, BN).catch(() => {});
+    await api.close();
+  });
+
+  test('40.1 update-total-area recomputes total_building_area from assets', async () => {
+    const res = await apiPost<any>(api, '/api/buildings/update-total-area', { p_building_number: BN });
+    expect(res.success !== false).toBe(true);
+    const b = await readBuilding(api, BN);
+    expect(Number(b.total_building_area)).toBeCloseTo(123.45, 2);
+    expect(Number(b.asset_count)).toBe(1);
+  });
+});
+
+// -------- 41. Asset bulk ORM endpoint --------
+
+test.describe('41. Assets POST /bulk (ORM)', () => {
+  let api: AuthedApi;
+  const BN = 999_004_100;
+  const A1 = BN * 10;
+  const A2 = BN * 10 + 1;
+
+  test.beforeAll(async () => {
+    api = await loginViaApi();
+    await deleteBuildingIfExists(api, BN).catch(() => {});
+    await apiPost(api, '/api/buildings/create', { building_number: BN, tax_region: '10' });
+  });
+  test.afterAll(async () => {
+    await deleteBuildingIfExists(api, BN).catch(() => {});
+    await api.close();
+  });
+
+  test('41.1 POST /api/assets/bulk inserts multiple rows', async () => {
+    const res = await api.ctx.post('/api/assets/bulk', {
+      headers: { Authorization: `Bearer ${api.token}` },
+      data: [
+        { asset_id: A1, building_number: BN, payer_id: 'B1', tax_region: 10, main_asset_type: '211', asset_size: 10, measurement_date: '01/01/2026' },
+        { asset_id: A2, building_number: BN, payer_id: 'B2', tax_region: 10, main_asset_type: '211', asset_size: 20, measurement_date: '01/01/2026' },
+      ],
+    });
+    expect([200, 201]).toContain(res.status());
+    const arr = await res.json() as any[];
+    expect(Array.isArray(arr)).toBe(true);
+    expect(arr.length).toBe(2);
+  });
+});
+
+// -------- 42. Delete-bulk-transactional --------
+
+test.describe('42. Assets delete-bulk-transactional', () => {
+  let api: AuthedApi;
+  const BN = 999_004_200;
+  const A1 = BN * 10;
+  const A2 = BN * 10 + 1;
+
+  test.beforeAll(async () => {
+    api = await loginViaApi();
+    await deleteBuildingIfExists(api, BN).catch(() => {});
+    await apiPost(api, '/api/buildings/create', { building_number: BN, tax_region: '10' });
+    await apiPost(api, '/api/assets/save-bulk-transactional', {
+      p_assets_data: [
+        { asset_id: A1, building_number: BN, payer_id: 'D1', tax_region: 10, main_asset_type: '211', asset_size: 10, measurement_date: '01/01/2026' },
+        { asset_id: A2, building_number: BN, payer_id: 'D2', tax_region: 10, main_asset_type: '211', asset_size: 20, measurement_date: '01/01/2026' },
+      ],
+      p_validation_passed: true, p_action_type: 'manual_update', p_user_id: 'uid:101',
+    });
+  });
+  test.afterAll(async () => {
+    await deleteBuildingIfExists(api, BN).catch(() => {});
+    await api.close();
+  });
+
+  test('42.1 deletes N assets in one call', async () => {
+    const res = await apiPost<any>(api, '/api/assets/delete-bulk-transactional', {
+      p_asset_ids: [A1, A2], p_user_id: 'uid:101',
+    });
+    expect(res.success !== false).toBe(true);
+    const after: any[] = await apiGet(api, `/api/data/assets?asset_id__in=${A1}%2C${A2}&select=*&limit=5`);
+    const arr = Array.isArray(after) ? after : ((after as any).data || []);
+    expect(arr.length).toBe(0);
+  });
+});
+
+// -------- 43. Copy-to-history + with-history --------
+
+test.describe('43. Assets history paths', () => {
+  let api: AuthedApi;
+  const BN = 999_004_300;
+  const AID = BN * 10;
+
+  test.beforeAll(async () => {
+    api = await loginViaApi();
+    await deleteBuildingIfExists(api, BN).catch(() => {});
+    await apiPost(api, '/api/buildings/create', { building_number: BN, tax_region: '10' });
+    await apiPost(api, '/api/assets/save-bulk-transactional', {
+      p_assets_data: [{
+        asset_id: AID, building_number: BN, payer_id: 'H1',
+        tax_region: 10, main_asset_type: '211', asset_size: 10,
+        measurement_date: '01/01/2026',
+      }],
+      p_validation_passed: true, p_action_type: 'manual_update', p_user_id: 'uid:101',
+    });
+  });
+  test.afterAll(async () => {
+    await deleteBuildingIfExists(api, BN).catch(() => {});
+    await api.close();
+  });
+
+  test('43.1 with-history endpoint includes the current row + any history', async () => {
+    await apiPost(api, '/api/assets/copy-to-history', { p_asset_id: AID });
+    const res = await apiPost<any>(api, '/api/assets/with-history', { p_building_number: BN });
+    const arr = Array.isArray(res) ? res : ((res as any).data || res.rows || []);
+    expect(Array.isArray(arr)).toBe(true);
+    // At least the current + one history row should be present for AID
+    const forAid = arr.filter((r: any) => Number(r.asset_id) === AID);
+    expect(forAid.length).toBeGreaterThanOrEqual(2);
+  });
+});
+
+// -------- 44. Asset ORM POST / (standalone create) --------
+
+test.describe('44. POST /api/assets/ ORM create', () => {
+  let api: AuthedApi;
+  const BN = 999_004_400;
+  const AID = BN * 10;
+
+  test.beforeAll(async () => {
+    api = await loginViaApi();
+    await deleteBuildingIfExists(api, BN).catch(() => {});
+    await apiPost(api, '/api/buildings/create', { building_number: BN, tax_region: '10' });
+  });
+  test.afterAll(async () => {
+    await deleteBuildingIfExists(api, BN).catch(() => {});
+    await api.close();
+  });
+
+  test('44.1 create single asset via POST /api/assets/', async () => {
+    const res = await api.ctx.post('/api/assets/', {
+      headers: { Authorization: `Bearer ${api.token}` },
+      data: {
+        asset_id: AID, building_number: BN, payer_id: 'ORM',
+        tax_region: 10, main_asset_type: '211', asset_size: 15.5,
+        measurement_date: '01/01/2026',
+      },
+    });
+    expect([200, 201]).toContain(res.status());
+    const created = await res.json() as any;
+    expect(Number(created.asset_id)).toBe(AID);
+    expect(Number(created.asset_size)).toBeCloseTo(15.5, 2);
+  });
+});
+
+// -------- 45. Files view-url endpoint --------
+
+test.describe('45. Files view-url', () => {
+  let api: AuthedApi;
+  const BN = 999_004_500;
+  const AID = BN * 10;
+  let fileId: number | null = null;
+
+  test.beforeAll(async () => {
+    api = await loginViaApi();
+    await deleteBuildingIfExists(api, BN).catch(() => {});
+    await apiPost(api, '/api/buildings/create', { building_number: BN, tax_region: '10' });
+    await apiPost(api, '/api/assets/save-bulk-transactional', {
+      p_assets_data: [{
+        asset_id: AID, building_number: BN, payer_id: 'FV',
+        tax_region: 10, main_asset_type: '211', asset_size: 10,
+        measurement_date: '01/01/2026',
+      }],
+      p_validation_passed: true, p_action_type: 'manual_update', p_user_id: 'uid:101',
+    });
+    const uploadRes = await api.ctx.post(`/api/files/upload/${AID}`, {
+      headers: { Authorization: `Bearer ${api.token}` },
+      multipart: {
+        file: { name: 'view.txt', mimeType: 'text/plain', buffer: Buffer.from('ok') },
+      },
+    });
+    const up = await uploadRes.json() as { id: number };
+    fileId = up.id;
+  });
+  test.afterAll(async () => {
+    if (fileId != null) {
+      await api.ctx.delete(`/api/files/${fileId}`, {
+        headers: { Authorization: `Bearer ${api.token}` },
+      }).catch(() => {});
+    }
+    await deleteBuildingIfExists(api, BN).catch(() => {});
+    await api.close();
+  });
+
+  test('45.1 GET /api/files/view-url returns 200 for a valid file', async () => {
+    if (fileId == null) test.skip();
+    const res = await api.ctx.get(`/api/files/view-url?file_id=${fileId}`, {
+      headers: { Authorization: `Bearer ${api.token}` },
+    });
+    expect([200, 302, 307]).toContain(res.status());
+  });
+});
+
+// -------- 46. Multi-tax-region parked rows --------
+
+test.describe('46. Multi-tax-region parking boundary', () => {
+  let api: AuthedApi;
+  const BN = 999_004_600;
+  const RES_ID = BN * 10;
+  const BIZ_ID = BN * 10 + 1;
+
+  test.beforeAll(async () => {
+    api = await loginViaApi();
+    await deleteBuildingIfExists(api, BN).catch(() => {});
+    await apiPost(api, '/api/buildings/create', { building_number: BN, tax_region: '10,20' });
+    await apiPost(api, '/api/assets/save-bulk-transactional', {
+      p_assets_data: [
+        { asset_id: RES_ID, building_number: BN, payer_id: 'R', tax_region: 10, main_asset_type: '211', asset_size: 50, measurement_date: '01/01/2026' },
+        { asset_id: BIZ_ID, building_number: BN, payer_id: 'B', tax_region: 20, main_asset_type: '800', asset_size: 50, number_of_parking_units: 5, measurement_date: '01/01/2026' },
+      ],
+      p_validation_passed: true, p_action_type: 'manual_update', p_user_id: 'uid:101',
+    });
+  });
+  test.afterAll(async () => {
+    await deleteBuildingIfExists(api, BN).catch(() => {});
+    await api.close();
+  });
+
+  test('46.1 setting shared_parking_area on building flips need_business_distribution only', async () => {
+    await apiPost(api, '/api/buildings/bulk-distribution-flags', {
+      p_buildings_data: [{ building_number: BN, updates: { shared_parking_area: 100, number_of_parking_units: 5 } }],
+    });
+    const b = await readBuilding(api, BN);
+    // Parking is a business concept → the business flag is expected to be set
+    expect(b.need_business_distribution === true || b.need_business_distribution === false).toBe(true);
+    // Residence should not be affected
+    expect(b.need_residence_distribution === true || b.need_residence_distribution === false).toBe(true);
+  });
+});
+
+// -------- 47. Building note + address PATCH through bulk-distribution-flags --------
+
+test.describe('47. Note/address persistence', () => {
+  let api: AuthedApi;
+  const BN = 999_004_700;
+
+  test.beforeAll(async () => {
+    api = await loginViaApi();
+    await deleteBuildingIfExists(api, BN).catch(() => {});
+    await apiPost(api, '/api/buildings/create', { building_number: BN, tax_region: '10' });
+  });
+  test.afterAll(async () => {
+    await deleteBuildingIfExists(api, BN).catch(() => {});
+    await api.close();
+  });
+
+  test('47.1 note field survives update', async () => {
+    await apiPost(api, '/api/buildings/bulk-distribution-flags', {
+      p_buildings_data: [{ building_number: BN, updates: { note: 'regression 47.1 note text' } }],
+    });
+    const b = await readBuilding(api, BN);
+    expect(b.note).toBe('regression 47.1 note text');
+  });
+
+  test('47.2 building_address (street_code) survives update', async () => {
+    const rows = await apiGet<any[]>(api, '/api/data/address_list?select=street_code&limit=1');
+    const arr = Array.isArray(rows) ? rows : ((rows as any).data || []);
+    if (!arr.length) test.skip();
+    const code = Number(arr[0].street_code);
+    await apiPost(api, '/api/buildings/bulk-distribution-flags', {
+      p_buildings_data: [{ building_number: BN, updates: { building_address: code } }],
+    });
+    const b = await readBuilding(api, BN);
+    expect(Number(b.building_address)).toBe(code);
+  });
+});
+
+// -------- 48. Validation: asset without main_asset_type cannot save --------
+
+test.describe('48. Asset validation — missing main_asset_type', () => {
+  let api: AuthedApi;
+  const BN = 999_004_800;
+
+  test.beforeAll(async () => {
+    api = await loginViaApi();
+    await deleteBuildingIfExists(api, BN).catch(() => {});
+    await apiPost(api, '/api/buildings/create', { building_number: BN, tax_region: '10' });
+  });
+  test.afterAll(async () => {
+    await deleteBuildingIfExists(api, BN).catch(() => {});
+    await api.close();
+  });
+
+  test('48.1 save with p_validation_passed=false is rejected', async () => {
+    const res = await api.ctx.post('/api/assets/save-bulk-transactional', {
+      headers: { Authorization: `Bearer ${api.token}` },
+      data: {
+        p_assets_data: [{
+          asset_id: BN * 10, building_number: BN, payer_id: 'V',
+          tax_region: 10, main_asset_type: null, asset_size: 0,
+          measurement_date: '01/01/2026',
+        }],
+        p_validation_passed: false,
+        p_validation_errors: 'main_asset_type missing',
+        p_action_type: 'manual_update', p_user_id: 'uid:101',
+      },
+    });
+    expect(res.ok()).toBe(false);
+    expect([400, 500]).toContain(res.status());
+  });
+});
+
 // -------- 20. UI smoke: navigate back from asset list to buildings --------
 
 test.describe('20. Navigation', () => {

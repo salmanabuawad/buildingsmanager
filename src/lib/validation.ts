@@ -2674,15 +2674,12 @@ export const buildingValidators = {
         errors.tax_region = taxRegionsByTypeResult.error || 'אזורי מס לא תקפים לפי סוג עסק';
       }
 
-      // Validate parking totals: sum(assets number_of_parking_units) = building.number_of_parking_units, sum(assets shared_parking_area) = building.shared_parking_area
-      const hasParkingData = (building.shared_parking_area != null && building.shared_parking_area !== '') ||
-        (building.number_of_parking_units != null && building.number_of_parking_units !== '');
-      if (hasParkingData) {
-        const parkingTotalsResult = await buildingValidators.validateParkingTotals(building.building_number, building);
-        if (!parkingTotalsResult.valid) {
-          errors.shared_parking_area = parkingTotalsResult.error || 'סכומי חניה בנכסים אינם תואמים למבנה';
-        }
-      }
+      // NOTE: parking-totals validation (sum of asset parking units / area
+      // must equal building values) was intentionally moved to AssetsList's
+      // runValidationProgrammatically — BuildingsList no longer checks it,
+      // so users can edit the building-level parking fields freely and the
+      // cross-check only fires in the context where the asset rows are
+      // actually visible and editable.
     }
 
     // Validate area_for_control (should be positive number if provided)

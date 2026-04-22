@@ -403,6 +403,11 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
   const isRefreshingAfterSaveRef = useRef<boolean>(false);
   // Set by distribution algorithm so save handler knows this is a distribution save even when all areas=0
   const pendingDistributionTypeRef = useRef<'business' | 'residence' | null>(null);
+  // Reactive mirror of the ref above. Drives the post-distribution lock on
+  // every cell: until the user explicitly Saves or Cancels, no other field
+  // may be edited. Set by handleDistribute*, cleared by handleCancelAll /
+  // successful save completion.
+  const [pendingDistribution, setPendingDistribution] = useState<'business' | 'residence' | null>(null);
   // Timestamp of last distribution save — refreshBuilding skips flag overwrite for 10s after
   const lastDistributionSaveAtRef = useRef<number>(0);
   // Track assets that were just saved to prevent re-marking them as dirty in fetchData
@@ -530,13 +535,18 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
   // non_accountable_for_total_area is a building-area accounting flag only
   // (used by update_building_total_area to exclude these assets from
   // total_building_area / net_area). It MUST NOT gate editability.
+  //
+  // After a distribution runs (handleDistribute*), pendingDistribution !== null
+  // until the user either saves or cancels — during that window every cell is
+  // locked so stray edits can't be silently mixed into the distribution save.
   const isFieldEditable = useCallback((params: any, _fieldName: string): boolean => {
     if (isReadOnly) return false;
+    if (pendingDistribution !== null) return false;
     if (!params || !params.data) return false;
     const asset = params.data as Asset;
     const assetId = String(asset.asset_id);
     return newAssets.has(assetId) || !!taxRegion;
-  }, [newAssets, taxRegion, isReadOnly]);
+  }, [newAssets, taxRegion, isReadOnly, pendingDistribution]);
 
   // Helper function to get area_description_for_tab from tax region number
   const getAreaDescriptionForTaxRegion = useCallback((taxRegionNum: string | number | null | undefined): string => {
@@ -3210,6 +3220,7 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
           const effectiveDistributionType = distributionType || hadDistributionType;
           if (effectiveDistribution && effectiveDistributionType && building) {
             pendingDistributionTypeRef.current = null;
+            setPendingDistribution(null);
             lastDistributionSaveAtRef.current = Date.now();
 
             // Clear flag in DB, then re-fetch building to get authoritative state from server
@@ -3703,6 +3714,9 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
     setDeletedAssets(new Set());
     setNewAssets(new Set());
     setValidationErrors(new Map());
+    // Unlock the grid — cancelling a pending distribution returns editability
+    pendingDistributionTypeRef.current = null;
+    setPendingDistribution(null);
 
     // Clear draft from localStorage
     localStorage.removeItem(draftKey);
@@ -4265,6 +4279,7 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
 
       // Update state without saving to database
       pendingDistributionTypeRef.current = 'residence';
+      setPendingDistribution('residence');
       setAssets(updatedAssets);
       setDirtyAssets(updatedDirtyAssets);
       setIsValidatedForSave(false);
@@ -4736,6 +4751,7 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
 
       // Update state without saving to database
       pendingDistributionTypeRef.current = 'business';
+      setPendingDistribution('business');
       setAssets(updatedAssets);
       setDirtyAssets(updatedDirtyAssets);
       setIsValidatedForSave(false);

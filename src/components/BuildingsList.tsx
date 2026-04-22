@@ -1030,7 +1030,31 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
     if (!field || !building) {
       return;
     }
-    
+
+    // Any cell edit invalidates the row's previous validation result —
+    // clear stale errors immediately and schedule a debounced re-check.
+    // We do this BEFORE any early returns so the toast/grid chip never
+    // "remembers" an old mismatch based on a value the user has moved past.
+    // Matches the AssetsList behavior that is working correctly.
+    setValidationErrors(prev => {
+      if (!prev.has(buildingKey)) return prev;
+      const next = new Map(prev);
+      next.delete(buildingKey);
+      return next;
+    });
+    if (typeof buildingKey === 'number') {
+      setInvalidTaxRegionBuildings(prev => {
+        if (!prev.has(buildingKey)) return prev;
+        const next = new Set(prev);
+        next.delete(buildingKey);
+        return next;
+      });
+    }
+    if (cellEditRecheckTimerRef.current) clearTimeout(cellEditRecheckTimerRef.current);
+    cellEditRecheckTimerRef.current = setTimeout(() => {
+      runValidationProgrammatically().catch(() => {});
+    }, 150);
+
     const cellKey = `${buildingKey}_${field}`;
     
     // CRITICAL: Only process if user actually interacted AND value changed
@@ -1162,22 +1186,16 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
     const normalizedNewValue = normalizeForCompare(newValue);
     
     // Value equals the original DB value — the edit has CANCELLED any
-    // prior dirty change on this field. We still need to flush state/dirty
-    // back to the original (otherwise a previously-entered wrong value
-    // lingers in React state and the next validation reads it), then we
-    // clear the edit-tracking refs and fall through to the normal path so
-    // validation re-runs with the freshly-reset state.
+    // prior dirty change on this field. Flush state + dirty back to the
+    // original so no previously-entered wrong value lingers in React state.
+    // (Errors + re-validation were already cleared at the top of the fn.)
     if (!isNew && normalizedOriginalValue === normalizedNewValue) {
-      // Reset the cell value on the state-level building to the original
-      setBuildings(prevBuildings => prevBuildings.map(b => {
-        const bKey = getBuildingKey(b);
-        return bKey === buildingKey ? { ...b, [field]: originalDataValue } : b;
-      }));
-      setFilteredBuildings(prevBuildings => prevBuildings.map(b => {
-        const bKey = getBuildingKey(b);
-        return bKey === buildingKey ? { ...b, [field]: originalDataValue } : b;
-      }));
-      // Remove this field from the dirty map (and drop the row entirely if empty)
+      setBuildings(prevBuildings => prevBuildings.map(b =>
+        getBuildingKey(b) === buildingKey ? { ...b, [field]: originalDataValue } : b,
+      ));
+      setFilteredBuildings(prevBuildings => prevBuildings.map(b =>
+        getBuildingKey(b) === buildingKey ? { ...b, [field]: originalDataValue } : b,
+      ));
       setDirtyBuildings(prev => {
         if (!prev.has(buildingKey)) return prev;
         const next = new Map(prev);
@@ -1187,20 +1205,9 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
         else next.set(buildingKey, current as any);
         return next;
       });
-      // Clear stale validation errors on this row and re-run (debounced)
-      setValidationErrors(prev => {
-        if (!prev.has(buildingKey)) return prev;
-        const next = new Map(prev);
-        next.delete(buildingKey);
-        return next;
-      });
-      if (cellEditRecheckTimerRef.current) clearTimeout(cellEditRecheckTimerRef.current);
-      cellEditRecheckTimerRef.current = setTimeout(() => {
-        runValidationProgrammatically().catch(() => {});
-      }, 150);
       cellEditStartValues.current.delete(cellKey);
       cellEditUserInteracted.current.delete(cellKey);
-      return; // state cleanly reset, nothing else to do
+      return;
     }
     
     // Check edit start value if available (MOST RELIABLE - compares with value when editing started)
@@ -1574,33 +1581,17 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
       }
     }
 
-    // Clear any existing validation errors for this row — a fresh edit
-    // invalidates the previous validation result, and re-running validation
-    // (below) will repopulate them if the new value still fails.
-    setValidationErrors(prev => {
-      if (!prev.has(newBuildingKey)) return prev;
-      const next = new Map(prev);
-      next.delete(newBuildingKey);
-      return next;
-    });
-    setInvalidTaxRegionBuildings(prev => {
-      // Only clear for this specific row's building_number (existing rows)
-      const bn = typeof newBuildingKey === 'number' ? newBuildingKey : undefined;
-      if (bn === undefined || !prev.has(bn)) return prev;
-      const next = new Set(prev);
-      next.delete(bn);
-      return next;
-    });
-
-    // Re-run validation after every cell edit — user asked for errors to
-    // re-check as they type, not only on save. Debounce by 150ms so rapid
-    // keystrokes don't spam the parking API fetch.
-    if (cellEditRecheckTimerRef.current) {
-      clearTimeout(cellEditRecheckTimerRef.current);
+    // Also clear under the post-rename key for new buildings whose
+    // building_number was just assigned (the top-of-function clear used
+    // the pre-rename buildingKey). Idempotent for existing rows.
+    if (newBuildingKey !== buildingKey) {
+      setValidationErrors(prev => {
+        if (!prev.has(newBuildingKey)) return prev;
+        const next = new Map(prev);
+        next.delete(newBuildingKey);
+        return next;
+      });
     }
-    cellEditRecheckTimerRef.current = setTimeout(() => {
-      runValidationProgrammatically().catch(() => {});
-    }, 150);
 
     // Refresh grid to show dirty state and validation errors
     if (gridRef.current?.api) {

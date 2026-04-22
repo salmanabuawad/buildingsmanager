@@ -17,7 +17,15 @@ param(
   [string]$User     = "regression_tester",
   [string]$Password = "RegressionTester2026!",
   [string]$Grep     = $null,
-  [switch]$Headed
+  [switch]$Headed,
+  # When -Headed, use the system-installed browser instead of the bundled
+  # playwright chromium. Works around SxS failures on Windows laptops.
+  [string]$Channel  = "chrome",
+  # Per-action delay (ms) in headed mode so a human can follow along.
+  # Default 2000ms. Set to 0 to disable.
+  [int]$SlowMo      = 2000,
+  # Workers. Default 1 in headed (readable), 2 in headless (fast).
+  [int]$Workers     = 0
 )
 
 Set-Location (Split-Path -Parent $PSScriptRoot)
@@ -38,8 +46,22 @@ $env:TEST_PASSWORD  = $Password
 $env:HEADLESS       = if ($Headed) { 'false' } else { 'true' }
 $env:CI             = '1'
 
-$argv = @('playwright', 'test', '--project=pstaging', '--reporter=list', '--workers=2')
-if ($Grep) { $argv += @('--grep', $Grep) }
+if ($Headed) {
+  # System Chrome/Edge side-steps the Windows SxS failure some laptops
+  # hit when launching the bundled playwright chromium.exe.
+  $env:PW_CHANNEL    = $Channel
+  $env:PW_SLOWMO_MS  = "$SlowMo"
+}
+
+# Default: 1 worker in headed (one window to watch), 2 in headless.
+if ($Workers -le 0) {
+  $Workers = if ($Headed) { 1 } else { 2 }
+}
+
+$argv = @('playwright', 'test', '--project=pstaging', '--reporter=list', "--workers=$Workers")
+# Retries at CI level (2) are painful under headed+slowMo; drop them.
+if ($Headed) { $argv += @('--retries=0') }
+if ($Grep)   { $argv += @('--grep', $Grep) }
 
 Write-Host ("`nRunning regression against {0}" -f $BaseUrl)
 Write-Host ("User: {0}`n" -f $User)

@@ -6,7 +6,13 @@ import { defineConfig, devices } from '@playwright/test';
  */
 export default defineConfig({
   testDir: './tests/e2e',
-  
+
+  /* Give tests extra headroom when running with slowMo in headed mode.
+   * Every Playwright action is delayed by PW_SLOWMO_MS (default 2000ms
+   * when HEADLESS=false), so a test with 10 UI steps picks up ~20s of
+   * pure delay. Raise the per-test budget to 3 min when headed. */
+  timeout: process.env.HEADLESS === 'false' ? 180_000 : 30_000,
+
   /* Run tests in files in parallel */
   fullyParallel: true,
   
@@ -47,7 +53,11 @@ export default defineConfig({
       use: {
         ...devices['Desktop Chrome'],
         launchOptions: {
-          headless: process.env.HEADLESS === 'true' || !!process.env.CI,
+          // HEADLESS=false explicitly wins (even under CI) so headed local
+          // runs are observable. If HEADLESS is unset, default to CI-state.
+          headless: process.env.HEADLESS !== undefined
+            ? process.env.HEADLESS !== 'false'
+            : !!process.env.CI,
           args: ['--disable-extensions'],
         },
       },
@@ -65,8 +75,29 @@ export default defineConfig({
       use: {
         ...devices['Desktop Chrome'],
         baseURL: 'https://pstaging.wavelync.com/',
+        // When PW_CHANNEL is set (e.g. 'chrome' or 'msedge'), use the
+        // system-installed browser instead of Playwright's bundled
+        // chromium. Useful on Windows laptops whose SxS runtime can't
+        // launch the bundled build; headed runs just work against the
+        // user's real Chrome/Edge.
+        channel: process.env.PW_CHANNEL || undefined,
+        // Bump action timeout to accommodate slowMo so asserts don't race
+        // the slowed-down click/fill.
+        actionTimeout: process.env.HEADLESS === 'false' ? 30_000 : 10_000,
+        navigationTimeout: process.env.HEADLESS === 'false' ? 60_000 : 30_000,
         launchOptions: {
-          headless: process.env.HEADLESS === 'true' || !!process.env.CI,
+          // HEADLESS=false explicitly wins (even under CI) so headed local
+          // runs against pstaging are observable. If HEADLESS is unset,
+          // default to CI-state.
+          headless: process.env.HEADLESS !== undefined
+            ? process.env.HEADLESS !== 'false'
+            : !!process.env.CI,
+          // In headed mode, pause between each Playwright action so a
+          // human can follow the browser. Override with PW_SLOWMO_MS.
+          // Default 2000ms per step when headed, 0 otherwise.
+          slowMo: process.env.HEADLESS === 'false'
+            ? Number(process.env.PW_SLOWMO_MS ?? 2000)
+            : 0,
           args: ['--disable-extensions'],
         },
       },

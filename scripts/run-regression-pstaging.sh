@@ -19,10 +19,16 @@ cd "$(dirname "$0")/.."
 # parse flags
 HEADLESS="true"
 GREP_ARG=""
+CHANNEL_ARG=""
+SLOWMO_MS="2000"
+WORKERS=""
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --headed) HEADLESS="false"; shift ;;
     --grep) GREP_ARG="$2"; shift 2 ;;
+    --channel) CHANNEL_ARG="$2"; shift 2 ;;
+    --slowmo) SLOWMO_MS="$2"; shift 2 ;;
+    --workers) WORKERS="$2"; shift 2 ;;
     *) echo "unknown arg: $1"; exit 2 ;;
   esac
 done
@@ -41,16 +47,27 @@ export TEST_BASE_URL TEST_USER_NAME TEST_PASSWORD
 export HEADLESS="$HEADLESS"
 export CI=1
 
+if [ "$HEADLESS" = "false" ]; then
+  # System Chrome/Edge side-steps SxS failures on some Windows laptops.
+  export PW_CHANNEL="${CHANNEL_ARG:-chrome}"
+  export PW_SLOWMO_MS="$SLOWMO_MS"
+fi
+
+# Default: 1 worker headed (one window to watch), 2 worker headless.
+if [ -z "$WORKERS" ]; then
+  if [ "$HEADLESS" = "false" ]; then WORKERS=1; else WORKERS=2; fi
+fi
+
+EXTRA=""
+if [ "$HEADLESS" = "false" ]; then EXTRA="$EXTRA --retries=0"; fi
+if [ -n "$GREP_ARG" ]; then EXTRA="$EXTRA --grep $GREP_ARG"; fi
+
 echo ""
 echo "Running regression against $TEST_BASE_URL"
 echo "User: $TEST_USER_NAME"
 echo ""
 
-if [ -n "$GREP_ARG" ]; then
-  npx playwright test --project=pstaging --reporter=list --workers=2 --grep "$GREP_ARG"
-else
-  npx playwright test --project=pstaging --reporter=list --workers=2
-fi
+npx playwright test --project=pstaging --reporter=list --workers=$WORKERS $EXTRA
 rc=$?
 
 echo ""

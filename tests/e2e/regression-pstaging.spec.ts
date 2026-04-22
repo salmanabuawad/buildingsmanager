@@ -1527,7 +1527,7 @@ test.describe('31. Operators CRUD', () => {
   test.beforeAll(async () => { api = await loginViaApi(); });
   test.afterAll(async () => {
     if (opId != null) {
-      await api.ctx.delete(`/api/operators-managers/operators/${opId}`, {
+      await api.ctx.delete(`/api/operators/${opId}`, {
         headers: { Authorization: `Bearer ${api.token}` },
       }).catch(() => {});
     }
@@ -1535,7 +1535,7 @@ test.describe('31. Operators CRUD', () => {
   });
 
   test('31.1 create operator', async () => {
-    const res = await api.ctx.post('/api/operators-managers/operators', {
+    const res = await api.ctx.post('/api/operators', {
       headers: { Authorization: `Bearer ${api.token}` },
       data: { name: OP_NAME, mail: `${OP_NAME}@test.local`, phone: '0500000000' },
     });
@@ -1548,7 +1548,7 @@ test.describe('31. Operators CRUD', () => {
 
   test('31.2 update operator', async () => {
     if (opId == null) test.skip();
-    const res = await api.ctx.patch(`/api/operators-managers/operators/${opId}`, {
+    const res = await api.ctx.patch(`/api/operators/${opId}`, {
       headers: { Authorization: `Bearer ${api.token}` },
       data: { name: `${OP_NAME}_upd` },
     });
@@ -1557,7 +1557,7 @@ test.describe('31. Operators CRUD', () => {
 
   test('31.3 delete operator', async () => {
     if (opId == null) test.skip();
-    const res = await api.ctx.delete(`/api/operators-managers/operators/${opId}`, {
+    const res = await api.ctx.delete(`/api/operators/${opId}`, {
       headers: { Authorization: `Bearer ${api.token}` },
     });
     expect([200, 204]).toContain(res.status());
@@ -1575,7 +1575,7 @@ test.describe('32. Managers CRUD', () => {
   test.beforeAll(async () => { api = await loginViaApi(); });
   test.afterAll(async () => {
     if (mgrId != null) {
-      await api.ctx.delete(`/api/operators-managers/managers/${mgrId}`, {
+      await api.ctx.delete(`/api/managers/${mgrId}`, {
         headers: { Authorization: `Bearer ${api.token}` },
       }).catch(() => {});
     }
@@ -1583,7 +1583,7 @@ test.describe('32. Managers CRUD', () => {
   });
 
   test('32.1 create manager', async () => {
-    const res = await api.ctx.post('/api/operators-managers/managers', {
+    const res = await api.ctx.post('/api/managers', {
       headers: { Authorization: `Bearer ${api.token}` },
       data: { name: MGR_NAME, mail: `${MGR_NAME}@test.local`, phone: '0500000000', tax_region: 10 },
     });
@@ -1595,7 +1595,7 @@ test.describe('32. Managers CRUD', () => {
 
   test('32.2 update manager', async () => {
     if (mgrId == null) test.skip();
-    const res = await api.ctx.patch(`/api/operators-managers/managers/${mgrId}`, {
+    const res = await api.ctx.patch(`/api/managers/${mgrId}`, {
       headers: { Authorization: `Bearer ${api.token}` },
       data: { name: `${MGR_NAME}_upd` },
     });
@@ -1604,7 +1604,7 @@ test.describe('32. Managers CRUD', () => {
 
   test('32.3 delete manager', async () => {
     if (mgrId == null) test.skip();
-    const res = await api.ctx.delete(`/api/operators-managers/managers/${mgrId}`, {
+    const res = await api.ctx.delete(`/api/managers/${mgrId}`, {
       headers: { Authorization: `Bearer ${api.token}` },
     });
     expect([200, 204]).toContain(res.status());

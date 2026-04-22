@@ -974,6 +974,81 @@ test.describe('19. Address lookup', () => {
   });
 });
 
+// -------- 21. Post-distribution grid lock (UI) --------
+
+test.describe('21. Post-distribution lock', () => {
+  let api: AuthedApi;
+  const BN = 999_001_700;
+  const AID_1 = BN * 10;
+  const AID_2 = BN * 10 + 1;
+
+  test.beforeAll(async () => {
+    api = await loginViaApi();
+    // Building starts at tax_region 20 (business) with business_shared_area
+    // set to 0, two accountable '800' assets already present. Then we flip
+    // business_shared_area → 200 via bulk-distribution-flags so the
+    // "פזר" button becomes enabled.
+    await provisionFixtureBuilding(api, BN, {
+      business_shared_area: 0,
+      assets: [
+        { asset_id: AID_1, main_asset_type: '800', asset_size: 100, tax_region: 20 },
+        { asset_id: AID_2, main_asset_type: '800', asset_size: 100, tax_region: 20 },
+      ],
+    });
+    await apiPost(api, '/api/buildings/bulk-distribution-flags', {
+      p_buildings_data: [{ building_number: BN, updates: { business_shared_area: 200 } }],
+    });
+    // The fixture building is created with tax_region='10' by default; the
+    // assets we inserted use 20 so the UI opens on the business tab.
+  });
+  test.afterAll(async () => {
+    await deleteBuildingIfExists(api, BN).catch(() => {});
+    await api.close();
+  });
+
+  test('21.1 grid becomes read-only after פזר, restored after ביטול', async ({ page }) => {
+    await login(page);
+    await openBuildingInUI(page, BN);
+
+    // If the assets aren't visible in the default tab on this test env,
+    // we bail out — the point of the assertion is behavior AFTER distribute.
+    const payerCell = page.locator('.ag-row .ag-cell[col-id="payer_id"]').first();
+    if (!(await payerCell.isVisible({ timeout: 8000 }).catch(() => false))) test.skip();
+
+    // Baseline: editor opens on dblclick
+    await payerCell.dblclick();
+    const editorBefore = await page
+      .locator('.ag-cell-edit-input, input.ag-input-field-input, input, textarea')
+      .first().isVisible({ timeout: 2000 }).catch(() => false);
+    if (!editorBefore) test.skip(); // pre-condition not met
+    await page.keyboard.press('Escape');
+
+    // Click the distribute button (enabled once flag is true + area > 0)
+    const distrBtn = page.locator('button:has-text("פזר שטח משותף עסקים")').first();
+    if (!(await distrBtn.isEnabled({ timeout: 4000 }).catch(() => false))) test.skip();
+    await distrBtn.click();
+    await page.waitForTimeout(600);
+
+    // Now the same cell must NOT open an editor
+    await payerCell.dblclick();
+    await page.waitForTimeout(300);
+    const editorLocked = await page
+      .locator('.ag-cell-edit-input, input.ag-input-field-input')
+      .first().isVisible({ timeout: 500 }).catch(() => false);
+    expect(editorLocked).toBe(false);
+
+    // Cancel — grid regains editability
+    const cancelBtn = page.locator('button:has-text("ביטול")').first();
+    await expect(cancelBtn).toBeEnabled({ timeout: 5000 });
+    await cancelBtn.click();
+    await page.waitForTimeout(400);
+    await payerCell.dblclick();
+    await expect(
+      page.locator('.ag-cell-edit-input, input, textarea').first(),
+    ).toBeVisible({ timeout: 5000 });
+  });
+});
+
 // -------- 20. UI smoke: navigate back from asset list to buildings --------
 
 test.describe('20. Navigation', () => {

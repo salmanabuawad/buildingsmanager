@@ -1,5 +1,5 @@
 from pydantic import BaseModel
-from typing import Optional, List
+from typing import Any, Optional, List
 from datetime import datetime
 from decimal import Decimal
 
@@ -315,8 +315,11 @@ class AuditLogResponse(BaseModel):
     entity_type: str
     entity_id: Optional[str] = None
     action_type: str
-    before_data: Optional[str] = None
-    after_data: Optional[str] = None
+    # before_data / after_data are jsonb columns; SQLAlchemy returns them as
+    # dict | list | None. Declaring them as Optional[str] broke the response
+    # serializer whenever a real row came back (every time, in practice).
+    before_data: Optional[Any] = None
+    after_data: Optional[Any] = None
     description: Optional[str] = None
     tax_region: Optional[str] = None
     created_at: Optional[datetime] = None

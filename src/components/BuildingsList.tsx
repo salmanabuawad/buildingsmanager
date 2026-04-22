@@ -1161,12 +1161,46 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
     const normalizedOriginalValue = normalizeForCompare(originalDataValue);
     const normalizedNewValue = normalizeForCompare(newValue);
     
-    // Check if value changed from original data value (most reliable check)
+    // Value equals the original DB value — the edit has CANCELLED any
+    // prior dirty change on this field. We still need to flush state/dirty
+    // back to the original (otherwise a previously-entered wrong value
+    // lingers in React state and the next validation reads it), then we
+    // clear the edit-tracking refs and fall through to the normal path so
+    // validation re-runs with the freshly-reset state.
     if (!isNew && normalizedOriginalValue === normalizedNewValue) {
-      // Clean up any tracking
+      // Reset the cell value on the state-level building to the original
+      setBuildings(prevBuildings => prevBuildings.map(b => {
+        const bKey = getBuildingKey(b);
+        return bKey === buildingKey ? { ...b, [field]: originalDataValue } : b;
+      }));
+      setFilteredBuildings(prevBuildings => prevBuildings.map(b => {
+        const bKey = getBuildingKey(b);
+        return bKey === buildingKey ? { ...b, [field]: originalDataValue } : b;
+      }));
+      // Remove this field from the dirty map (and drop the row entirely if empty)
+      setDirtyBuildings(prev => {
+        if (!prev.has(buildingKey)) return prev;
+        const next = new Map(prev);
+        const current = { ...(next.get(buildingKey) || {}) } as Record<string, unknown>;
+        delete current[field];
+        if (Object.keys(current).length === 0) next.delete(buildingKey);
+        else next.set(buildingKey, current as any);
+        return next;
+      });
+      // Clear stale validation errors on this row and re-run (debounced)
+      setValidationErrors(prev => {
+        if (!prev.has(buildingKey)) return prev;
+        const next = new Map(prev);
+        next.delete(buildingKey);
+        return next;
+      });
+      if (cellEditRecheckTimerRef.current) clearTimeout(cellEditRecheckTimerRef.current);
+      cellEditRecheckTimerRef.current = setTimeout(() => {
+        runValidationProgrammatically().catch(() => {});
+      }, 150);
       cellEditStartValues.current.delete(cellKey);
       cellEditUserInteracted.current.delete(cellKey);
-      return; // EARLY RETURN - don't mark dirty, don't update state
+      return; // state cleanly reset, nothing else to do
     }
     
     // Check edit start value if available (MOST RELIABLE - compares with value when editing started)

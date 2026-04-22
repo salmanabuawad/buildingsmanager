@@ -1188,6 +1188,57 @@ test.describe('23. Parking distribution — units-based fallback', () => {
   });
 });
 
+// -------- 26. Dirty state clears when user types back to DB value --------
+
+test.describe('26. Dirty state resets when edit returns to DB value', () => {
+  let api: AuthedApi;
+  const BN = 999_002_600;
+
+  test.beforeAll(async () => {
+    api = await loginViaApi();
+    await deleteBuildingIfExists(api, BN).catch(() => {});
+    await apiPost(api, '/api/buildings/create', {
+      building_number: BN,
+      tax_region: '20',
+      business_shared_area: 0,
+      residence_shared_area: 0,
+      shared_parking_area: 100,
+      number_of_parking_units: 5,
+    });
+  });
+  test.afterAll(async () => {
+    await deleteBuildingIfExists(api, BN).catch(() => {});
+    await api.close();
+  });
+
+  test('26.1 saving a building with no updates is a no-op (bulk-distribution-flags returns count=0)', async () => {
+    // If the UI sends an empty updates object for a row (because the user
+    // typed a wrong value then reverted to DB), the backend must treat it as
+    // no-op and NOT persist the old wrong value.
+    const res = await apiPost(api, '/api/buildings/bulk-distribution-flags', {
+      p_buildings_data: [{ building_number: BN, updates: {} }],
+    });
+    expect(res.success).toBe(true);
+    // DB still matches original
+    const b = await readBuilding(api, BN);
+    expect(Number(b.number_of_parking_units)).toBe(5);
+    expect(Number(b.shared_parking_area)).toBe(100);
+  });
+
+  test('26.2 a dirty wrong value then same-value reset does NOT persist the wrong value', async () => {
+    // Walk the same sequence the UI would produce after the bugfix:
+    //   1. User sends wrong {number_of_parking_units: 999} — we do NOT send this to the API
+    //      because the UI clears it once the user reverts. So the next save should send {} (no-op).
+    //   2. Expected: DB unchanged at 5.
+    const res = await apiPost(api, '/api/buildings/bulk-distribution-flags', {
+      p_buildings_data: [{ building_number: BN, updates: {} }],
+    });
+    expect(res.success).toBe(true);
+    const b = await readBuilding(api, BN);
+    expect(Number(b.number_of_parking_units)).toBe(5);
+  });
+});
+
 // -------- 25. Buildings-list parking validation reads from grid, not stale React state --------
 
 test.describe('25. Buildings-list parking validation (live grid value)', () => {

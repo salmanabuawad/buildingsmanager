@@ -1399,6 +1399,401 @@ test.describe('24. Assets-list parking-sum validation', () => {
   });
 });
 
+// -------- 28. Auth: /me + logout round-trip --------
+
+test.describe('28. Auth session', () => {
+  let api: AuthedApi;
+  test.beforeAll(async () => { api = await loginViaApi(); });
+  test.afterAll(async () => { await api.close(); });
+
+  test('28.1 /api/auth/me returns the current user', async () => {
+    const res = await api.ctx.get('/api/auth/me', {
+      headers: { Authorization: `Bearer ${api.token}` },
+    });
+    expect(res.ok()).toBe(true);
+    const me = await res.json() as { user_name: string; user_role: string };
+    expect(me.user_name).toBe(process.env.TEST_USER_NAME || 'regression_tester');
+    expect(['admin', 'user', 'inspector']).toContain(me.user_role);
+  });
+
+  test('28.2 protected route rejects malformed bearer token', async () => {
+    const res = await api.ctx.get('/api/data/buildings?select=*&limit=1', {
+      headers: { Authorization: 'Bearer this.is.not.a.real.jwt' },
+    });
+    expect([401, 403]).toContain(res.status());
+  });
+});
+
+// -------- 29. Residence distribution parallel to business --------
+
+test.describe('29. Residence distribution', () => {
+  let api: AuthedApi;
+  const BN = 999_002_900;
+  const AID = BN * 10;
+
+  test.beforeAll(async () => {
+    api = await loginViaApi();
+    await deleteBuildingIfExists(api, BN).catch(() => {});
+    await apiPost(api, '/api/buildings/create', {
+      building_number: BN, tax_region: '10',
+      business_shared_area: 0, residence_shared_area: 0,
+    });
+    await apiPost(api, '/api/assets/save-bulk-transactional', {
+      p_assets_data: [{
+        asset_id: AID, building_number: BN, payer_id: 'RES',
+        tax_region: 10, main_asset_type: '211', asset_size: 100,
+        measurement_date: '01/01/2026',
+      }],
+      p_validation_passed: true, p_action_type: 'manual_update', p_user_id: 'uid:101',
+    });
+  });
+  test.afterAll(async () => {
+    await deleteBuildingIfExists(api, BN).catch(() => {});
+    await api.close();
+  });
+
+  test('29.1 setting residence_shared_area flips need_residence_distribution', async () => {
+    await apiPost(api, '/api/buildings/bulk-distribution-flags', {
+      p_buildings_data: [{ building_number: BN, updates: { residence_shared_area: 500 } }],
+    });
+    const b = await readBuilding(api, BN);
+    expect(b.need_residence_distribution).toBe(true);
+  });
+
+  test('29.2 residence_distribution action clears flag and writes bulk_asset audit', async () => {
+    await apiPost(api, '/api/assets/save-bulk-transactional', {
+      p_assets_data: [{
+        asset_id: AID, building_number: BN, payer_id: 'RES',
+        tax_region: 10, main_asset_type: '211', asset_size: 100,
+        business_distribution_area: 50, measurement_date: '01/01/2026',
+      }],
+      p_validation_passed: true, p_action_type: 'residence_distribution', p_user_id: 'uid:101',
+    });
+    const b = await readBuilding(api, BN);
+    expect(b.need_residence_distribution).toBe(false);
+    const audit: any = await apiGet(api, `/api/data/audit?entity_type=bulk_asset&entity_id=${BN}&action_type=residence_distribution&select=*&limit=5`);
+    const rows = Array.isArray(audit) ? audit : (audit.data || []);
+    expect(rows.length).toBeGreaterThanOrEqual(1);
+  });
+});
+
+// -------- 30. Asset-types CRUD --------
+
+test.describe('30. Asset types CRUD', () => {
+  let api: AuthedApi;
+  let createdTypeId: number | null = null;
+  const TYPE_NAME = `regr_${Date.now().toString().slice(-6)}`; // short unique
+
+  test.beforeAll(async () => { api = await loginViaApi(); });
+  test.afterAll(async () => {
+    if (createdTypeId != null) {
+      await api.ctx.delete(`/api/data/asset_types?id=${createdTypeId}`, {
+        headers: { Authorization: `Bearer ${api.token}` },
+      }).catch(() => {});
+    }
+    await api.close();
+  });
+
+  test('30.1 create a new asset type', async () => {
+    const created = await apiPost<any>(api, '/api/asset-types/', {
+      name: TYPE_NAME, description: 'regression fixture', tax_region: 99,
+      elevator: false, single_double_family: false, penthouse: false,
+      condo: false, townhouses: false,
+      business_residence: 'עסקים',
+      non_accountable_for_total_area: false,
+      non_accountable_for_distribution: false,
+      not_accountable_for_statistics: false,
+      active: true, can_be_subtype: true, min_sub_types_number: 0,
+    });
+    expect(created.name).toBe(TYPE_NAME);
+    expect(created.id).toBeGreaterThan(0);
+    createdTypeId = created.id;
+  });
+
+  test('30.2 GET by id returns it', async () => {
+    if (createdTypeId == null) test.skip();
+    const got = await apiGet<any>(api, `/api/asset-types/${createdTypeId}`);
+    expect(got.name).toBe(TYPE_NAME);
+  });
+});
+
+// -------- 31. Operators CRUD --------
+
+test.describe('31. Operators CRUD', () => {
+  let api: AuthedApi;
+  let opId: number | null = null;
+  const OP_NAME = `regr_op_${Date.now().toString().slice(-6)}`;
+
+  test.beforeAll(async () => { api = await loginViaApi(); });
+  test.afterAll(async () => {
+    if (opId != null) {
+      await api.ctx.delete(`/api/operators-managers/operators/${opId}`, {
+        headers: { Authorization: `Bearer ${api.token}` },
+      }).catch(() => {});
+    }
+    await api.close();
+  });
+
+  test('31.1 create operator', async () => {
+    const res = await api.ctx.post('/api/operators-managers/operators', {
+      headers: { Authorization: `Bearer ${api.token}` },
+      data: { name: OP_NAME, mail: `${OP_NAME}@test.local`, phone: '0500000000' },
+    });
+    expect(res.ok()).toBe(true);
+    const body = await res.json() as any;
+    expect(body.name).toBe(OP_NAME);
+    opId = body.operator_id ?? body.id;
+    expect(opId).toBeTruthy();
+  });
+
+  test('31.2 update operator', async () => {
+    if (opId == null) test.skip();
+    const res = await api.ctx.patch(`/api/operators-managers/operators/${opId}`, {
+      headers: { Authorization: `Bearer ${api.token}` },
+      data: { name: `${OP_NAME}_upd` },
+    });
+    expect(res.ok()).toBe(true);
+  });
+
+  test('31.3 delete operator', async () => {
+    if (opId == null) test.skip();
+    const res = await api.ctx.delete(`/api/operators-managers/operators/${opId}`, {
+      headers: { Authorization: `Bearer ${api.token}` },
+    });
+    expect([200, 204]).toContain(res.status());
+    opId = null;
+  });
+});
+
+// -------- 32. Managers CRUD --------
+
+test.describe('32. Managers CRUD', () => {
+  let api: AuthedApi;
+  let mgrId: number | null = null;
+  const MGR_NAME = `regr_mgr_${Date.now().toString().slice(-6)}`;
+
+  test.beforeAll(async () => { api = await loginViaApi(); });
+  test.afterAll(async () => {
+    if (mgrId != null) {
+      await api.ctx.delete(`/api/operators-managers/managers/${mgrId}`, {
+        headers: { Authorization: `Bearer ${api.token}` },
+      }).catch(() => {});
+    }
+    await api.close();
+  });
+
+  test('32.1 create manager', async () => {
+    const res = await api.ctx.post('/api/operators-managers/managers', {
+      headers: { Authorization: `Bearer ${api.token}` },
+      data: { name: MGR_NAME, mail: `${MGR_NAME}@test.local`, phone: '0500000000', tax_region: 10 },
+    });
+    expect(res.ok()).toBe(true);
+    const body = await res.json() as any;
+    expect(body.name).toBe(MGR_NAME);
+    mgrId = body.manager_id ?? body.id;
+  });
+
+  test('32.2 update manager', async () => {
+    if (mgrId == null) test.skip();
+    const res = await api.ctx.patch(`/api/operators-managers/managers/${mgrId}`, {
+      headers: { Authorization: `Bearer ${api.token}` },
+      data: { name: `${MGR_NAME}_upd` },
+    });
+    expect(res.ok()).toBe(true);
+  });
+
+  test('32.3 delete manager', async () => {
+    if (mgrId == null) test.skip();
+    const res = await api.ctx.delete(`/api/operators-managers/managers/${mgrId}`, {
+      headers: { Authorization: `Bearer ${api.token}` },
+    });
+    expect([200, 204]).toContain(res.status());
+    mgrId = null;
+  });
+});
+
+// -------- 33. Export-to-automation reset path --------
+
+test.describe('33. Export-to-automation reset', () => {
+  let api: AuthedApi;
+  const BN = 999_003_300;
+  const AID = BN * 10;
+
+  test.beforeAll(async () => {
+    api = await loginViaApi();
+    await deleteBuildingIfExists(api, BN).catch(() => {});
+    await apiPost(api, '/api/buildings/create', { building_number: BN, tax_region: '20' });
+    await apiPost(api, '/api/assets/save-bulk-transactional', {
+      p_assets_data: [{
+        asset_id: AID, building_number: BN, payer_id: 'RST',
+        tax_region: 20, main_asset_type: '800', asset_size: 50,
+        measurement_date: '01/01/2026',
+      }],
+      p_validation_passed: true, p_action_type: 'manual_update', p_user_id: 'uid:101',
+    });
+    await apiPost(api, '/api/assets/mark-exported-by-ids', { asset_ids: [AID] });
+  });
+  test.afterAll(async () => {
+    await deleteBuildingIfExists(api, BN).catch(() => {});
+    await api.close();
+  });
+
+  test('33.1 reset-export-to-automation unmarks the latest exports', async () => {
+    const before = await apiGet<any[]>(api, `/api/data/assets?asset_id=${AID}&select=exported_to_automation&limit=1`);
+    const arrBefore = Array.isArray(before) ? before : ((before as any).data || []);
+    expect(arrBefore[0]?.exported_to_automation).toBe(true);
+
+    const resetRes = await apiPost<any>(api, '/api/assets/reset-export-to-automation', {});
+    expect(resetRes.success).toBe(true);
+    expect(Number(resetRes.count)).toBeGreaterThan(0);
+
+    const after = await apiGet<any[]>(api, `/api/data/assets?asset_id=${AID}&select=exported_to_automation&limit=1`);
+    const arrAfter = Array.isArray(after) ? after : ((after as any).data || []);
+    expect(arrAfter[0]?.exported_to_automation).toBe(false);
+  });
+});
+
+// -------- 34. Asset PUT / DELETE ORM endpoints --------
+
+test.describe('34. Asset ORM endpoints', () => {
+  let api: AuthedApi;
+  const BN = 999_003_400;
+  const AID = BN * 10;
+
+  test.beforeAll(async () => {
+    api = await loginViaApi();
+    await deleteBuildingIfExists(api, BN).catch(() => {});
+    await apiPost(api, '/api/buildings/create', { building_number: BN, tax_region: '10' });
+    await apiPost(api, '/api/assets/save-bulk-transactional', {
+      p_assets_data: [{
+        asset_id: AID, building_number: BN, payer_id: 'PORM',
+        tax_region: 10, main_asset_type: '211', asset_size: 30,
+        measurement_date: '01/01/2026',
+      }],
+      p_validation_passed: true, p_action_type: 'manual_update', p_user_id: 'uid:101',
+    });
+  });
+  test.afterAll(async () => {
+    await deleteBuildingIfExists(api, BN).catch(() => {});
+    await api.close();
+  });
+
+  test('34.1 PUT /api/assets/{id} updates the asset', async () => {
+    const res = await api.ctx.put(`/api/assets/${AID}`, {
+      headers: { Authorization: `Bearer ${api.token}` },
+      data: {
+        building_number: BN, payer_id: 'PORM2',
+        tax_region: 10, main_asset_type: '211', asset_size: 77,
+        measurement_date: '01/01/2026',
+      },
+    });
+    expect(res.ok()).toBe(true);
+    const body = await res.json() as any;
+    expect(Number(body.asset_size)).toBe(77);
+    expect(body.payer_id).toBe('PORM2');
+  });
+
+  test('34.2 DELETE /api/assets/{id} returns 204 and removes the row', async () => {
+    const delRes = await api.ctx.delete(`/api/assets/${AID}`, {
+      headers: { Authorization: `Bearer ${api.token}` },
+    });
+    expect([200, 204]).toContain(delRes.status());
+    const after = await apiGet<any[]>(api, `/api/data/assets?asset_id=${AID}&select=*&limit=1`);
+    const arr = Array.isArray(after) ? after : ((after as any).data || []);
+    expect(arr.length).toBe(0);
+  });
+});
+
+// -------- 35. Building PUT endpoint --------
+
+test.describe('35. Building PUT', () => {
+  let api: AuthedApi;
+  const BN = 999_003_500;
+
+  test.beforeAll(async () => {
+    api = await loginViaApi();
+    await deleteBuildingIfExists(api, BN).catch(() => {});
+    await apiPost(api, '/api/buildings/create', { building_number: BN, tax_region: '10' });
+  });
+  test.afterAll(async () => {
+    await deleteBuildingIfExists(api, BN).catch(() => {});
+    await api.close();
+  });
+
+  test('35.1 PUT updates mutable fields', async () => {
+    const res = await api.ctx.put(`/api/buildings/${BN}`, {
+      headers: { Authorization: `Bearer ${api.token}` },
+      data: { tax_region: '10', business_shared_area: 123, elevator: true },
+    });
+    expect(res.ok()).toBe(true);
+    const b = await readBuilding(api, BN);
+    expect(Number(b.business_shared_area)).toBe(123);
+    expect(b.elevator).toBe(true);
+  });
+});
+
+// -------- 36. Inspection tasks list --------
+
+test.describe('36. Inspection tasks', () => {
+  let api: AuthedApi;
+  test.beforeAll(async () => { api = await loginViaApi(); });
+  test.afterAll(async () => { await api.close(); });
+
+  test('36.1 list endpoint returns an array (may be empty)', async () => {
+    const res = await api.ctx.get('/api/inspection-tasks/', {
+      headers: { Authorization: `Bearer ${api.token}` },
+    });
+    expect(res.ok()).toBe(true);
+    const body = await res.json() as any;
+    const arr = Array.isArray(body) ? body : (body.data || body.items || []);
+    expect(Array.isArray(arr)).toBe(true);
+  });
+});
+
+// -------- 37. Transfer-area audit shape --------
+
+test.describe('37. Transfer-area audit', () => {
+  let api: AuthedApi;
+  const BN = 999_003_700;
+  const AID_A = BN * 10;
+  const AID_B = BN * 10 + 1;
+
+  test.beforeAll(async () => {
+    api = await loginViaApi();
+    await deleteBuildingIfExists(api, BN).catch(() => {});
+    await apiPost(api, '/api/buildings/create', { building_number: BN, tax_region: '10' });
+    await apiPost(api, '/api/assets/save-bulk-transactional', {
+      p_assets_data: [
+        { asset_id: AID_A, building_number: BN, payer_id: 'TA', tax_region: 10, main_asset_type: '211', asset_size: 100, measurement_date: '01/01/2026' },
+        { asset_id: AID_B, building_number: BN, payer_id: 'TB', tax_region: 10, main_asset_type: '211', asset_size: 100, measurement_date: '01/01/2026' },
+      ],
+      p_validation_passed: true, p_action_type: 'manual_update', p_user_id: 'uid:101',
+    });
+  });
+  test.afterAll(async () => {
+    await deleteBuildingIfExists(api, BN).catch(() => {});
+    await api.close();
+  });
+
+  test('37.1 transfer_area action writes an audit row for each affected asset', async () => {
+    // Simulate a user pressing the transfer-area action that re-saves both
+    // assets with re-balanced sizes.
+    await apiPost(api, '/api/assets/save-bulk-transactional', {
+      p_assets_data: [
+        { asset_id: AID_A, building_number: BN, payer_id: 'TA', tax_region: 10, main_asset_type: '211', asset_size: 80, measurement_date: '01/01/2026' },
+        { asset_id: AID_B, building_number: BN, payer_id: 'TB', tax_region: 10, main_asset_type: '211', asset_size: 120, measurement_date: '01/01/2026' },
+      ],
+      p_validation_passed: true, p_action_type: 'transfer_area', p_user_id: 'uid:101',
+    });
+    const audit: any = await apiGet(api, `/api/data/audit?entity_type=asset&action_type=transfer_area&entity_id__in=${AID_A}%2C${AID_B}&select=*&order=created_at.desc&limit=5`);
+    const rows = Array.isArray(audit) ? audit : (audit.data || []);
+    // At least one transfer_area audit row should exist per asset
+    const seenIds = new Set<string>(rows.map((r: any) => String(r.entity_id)));
+    expect(seenIds.has(String(AID_A))).toBe(true);
+    expect(seenIds.has(String(AID_B))).toBe(true);
+  });
+});
+
 // -------- 20. UI smoke: navigate back from asset list to buildings --------
 
 test.describe('20. Navigation', () => {

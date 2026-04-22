@@ -1327,6 +1327,7 @@ test.describe('25. Buildings-list parking validation (live grid value)', () => {
 // -------- 24. Assets-list parking-sum cross-validation --------
 
 test.describe('24. Assets-list parking-sum validation', () => {
+  test.describe.configure({ mode: 'serial' });
   let api: AuthedApi;
   const BN = 999_002_400;
   const AID_A = BN * 10;
@@ -2810,58 +2811,37 @@ test.describe('68. Validation rules', () => {
   });
 });
 
-// -------- 69. Bulk delete-by-query --------
+// -------- 69. Documented 404 guarantees for dead/out-of-scope endpoints --------
 
-test.describe('69. /api/data/bulk/delete-by-query', () => {
-  let api: AuthedApi;
-  const BN = 999_006_900;
-
-  test.beforeAll(async () => {
-    api = await loginViaApi();
-    await deleteBuildingIfExists(api, BN).catch(() => {});
-    await apiPost(api, '/api/buildings/create', { building_number: BN, tax_region: '10' });
-    await apiPost(api, '/api/assets/save-bulk-transactional', {
-      p_assets_data: [
-        { asset_id: BN * 10,     building_number: BN, payer_id: 'X', tax_region: 10, main_asset_type: '211', asset_size: 1, measurement_date: '01/01/2026' },
-        { asset_id: BN * 10 + 1, building_number: BN, payer_id: 'X', tax_region: 10, main_asset_type: '211', asset_size: 1, measurement_date: '01/01/2026' },
-      ],
-      p_validation_passed: true, p_action_type: 'manual_update', p_user_id: 'uid:101',
-    });
-  });
-  test.afterAll(async () => {
-    await deleteBuildingIfExists(api, BN).catch(() => {});
-    await api.close();
-  });
-
-  test('69.1 delete-by-query removes matching rows', async () => {
-    const res = await api.ctx.post('/api/data/bulk/delete-by-query', {
-      headers: { Authorization: `Bearer ${api.token}` },
-      data: { table: 'assets', filters: { building_number: BN } },
-    });
-    expect([200, 204]).toContain(res.status());
-    const after: any[] = await apiGet(api, `/api/data/assets?building_number=${BN}&select=*&limit=5`);
-    const arr = Array.isArray(after) ? after : ((after as any).data || []);
-    expect(arr.length).toBe(0);
-  });
-});
-
-// -------- 70. Change log entry endpoint (read) --------
-
-test.describe('70. Change log read', () => {
+test.describe('69. Dead-endpoint 404 contract', () => {
   let api: AuthedApi;
   test.beforeAll(async () => { api = await loginViaApi(); });
   test.afterAll(async () => { await api.close(); });
 
-  test('70.1 change_log is readable and orderable by created_at', async () => {
-    const rows: any[] = await apiGet(api, '/api/data/change_log?select=*&order=created_at.desc&limit=10');
-    const arr = Array.isArray(rows) ? rows : ((rows as any).data || []);
-    expect(Array.isArray(arr)).toBe(true);
-    // If any rows, they should be ordered desc by created_at
-    for (let i = 1; i < arr.length; i++) {
-      const prev = new Date(arr[i - 1].created_at).getTime();
-      const cur = new Date(arr[i].created_at).getTime();
-      expect(prev).toBeGreaterThanOrEqual(cur);
-    }
+  test('69.1 /api/data/bulk/delete-by-query is not wired → 404', async () => {
+    // Frontend apiClient.ts still exports deleteByQuery() but there is no
+    // backend handler; no UI code paths call it today. Keep as a 404 contract
+    // so a future accidental revival is visible.
+    const res = await api.ctx.post('/api/data/bulk/delete-by-query', {
+      headers: { Authorization: `Bearer ${api.token}` },
+      data: { table: 'assets', filters: { building_number: 1 } },
+    });
+    expect(res.status()).toBe(404);
+  });
+
+  test('69.2 /api/data/change_log is not in ALLOWED_TABLES → 404', async () => {
+    const res = await api.ctx.get('/api/data/change_log?select=*&limit=1', {
+      headers: { Authorization: `Bearer ${api.token}` },
+    });
+    expect(res.status()).toBe(404);
+  });
+
+  test('69.3 /api/change-log/entry legacy endpoint → 404', async () => {
+    const res = await api.ctx.post('/api/change-log/entry', {
+      headers: { Authorization: `Bearer ${api.token}` },
+      data: { any: 'payload' },
+    });
+    expect(res.status()).toBe(404);
   });
 });
 
@@ -2869,15 +2849,41 @@ test.describe('70. Change log read', () => {
 
 test.describe('71. asset-types update-with-distribution-reset', () => {
   let api: AuthedApi;
-  test.beforeAll(async () => { api = await loginViaApi(); });
-  test.afterAll(async () => { await api.close(); });
+  let typeId: number | null = null;
+  const TYPE_NAME = `regr_udr_${Date.now().toString().slice(-6)}`;
 
-  test('71.1 endpoint returns success for a no-op payload', async () => {
+  test.beforeAll(async () => {
+    api = await loginViaApi();
+    const created = await apiPost<any>(api, '/api/asset-types/', {
+      name: TYPE_NAME, description: 'fixture for 71.1', tax_region: 99,
+      elevator: false, single_double_family: false, penthouse: false,
+      condo: false, townhouses: false, business_residence: 'עסקים',
+      non_accountable_for_total_area: false,
+      non_accountable_for_distribution: false,
+      not_accountable_for_statistics: false,
+      active: true, can_be_subtype: true, min_sub_types_number: 0,
+    });
+    typeId = created.id;
+  });
+  test.afterAll(async () => {
+    if (typeId != null) {
+      await api.ctx.delete(`/api/data/asset_types?id=${typeId}`, {
+        headers: { Authorization: `Bearer ${api.token}` },
+      }).catch(() => {});
+    }
+    await api.close();
+  });
+
+  test('71.1 update fields via distribution-reset endpoint', async () => {
+    if (typeId == null) test.skip();
     const res = await api.ctx.post('/api/asset-types/update-with-distribution-reset', {
       headers: { Authorization: `Bearer ${api.token}` },
-      data: { p_asset_type_updates: [], p_user_id: 'uid:101' },
+      data: { p_id: typeId, p_updates: { description: 'updated via 71.1' }, p_user_id: 'uid:101' },
     });
     expect([200, 204]).toContain(res.status());
+    const rows: any[] = await apiGet(api, `/api/data/asset_types?id=${typeId}&select=description&limit=1`);
+    const arr = Array.isArray(rows) ? rows : ((rows as any).data || []);
+    expect(arr[0]?.description).toBe('updated via 71.1');
   });
 });
 

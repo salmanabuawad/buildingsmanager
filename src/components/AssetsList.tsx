@@ -4408,8 +4408,15 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
       const numParkingUnitsNum = Number(building.number_of_parking_units);
       const hasParkingData = !isNaN(sharedParkingNum) && !isNaN(numParkingUnitsNum) && numParkingUnitsNum > 0;
       const unitParkingArea = hasParkingData ? sharedParkingNum / numParkingUnitsNum : 0;
-      // Only assets that have type OR subtype with use_for_parking_shared_area can accept number_of_parking_units and shared_parking_area
+      // An asset is parking-eligible when EITHER:
+      //   • its main or sub type is flagged use_for_parking_shared_area, OR
+      //   • it already carries number_of_parking_units > 0
+      // The units-based fallback lets the distribution work on buildings whose
+      // asset_types aren't flagged but whose assets have parking counts typed
+      // directly (common real-world data shape).
       const assetHasParkingTypeOrSubtype = (a: any) => {
+        const nUnits = Number(a?.number_of_parking_units);
+        if (!isNaN(nUnits) && nUnits > 0) return true;
         if (!parkingAssetType) return false;
         const lookup = (typeName: string | null | undefined) => {
           if (!typeName || String(typeName).trim() === '') return undefined;
@@ -4427,13 +4434,14 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
         }
         return false;
       };
-      const parkingTypeAssets = parkingAssetType
-        ? assets.filter(a => !deletedAssets.has(String(a.asset_id)) && assetHasParkingTypeOrSubtype(a))
-        : [];
+      const parkingTypeAssets = assets.filter(
+        a => !deletedAssets.has(String(a.asset_id)) && assetHasParkingTypeOrSubtype(a),
+      );
 
       if (businessAssets.length === 0) {
-        // Allow continuing when we have parking data and at least one parking-type asset (parking-only distribution)
-        if (!hasParkingData || !parkingTypeName || parkingTypeAssets.length === 0) {
+        // Allow continuing when we have parking data and at least one asset
+        // that is parking-eligible (by type flag OR by number_of_parking_units>0).
+        if (!hasParkingData || parkingTypeAssets.length === 0) {
           const reasons: string[] = [];
           if (deletedCount > 0) reasons.push(`${deletedCount} נכסים שנמחקו`);
           if (notAccountableForDistributionCount > 0) reasons.push(`${notAccountableForDistributionCount} נכסים לא נספרים בפיזור`);

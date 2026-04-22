@@ -888,14 +888,29 @@ def update_building_total_area(db: Session, building_number: int) -> dict[str, A
         + float(building_row["shared_parking_area"] or 0)
     )
 
+    # Keep asset_count in sync with actual row count so the buildings grid
+    # reflects new buildings / inserts / deletes immediately.
+    asset_count_row = db.execute(
+        text('SELECT COUNT(*) AS c FROM "assets" WHERE "building_number" = :bn'),
+        {"bn": building_number},
+    ).mappings().first()
+    asset_count = int(asset_count_row["c"]) if asset_count_row else 0
+
     updated_row = db.execute(
         text("""
             UPDATE buildings
-            SET net_area = :net_area, total_building_area = :total_area
+            SET net_area = :net_area,
+                total_building_area = :total_area,
+                asset_count = :asset_count
             WHERE building_number = :bn
             RETURNING *
         """),
-        {"net_area": net_area, "total_area": total_area, "bn": building_number},
+        {
+            "net_area": net_area,
+            "total_area": total_area,
+            "asset_count": asset_count,
+            "bn": building_number,
+        },
     ).mappings().first()
 
     if updated_row is None:

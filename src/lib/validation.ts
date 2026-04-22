@@ -2497,32 +2497,15 @@ export const buildingValidators = {
         return { valid: true };
       }
 
-      const assetTypes = await api.assetTypes.getAll();
-      const typeNameToParking = new Map<string, boolean>();
-      for (const at of assetTypes || []) {
-        const name = String(at?.name ?? '').trim();
-        if (name) typeNameToParking.set(name, at.use_for_parking_shared_area === true);
-        const num = parseInt(name, 10);
-        if (!isNaN(num)) typeNameToParking.set(String(num), at.use_for_parking_shared_area === true);
-      }
-      const isParkingEligible = (a: any) => {
-        const main = String(a.main_asset_type ?? '').trim();
-        if (main && typeNameToParking.get(main)) return true;
-        const subs = [
-          a.sub_asset_type_1, a.sub_asset_type_2, a.sub_asset_type_3,
-          a.sub_asset_type_4, a.sub_asset_type_5, a.sub_asset_type_6
-        ];
-        for (const s of subs) {
-          const t = String(s ?? '').trim();
-          if (t && typeNameToParking.get(t)) return true;
-        }
-        return false;
-      };
-
+      // Sum parking counts / areas from EVERY asset that has them populated.
+      // Previously we only counted assets whose main / sub type had
+      // use_for_parking_shared_area=true, but that meant a user who typed
+      // "10" into number_of_parking_units on a non-parking-flagged type
+      // couldn't match it at the building level. If the field carries a
+      // value, treat it as real data.
       let sumUnits = 0;
       let sumArea = 0;
       for (const asset of assets) {
-        if (!isParkingEligible(asset)) continue;
         const u = asset.number_of_parking_units;
         const v = asset.shared_parking_area;
         if (u != null && u !== '') sumUnits += Number(u) || 0;

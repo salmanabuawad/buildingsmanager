@@ -1055,6 +1055,139 @@ test.describe('21. Post-distribution lock', () => {
   });
 });
 
+// -------- 22. buildings.asset_count auto-maintained --------
+
+test.describe('22. asset_count maintenance', () => {
+  let api: AuthedApi;
+  const BN = 999_002_200;
+  const AID_1 = BN * 10;
+  const AID_2 = BN * 10 + 1;
+
+  test.beforeAll(async () => { api = await loginViaApi(); });
+  test.afterAll(async () => {
+    await deleteBuildingIfExists(api, BN).catch(() => {});
+    await api.close();
+  });
+
+  test.beforeEach(async () => {
+    await deleteBuildingIfExists(api, BN).catch(() => {});
+    await apiPost(api, '/api/buildings/create', {
+      building_number: BN, tax_region: '10',
+    });
+  });
+
+  test('22.1 new building starts with asset_count = 0 after first save that touches it', async () => {
+    // Insert one asset — update_building_total_area fires, asset_count recomputes
+    await apiPost(api, '/api/assets/save-bulk-transactional', {
+      p_assets_data: [{ asset_id: AID_1, building_number: BN, payer_id: 'P1', tax_region: 10, main_asset_type: null, asset_size: 0, measurement_date: '01/01/2026' }],
+      p_validation_passed: true, p_action_type: 'manual_update', p_user_id: 'uid:101',
+    });
+    const b = await readBuilding(api, BN);
+    expect(Number(b.asset_count)).toBe(1);
+  });
+
+  test('22.2 inserting another asset bumps asset_count to 2', async () => {
+    await apiPost(api, '/api/assets/save-bulk-transactional', {
+      p_assets_data: [
+        { asset_id: AID_1, building_number: BN, payer_id: 'P1', tax_region: 10, main_asset_type: null, asset_size: 0, measurement_date: '01/01/2026' },
+        { asset_id: AID_2, building_number: BN, payer_id: 'P2', tax_region: 10, main_asset_type: null, asset_size: 0, measurement_date: '01/01/2026' },
+      ],
+      p_validation_passed: true, p_action_type: 'manual_update', p_user_id: 'uid:101',
+    });
+    const b = await readBuilding(api, BN);
+    expect(Number(b.asset_count)).toBe(2);
+  });
+
+  test('22.3 deleting an asset decrements asset_count', async () => {
+    await apiPost(api, '/api/assets/save-bulk-transactional', {
+      p_assets_data: [
+        { asset_id: AID_1, building_number: BN, payer_id: 'P1', tax_region: 10, main_asset_type: null, asset_size: 0, measurement_date: '01/01/2026' },
+        { asset_id: AID_2, building_number: BN, payer_id: 'P2', tax_region: 10, main_asset_type: null, asset_size: 0, measurement_date: '01/01/2026' },
+      ],
+      p_validation_passed: true, p_action_type: 'manual_update', p_user_id: 'uid:101',
+    });
+    await apiPost(api, '/api/assets/delete-transactional', { p_asset_id: AID_1, p_user_id: 'uid:101' });
+    const b = await readBuilding(api, BN);
+    expect(Number(b.asset_count)).toBe(1);
+  });
+});
+
+// -------- 23. Parking-area distribution on types not flagged use_for_parking_shared_area --------
+
+test.describe('23. Parking distribution — units-based fallback', () => {
+  let api: AuthedApi;
+  const BN = 999_002_300;
+  const AID_BIZ_A = BN * 10;     // business asset WITH parking units (should receive area)
+  const AID_BIZ_B = BN * 10 + 1; // business asset NO parking units (should stay 0)
+
+  test.beforeAll(async () => {
+    api = await loginViaApi();
+    await deleteBuildingIfExists(api, BN).catch(() => {});
+    await apiPost(api, '/api/buildings/create', {
+      building_number: BN,
+      tax_region: '20', // business
+      business_shared_area: 0,
+      residence_shared_area: 0,
+      shared_parking_area: 200,
+      number_of_parking_units: 10,
+    });
+    await apiPost(api, '/api/assets/save-bulk-transactional', {
+      p_assets_data: [
+        { asset_id: AID_BIZ_A, building_number: BN, payer_id: 'PA', tax_region: 20, main_asset_type: '800', asset_size: 100, number_of_parking_units: 10, measurement_date: '01/01/2026' },
+        { asset_id: AID_BIZ_B, building_number: BN, payer_id: 'PB', tax_region: 20, main_asset_type: '800', asset_size: 100, measurement_date: '01/01/2026' },
+      ],
+      p_validation_passed: true, p_action_type: 'manual_update', p_user_id: 'uid:101',
+    });
+    await apiPost(api, '/api/buildings/bulk-distribution-flags', {
+      p_buildings_data: [{ building_number: BN, updates: { business_shared_area: 100 } }],
+    });
+  });
+  test.afterAll(async () => {
+    await deleteBuildingIfExists(api, BN).catch(() => {});
+    await api.close();
+  });
+
+  test('23.1 validateParkingTotals accepts sum from assets regardless of type flag', async () => {
+    // Asset type '800' has use_for_parking_shared_area=false — but the asset
+    // carries number_of_parking_units=10 directly. With the widened rule we
+    // should be able to save building.number_of_parking_units=10 cleanly.
+    // Here we just check it doesn't regress: no 5xx on the flag endpoint.
+    const res = await api.ctx.post('/api/buildings/bulk-distribution-flags', {
+      headers: { Authorization: `Bearer ${api.token}` },
+      data: {
+        p_buildings_data: [{
+          building_number: BN,
+          updates: { number_of_parking_units: 10, shared_parking_area: 200 },
+        }],
+      },
+    });
+    expect(res.ok()).toBe(true);
+    const b = await readBuilding(api, BN);
+    expect(Number(b.number_of_parking_units)).toBe(10);
+    expect(Number(b.shared_parking_area)).toBe(200);
+  });
+
+  test('23.2 posting a business_distribution with parking amounts persists per-asset shared_parking_area', async () => {
+    // Emulate what the UI produces after clicking פזר + שמור: every business
+    // asset in the building is resent with its post-distribution values.
+    // With 200 sqm / 10 units = 20 sqm per unit; the 10-unit asset gets 200.
+    const res = await apiPost(api, '/api/assets/save-bulk-transactional', {
+      p_assets_data: [
+        { asset_id: AID_BIZ_A, building_number: BN, payer_id: 'PA', tax_region: 20, main_asset_type: '800', asset_size: 100, number_of_parking_units: 10, business_distribution_area: 50, shared_parking_area: 200, measurement_date: '01/01/2026' },
+        { asset_id: AID_BIZ_B, building_number: BN, payer_id: 'PB', tax_region: 20, main_asset_type: '800', asset_size: 100, business_distribution_area: 50, shared_parking_area: 0, measurement_date: '01/01/2026' },
+      ],
+      p_validation_passed: true, p_action_type: 'business_distribution', p_user_id: 'uid:101',
+    });
+    expect(res.success).toBe(true);
+    const a = await apiGet<any>(api, `/api/data/assets?asset_id=${AID_BIZ_A}&select=*&limit=1`);
+    const arr = Array.isArray(a) ? a : ((a as any).data || []);
+    expect(Number(arr[0].shared_parking_area)).toBe(200);
+    expect(Number(arr[0].business_distribution_area)).toBe(50);
+    const b = await readBuilding(api, BN);
+    expect(b.need_business_distribution).toBe(false); // cleared by distribution save
+  });
+});
+
 // -------- 20. UI smoke: navigate back from asset list to buildings --------
 
 test.describe('20. Navigation', () => {

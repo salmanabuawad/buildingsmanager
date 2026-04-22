@@ -6703,18 +6703,30 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
               </button>
             )}
             {/* Export to automation button - follows export condition (measured but not exported) */}
-            {!isErrorFixingMode && (
-              <button
-                type="button"
-                onClick={handleExportToAutomation}
-                disabled={loading || exporting || exportToAutomationCount === 0}
-                className="btn btn-action btn-primary disabled:opacity-50 disabled:cursor-not-allowed"
-                title={exportToAutomationCount > 0 ? `שלח ${exportToAutomationCount} נכסים שנמדדו ולא נשלחו לעירייה` : 'אין נכסים לשליחה - כל הנכסים כבר נשלחו לעירייה'}
-              >
-                {exporting ? <Loader2 className="h-5 w-5 animate-spin" /> : <Upload className="h-5 w-5" />}
-                <span>שליחת נתונים לעירייה{exportToAutomationCount > 0 ? ` (${exportToAutomationCount})` : ''}</span>
-              </button>
-            )}
+            {!isErrorFixingMode && (() => {
+              const hasUnsavedChanges = dirtyAssets.size > 0 || newAssets.size > 0 || deletedAssets.size > 0;
+              const distributionPending = building?.need_business_distribution === true || building?.need_residence_distribution === true;
+              const sendDisabled = loading || exporting || exportToAutomationCount === 0 || hasUnsavedChanges || distributionPending;
+              const sendTitle = hasUnsavedChanges
+                ? 'יש שינויים לא שמורים — שמור או בטל לפני שליחה לעירייה'
+                : distributionPending
+                  ? 'יש לפזר שטחים משותפים לפני שליחה לעירייה'
+                  : (exportToAutomationCount > 0
+                      ? `שלח ${exportToAutomationCount} נכסים שנמדדו ולא נשלחו לעירייה`
+                      : 'אין נכסים לשליחה - כל הנכסים כבר נשלחו לעירייה');
+              return (
+                <button
+                  type="button"
+                  onClick={handleExportToAutomation}
+                  disabled={sendDisabled}
+                  className="btn btn-action btn-primary disabled:opacity-50 disabled:cursor-not-allowed"
+                  title={sendTitle}
+                >
+                  {exporting ? <Loader2 className="h-5 w-5 animate-spin" /> : <Upload className="h-5 w-5" />}
+                  <span>שליחת נתונים לעירייה{exportToAutomationCount > 0 ? ` (${exportToAutomationCount})` : ''}</span>
+                </button>
+              );
+            })()}
             {/* Statistics button - visible in business and residence tabs (not in multi-tax tabs) */}
             {!isErrorFixingMode && !isMultiTaxRegion && (
               <button

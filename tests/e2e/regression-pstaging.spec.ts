@@ -1188,6 +1188,61 @@ test.describe('23. Parking distribution — units-based fallback', () => {
   });
 });
 
+// -------- 27. Send-to-automation button gating --------
+
+test.describe('27. Send-to-automation gating', () => {
+  let api: AuthedApi;
+  const BN = 999_002_700;
+  const AID = BN * 10;
+
+  test.beforeAll(async () => {
+    api = await loginViaApi();
+    await deleteBuildingIfExists(api, BN).catch(() => {});
+    await apiPost(api, '/api/buildings/create', {
+      building_number: BN, tax_region: '20',
+      business_shared_area: 0, residence_shared_area: 0,
+    });
+    // Single measured + not-exported asset so exportToAutomationCount > 0
+    await apiPost(api, '/api/assets/save-bulk-transactional', {
+      p_assets_data: [{
+        asset_id: AID, building_number: BN, payer_id: 'PX',
+        tax_region: 20, main_asset_type: '800', asset_size: 50,
+        measurement_date: '01/01/2026',
+      }],
+      p_validation_passed: true, p_action_type: 'manual_update', p_user_id: 'uid:101',
+    });
+  });
+  test.afterAll(async () => {
+    await deleteBuildingIfExists(api, BN).catch(() => {});
+    await api.close();
+  });
+
+  test('27.1 with no unsaved changes and no distribution flag, button is enabled in the UI', async ({ page }) => {
+    await login(page);
+    await openBuildingInUI(page, BN);
+    const btn = page.locator('button:has-text("שליחת נתונים לעירייה")').first();
+    await expect(btn).toBeVisible({ timeout: 10_000 });
+    await expect(btn).toBeEnabled({ timeout: 10_000 });
+  });
+
+  test('27.2 with need_business_distribution=true, button is disabled', async ({ page }) => {
+    await apiPost(api, '/api/buildings/bulk-distribution-flags', {
+      p_buildings_data: [{ building_number: BN, updates: { business_shared_area: 100 } }],
+    });
+    const b = await readBuilding(api, BN);
+    expect(b.need_business_distribution).toBe(true);
+
+    await login(page);
+    await openBuildingInUI(page, BN);
+    const btn = page.locator('button:has-text("שליחת נתונים לעירייה")').first();
+    await expect(btn).toBeVisible({ timeout: 10_000 });
+    await expect(btn).toBeDisabled({ timeout: 10_000 });
+    // Tooltip explains the reason
+    const title = await btn.getAttribute('title');
+    expect(title || '').toContain('לפזר');
+  });
+});
+
 // -------- 26. Dirty state clears when user types back to DB value --------
 
 test.describe('26. Dirty state resets when edit returns to DB value', () => {

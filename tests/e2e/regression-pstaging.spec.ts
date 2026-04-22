@@ -1585,7 +1585,7 @@ test.describe('32. Managers CRUD', () => {
   test('32.1 create manager', async () => {
     const res = await api.ctx.post('/api/managers', {
       headers: { Authorization: `Bearer ${api.token}` },
-      data: { name: MGR_NAME, mail: `${MGR_NAME}@test.local`, phone: '0500000000', tax_region: 10 },
+      data: { name: MGR_NAME, mail: `${MGR_NAME}@test.local`, phone: '0500000000', tax_regions: '10' },
     });
     expect(res.ok()).toBe(true);
     const body = await res.json() as any;

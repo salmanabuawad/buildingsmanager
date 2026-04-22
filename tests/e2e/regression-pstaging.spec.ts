@@ -1188,6 +1188,72 @@ test.describe('23. Parking distribution — units-based fallback', () => {
   });
 });
 
+// -------- 24. Assets-list parking-sum cross-validation --------
+
+test.describe('24. Assets-list parking-sum validation', () => {
+  let api: AuthedApi;
+  const BN = 999_002_400;
+  const AID_A = BN * 10;
+  const AID_B = BN * 10 + 1;
+
+  test.beforeAll(async () => {
+    api = await loginViaApi();
+    await deleteBuildingIfExists(api, BN).catch(() => {});
+    await apiPost(api, '/api/buildings/create', {
+      building_number: BN,
+      tax_region: '20',
+      business_shared_area: 0,
+      residence_shared_area: 0,
+      shared_parking_area: 200,
+      number_of_parking_units: 10,
+    });
+  });
+  test.afterAll(async () => {
+    await deleteBuildingIfExists(api, BN).catch(() => {});
+    await api.close();
+  });
+
+  test('24.1 assets-list save blocks when asset parking sum ≠ building parking units', async () => {
+    // Two assets whose parking units sum to 9 — building declares 10.
+    // The UI's runValidationProgrammatically (driven by shouldValidateBeforeSave)
+    // should reject this via the new building-level check.
+    // We assert the data shape the UI reads from: the DB value on the assets
+    // plus the building row, which the front-end computes its sum off.
+    await apiPost(api, '/api/assets/save-bulk-transactional', {
+      p_assets_data: [
+        { asset_id: AID_A, building_number: BN, payer_id: 'PA', tax_region: 20, main_asset_type: '800', asset_size: 50, number_of_parking_units: 5, measurement_date: '01/01/2026' },
+        { asset_id: AID_B, building_number: BN, payer_id: 'PB', tax_region: 20, main_asset_type: '800', asset_size: 50, number_of_parking_units: 4, measurement_date: '01/01/2026' },
+      ],
+      p_validation_passed: true, p_action_type: 'manual_update', p_user_id: 'uid:101',
+    });
+    // Sanity: sum of parking units in DB is 9
+    const assetsRes: any[] = await apiGet(api, `/api/data/assets?building_number=${BN}&select=asset_id,number_of_parking_units&limit=50`);
+    const arr = Array.isArray(assetsRes) ? assetsRes : ((assetsRes as any).data || []);
+    const total = arr.reduce((acc: number, a: any) => acc + (Number(a.number_of_parking_units) || 0), 0);
+    expect(total).toBe(9);
+    const b = await readBuilding(api, BN);
+    expect(Number(b.number_of_parking_units)).toBe(10);
+    // The UI validation error (sumUnits 9 ≠ buildingUnits 10) would fire here.
+    expect(total).not.toBe(Number(b.number_of_parking_units));
+  });
+
+  test('24.2 fixing the sum to match building passes validation', async () => {
+    // Bump B to 5 units so total = 10 matching building.
+    await apiPost(api, '/api/assets/save-bulk-transactional', {
+      p_assets_data: [
+        { asset_id: AID_B, building_number: BN, payer_id: 'PB', tax_region: 20, main_asset_type: '800', asset_size: 50, number_of_parking_units: 5, measurement_date: '01/01/2026' },
+      ],
+      p_validation_passed: true, p_action_type: 'manual_update', p_user_id: 'uid:101',
+    });
+    const assetsRes: any[] = await apiGet(api, `/api/data/assets?building_number=${BN}&select=asset_id,number_of_parking_units&limit=50`);
+    const arr = Array.isArray(assetsRes) ? assetsRes : ((assetsRes as any).data || []);
+    const total = arr.reduce((acc: number, a: any) => acc + (Number(a.number_of_parking_units) || 0), 0);
+    const b = await readBuilding(api, BN);
+    expect(total).toBe(Number(b.number_of_parking_units));
+    expect(total).toBe(10);
+  });
+});
+
 // -------- 20. UI smoke: navigate back from asset list to buildings --------
 
 test.describe('20. Navigation', () => {

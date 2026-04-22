@@ -2472,8 +2472,39 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
         return result;
       });
 
+      // ── Building-level check: sum(assets.number_of_parking_units) must
+      //    equal building.number_of_parking_units. Runs whenever the
+      //    building has any parking context (either field set). Uses the
+      //    FULL asset list (post-dirty-merge), not just the dirty subset.
+      let parkingMismatchError: string | null = null;
+      if (
+        building &&
+        (
+          (building.shared_parking_area != null && (building.shared_parking_area as any) !== '') ||
+          (building.number_of_parking_units != null && (building.number_of_parking_units as any) !== '')
+        )
+      ) {
+        const buildingUnits = building.number_of_parking_units != null && (building.number_of_parking_units as any) !== ''
+          ? Number(building.number_of_parking_units)
+          : null;
+        if (buildingUnits != null && !Number.isNaN(buildingUnits)) {
+          let sumUnits = 0;
+          for (const a of latestAssets) {
+            const dirty = dirtyAssets.get(String(a.asset_id));
+            const merged = dirty ? { ...a, ...dirty } : a;
+            const u = (merged as any).number_of_parking_units;
+            if (u != null && u !== '') sumUnits += Number(u) || 0;
+          }
+          if (sumUnits !== buildingUnits) {
+            parkingMismatchError = `סכום מספר יחידות חניה בנכסים (${sumUnits}) אינו שווה למספר יחידות חניה במבנה (${buildingUnits})`;
+          }
+        }
+      }
+
       // Check if there are any validation errors
-      const hasAnyValidationErrors = resultsWithDiscountErrors.some(r => !r.valid || (r.errors && r.errors.length > 0));
+      const hasAnyValidationErrors =
+        resultsWithDiscountErrors.some(r => !r.valid || (r.errors && r.errors.length > 0)) ||
+        parkingMismatchError !== null;
       const validatedIds = new Set(assetsWithChanges.map(a => String(a.asset_id)));
 
       if (hasAnyValidationErrors) {
@@ -2483,12 +2514,16 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
           .map(r => {
             // Match by asset_id (result.assetId is the numeric asset_id)
             const asset = assetsWithChanges.find(a => {
-              return String(r.assetId) === String(a.asset_id) || 
+              return String(r.assetId) === String(a.asset_id) ||
                      Number(r.assetId) === Number(a.asset_id) ||
                      r.assetId === a.asset_id;
             });
             return `נכס ${asset?.asset_id || r.assetId}: ${(r.errors || []).join('; ')}`;
           });
+        // Building-level parking mismatch appears first, before per-asset errors
+        if (parkingMismatchError) {
+          errorAssets.unshift(`מבנה ${buildingNumber}: ${parkingMismatchError}`);
+        }
         
         // Update validation errors state
         const newValidationErrors = new Map<string, string>();
@@ -2532,7 +2567,7 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
 
         return {
           hasErrors: true,
-          errorMessage: `נמצאו שגיאות אימות ב-${errorAssets.length} נכסים:\n${errorAssets.slice(0, 5).join('\n')}${errorAssets.length > 5 ? `\n...ועוד ${errorAssets.length - 5} נכסים` : ''}`,
+          errorMessage: `נמצאו ${errorAssets.length} שגיאות אימות:\n${errorAssets.slice(0, 5).join('\n')}${errorAssets.length > 5 ? `\n...ועוד ${errorAssets.length - 5}` : ''}`,
           validationErrors: newValidationErrors
         };
       }

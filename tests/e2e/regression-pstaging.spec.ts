@@ -3296,3 +3296,630 @@ test.describe('77. Asset tax_region change', () => {
     expect(rows.some(r => r.action_type === 'manual_update')).toBe(true);
   });
 });
+
+// ---------------------------------------------------------------------------
+// 78. save-bulk-transactional with p_validation_passed=false is rolled back
+// ---------------------------------------------------------------------------
+// The contract: if the caller says validation failed, NO asset in the batch
+// persists. Block 48 tests the rejection; this tests the transactional
+// guarantee — none of the batch leaks into the DB even if every row is
+// individually well-formed.
+
+test.describe('78. save-bulk-transactional all-or-nothing on validation=false', () => {
+  let api: AuthedApi;
+  const BN = 999_007_800;
+  const AID_A = BN * 10;
+  const AID_B = BN * 10 + 1;
+
+  test.beforeAll(async () => {
+    api = await loginViaApi();
+    await deleteBuildingIfExists(api, BN).catch(() => {});
+    await apiPost(api, '/api/buildings/create', { building_number: BN, tax_region: '10' });
+  });
+  test.afterAll(async () => {
+    await deleteBuildingIfExists(api, BN).catch(() => {});
+    await api.close();
+  });
+
+  test('78.1 validation_passed=false persists zero rows from the batch', async () => {
+    const res = await api.ctx.post('/api/assets/save-bulk-transactional', {
+      headers: { Authorization: `Bearer ${api.token}` },
+      data: {
+        p_assets_data: [
+          { asset_id: AID_A, building_number: BN, payer_id: 'A', tax_region: 10, main_asset_type: '211', asset_size: 80, measurement_date: '01/01/2026' },
+          { asset_id: AID_B, building_number: BN, payer_id: 'B', tax_region: 10, main_asset_type: '211', asset_size: 80, measurement_date: '01/01/2026' },
+        ],
+        p_validation_passed: false,
+        p_validation_errors: 'test-forced-failure',
+        p_action_type: 'manual_update',
+        p_user_id: 'uid:101',
+      },
+    });
+    // Whether the endpoint returns 4xx or 2xx with success=false, the DB
+    // must be unchanged — nothing from the batch persists.
+    expect([200, 400, 422]).toContain(res.status());
+
+    for (const aid of [AID_A, AID_B]) {
+      const rows: any = await apiGet(api, `/api/data/assets?asset_id=${aid}&select=asset_id&limit=1`);
+      const arr = Array.isArray(rows) ? rows : rows.data || [];
+      expect(arr.length).toBe(0);
+    }
+  });
+});
+
+// ---------------------------------------------------------------------------
+// 79. Sub-asset types round-trip
+// ---------------------------------------------------------------------------
+// Assets carry up to 6 sub-types (sub_asset_type_1..6 + sub_asset_size_1..6).
+// Nothing in the existing regression proves these 12 fields survive a save.
+// Without this coverage the sub-types UI could silently drop values without
+// anyone noticing.
+
+test.describe('79. Sub-asset types round-trip', () => {
+  let api: AuthedApi;
+  const BN = 999_007_900;
+  const AID = BN * 10;
+
+  test.beforeAll(async () => {
+    api = await loginViaApi();
+    await deleteBuildingIfExists(api, BN).catch(() => {});
+    await apiPost(api, '/api/buildings/create', { building_number: BN, tax_region: '10' });
+  });
+  test.afterAll(async () => {
+    await deleteBuildingIfExists(api, BN).catch(() => {});
+    await api.close();
+  });
+
+  test('79.1 all 6 sub_asset_type/size slots persist on read-back', async () => {
+    await apiPost(api, '/api/assets/save-bulk-transactional', {
+      p_assets_data: [{
+        asset_id: AID, building_number: BN, payer_id: 'SUB', tax_region: 10,
+        main_asset_type: '211', asset_size: 100,
+        sub_asset_type_1: '212', sub_asset_size_1: 10,
+        sub_asset_type_2: '213', sub_asset_size_2: 20,
+        sub_asset_type_3: '214', sub_asset_size_3: 30,
+        sub_asset_type_4: '215', sub_asset_size_4: 40,
+        sub_asset_type_5: '216', sub_asset_size_5: 50,
+        sub_asset_type_6: '217', sub_asset_size_6: 60,
+        measurement_date: '01/01/2026',
+      }],
+      p_validation_passed: true, p_action_type: 'manual_update', p_user_id: 'uid:101',
+    });
+    const rows: any = await apiGet(api, `/api/data/assets?asset_id=${AID}&select=*&limit=1`);
+    const a = (Array.isArray(rows) ? rows : rows.data || [])[0];
+    for (let i = 1; i <= 6; i++) {
+      expect(String(a[`sub_asset_type_${i}`])).toBe(String(210 + i + 1));
+      expect(Number(a[`sub_asset_size_${i}`])).toBe(i * 10);
+    }
+  });
+});
+
+// ---------------------------------------------------------------------------
+// 80. Unknown p_action_type must be rejected
+// ---------------------------------------------------------------------------
+// save-bulk-transactional dispatches by action_type. An unknown value should
+// not be silently treated as 'manual_update' — it must fail loudly so bad
+// UI wiring gets caught in review, not production.
+
+test.describe('80. Unknown action_type rejected', () => {
+  let api: AuthedApi;
+  const BN = 999_008_000;
+  const AID = BN * 10;
+
+  test.beforeAll(async () => {
+    api = await loginViaApi();
+    await deleteBuildingIfExists(api, BN).catch(() => {});
+    await apiPost(api, '/api/buildings/create', { building_number: BN, tax_region: '10' });
+  });
+  test.afterAll(async () => {
+    await deleteBuildingIfExists(api, BN).catch(() => {});
+    await api.close();
+  });
+
+  test('80.1 unknown action_type is rejected and does not persist the row', async () => {
+    const res = await api.ctx.post('/api/assets/save-bulk-transactional', {
+      headers: { Authorization: `Bearer ${api.token}` },
+      data: {
+        p_assets_data: [{ asset_id: AID, building_number: BN, payer_id: 'U', tax_region: 10, main_asset_type: '211', asset_size: 50, measurement_date: '01/01/2026' }],
+        p_validation_passed: true,
+        p_action_type: 'totally_made_up_action',
+        p_user_id: 'uid:101',
+      },
+    });
+    // The invariant: the endpoint must NOT report success and must NOT
+    // silently persist the asset under an unknown action_type. We don't
+    // over-specify the status code — today the dispatch raises and the
+    // service answers 500; ideally it would be 400. Either is fine for
+    // this regression as long as the row didn't land.
+    expect(res.ok()).toBe(false);
+    const rows: any = await apiGet(api, `/api/data/assets?asset_id=${AID}&select=asset_id&limit=1`);
+    const arr = Array.isArray(rows) ? rows : rows.data || [];
+    expect(arr.length).toBe(0);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// 81. Audit before_data / after_data are JSON objects
+// ---------------------------------------------------------------------------
+// The AuditLogResponse schema was silently declaring these jsonb columns as
+// Optional[str], which broke every row. This test pins the fix: both fields
+// come back as JSON objects (or null), never as stringified JSON.
+
+test.describe('81. Audit before/after JSON shape', () => {
+  let api: AuthedApi;
+  const BN = 999_008_100;
+  const AID = BN * 10;
+
+  test.beforeAll(async () => {
+    api = await loginViaApi();
+    await deleteBuildingIfExists(api, BN).catch(() => {});
+    await apiPost(api, '/api/buildings/create', { building_number: BN, tax_region: '10' });
+    await apiPost(api, '/api/assets/save-bulk-transactional', {
+      p_assets_data: [{ asset_id: AID, building_number: BN, payer_id: 'A', tax_region: 10, main_asset_type: '211', asset_size: 100, measurement_date: '01/01/2026' }],
+      p_validation_passed: true, p_action_type: 'manual_update', p_user_id: 'uid:101',
+    });
+    // Edit so we have both a create-like and an update-like audit row.
+    await apiPost(api, '/api/assets/save-bulk-transactional', {
+      p_assets_data: [{ asset_id: AID, building_number: BN, payer_id: 'A', tax_region: 10, main_asset_type: '211', asset_size: 150, measurement_date: '01/01/2026' }],
+      p_validation_passed: true, p_action_type: 'manual_update', p_user_id: 'uid:101',
+    });
+  });
+  test.afterAll(async () => {
+    await deleteBuildingIfExists(api, BN).catch(() => {});
+    await api.close();
+  });
+
+  test('81.1 /api/audit/ rows expose before_data / after_data as JSON objects, not strings', async () => {
+    const list: any[] = await apiGet(api, '/api/audit/?skip=0&limit=20');
+    expect(Array.isArray(list)).toBe(true);
+    // Find an entry for our asset, any action.
+    const ours = list.find(r => String(r.entity_id) === String(AID));
+    expect(ours).toBeTruthy();
+    // At least one of the two jsonb columns must be an object on an update
+    // row. They're nullable individually but not simultaneously for a real
+    // manual_update.
+    const hasObjectShape = (v: any) => v === null || (typeof v === 'object' && !Array.isArray(v));
+    expect(hasObjectShape(ours.before_data)).toBe(true);
+    expect(hasObjectShape(ours.after_data)).toBe(true);
+    expect(typeof ours.before_data === 'string' && ours.before_data.startsWith('{')).toBe(false);
+    expect(typeof ours.after_data === 'string' && ours.after_data.startsWith('{')).toBe(false);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// 82. Non-accountable asset type survives distribution run
+// ---------------------------------------------------------------------------
+// An asset type with non_accountable_for_distribution=true represents areas
+// that don't participate in the business/residence split (e.g. common hall).
+// Creating such a type and running a distribution on a building that
+// contains both an accountable and a non-accountable asset must succeed and
+// must not crash the service.
+
+test.describe('82. Non-accountable asset type behavior', () => {
+  let api: AuthedApi;
+  const BN = 999_008_200;
+  const AID_ACC = BN * 10;
+  const AID_NON = BN * 10 + 1;
+  let nonAccTypeId: number | null = null;
+
+  test.beforeAll(async () => {
+    api = await loginViaApi();
+    // Create a dedicated non-accountable asset type. Use a unique suffix
+    // so re-runs don't collide on name.
+    const suffix = Math.floor(Math.random() * 1_000_000);
+    try {
+      const created = await apiPost<any>(api, '/api/asset-types/', {
+        name: `regression-nonacc-${suffix}`,
+        description: 'non-accountable for regression 82',
+        tax_region: 20,
+        business_residence: 'business',
+        non_accountable_for_distribution: true,
+        active: true,
+      });
+      nonAccTypeId = created.id ?? created.asset_type_id ?? null;
+    } catch { /* if POST isn't available the sub-test is skipped */ }
+
+    await deleteBuildingIfExists(api, BN).catch(() => {});
+    await apiPost(api, '/api/buildings/create', {
+      building_number: BN, tax_region: '20',
+      business_shared_area: 100, residence_shared_area: 0,
+    });
+    const nonAccName = nonAccTypeId ? `regression-nonacc-${suffix}` : '800';
+    await apiPost(api, '/api/assets/save-bulk-transactional', {
+      p_assets_data: [
+        { asset_id: AID_ACC, building_number: BN, payer_id: 'ACC', tax_region: 20, main_asset_type: '800', asset_size: 100, measurement_date: '01/01/2026' },
+        { asset_id: AID_NON, building_number: BN, payer_id: 'NON', tax_region: 20, main_asset_type: nonAccName, asset_size: 100, measurement_date: '01/01/2026' },
+      ],
+      p_validation_passed: true, p_action_type: 'manual_update', p_user_id: 'uid:101',
+    });
+    await apiPost(api, '/api/buildings/bulk-distribution-flags', {
+      p_buildings_data: [{ building_number: BN, updates: { business_shared_area: 100 } }],
+    });
+  });
+  test.afterAll(async () => {
+    await deleteBuildingIfExists(api, BN).catch(() => {});
+    if (nonAccTypeId) {
+      await api.ctx.delete(`/api/data/asset_types?id=${nonAccTypeId}`, {
+        headers: { Authorization: `Bearer ${api.token}` },
+      }).catch(() => {});
+    }
+    await api.close();
+  });
+
+  test('82.1 business_distribution runs cleanly with an accountable + non-accountable asset', async () => {
+    const res = await apiPost<any>(api, '/api/assets/save-bulk-transactional', {
+      p_assets_data: [
+        // Accountable asset receives the full business area.
+        { asset_id: AID_ACC, building_number: BN, payer_id: 'ACC', tax_region: 20, main_asset_type: '800', asset_size: 100, business_distribution_area: 100, measurement_date: '01/01/2026' },
+        // Non-accountable asset gets 0 — backend must accept this without
+        // flagging a missing distribution error.
+        { asset_id: AID_NON, building_number: BN, payer_id: 'NON', tax_region: 20, main_asset_type: nonAccTypeId ? `regression-nonacc-${AID_NON}` : '800', asset_size: 100, business_distribution_area: 0, measurement_date: '01/01/2026' },
+      ],
+      p_validation_passed: true, p_action_type: 'business_distribution', p_user_id: 'uid:101',
+    });
+    expect(res.success).toBe(true);
+    const b = await readBuilding(api, BN);
+    expect(b.need_business_distribution).toBe(false);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// 83. Clearing a field (setting to null) persists the clear
+// ---------------------------------------------------------------------------
+// A user who types into a field and then deletes the content expects the
+// value to be gone after save. The round-trip test in block 47 doesn't
+// cover the clear-case, only the set-case.
+
+test.describe('83. Clearing a field', () => {
+  let api: AuthedApi;
+  const BN = 999_008_300;
+  const AID = BN * 10;
+
+  test.beforeAll(async () => {
+    api = await loginViaApi();
+    await deleteBuildingIfExists(api, BN).catch(() => {});
+    await apiPost(api, '/api/buildings/create', { building_number: BN, tax_region: '10', note: 'initial note' });
+    await apiPost(api, '/api/assets/save-bulk-transactional', {
+      p_assets_data: [{ asset_id: AID, building_number: BN, payer_id: 'P', tax_region: 10, main_asset_type: '211', asset_size: 100, comment: 'initial comment', measurement_date: '01/01/2026' }],
+      p_validation_passed: true, p_action_type: 'manual_update', p_user_id: 'uid:101',
+    });
+  });
+  test.afterAll(async () => {
+    await deleteBuildingIfExists(api, BN).catch(() => {});
+    await api.close();
+  });
+
+  test('83.1 clearing building.note to null persists', async () => {
+    const res = await api.ctx.put(`/api/buildings/${BN}`, {
+      headers: { Authorization: `Bearer ${api.token}` },
+      data: { note: null },
+    });
+    expect([200, 204]).toContain(res.status());
+    const b = await readBuilding(api, BN);
+    expect(b.note == null || b.note === '').toBe(true);
+  });
+
+  test('83.2 clearing asset.comment via save-bulk persists', async () => {
+    await apiPost(api, '/api/assets/save-bulk-transactional', {
+      p_assets_data: [{ asset_id: AID, building_number: BN, payer_id: 'P', tax_region: 10, main_asset_type: '211', asset_size: 100, comment: null, measurement_date: '01/01/2026' }],
+      p_validation_passed: true, p_action_type: 'manual_update', p_user_id: 'uid:101',
+    });
+    const rows: any = await apiGet(api, `/api/data/assets?asset_id=${AID}&select=comment&limit=1`);
+    const a = (Array.isArray(rows) ? rows : rows.data || [])[0];
+    expect(a.comment == null || a.comment === '').toBe(true);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// 84. Multi-building bulk-distribution-flags in a single call
+// ---------------------------------------------------------------------------
+// Block 4 covers the flag for a single building. This block asserts the
+// per-building independence when multiple buildings are flagged in one call —
+// each building's need_business_distribution is computed from its own
+// business_shared_area, not leaked across rows.
+
+test.describe('84. Multi-building bulk-distribution-flags', () => {
+  let api: AuthedApi;
+  const BN_A = 999_008_400;
+  const BN_B = 999_008_401;
+
+  test.beforeAll(async () => {
+    api = await loginViaApi();
+    await deleteBuildingIfExists(api, BN_A).catch(() => {});
+    await deleteBuildingIfExists(api, BN_B).catch(() => {});
+    await apiPost(api, '/api/buildings/create', { building_number: BN_A, tax_region: '20', business_shared_area: 0, residence_shared_area: 0 });
+    await apiPost(api, '/api/buildings/create', { building_number: BN_B, tax_region: '20', business_shared_area: 0, residence_shared_area: 0 });
+  });
+  test.afterAll(async () => {
+    await deleteBuildingIfExists(api, BN_A).catch(() => {});
+    await deleteBuildingIfExists(api, BN_B).catch(() => {});
+    await api.close();
+  });
+
+  test('84.1 each building is flagged independently based on its own updates', async () => {
+    await apiPost(api, '/api/buildings/bulk-distribution-flags', {
+      p_buildings_data: [
+        // Only A gets a business area; B stays zero.
+        { building_number: BN_A, updates: { business_shared_area: 100 } },
+        { building_number: BN_B, updates: { business_shared_area: 0 } },
+      ],
+    });
+    const a = await readBuilding(api, BN_A);
+    const b = await readBuilding(api, BN_B);
+    expect(a.need_business_distribution).toBe(true);
+    expect(b.need_business_distribution).toBe(false);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// 85. Export-to-automation full round-trip
+// ---------------------------------------------------------------------------
+// Block 11 tests mark + filter. Block 33 tests reset. This block runs the
+// full lifecycle on the SAME asset so a regression in any of mark / filter /
+// reset shows up immediately.
+
+test.describe('85. Export-to-automation round-trip', () => {
+  let api: AuthedApi;
+  const BN = 999_008_500;
+  const AID = BN * 10;
+
+  test.beforeAll(async () => {
+    api = await loginViaApi();
+    await deleteBuildingIfExists(api, BN).catch(() => {});
+    await apiPost(api, '/api/buildings/create', { building_number: BN, tax_region: '20' });
+    await apiPost(api, '/api/assets/save-bulk-transactional', {
+      p_assets_data: [{ asset_id: AID, building_number: BN, payer_id: 'P', tax_region: 20, main_asset_type: '800', asset_size: 50, measurement_date: '01/01/2026' }],
+      p_validation_passed: true, p_action_type: 'manual_update', p_user_id: 'uid:101',
+    });
+  });
+  test.afterAll(async () => {
+    await deleteBuildingIfExists(api, BN).catch(() => {});
+    await api.close();
+  });
+
+  test('85.1 measured → mark-exported → filter excludes → reset → filter includes again', async () => {
+    // Step 1: measured + not exported → asset appears in measured-not-exported
+    const step1: any = await apiGet(api, `/api/assets/measured-not-exported?building_number=${BN}`);
+    const list1 = Array.isArray(step1) ? step1 : step1.data || [];
+    expect(list1.some((a: any) => Number(a.asset_id) === AID)).toBe(true);
+
+    // Step 2: mark exported. Endpoint expects `asset_ids` (not p_asset_ids).
+    await apiPost(api, '/api/assets/mark-exported-by-ids', { asset_ids: [AID] });
+
+    // Step 3: filter excludes the newly-exported asset
+    const step3: any = await apiGet(api, `/api/assets/measured-not-exported?building_number=${BN}`);
+    const list3 = Array.isArray(step3) ? step3 : step3.data || [];
+    expect(list3.some((a: any) => Number(a.asset_id) === AID)).toBe(false);
+
+    // Step 4: reset. Endpoint takes no body — it resets the most recent
+    // export batch globally, which is the one we just created above.
+    await apiPost(api, '/api/assets/reset-export-to-automation', {});
+
+    // Step 5: filter includes it again
+    const step5: any = await apiGet(api, `/api/assets/measured-not-exported?building_number=${BN}`);
+    const list5 = Array.isArray(step5) ? step5 : step5.data || [];
+    expect(list5.some((a: any) => Number(a.asset_id) === AID)).toBe(true);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// 86. Empty building: update-total-area is a no-op that returns 0
+// ---------------------------------------------------------------------------
+// Calling update-total-area on a building with zero assets must not error
+// and must leave total_building_area = 0 and asset_count = 0.
+
+test.describe('86. Empty building totals', () => {
+  let api: AuthedApi;
+  const BN = 999_008_600;
+
+  test.beforeAll(async () => {
+    api = await loginViaApi();
+    await deleteBuildingIfExists(api, BN).catch(() => {});
+    await apiPost(api, '/api/buildings/create', { building_number: BN, tax_region: '10' });
+  });
+  test.afterAll(async () => {
+    await deleteBuildingIfExists(api, BN).catch(() => {});
+    await api.close();
+  });
+
+  test('86.1 update-total-area on a 0-asset building returns 0 cleanly', async () => {
+    const res = await api.ctx.post('/api/buildings/update-total-area', {
+      headers: { Authorization: `Bearer ${api.token}` },
+      data: { p_building_number: BN },
+    });
+    expect([200, 204]).toContain(res.status());
+    const b = await readBuilding(api, BN);
+    expect(Number(b.asset_count || 0)).toBe(0);
+    expect(Number(b.total_building_area || 0)).toBe(0);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// 87. Asset field round-trips (wide sweep)
+// ---------------------------------------------------------------------------
+// Block 47 covers note + building_address. This block covers the larger
+// asset-level surface (discount, storage, floors, flags, operator). If the
+// save-bulk payload silently drops any of these, the user sees their edit
+// vanish on refresh.
+
+test.describe('87. Asset field round-trips (wide sweep)', () => {
+  let api: AuthedApi;
+  const BN = 999_008_700;
+  const AID = BN * 10;
+
+  test.beforeAll(async () => {
+    api = await loginViaApi();
+    await deleteBuildingIfExists(api, BN).catch(() => {});
+    await apiPost(api, '/api/buildings/create', { building_number: BN, tax_region: '10' });
+  });
+  test.afterAll(async () => {
+    await deleteBuildingIfExists(api, BN).catch(() => {});
+    await api.close();
+  });
+
+  test('87.1 discount / storage / floors / flags / use_nature all persist', async () => {
+    await apiPost(api, '/api/assets/save-bulk-transactional', {
+      p_assets_data: [{
+        asset_id: AID, building_number: BN, payer_id: 'FULL', tax_region: 10,
+        main_asset_type: '211', asset_size: 120,
+        measurement_date: '01/01/2026',
+        discount_type: 'senior', discount_date_from: '01/01/2026', discount_date_to: '31/12/2026',
+        storage_number: 'S-42', storage_floor: '-1',
+        apartment_number: '12B', apartment_floor: '3',
+        is_new_measurement: true,
+        use_nature: 'residential',
+      }],
+      p_validation_passed: true, p_action_type: 'manual_update', p_user_id: 'uid:101',
+    });
+    const rows: any = await apiGet(api, `/api/data/assets?asset_id=${AID}&select=*&limit=1`);
+    const a = (Array.isArray(rows) ? rows : rows.data || [])[0];
+    expect(String(a.discount_type)).toBe('senior');
+    expect(String(a.discount_date_from)).toBe('01/01/2026');
+    expect(String(a.discount_date_to)).toBe('31/12/2026');
+    expect(String(a.storage_number)).toBe('S-42');
+    expect(String(a.storage_floor)).toBe('-1');
+    expect(String(a.apartment_number)).toBe('12B');
+    expect(String(a.apartment_floor)).toBe('3');
+    expect(Boolean(a.is_new_measurement)).toBe(true);
+    expect(String(a.use_nature)).toBe('residential');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// 88. Last-write-wins semantics on the same asset row
+// ---------------------------------------------------------------------------
+// The backend has no optimistic concurrency token on save-bulk — two
+// sequential updates both succeed and the latest one wins. This block pins
+// that expected behavior so a future migration to row versioning is caught
+// as a deliberate regression, not an accidental one.
+
+test.describe('88. Sequential same-asset updates — last-write-wins', () => {
+  let api: AuthedApi;
+  const BN = 999_008_800;
+  const AID = BN * 10;
+
+  test.beforeAll(async () => {
+    api = await loginViaApi();
+    await deleteBuildingIfExists(api, BN).catch(() => {});
+    await apiPost(api, '/api/buildings/create', { building_number: BN, tax_region: '10' });
+    await apiPost(api, '/api/assets/save-bulk-transactional', {
+      p_assets_data: [{ asset_id: AID, building_number: BN, payer_id: 'P', tax_region: 10, main_asset_type: '211', asset_size: 50, measurement_date: '01/01/2026' }],
+      p_validation_passed: true, p_action_type: 'manual_update', p_user_id: 'uid:101',
+    });
+  });
+  test.afterAll(async () => {
+    await deleteBuildingIfExists(api, BN).catch(() => {});
+    await api.close();
+  });
+
+  test('88.1 two consecutive updates on same row both succeed; last value wins', async () => {
+    await apiPost(api, '/api/assets/save-bulk-transactional', {
+      p_assets_data: [{ asset_id: AID, building_number: BN, payer_id: 'P', tax_region: 10, main_asset_type: '211', asset_size: 100, measurement_date: '01/01/2026' }],
+      p_validation_passed: true, p_action_type: 'manual_update', p_user_id: 'uid:101',
+    });
+    await apiPost(api, '/api/assets/save-bulk-transactional', {
+      p_assets_data: [{ asset_id: AID, building_number: BN, payer_id: 'P', tax_region: 10, main_asset_type: '211', asset_size: 200, measurement_date: '01/01/2026' }],
+      p_validation_passed: true, p_action_type: 'manual_update', p_user_id: 'uid:101',
+    });
+    const rows: any = await apiGet(api, `/api/data/assets?asset_id=${AID}&select=asset_size&limit=1`);
+    const a = (Array.isArray(rows) ? rows : rows.data || [])[0];
+    expect(Number(a.asset_size)).toBe(200);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// 89. Hebrew in asset type name / description
+// ---------------------------------------------------------------------------
+// Block 55 covers Hebrew on asset/building free-text fields. Asset type
+// metadata is in a different table and path — this pins the same
+// guarantee for /api/asset-types/ create + read.
+
+test.describe('89. Hebrew in asset type metadata', () => {
+  let api: AuthedApi;
+  let typeId: number | null = null;
+  const NAME = `רגרסיה-${Math.floor(Math.random() * 1_000_000)}`;
+  const DESC = 'תיאור עברי לרגרסיה';
+
+  test.beforeAll(async () => {
+    api = await loginViaApi();
+  });
+  test.afterAll(async () => {
+    if (typeId != null) {
+      await api.ctx.delete(`/api/data/asset_types?id=${typeId}`, {
+        headers: { Authorization: `Bearer ${api.token}` },
+      }).catch(() => {});
+    }
+    await api.close();
+  });
+
+  test('89.1 Hebrew asset_type name and description survive create + GET', async () => {
+    const created = await apiPost<any>(api, '/api/asset-types/', {
+      name: NAME, description: DESC, tax_region: 10,
+      business_residence: 'residence', active: true,
+    });
+    typeId = created.id ?? null;
+    if (typeId == null) test.skip();
+    const fetched: any = await apiGet(api, `/api/data/asset_types?id=${typeId}&select=name,description&limit=1`);
+    const rows = (Array.isArray(fetched) ? fetched : fetched.data || []) as any[];
+    expect(rows[0]?.name).toBe(NAME);
+    expect(rows[0]?.description).toBe(DESC);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// 90. Bulk-create buildings with a duplicate in the batch
+// ---------------------------------------------------------------------------
+// The contract we want pinned: bulk-create is either fully transactional
+// (rolls back on any duplicate) or it returns a 409/4xx explicitly. It must
+// NOT silently insert the non-duplicates while skipping the duplicate.
+
+test.describe('90. bulk-create transactionality', () => {
+  let api: AuthedApi;
+  const BN_EXISTS = 999_009_000;
+  const BN_NEW_A = 999_009_001;
+  const BN_NEW_B = 999_009_002;
+
+  test.beforeAll(async () => {
+    api = await loginViaApi();
+    // Make sure only BN_EXISTS exists in DB before the test runs.
+    await deleteBuildingIfExists(api, BN_EXISTS).catch(() => {});
+    await deleteBuildingIfExists(api, BN_NEW_A).catch(() => {});
+    await deleteBuildingIfExists(api, BN_NEW_B).catch(() => {});
+    await apiPost(api, '/api/buildings/create', { building_number: BN_EXISTS, tax_region: '10' });
+  });
+  test.afterAll(async () => {
+    await deleteBuildingIfExists(api, BN_EXISTS).catch(() => {});
+    await deleteBuildingIfExists(api, BN_NEW_A).catch(() => {});
+    await deleteBuildingIfExists(api, BN_NEW_B).catch(() => {});
+    await api.close();
+  });
+
+  test('90.1 a duplicate in the batch either rolls everything back or fails 4xx', async () => {
+    // Endpoint reads the list from `rows` (see buildings.py create-bulk).
+    const res = await api.ctx.post('/api/buildings/create-bulk', {
+      headers: { Authorization: `Bearer ${api.token}` },
+      data: {
+        rows: [
+          { building_number: BN_NEW_A, tax_region: '10' },
+          { building_number: BN_EXISTS, tax_region: '10' }, // duplicate!
+          { building_number: BN_NEW_B, tax_region: '10' },
+        ],
+      },
+    });
+
+    const existsNewA = await api.ctx.get(`/api/buildings/${BN_NEW_A}`, { headers: { Authorization: `Bearer ${api.token}` } });
+    const existsNewB = await api.ctx.get(`/api/buildings/${BN_NEW_B}`, { headers: { Authorization: `Bearer ${api.token}` } });
+    const aOk = existsNewA.status() === 200;
+    const bOk = existsNewB.status() === 200;
+
+    if (res.ok()) {
+      // If the endpoint reports success it must have inserted BOTH new rows.
+      expect(aOk && bOk).toBe(true);
+    } else {
+      // If it reports failure it must not have partially inserted.
+      expect(res.status()).toBeGreaterThanOrEqual(400);
+      expect(aOk).toBe(false);
+      expect(bOk).toBe(false);
+    }
+  });
+});

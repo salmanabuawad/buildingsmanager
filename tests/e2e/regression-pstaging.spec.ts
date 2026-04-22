@@ -984,22 +984,28 @@ test.describe('21. Post-distribution lock', () => {
 
   test.beforeAll(async () => {
     api = await loginViaApi();
-    // Building starts at tax_region 20 (business) with business_shared_area
-    // set to 0, two accountable '800' assets already present. Then we flip
-    // business_shared_area → 200 via bulk-distribution-flags so the
-    // "פזר" button becomes enabled.
-    await provisionFixtureBuilding(api, BN, {
+    // Manually create the building with tax_region='20' so the UI default
+    // tab ('עסקים אזור 2') matches the assets we insert and the distribute
+    // button is the 'עסקים' one visible from that tab.
+    await deleteBuildingIfExists(api, BN).catch(() => {});
+    await apiPost(api, '/api/buildings/create', {
+      building_number: BN,
+      tax_region: '20',
       business_shared_area: 0,
-      assets: [
-        { asset_id: AID_1, main_asset_type: '800', asset_size: 100, tax_region: 20 },
-        { asset_id: AID_2, main_asset_type: '800', asset_size: 100, tax_region: 20 },
-      ],
+      residence_shared_area: 0,
     });
+    await apiPost(api, '/api/assets/save-bulk-transactional', {
+      p_assets_data: [
+        { asset_id: AID_1, building_number: BN, payer_id: `P-${AID_1}`, tax_region: 20, main_asset_type: '800', asset_size: 100, measurement_date: '01/01/2026' },
+        { asset_id: AID_2, building_number: BN, payer_id: `P-${AID_2}`, tax_region: 20, main_asset_type: '800', asset_size: 100, measurement_date: '01/01/2026' },
+      ],
+      p_validation_passed: true, p_action_type: 'manual_update', p_user_id: 'uid:101',
+    });
+    // Flip need_business_distribution=true via shared-area change so the
+    // "פזר שטח משותף עסקים" button is enabled.
     await apiPost(api, '/api/buildings/bulk-distribution-flags', {
       p_buildings_data: [{ building_number: BN, updates: { business_shared_area: 200 } }],
     });
-    // The fixture building is created with tax_region='10' by default; the
-    // assets we inserted use 20 so the UI opens on the business tab.
   });
   test.afterAll(async () => {
     await deleteBuildingIfExists(api, BN).catch(() => {});

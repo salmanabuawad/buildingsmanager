@@ -549,6 +549,9 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
   const [validationErrors, setValidationErrors] = useState<Map<string | number, Record<string, string>>>(new Map());
   // Track cell values when editing starts - only mark dirty if value actually changed during edit
   const cellEditStartValues = useRef<Map<string, any>>(new Map());
+  // Debounces re-validation triggered by cell edits so rapid keystrokes
+  // don't spam the parking-totals API fetch.
+  const cellEditRecheckTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   // Track if user actually interacted with the editor (typed, selected, etc.) - not just clicked
   const cellEditUserInteracted = useRef<Map<string, boolean>>(new Map());
   // Save is gated behind an explicit Validate action.
@@ -1537,10 +1540,33 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
       }
     }
 
-    // When "מתי להריץ אימות" is "אונליין", run validation after each cell edit (on blur)
-    if (shouldValidateOnBlur) {
-      runValidationProgrammatically().catch(() => {});
+    // Clear any existing validation errors for this row — a fresh edit
+    // invalidates the previous validation result, and re-running validation
+    // (below) will repopulate them if the new value still fails.
+    setValidationErrors(prev => {
+      if (!prev.has(newBuildingKey)) return prev;
+      const next = new Map(prev);
+      next.delete(newBuildingKey);
+      return next;
+    });
+    setInvalidTaxRegionBuildings(prev => {
+      // Only clear for this specific row's building_number (existing rows)
+      const bn = typeof newBuildingKey === 'number' ? newBuildingKey : undefined;
+      if (bn === undefined || !prev.has(bn)) return prev;
+      const next = new Set(prev);
+      next.delete(bn);
+      return next;
+    });
+
+    // Re-run validation after every cell edit — user asked for errors to
+    // re-check as they type, not only on save. Debounce by 150ms so rapid
+    // keystrokes don't spam the parking API fetch.
+    if (cellEditRecheckTimerRef.current) {
+      clearTimeout(cellEditRecheckTimerRef.current);
     }
+    cellEditRecheckTimerRef.current = setTimeout(() => {
+      runValidationProgrammatically().catch(() => {});
+    }, 150);
 
     // Refresh grid to show dirty state and validation errors
     if (gridRef.current?.api) {

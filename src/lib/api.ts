@@ -2701,12 +2701,12 @@ export const api = {
         const allData: Array<Record<string, unknown> & { id: number; asset_id: number; uploaded_at: string }> = [];
         for (let i = 0; i < assetIds.length; i += CHUNK_SIZE) {
           const chunk = assetIds.slice(i, i + CHUNK_SIZE);
-          // Only fetch active files (measurement_date IS NULL) — history files are excluded
+          // Match AssetFilesModal (opened without measurementDate): include all files,
+          // so the indicator icon is lit whenever the modal would show anything.
           const { data, error } = await api
             .from('asset_files')
             .select('*')
             .in('asset_id', chunk)
-            .is('measurement_date', null)
             .order('file_name', { ascending: true });
           if (error) throw error;
           if (data?.length) allData.push(...(data as typeof allData));

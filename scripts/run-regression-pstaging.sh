@@ -20,7 +20,7 @@ cd "$(dirname "$0")/.."
 HEADLESS="true"
 GREP_ARG=""
 CHANNEL_ARG=""
-SLOWMO_MS="2000"
+SLOWMO_MS="3000"
 WORKERS=""
 while [[ $# -gt 0 ]]; do
   case "$1" in

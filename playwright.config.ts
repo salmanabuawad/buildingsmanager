@@ -94,9 +94,9 @@ export default defineConfig({
             : !!process.env.CI,
           // In headed mode, pause between each Playwright action so a
           // human can follow the browser. Override with PW_SLOWMO_MS.
-          // Default 2000ms per step when headed, 0 otherwise.
+          // Default 3000ms per step when headed, 0 otherwise.
           slowMo: process.env.HEADLESS === 'false'
-            ? Number(process.env.PW_SLOWMO_MS ?? 2000)
+            ? Number(process.env.PW_SLOWMO_MS ?? 3000)
             : 0,
           args: ['--disable-extensions'],
         },

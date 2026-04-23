@@ -22,8 +22,8 @@ param(
   # playwright chromium. Works around SxS failures on Windows laptops.
   [string]$Channel  = "chrome",
   # Per-action delay (ms) in headed mode so a human can follow along.
-  # Default 2000ms. Set to 0 to disable.
-  [int]$SlowMo      = 2000,
+  # Default 3000ms. Set to 0 to disable.
+  [int]$SlowMo      = 3000,
   # Workers. Default 1 in headed (readable), 2 in headless (fast).
   [int]$Workers     = 0
 )

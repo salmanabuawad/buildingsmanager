@@ -198,19 +198,25 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
     return isAssetTypeNotAccountable(asset.main_asset_type);
   }, [isAssetTypeNotAccountable]);
 
-  // Helper function to check if a field should be editable
-  // Grid is always editable for the latest measurement row (regardless of modal/inline preference)
-  // For non-accountable assets, all fields are readonly
+  // Helper function to check if a field should be editable.
+  // Grid is always editable for the latest measurement row (regardless of modal/inline preference).
+  // For non-accountable-for-total-area assets (e.g. complex types like 199),
+  // only main_asset_type and asset_size are locked — main_asset_type because
+  // switching it invalidates the sub-types, and asset_size because it is
+  // derived from the sub_asset_size_* sum. All other fields (payer_id,
+  // apartment_*, storage_*, sub_asset_type_*, sub_asset_size_*, comment, …)
+  // stay editable. Mirrors the AssetsList behavior (commit 7e7b59b4).
   const isFieldEditable = useCallback((params: any, fieldName: string): boolean => {
     if (!params || !params.data) return false;
     const asset = params.data as Asset;
     const baseEditable = asset.is_latest === true;
-    
-    // For non-accountable assets, all fields are readonly (including main_asset_type)
+
     if (isAssetNotAccountable(asset)) {
-      return false;
+      if (fieldName === 'main_asset_type' || fieldName === 'asset_size') {
+        return false;
+      }
     }
-    
+
     return baseEditable;
   }, [isAssetNotAccountable]);
 

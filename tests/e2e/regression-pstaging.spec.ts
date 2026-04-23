@@ -3923,3 +3923,168 @@ test.describe('90. bulk-create transactionality', () => {
     }
   });
 });
+
+// ---------------------------------------------------------------------------
+// 91. Asset-files indicator icon — lit regardless of file.measurement_date
+// ---------------------------------------------------------------------------
+// Uploading a file to a measured asset stamps the asset's measurement_date
+// onto the file row (see backend /api/files/upload — the frontend
+// AssetsList upload path forwards asset.measurement_date). The indicator
+// icon used to query only files where measurement_date IS NULL and stayed
+// disabled, even though the modal (opened without a filter) showed the
+// file. The fix makes the indicator count any file for the asset.
+//
+// Guard: assert the row icon shows text-green-600 (lit) both in the
+// AssetsList grid and in the AssetDetails pinned-top row.
+
+test.describe('91. Asset-files indicator lights up for measurement-dated files', () => {
+  let api: AuthedApi;
+  const BN = 999_009_100;
+  const AID = BN * 10;
+  let fileId: number | null = null;
+
+  test.beforeAll(async () => {
+    api = await loginViaApi();
+    await provisionFixtureBuilding(api, BN, {
+      assets: [{ asset_id: AID, main_asset_type: '211', asset_size: 50, apartment_number: '9' }],
+    });
+    // Upload a file and stamp it with the asset's measurement_date —
+    // mirrors what AssetsList upload does for a measured asset. Matches
+    // the URL shape used by test 10.2.
+    const up = await api.ctx.post(
+      `/api/files/upload/${AID}?measurement_date=01/01/2026`,
+      {
+        headers: { Authorization: `Bearer ${api.token}` },
+        multipart: {
+          file: { name: 'stamp.txt', mimeType: 'text/plain', buffer: Buffer.from('s') },
+        },
+      },
+    );
+    if (!up.ok()) {
+      // Surface the failure body so an outer run gets actionable output.
+      const body = await up.text();
+      throw new Error(`upload failed ${up.status()}: ${body}`);
+    }
+    fileId = (await up.json() as { id: number }).id;
+  });
+  test.afterAll(async () => {
+    if (fileId != null) {
+      await api.ctx.delete(`/api/files/${fileId}`, {
+        headers: { Authorization: `Bearer ${api.token}` },
+      }).catch(() => {});
+    }
+    await deleteBuildingIfExists(api, BN).catch(() => {});
+    await api.close();
+  });
+
+  test('91.1 AssetsList row: files-indicator button is lit (text-green-600)', async ({ page }) => {
+    await login(page);
+    await openBuildingInUI(page, BN);
+    const row = page.locator(
+      `.ag-row:has(.ag-cell[col-id="asset_id"]:has-text("${AID}"))`,
+    ).first();
+    await expect(row).toBeVisible({ timeout: 15_000 });
+    // The indicator lives in the structure_drawing_url cell — upload is a
+    // <label>, files-view is a <button>, so `button` picks the right one.
+    const btn = row.locator('.ag-cell[col-id="structure_drawing_url"] button').first();
+    await expect(btn).toBeVisible({ timeout: 10_000 });
+    await expect(btn).toHaveClass(/text-green-600/, { timeout: 10_000 });
+    const cls = (await btn.getAttribute('class')) ?? '';
+    expect(cls).not.toContain('text-gray-300');
+  });
+
+  test('91.2 AssetDetails pinned row: files-indicator button is lit', async ({ page }) => {
+    await login(page);
+    await openBuildingInUI(page, BN);
+    // Clicking the asset_id cell opens the AssetDetails tab.
+    const idCell = page.locator(
+      `.ag-row .ag-cell[col-id="asset_id"]:has-text("${AID}")`,
+    ).first();
+    await expect(idCell).toBeVisible({ timeout: 15_000 });
+    await idCell.click();
+
+    const pinned = page.locator('.asset-details-pinned-grid').first();
+    await expect(pinned).toBeVisible({ timeout: 20_000 });
+    const btn = pinned.locator('.ag-row .ag-cell[col-id="structure_drawing_url"] button').first();
+    await expect(btn).toBeVisible({ timeout: 10_000 });
+    await expect(btn).toHaveClass(/text-green-600/, { timeout: 10_000 });
+    const cls = (await btn.getAttribute('class')) ?? '';
+    expect(cls).not.toContain('text-gray-300');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// 92. AssetDetails editability for non-accountable (type 199) assets
+// ---------------------------------------------------------------------------
+// isFieldEditable used to return false for every field on a non-accountable
+// asset, locking the entire active row in AssetDetails — the same gate
+// that was narrowed in AssetsList by commit 7e7b59b4. This block guards
+// the port: payer_id is editable, main_asset_type stays locked.
+
+test.describe('92. AssetDetails type-199 editability', () => {
+  let api: AuthedApi;
+  const BN = 999_009_200;
+  const AID = BN * 10 + 77;
+
+  test.beforeAll(async () => {
+    api = await loginViaApi();
+    await provisionFixtureBuilding(api, BN);
+    await apiPost(api, '/api/assets/save-bulk-transactional', {
+      p_assets_data: [{
+        asset_id: AID, building_number: BN, payer_id: 'P199',
+        tax_region: 10, main_asset_type: '199', asset_size: 100,
+        apartment_number: '77',
+        sub_asset_type_1: '212', sub_asset_size_1: 60,
+        sub_asset_type_2: '216', sub_asset_size_2: 40,
+        measurement_date: '01/01/2026',
+      }],
+      p_validation_passed: true, p_action_type: 'manual_update', p_user_id: 'uid:101',
+    });
+  });
+  test.afterAll(async () => {
+    await deleteBuildingIfExists(api, BN).catch(() => {});
+    await api.close();
+  });
+
+  test('92.1 payer_id on active row accepts edit', async ({ page }) => {
+    await login(page);
+    await openBuildingInUI(page, BN);
+    const idCell = page.locator(
+      `.ag-row .ag-cell[col-id="asset_id"]:has-text("${AID}")`,
+    ).first();
+    await expect(idCell).toBeVisible({ timeout: 15_000 });
+    await idCell.click();
+
+    const pinned = page.locator('.asset-details-pinned-grid').first();
+    await expect(pinned).toBeVisible({ timeout: 20_000 });
+    const cell = pinned.locator('.ag-row .ag-cell[col-id="payer_id"]').first();
+    await cell.scrollIntoViewIfNeeded();
+    await cell.dblclick();
+    await expect(
+      pinned.locator('input, textarea, .ag-cell-edit-input').first(),
+    ).toBeVisible({ timeout: 5000 });
+  });
+
+  test('92.2 main_asset_type on active row stays locked', async ({ page }) => {
+    await login(page);
+    await openBuildingInUI(page, BN);
+    const idCell = page.locator(
+      `.ag-row .ag-cell[col-id="asset_id"]:has-text("${AID}")`,
+    ).first();
+    await expect(idCell).toBeVisible({ timeout: 15_000 });
+    await idCell.click();
+
+    const pinned = page.locator('.asset-details-pinned-grid').first();
+    await expect(pinned).toBeVisible({ timeout: 20_000 });
+    const cell = pinned.locator('.ag-row .ag-cell[col-id="main_asset_type"]').first();
+    await cell.scrollIntoViewIfNeeded();
+    await cell.dblclick();
+    // Double-click must NOT open an editor for this locked field.
+    const editorVisible = await pinned
+      .locator('input, textarea, .ag-cell-edit-input')
+      .first()
+      .isVisible({ timeout: 1500 })
+      .catch(() => false);
+    expect(editorVisible).toBe(false);
+  });
+});

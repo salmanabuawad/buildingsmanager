@@ -1479,8 +1479,10 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
           setAllMeasurements(allAssetMeasurements);
           setOriginalMeasurements(allAssetMeasurements);
 
-          // Rebuild assetsWithFiles so the file icon reflects the new state:
-          // active record has no files (they were pinned to history), history record has files.
+          // Rebuild assetsWithFiles so the file icon reflects the new state.
+          // Active record: count any file (uploads from AssetsList stamp the asset's
+          // measurement_date onto files, so filtering to NULL would miss them).
+          // History record: files pinned to that specific date.
           const filesMap = new Set<string>();
           await Promise.all(
             allAssetMeasurements.map(async (m) => {
@@ -1488,7 +1490,7 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
               if (!mId) return;
               try {
                 if (m.is_latest) {
-                  const files = await api.assets.files.getAll(mId, null);
+                  const files = await api.assets.files.getAll(mId);
                   if (files && files.length > 0) filesMap.add(`${mId}|ACTIVE`);
                 } else {
                   const mDate = m.measurement_date ?? null;
@@ -1641,10 +1643,8 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
   const handleViewDrawing = useCallback((assetId: number, measurementDate?: string | null) => {
     setSelectedAssetIdForFiles(assetId);
     setAssetFilesModalOpen(true);
-    // Store measurement_date for the modal
-    if (measurementDate !== undefined) {
-      setSelectedMeasurementDateForFiles(measurementDate);
-    }
+    // Always set — undefined means "show all files" (active row); a date means "filter to that history snapshot".
+    setSelectedMeasurementDateForFiles(measurementDate);
   }, []);
 
   function handleCancelChanges() {
@@ -2237,8 +2237,9 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
             // Active records: files are stored with NULL date → use ACTIVE key; history records: use their date
             const measurementKey = asset.is_latest ? `${asset.asset_id}|ACTIVE` : `${asset.asset_id}|${asset.measurement_date ?? null}`;
             if (assetsWithFiles.has(measurementKey)) {
-              // Pass null for active records so the modal fetches NULL-date files; pass actual date for history
-              handleViewDrawing(asset.asset_id, asset.is_latest ? null : (asset.measurement_date ?? null));
+              // Active: pass undefined so the modal shows all files (matches AssetsList behavior).
+              // History: pass the specific date so the modal filters to that snapshot.
+              handleViewDrawing(asset.asset_id, asset.is_latest ? undefined : (asset.measurement_date ?? null));
             }
           }}
           disabled={!(asset.is_latest ? assetsWithFiles.has(`${asset.asset_id}|ACTIVE`) : assetsWithFiles.has(`${asset.asset_id}|${asset.measurement_date ?? null}`))}
@@ -3708,8 +3709,10 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
       }
       
       // Check which measurements have files.
-      // Active records (is_latest=true): files stored with NULL date → key: `${asset_id}|ACTIVE`
-      // History records (is_latest=false): files stored with specific date → key: `${asset_id}|${date}`
+      // Active records (is_latest=true): count any file — the AssetsList upload path
+      // stamps the asset's measurement_date onto the file, so a NULL-only filter
+      // misses them. Key: `${asset_id}|ACTIVE`.
+      // History records (is_latest=false): files pinned to that date. Key: `${asset_id}|${date}`.
       if (allAssetMeasurements.length > 0) {
         const filesMap = new Set<string>();
 
@@ -3719,13 +3722,11 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
             if (!assetId) return;
             try {
               if (m.is_latest) {
-                // Active record — check NULL-date files
-                const files = await api.assets.files.getAll(assetId, null);
+                const files = await api.assets.files.getAll(assetId);
                 if (files && files.length > 0) {
                   filesMap.add(`${assetId}|ACTIVE`);
                 }
               } else {
-                // History record — check files with this specific date
                 const measurementDate = m.measurement_date ?? null;
                 const files = await api.assets.files.getAll(assetId, measurementDate);
                 if (files && files.length > 0) {
@@ -4534,8 +4535,9 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
           measurementDate={selectedMeasurementDateForFiles}
           isUploading={uploadingAssetId === selectedAssetIdForFiles}
           onFilesDeleted={(assetId, hasFiles) => {
-            // When measurementDate is null, we're viewing active files → use ACTIVE key
-            const key = selectedMeasurementDateForFiles === null
+            // undefined → modal was opened for the active row (no date filter) → ACTIVE key.
+            // null or a date → modal was filtered to that measurement → use that key.
+            const key = selectedMeasurementDateForFiles === undefined
               ? `${assetId}|ACTIVE`
               : `${assetId}|${selectedMeasurementDateForFiles}`;
             if (hasFiles) {

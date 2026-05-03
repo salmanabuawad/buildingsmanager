@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """
 Asset service.
 Replaces: save_assets_bulk_transactional, delete_asset_transactional,

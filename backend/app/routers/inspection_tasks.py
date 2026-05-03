@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """
 Inspection tasks & reports router.
 Matches the frontend API in src/lib/inspectionApi.ts.

@@ -1726,7 +1726,7 @@ function App() {
               )}
             </button>
             {(distributionAlert.residence || distributionAlert.business) && !userMenuOpen && (
-              <div className="absolute left-0 top-full mt-1 z-[100] space-y-1 min-w-[220px]">
+              <div className="absolute left-0 top-full mt-1 z-[100] space-y-1 min-w-[220px] pointer-events-none">
                 {distributionAlert.residence && (
                   <div className="bg-amber-500 border-r-4 border-amber-700 rounded-lg px-3 py-2 shadow-lg flex items-center gap-2"
                     style={{ animation: 'pulse 1.5s cubic-bezier(0.4, 0, 0.6, 1) infinite' }}>

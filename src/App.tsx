@@ -109,6 +109,7 @@ function App() {
   const [managerActionsSubmenuOpen, setManagerActionsSubmenuOpen] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const [settingsMenuOpen, setSettingsMenuOpen] = useState(false);
+  const [distributionAlert, setDistributionAlert] = useState<{ residence: boolean; business: boolean }>({ residence: false, business: false });
   const settingsMenuRef = useRef<HTMLDivElement>(null);
   const userMenuRef = useRef<HTMLDivElement>(null);
 
@@ -301,6 +302,10 @@ function App() {
     }
     const activeTab = tabs.find(t => t.id === activeTabId);
     setContextFromTabType(activeTab?.type ?? 'general');
+    // Clear distribution alert when leaving an assets tab
+    if (activeTab?.type !== 'assets') {
+      setDistributionAlert({ residence: false, business: false });
+    }
   }, [isAuthenticated, activeTabId, tabs, setContextFromTabType]);
 
   // On mobile: when user first opens app (or just logged in), focus on task list + upload
@@ -1713,10 +1718,31 @@ function App() {
             <button
               onClick={(e) => { e.stopPropagation(); setUserMenuOpen((prev) => !prev); setSettingsMenuOpen(false); }}
               title="משתמש"
-              className={`p-2.5 rounded hover:bg-white/10 transition-colors ${userMenuOpen ? 'bg-white/10' : 'opacity-80'}`}
+              className={`relative p-2.5 rounded hover:bg-white/10 transition-colors ${userMenuOpen ? 'bg-white/10' : 'opacity-80'}`}
             >
               <User className="h-5 w-5" />
+              {(distributionAlert.residence || distributionAlert.business) && (
+                <span className="absolute top-1 right-1 h-2 w-2 rounded-full bg-amber-400 animate-ping" />
+              )}
             </button>
+            {(distributionAlert.residence || distributionAlert.business) && !userMenuOpen && (
+              <div className="absolute left-0 top-full mt-1 z-[100] space-y-1 min-w-[220px]">
+                {distributionAlert.residence && (
+                  <div className="bg-amber-500 border-r-4 border-amber-700 rounded-lg px-3 py-2 shadow-lg flex items-center gap-2"
+                    style={{ animation: 'pulse 1.5s cubic-bezier(0.4, 0, 0.6, 1) infinite' }}>
+                    <AlertCircle className="h-4 w-4 text-amber-900 shrink-0 animate-bounce" />
+                    <p className="text-amber-900 font-bold text-sm">יש צורך לפזר שטח משותף מגורים!</p>
+                  </div>
+                )}
+                {distributionAlert.business && (
+                  <div className="bg-amber-500 border-r-4 border-amber-700 rounded-lg px-3 py-2 shadow-lg flex items-center gap-2"
+                    style={{ animation: 'pulse 1.5s cubic-bezier(0.4, 0, 0.6, 1) infinite' }}>
+                    <AlertCircle className="h-4 w-4 text-amber-900 shrink-0 animate-bounce" />
+                    <p className="text-amber-900 font-bold text-sm">יש צורך לפזר שטח משותף עסקים!</p>
+                  </div>
+                )}
+              </div>
+            )}
             {userMenuOpen && (
               <div className="absolute left-0 top-full mt-1 w-48 bg-app-sidebar border border-white/10 rounded-lg shadow-xl py-2 z-[100]">
                 {(() => {
@@ -2182,6 +2208,7 @@ function App() {
                   onCloseTabAndOpenMultiTax={handleCloseTabAndOpenMultiTax}
                   onCloseTab={() => handleCloseTab(activeTabId)}
                   isErrorFixingMode={activeTab.isErrorFixingMode}
+                  onDistributionAlert={setDistributionAlert}
                 />
               )}
             {activeTab?.type === 'transfer-areas' && activeTab.buildingNumber && activeTab.selectedAssetIds && (

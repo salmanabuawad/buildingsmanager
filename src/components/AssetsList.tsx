@@ -70,6 +70,7 @@ interface AssetsListProps {
   onCloseTabAndOpenMultiTax?: (buildingNumber: number) => void;
   onCloseTab?: () => void;
   isErrorFixingMode?: boolean; // When true, hide all buttons except Validate, Save, Save as new, and Cancel
+  onDistributionAlert?: (needs: { residence: boolean; business: boolean }) => void;
 }
 
 export interface AssetsListRef {
@@ -342,7 +343,7 @@ const OperatorCellEditor = React.forwardRef<any, OperatorCellEditorParams>((prop
 OperatorCellEditor.displayName = 'OperatorCellEditor';
 
 function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsListRef>) {
-  const { buildingNumber, taxRegion, onSelectAsset, onOpenTransferAreas, onOpenNewAsset, selectedAssetIds, onOpenAssetsTab, onCloseTabAndOpenMultiTax, onCloseTab, isErrorFixingMode = false } = props;
+  const { buildingNumber, taxRegion, onSelectAsset, onOpenTransferAreas, onOpenNewAsset, selectedAssetIds, onOpenAssetsTab, onCloseTabAndOpenMultiTax, onCloseTab, isErrorFixingMode = false, onDistributionAlert } = props;
   const { t } = useTranslation();
   const { validationRules } = useValidationRules(); // Get validation rules from context
   const { isReadOnly } = useUserRole();
@@ -6575,23 +6576,13 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
           </div>
         </div>
       )}
-      {/* Blinking warning message when distribution is needed */}
+      {/* Distribution alert is now rendered in App.tsx below the user icon via onDistributionAlert callback */}
       {building && (() => {
-        // Check if distribution is needed: flag must be true (needs distribution)
-        // With new field names: true = needs distribution, false = already distributed
-        // Show alert if flag is raised, regardless of shared area value (even if 0 or null)
-        const needsResidenceDistribution = isResidentTaxRegion && 
+        const needsResidenceDistribution = isResidentTaxRegion &&
           building.need_residence_distribution === true;
-        
-        // Show business distribution alert if:
-        // 1. Flag is raised, AND
-        // 2. We're not in a residence tax region, AND
-        // 3. Either we're in a business tax region tab OR we're not in any specific tax region tab
         const needsBusinessDistribution = building.need_business_distribution === true &&
           !isResidentTaxRegion &&
-          (taxRegion ? (!isMultiTaxRegion) : true); // Show if taxRegion is set (and not multi) OR if taxRegion is not set
-        
-        // Debug logging in development
+          (taxRegion ? (!isMultiTaxRegion) : true);
         if (process.env.NODE_ENV === 'development') {
           if (building.need_residence_distribution === true) {
             console.log('[AssetsList] Residence distribution flag check:', {
@@ -6603,39 +6594,9 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
             });
           }
         }
-        
-        if (!needsResidenceDistribution && !needsBusinessDistribution) {
-          return null;
-        }
-        
-        return (
-          <div className="fixed bottom-4 left-4 z-50 max-w-md space-y-2">
-            {needsResidenceDistribution && (
-              <div className="animate-pulse" style={{ animation: 'pulse 1.5s cubic-bezier(0.4, 0, 0.6, 1) infinite' }}>
-                <div className="bg-amber-500 border-l-4 border-amber-700 rounded-lg p-4 shadow-lg">
-                  <div className="flex items-center gap-2">
-                    <AlertCircle className="h-5 w-5 text-amber-900 animate-bounce" />
-                    <p className="text-amber-900 font-bold text-lg">
-                      ⚠️ יש צורך לפזר שטח משותף מגורים!
-                    </p>
-                  </div>
-                </div>
-              </div>
-            )}
-            {needsBusinessDistribution && (
-              <div className="animate-pulse" style={{ animation: 'pulse 1.5s cubic-bezier(0.4, 0, 0.6, 1) infinite' }}>
-                <div className="bg-amber-500 border-l-4 border-amber-700 rounded-lg p-4 shadow-lg">
-                  <div className="flex items-center gap-2">
-                    <AlertCircle className="h-5 w-5 text-amber-900 animate-bounce" />
-                    <p className="text-amber-900 font-bold text-lg">
-                      ⚠️ יש צורך לפזר שטח משותף עסקים!
-                    </p>
-                  </div>
-                </div>
-              </div>
-            )}
-          </div>
-        );
+        // Notify parent to show alert near user icon
+        onDistributionAlert?.({ residence: needsResidenceDistribution, business: needsBusinessDistribution });
+        return null;
       })()}
       <div className="flex flex-col flex-1 min-h-0 w-full py-2" style={{ maxWidth: '100vw', width: '100%', paddingLeft: '0.5rem', paddingRight: '0.5rem' }}>
         <div className="page-header mb-2 rounded-lg px-3 py-2 w-full">

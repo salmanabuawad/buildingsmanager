@@ -1140,13 +1140,19 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
           'הערה'                  // comment
         ];
         const boolToHe = (v: any): string => (v === true ? 'כן' : v === false ? 'לא' : '');
+        const formatFloor = (f: any): string => {
+          if (f == null || f === '') return '';
+          const s = String(f);
+          const trailing = s.match(/^(\d+)-$/);
+          return trailing ? '-' + trailing[1] : s;
+        };
         const updateRows = regionAssetsForExcel.map((asset: any) => [
           asset.building_number != null ? String(asset.building_number) : '',
           asset.asset_id != null ? String(asset.asset_id) : '',
           asset.measurement_date || '',
           asset.tax_region != null ? String(asset.tax_region) : '',
           asset.apartment_number || '',
-          asset.apartment_floor || '',
+          formatFloor(asset.apartment_floor),
           asset.storage_number || '',
           asset.storage_floor || '',
           boolToHe(asset.penthouse),
@@ -4969,6 +4975,14 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
         'הערה'  // comment
       ];
 
+      // Helper: format apartment_floor for export (convert "2-" Hebrew trailing-minus to "-2")
+      const fmtFloor = (f: any): string => {
+        if (f == null || f === '') return '';
+        const s = String(f);
+        const trailing = s.match(/^(\d+)-$/);
+        return trailing ? '-' + trailing[1] : s;
+      };
+
       // Convert assets to rows
       const rows = assetsToExport.map(asset => [
         asset.building_number || '',
@@ -4977,7 +4991,7 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
         asset.tax_region || '',
         asset.penthouse || '',
         asset.apartment_number || '',
-        asset.apartment_floor || '',
+        fmtFloor(asset.apartment_floor),
         asset.storage_number || '',
         asset.storage_floor || '',
         asset.discount_type || '',

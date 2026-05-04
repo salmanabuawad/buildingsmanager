@@ -46,7 +46,8 @@ function applyNumericFormat(worksheet: XLSX.WorkSheet, columnIndices?: number[])
 /**
  * Prevent spreadsheet formula injection / suspicious cell patterns.
  * If a cell starts with =, +, -, @ (after optional whitespace), Excel may treat it as a formula.
- * We prefix with an apostrophe to force text.
+ * We prefix with an apostrophe to force text — EXCEPT for plain numeric values (including
+ * negative numbers like "-2") which are safe and should be written as numbers in Excel.
  */
 function sanitizeSpreadsheetCell(value: any): any {
   if (value === null || value === undefined) return value;
@@ -55,7 +56,18 @@ function sanitizeSpreadsheetCell(value: any): any {
   // Avoid double-prefixing
   if (value.startsWith("'")) return value;
 
-  // If first non-whitespace char is a formula trigger, force text
+  const trimmed = value.trim();
+
+  // Plain numeric strings (including negatives like "-2", "-1.5") → write as Excel numbers.
+  // This prevents the apostrophe prefix and makes the values sortable in Excel.
+  // Number() is safe here: "" → 0 (excluded by trimmed !== ''), "  " → 0 (excluded),
+  // "-2" → -2 ✓, "1-" (Hebrew trailing minus) → NaN → falls through.
+  if (trimmed !== '' && !isNaN(Number(trimmed)) && isFinite(Number(trimmed))) {
+    return Number(trimmed);
+  }
+
+  // If first non-whitespace char is a formula trigger (=, +, -, @), force text prefix.
+  // This catches things like "=SUM(...)" or "+1.5%" but not plain negative numbers (handled above).
   if (/^\s*[=+\-@]/.test(value)) {
     return `'${value}`;
   }

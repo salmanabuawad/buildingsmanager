@@ -2001,12 +2001,14 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
       }
 
       let sentCount = 0;
+      let emailError: string | undefined;
       if (sendItems.length > 0) {
-        const { sentCount: n } = await emailService.sendExportEmailsWithProgress(
+        const { sentCount: n, lastError } = await emailService.sendExportEmailsWithProgress(
           sendItems,
           { concurrency: 3, onProgress: () => {} }
         );
         sentCount = n;
+        emailError = lastError;
       }
 
       // STEP 6: Download ZIP
@@ -2032,10 +2034,15 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
       }
       window.dispatchEvent(new CustomEvent('exportToAutomationSuccess'));
 
+      const failedEmails = sendItems.length - sentCount;
       let successMessage = 'הנכס נשלח לעירייה בהצלחה. הקובץ הורד.';
       if (sentCount > 0) successMessage += ` ${sentCount} מיילים נשלחו.`;
-      setToast({ message: successMessage, type: 'success' });
-      setTimeout(() => setToast(null), 6000);
+      if (failedEmails > 0) {
+        const errDetail = emailError ? `: ${emailError}` : '';
+        successMessage += ` ⚠️ ${failedEmails} מיילים נכשלו${errDetail}`;
+      }
+      setToast({ message: successMessage, type: failedEmails > 0 && sentCount === 0 ? 'error' : 'success' });
+      setTimeout(() => setToast(null), failedEmails > 0 ? 12000 : 6000);
     } catch (err: any) {
       setToast({ message: err?.message || 'שגיאה בשליחה לעירייה', type: 'error' });
       setTimeout(() => setToast(null), 5000);

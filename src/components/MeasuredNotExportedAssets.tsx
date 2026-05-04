@@ -1404,8 +1404,9 @@ export const MeasuredNotExportedAssets = ({ onSelectAsset, onOpenAssetsTab }: Me
         sendItems.push({ to: manager.email, recipientName: manager.name, subject: subj, body, attachmentFilename: `נכסים_מנהל_${manager.id}_${dateStr}_${managerAssets.length}נכסים.xlsx`, attachmentBlob: mgrExcelBlob });
       }
       let sentCount = 0;
+      let emailError: string | undefined;
       if (sendItems.length > 0) {
-        const { sentCount: n } = await emailService.sendExportEmailsWithProgress(
+        const { sentCount: n, lastError } = await emailService.sendExportEmailsWithProgress(
           sendItems.map((item) => ({
             to: item.to,
             subject: item.subject,
@@ -1420,6 +1421,7 @@ export const MeasuredNotExportedAssets = ({ onSelectAsset, onOpenAssetsTab }: Me
           }
         );
         sentCount = n;
+        emailError = lastError;
       }
       setExportProgressMessage('מוריד קובץ ZIP...');
       const { createAndDownloadZip } = await import('../lib/zipExport');
@@ -1438,8 +1440,13 @@ export const MeasuredNotExportedAssets = ({ onSelectAsset, onOpenAssetsTab }: Me
 
       let successMessage = `נשלחו ${numericAssetIdsForQuery.length} נכסים לעירייה בהצלחה. הקובץ הורד.`;
       if (sentCount > 0) successMessage += ` ${sentCount} מיילים נשלחו למפעילים ולמנהלים.`;
-      setToast({ message: successMessage, type: 'success' });
-      setTimeout(() => setToast(null), 8000);
+      const failedEmails = sendItems.length - sentCount;
+      if (failedEmails > 0) {
+        const errDetail = emailError ? `: ${emailError}` : '';
+        successMessage += ` ⚠️ ${failedEmails} מיילים נכשלו${errDetail}`;
+      }
+      setToast({ message: successMessage, type: failedEmails > 0 && sentCount === 0 ? 'error' : 'success' });
+      setTimeout(() => setToast(null), failedEmails > 0 ? 12000 : 8000);
       // Refresh the count after export
       await fetchExportToAutomationCount();
       // Refresh the assets list

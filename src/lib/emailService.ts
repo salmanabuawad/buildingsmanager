@@ -170,10 +170,12 @@ class EmailService {
       const responseData = await response.json().catch(() => ({}));
 
       if (!response.ok) {
+        // FastAPI returns errors as { detail: "..." }, not { error: "..." }
+        const errMsg = (responseData as any).detail || (responseData as any).error;
         if (response.status === 401) {
           return {
             success: false,
-            error: (responseData as any).error || 'Unauthorized. Please sign in to send email.'
+            error: errMsg || 'Unauthorized. Please sign in to send email.'
           };
         }
         if (response.status === 404) {
@@ -184,7 +186,7 @@ class EmailService {
         }
         return {
           success: false,
-          error: (responseData as any).error || `HTTP ${response.status}: ${response.statusText}`
+          error: errMsg || `HTTP ${response.status}: ${response.statusText}`
         };
       }
 
@@ -214,12 +216,13 @@ class EmailService {
       attachmentBlob: Blob;
     }>,
     options: { concurrency?: number; onProgress?: (sent: number, total: number) => void } = {}
-  ): Promise<{ sentCount: number }> {
+  ): Promise<{ sentCount: number; lastError?: string }> {
     const { concurrency = 3, onProgress } = options;
     if (items.length === 0) {
       return { sentCount: 0 };
     }
     let sentCount = 0;
+    let lastError: string | undefined;
     const total = items.length;
 
     for (let i = 0; i < items.length; i += concurrency) {
@@ -238,10 +241,13 @@ class EmailService {
           })
         )
       );
-      sentCount += results.filter((r) => r.success).length;
+      for (const r of results) {
+        if (r.success) sentCount++;
+        else if (r.error) lastError = r.error;
+      }
       onProgress?.(sentCount, total);
     }
-    return { sentCount };
+    return { sentCount, lastError };
   }
 
   /**

@@ -117,11 +117,12 @@ def send_email_with_smtp(
         if bcc:
             all_recipients.extend(bcc)
 
-        # Connect to SMTP server
+        # Connect to SMTP server (30 s timeout prevents indefinite hangs)
+        timeout = 30
         if config.smtp_encryption == 'ssl':
-            server = smtplib.SMTP_SSL(config.smtp_host, config.smtp_port)
+            server = smtplib.SMTP_SSL(config.smtp_host, config.smtp_port, timeout=timeout)
         else:
-            server = smtplib.SMTP(config.smtp_host, config.smtp_port)
+            server = smtplib.SMTP(config.smtp_host, config.smtp_port, timeout=timeout)
             if config.smtp_encryption == 'tls':
                 server.starttls()
 

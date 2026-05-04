@@ -1842,21 +1842,11 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
       const assetTypesData = assetTypes.length > 0 ? assetTypes : getAssetTypes();
 
       const getExportAssetSize = (a: Asset): number | string => {
-        const assetSize = (a as any).asset_size || 0;
-        const sharedParkingArea = Number((a as any).shared_parking_area) || 0;
-        if ((a as any).main_asset_type && assetTypesData.length > 0) {
-          const assetTypeName = String((a as any).main_asset_type).trim();
-          let assetType = assetTypesData.find((at: any) => String(at.name || '').trim() === assetTypeName);
-          if (!assetType) {
-            const n = parseInt(assetTypeName, 10);
-            if (!isNaN(n)) assetType = assetTypesData.find((at: any) => parseInt(String(at.name || ''), 10) === n);
-          }
-          if (assetType && (assetType as any).is_business === true) {
-            const dist = (a as any).business_distribution_area || 0;
-            return assetSize + dist + sharedParkingArea;
-          }
-        }
-        return (assetSize + sharedParkingArea) || '';
+        const assetSize = Number((a as any).asset_size) || 0;
+        const dist = Number((a as any).business_distribution_area) || 0;
+        const sharedParking = Number((a as any).shared_parking_area) || 0;
+        const total = assetSize + dist + sharedParking;
+        return total > 0 ? total : '';
       };
 
       const headers = [

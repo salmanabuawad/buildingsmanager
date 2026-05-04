@@ -892,42 +892,16 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
         return total > 0 ? total : '';
       };
 
-      // Helper function to calculate export asset size (asset_size + business_distribution_area for business assets + shared_parking_area for all)
+      // Helper function: total export size = asset_size + business_distribution_area + shared_parking_area
+      // business_distribution_area holds each asset's allocated share of the building shared area
+      // (for both business and residence distributions). Always add it unconditionally so the
+      // result is correct regardless of whether assetTypesData is loaded.
       const getExportAssetSize = (asset: any): number | string => {
-        const assetSize = asset.asset_size || 0;
-        const sharedParkingArea = Number(asset.shared_parking_area) || 0;
-
-        // Check if this is a business asset
-        if (asset.main_asset_type && assetTypesData.length > 0) {
-          const assetTypeName = String(asset.main_asset_type).trim();
-
-          // Try string lookup first
-          let assetType = assetTypesData.find((at: any) => {
-            const atName = String(at.name || '').trim();
-            return atName === assetTypeName;
-          });
-
-          // If not found, try numeric comparison
-          if (!assetType) {
-            const assetTypeNum = parseInt(assetTypeName, 10);
-            if (!isNaN(assetTypeNum)) {
-              assetType = assetTypesData.find((at: any) => {
-                const atName = String(at.name || '').trim();
-                const atNameNum = parseInt(atName, 10);
-                return !isNaN(atNameNum) && atNameNum === assetTypeNum;
-              });
-            }
-          }
-
-          // If it's a business asset, add business_distribution_area + shared_parking_area to asset_size
-          if (assetType?.business_residence === 'עסקים') {
-            const areaFromDistribution = asset.business_distribution_area || 0;
-            return assetSize + areaFromDistribution + sharedParkingArea;
-          }
-        }
-
-        // For non-business assets, add shared_parking_area if present
-        return (assetSize + sharedParkingArea) || '';
+        const assetSize = Number(asset.asset_size) || 0;
+        const dist = Number(asset.business_distribution_area) || 0;
+        const sharedParking = Number(asset.shared_parking_area) || 0;
+        const total = assetSize + dist + sharedParking;
+        return total > 0 ? total : '';
       };
 
       // Helper: add business_distribution_area to sub_asset_size_1, and shared_parking_area to the parking subtype size

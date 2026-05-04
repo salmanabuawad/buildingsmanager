@@ -6787,12 +6787,26 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
             {!isErrorFixingMode && building && isResidentTaxRegion && (building.residence_shared_area != null || building.need_residence_distribution === true) && (
               <button
                 type="button"
-                onClick={handleDistributeSharedArea}
+                onClick={async () => {
+                  setIsDistributeValidating(true);
+                  try {
+                    const result = await handleBatchValidateBuildingAssets({ silent: true, forDistribute: true });
+                    if (result?.hasErrors) {
+                      setToast({ message: 'יש שגיאות אימות - לא ניתן לבצע פיזור', type: 'error' });
+                      setTimeout(() => setToast(null), 5000);
+                      setShowBatchValidationModal(true);
+                      return;
+                    }
+                    await handleDistributeSharedArea();
+                  } finally {
+                    setIsDistributeValidating(false);
+                  }
+                }}
                 disabled={
-                  loading || 
-                  assets.length === 0 || 
+                  loading ||
+                  isDistributeValidating ||
+                  assets.length === 0 ||
                   building.need_residence_distribution !== true
-                  // Note: Allow distribution even if area is 0, as long as flag is true (blinking alert is on)
                 }
                 className="btn btn-action btn-primary disabled:opacity-50 disabled:cursor-not-allowed"
                 title={building.need_residence_distribution === true 
@@ -6804,19 +6818,33 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
                   : 'יש לשנות את שטח משותף מגורים כדי לאפשר פיזור'}
               >
                 <Download className="h-5 w-5" />
-                <span>פזר שטח משותף מגורים</span>
+                <span>{isDistributeValidating ? 'מאמת...' : 'פזר שטח משותף מגורים'}</span>
               </button>
             )}
             {/* Distribute business shared area button - always visible in business tabs, enabled when flag is on (blinking alert), hidden in error fixing mode */}
             {!isErrorFixingMode && building && taxRegion && !isMultiTaxRegion && !isResidentTaxRegion && (building.business_shared_area != null || building.need_business_distribution === true) && (
               <button
                 type="button"
-                onClick={handleDistributeBusinessSharedArea}
+                onClick={async () => {
+                  setIsDistributeValidating(true);
+                  try {
+                    const result = await handleBatchValidateBuildingAssets({ silent: true, forDistribute: true });
+                    if (result?.hasErrors) {
+                      setToast({ message: 'יש שגיאות אימות - לא ניתן לבצע פיזור', type: 'error' });
+                      setTimeout(() => setToast(null), 5000);
+                      setShowBatchValidationModal(true);
+                      return;
+                    }
+                    await handleDistributeBusinessSharedArea();
+                  } finally {
+                    setIsDistributeValidating(false);
+                  }
+                }}
                 disabled={
-                  loading || 
-                  assets.length === 0 || 
+                  loading ||
+                  isDistributeValidating ||
+                  assets.length === 0 ||
                   building.need_business_distribution !== true
-                  // Note: Allow distribution even if area is 0, as long as flag is true (blinking alert is on)
                 }
                 className="btn btn-action btn-primary disabled:opacity-50 disabled:cursor-not-allowed"
                 title={building.need_business_distribution === true
@@ -6828,7 +6856,7 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
                   : 'יש לשנות את שטח משותף עסקים כדי לאפשר פיזור'}
               >
                 <Download className="h-5 w-5" />
-                <span>פזר שטח משותף עסקים</span>
+                <span>{isDistributeValidating ? 'מאמת...' : 'פזר שטח משותף עסקים'}</span>
               </button>
             )}
             {/* Show save and cancel buttons only if a specific tax region is selected (same visibility logic as delete button) */}

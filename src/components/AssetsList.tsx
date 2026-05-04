@@ -389,6 +389,7 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
   const [batchValidationLoading, setBatchValidationLoading] = useState(false);
   const [batchValidationProgress, setBatchValidationProgress] = useState<ValidationProgress | null>(null);
   const [batchValidationResults, setBatchValidationResults] = useState<BatchValidationResults | null>(null);
+  const [isDistributeValidating, setIsDistributeValidating] = useState(false);
   const [uploadingAssetId, setUploadingAssetId] = useState<number | null>(null);
   const [uploadProgress, setUploadProgress] = useState<{ assetId: number; progress: number; fileName: string } | null>(null);
   const [selectedDrawingUrl, setSelectedDrawingUrl] = useState<string | null>(null);
@@ -911,6 +912,41 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
         return assetSize || '';
       };
 
+      // Helper: add business_shared_area to sub_asset_size_1, and shared_parking_area to the parking subtype size
+      const applySharedAreasToExportRow = (asset: any, row: any[]): any[] => {
+        const result = [...row];
+        // Row layout: [payer_id, asset_id, date_from, date_to, main_type, size,
+        //   sub1_type(6), sub1_size(7), sub2_type(8), sub2_size(9), ...sub6_type(16), sub6_size(17), ...]
+
+        // Add business_shared_area to sub_asset_size_1 (index 7)
+        const businessSharedArea = Number(asset.business_shared_area) || 0;
+        if (businessSharedArea > 0) {
+          result[7] = (Number(result[7]) || 0) + businessSharedArea;
+        }
+
+        // Add shared_parking_area to whichever subtype (1–6) is a parking type
+        const sharedParkingArea = Number(asset.shared_parking_area) || 0;
+        if (sharedParkingArea > 0 && assetTypesData.length > 0) {
+          for (let i = 0; i < 6; i++) {
+            const typeIdx = 6 + i * 2;
+            const sizeIdx = 7 + i * 2;
+            const subtypeName = String(result[typeIdx] || '').trim();
+            if (!subtypeName) continue;
+            let subtype = assetTypesData.find((at: any) => String(at.name || '').trim() === subtypeName);
+            if (!subtype) {
+              const n = parseInt(subtypeName, 10);
+              if (!isNaN(n)) subtype = assetTypesData.find((at: any) => parseInt(String(at.name || ''), 10) === n);
+            }
+            if ((subtype as any)?.use_for_parking_shared_area === true) {
+              result[sizeIdx] = (Number(result[sizeIdx]) || 0) + sharedParkingArea;
+              break;
+            }
+          }
+        }
+
+        return result;
+      };
+
       // Filter exported assets to only include assets from the current building and tax region for Excel export
       // When exporting from AssetsList, we only want to export assets in this building/tab and tax region (if specified)
       const assetsForExcel = exportedAssets.filter(asset => {
@@ -1046,32 +1082,35 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
         const regionAssets = assetsByTaxRegion.get(taxRegion) || [];
         
         // Convert assets to rows for this tax region
-        const rows = regionAssetsForExcel.map(asset => [
-          asset.payer_id || '',                                    // זיהוי משלם
-          asset.asset_id != null ? String(asset.asset_id) : '',   // זיהוי נכס (convert to string)
-          formatDateToDDMMYYYY(asset.discount_date_from) || '',  // תחילת שינוי
-          formatDateToDDMMYYYY(asset.discount_date_to) || '',    // סוף שינוי
-          asset.main_asset_type || '',                             // סוג נכס
-          getExportAssetSize(asset),                               // גודל נכס (asset_size + business_distribution_area for business)
-          asset.sub_asset_type_1 || '',                            // נכס משנה 1
-          asset.sub_asset_size_1 || '',                            // גודל נכס משנה 1
-          asset.sub_asset_type_2 || '',                            // נכס משנה 2
-          asset.sub_asset_size_2 || '',                            // גודל נכס משנה 2
-          asset.sub_asset_type_3 || '',                            // נכס משנה 3
-          asset.sub_asset_size_3 || '',                            // גודל נכס משנה 3
-          asset.sub_asset_type_4 || '',                            // נכס משנה 4
-          asset.sub_asset_size_4 || '',                            // גודל נכס משנה 4
-          asset.sub_asset_type_5 || '',                            // נכס משנה 5
-          asset.sub_asset_size_5 || '',                            // גודל נכס משנה 5
-          asset.sub_asset_type_6 || '',                            // סוג נכס משני 6
-          asset.sub_asset_size_6 || '',                            // גודל נכסי משני 6
-          '',                                                      // מנה (empty in sample)
-          '',                                                      // מקום גביה (empty in sample)
-          '',                                                      // מספר פקודה (empty in sample)
-          '',                                                      // שנת כספים (empty in sample)
-          '',                                                      // תאריך גביה (empty in sample)
-          ''                                                       // יום ערך (empty in sample)
-        ]);
+        const rows = regionAssetsForExcel.map(asset => {
+          const baseRow = [
+            asset.payer_id || '',                                    // זיהוי משלם
+            asset.asset_id != null ? String(asset.asset_id) : '',   // זיהוי נכס (convert to string)
+            formatDateToDDMMYYYY(asset.discount_date_from) || '',  // תחילת שינוי
+            formatDateToDDMMYYYY(asset.discount_date_to) || '',    // סוף שינוי
+            asset.main_asset_type || '',                             // סוג נכס
+            getExportAssetSize(asset),                               // גודל נכס (asset_size + business_distribution_area for business)
+            asset.sub_asset_type_1 || '',                            // נכס משנה 1
+            asset.sub_asset_size_1 || '',                            // גודל נכס משנה 1
+            asset.sub_asset_type_2 || '',                            // נכס משנה 2
+            asset.sub_asset_size_2 || '',                            // גודל נכס משנה 2
+            asset.sub_asset_type_3 || '',                            // נכס משנה 3
+            asset.sub_asset_size_3 || '',                            // גודל נכס משנה 3
+            asset.sub_asset_type_4 || '',                            // נכס משנה 4
+            asset.sub_asset_size_4 || '',                            // גודל נכס משנה 4
+            asset.sub_asset_type_5 || '',                            // נכס משנה 5
+            asset.sub_asset_size_5 || '',                            // גודל נכס משנה 5
+            asset.sub_asset_type_6 || '',                            // סוג נכס משני 6
+            asset.sub_asset_size_6 || '',                            // גודל נכסי משני 6
+            '',                                                      // מנה (empty in sample)
+            '',                                                      // מקום גביה (empty in sample)
+            '',                                                      // מספר פקודה (empty in sample)
+            '',                                                      // שנת כספים (empty in sample)
+            '',                                                      // תאריך גביה (empty in sample)
+            ''                                                       // יום ערך (empty in sample)
+          ];
+          return applySharedAreasToExportRow(asset, baseRow);
+        });
 
         // Create data array with headers and rows for this tax region
         const data = [headers, ...rows];
@@ -2605,11 +2644,13 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
   // Keep the ref pointing to the latest version so setTimeout callbacks don't use stale closures
   runValidationRef.current = runValidationProgrammatically;
 
-  async function handleBatchValidateBuildingAssets() {
-    setShowBatchValidationModal(true);
-    setBatchValidationLoading(true);
-    setBatchValidationResults(null);
-    setBatchValidationProgress(null);
+  async function handleBatchValidateBuildingAssets(options?: { silent?: boolean; forDistribute?: boolean }): Promise<{ hasErrors: boolean } | null> {
+    if (!options?.silent) {
+      setShowBatchValidationModal(true);
+      setBatchValidationLoading(true);
+      setBatchValidationResults(null);
+      setBatchValidationProgress(null);
+    }
 
     try {
       // Use the assets currently displayed in the grid (not fetching from API)
@@ -2634,9 +2675,10 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
         building ? Promise.resolve(building) : api.buildings.getOne(buildingNumber).catch(() => null)
       ]);
 
-      // If assets are selected, only validate selected ones; otherwise validate all
+      // If assets are selected (and not in distribute mode), only validate selected ones; otherwise validate all
+      // forDistribute always validates all assets to ensure the whole building is in a valid state before distribution
       let assetsToValidate: Asset[];
-      if (selectedAssets.size > 0) {
+      if (!options?.forDistribute && selectedAssets.size > 0) {
         // Filter to only selected assets - match by asset_id (stored in selectedAssets)
         // selectedAssets contains asset.asset_id (primary key), not database id
         assetsToValidate = latestAssets.filter(asset => {
@@ -2660,11 +2702,13 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
       // Check if there are any assets to validate
       if (assetsToValidate.length === 0) {
         console.warn(`[Batch Validation] No assets to validate. Grid assets: ${gridAssets.length}, Latest assets: ${latestAssets.length}, Selected: ${selectedAssets.size}`);
-        setBatchValidationLoading(false);
-        setShowBatchValidationModal(false);
-        setToast({ message: 'לא נמצאו נכסים לבדיקה. יש לוודא שנכסים מוצגים בטבלה.', type: 'error' });
-        setTimeout(() => setToast(null), 5000);
-        return;
+        if (!options?.silent) {
+          setBatchValidationLoading(false);
+          setShowBatchValidationModal(false);
+          setToast({ message: 'לא נמצאו נכסים לבדיקה. יש לוודא שנכסים מוצגים בטבלה.', type: 'error' });
+          setTimeout(() => setToast(null), 5000);
+        }
+        return null;
       }
 
 
@@ -2690,7 +2734,7 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
           taxRegion: taxRegion || undefined, // Pass taxRegion to validate against tab's tax region (if specific tab)
           cachedData: cachedData, // Pass cached data to avoid database queries (asset is added per-validation)
           validationRules: validationRules, // Pass validation rules to avoid loading from DB
-          onProgress: (progress) => {
+          onProgress: options?.silent ? undefined : (progress) => {
             setBatchValidationProgress({
               current: progress.current,
               total: progress.total,
@@ -2818,6 +2862,8 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
         setValidationErrors(new Map());
         setIsValidatedForSave(hasDirtyChangesNow);
       }
+
+      return { hasErrors: hasAnyValidationErrors };
     } catch (error) {
       console.error('Error during batch validation:', error);
       setBatchValidationResults({
@@ -2830,8 +2876,11 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
           errors: [`שגיאה בביצוע אימות: ${error instanceof Error ? error.message : 'Unknown error'}`]
         }]
       });
+      return null;
     } finally {
-      setBatchValidationLoading(false);
+      if (!options?.silent) {
+        setBatchValidationLoading(false);
+      }
     }
   }
 
@@ -6830,20 +6879,30 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
                   {!isErrorFixingMode && shouldShowTransferButton && (
                     <button
                       type="button"
-                      onClick={() => {
-                        if (onOpenTransferAreas && selectedAssets.size >= 2) {
+                      onClick={async () => {
+                        if (!onOpenTransferAreas || selectedAssets.size < 2) return;
+                        setIsDistributeValidating(true);
+                        try {
+                          const result = await handleBatchValidateBuildingAssets({ silent: true, forDistribute: true });
+                          if (result?.hasErrors) {
+                            setToast({ message: 'יש שגיאות אימות - לא ניתן לבצע העברת שטחים', type: 'error' });
+                            setTimeout(() => setToast(null), 5000);
+                            setShowBatchValidationModal(true);
+                            return;
+                          }
                           const selectedAssetIds = Array.from(selectedAssets);
                           onOpenTransferAreas(selectedAssetIds, buildingNumber, taxRegion);
-                          // Clear selection after opening
                           setSelectedAssets(new Set());
+                        } finally {
+                          setIsDistributeValidating(false);
                         }
                       }}
-                      disabled={!canTransferAreas}
+                      disabled={!canTransferAreas || isDistributeValidating}
                       className="btn btn-action btn-secondary disabled:opacity-50 disabled:cursor-not-allowed"
                       title={canTransferAreas ? `העברת שטחים (${selectedAssets.size} נכסים נבחרו)` : 'בחר לפחות 2 נכסים להעברת שטחים'}
                     >
                       <MoveLeft className="h-5 w-5" />
-                      <span>העברת שטחים {selectedAssets.size > 0 ? `(${selectedAssets.size})` : ''}</span>
+                      <span>{isDistributeValidating ? 'מאמת...' : `העברת שטחים ${selectedAssets.size > 0 ? `(${selectedAssets.size})` : ''}`}</span>
                     </button>
                   )}
                   {!isReadOnly && (

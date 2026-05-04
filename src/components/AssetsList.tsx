@@ -6625,27 +6625,6 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
           </div>
         </div>
       )}
-      {building && (() => {
-        const needsResidenceDistribution = isResidentTaxRegion &&
-          building.need_residence_distribution === true;
-        const needsBusinessDistribution = building.need_business_distribution === true &&
-          !isResidentTaxRegion &&
-          (taxRegion ? (!isMultiTaxRegion) : true);
-        if (process.env.NODE_ENV === 'development') {
-          if (building.need_residence_distribution === true) {
-            console.log('[AssetsList] Residence distribution flag check:', {
-              isResidentTaxRegion,
-              need_residence_distribution: building.need_residence_distribution,
-              needsResidenceDistribution,
-              residence_shared_area: building.residence_shared_area,
-              building_number: building.building_number
-            });
-          }
-        }
-        // Sync parent state (for any external consumers)
-        onDistributionAlert?.({ residence: needsResidenceDistribution, business: needsBusinessDistribution });
-        return null;
-      })()}
       <div className="flex flex-col flex-1 min-h-0 w-full py-2" style={{ maxWidth: '100vw', width: '100%', paddingLeft: '0.5rem', paddingRight: '0.5rem' }}>
         <div className="page-header mb-2 rounded-lg px-3 py-2 w-full">
           <div className="relative flex items-center gap-2 flex-wrap w-full">

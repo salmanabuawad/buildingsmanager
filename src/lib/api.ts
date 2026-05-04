@@ -474,7 +474,7 @@ export interface Asset {
   history_created_at?: string; // Only present for assets_history records
   is_new_measurement?: boolean; // Flag to mark as new measurement - when true, UPDATE will move old record to history
   apartment_number?: string; // מספר דירה (Apartment number)
-  apartment_floor?: string; // קומת דירה (Apartment floor)
+  apartment_floor?: string; // מספר קומה (Apartment floor)
   storage_number?: string; // מספר מחסן (Storage number)
   storage_floor?: string; // קומת מחסן (Storage floor)
   discount_type?: string; // סוג הנחה (Discount type)
@@ -521,10 +521,18 @@ function fileTypeFromFileName(fileName: string): string | undefined {
 }
 
 /**
- * Compare apartment_number values for natural ascending sort with NULLs last.
- * Numeric-aware: "2" < "10" < "10A" < "B". Used as the primary default sort
- * on the asset list.
+ * Compare a single text/number field for natural ascending sort with NULLs last.
+ * Numeric-aware: "2" < "10" < "10A" < "B".
  */
+/** Parse a floor/apartment value to a number, handling both "-1" and "1-" (Hebrew basement notation). */
+function parseNumericValue(s: string): number | null {
+  const n = Number(s);
+  if (!isNaN(n)) return n;                             // "-1", "0", "42"
+  const trailing = s.match(/^(\d+)-$/);               // "1-", "2-" → -1, -2
+  if (trailing) return -parseInt(trailing[1], 10);
+  return null;                                         // "10A", "B2" — fall back to string sort
+}
+
 function compareApartmentNumber(a: unknown, b: unknown): number {
   const aEmpty = a == null || a === '';
   const bEmpty = b == null || b === '';
@@ -533,7 +541,23 @@ function compareApartmentNumber(a: unknown, b: unknown): number {
   if (bEmpty) return -1;
   const sa = String(a);
   const sb = String(b);
+  const na = parseNumericValue(sa);
+  const nb = parseNumericValue(sb);
+  if (na !== null && nb !== null) return na - nb;
+  // Fall back to natural sort for mixed/alpha strings ("10A", "B2", etc.)
   return sa.localeCompare(sb, undefined, { numeric: true, sensitivity: 'base' });
+}
+
+/**
+ * Default asset sort: apartment_floor ASC (NULLs last), then apartment_number ASC (null = 0).
+ */
+export function compareFloorThenApartment(a: { apartment_floor?: unknown; apartment_number?: unknown }, b: { apartment_floor?: unknown; apartment_number?: unknown }): number {
+  const floorCmp = compareApartmentNumber(a.apartment_floor, b.apartment_floor);
+  if (floorCmp !== 0) return floorCmp;
+  // Treat null/empty apartment_number as 0 (not last)
+  const aNum = (a.apartment_number == null || a.apartment_number === '') ? 0 : a.apartment_number;
+  const bNum = (b.apartment_number == null || b.apartment_number === '') ? 0 : b.apartment_number;
+  return compareApartmentNumber(aNum, bNum);
 }
 
 /** Normalize asset file from API row: ensure file_name, file_type, file_path from file_url/path when missing. */
@@ -1568,6 +1592,7 @@ export const api = {
         let query = api
           .from('assets')
           .select('*')
+          .order('apartment_floor', { ascending: true, nullsFirst: false })
           .order('apartment_number', { ascending: true, nullsFirst: false })
           .order('import_order', { ascending: true, nullsFirst: false })
           .order('asset_id')
@@ -1590,10 +1615,13 @@ export const api = {
       };
 
       const sortedData = (data || []).sort((a, b) => {
-        // Primary: apartment_number (numeric-aware) ASC, NULLs last
+        // Primary: apartment_floor ASC, NULLs last
+        const floorCmp = compareApartmentNumber(a.apartment_floor, b.apartment_floor);
+        if (floorCmp !== 0) return floorCmp;
+        // Secondary: apartment_number ASC, NULLs last
         const apCmp = compareApartmentNumber(a.apartment_number, b.apartment_number);
         if (apCmp !== 0) return apCmp;
-        // Secondary: import_order ASC with NULLs last
+        // Tertiary: import_order ASC with NULLs last
         const aOrder = a.import_order;
         const bOrder = b.import_order;
         if (aOrder != null && bOrder != null) {
@@ -1603,7 +1631,7 @@ export const api = {
         } else if (bOrder != null) {
           return 1;
         }
-        // Tertiary: asset_id ASC
+        // Quaternary: asset_id ASC
         if (a.asset_id !== b.asset_id) {
           return a.asset_id - b.asset_id;
         }
@@ -1617,6 +1645,7 @@ export const api = {
       let query = api
         .from('assets')
         .select('*')
+        .order('apartment_floor', { ascending: true, nullsFirst: false })
         .order('apartment_number', { ascending: true, nullsFirst: false })
         .order('import_order', { ascending: true, nullsFirst: false })
         .order('asset_id');
@@ -1638,6 +1667,8 @@ export const api = {
       };
 
       const sortedData = (data || []).sort((a, b) => {
+        const floorCmp = compareApartmentNumber(a.apartment_floor, b.apartment_floor);
+        if (floorCmp !== 0) return floorCmp;
         const apCmp = compareApartmentNumber(a.apartment_number, b.apartment_number);
         if (apCmp !== 0) return apCmp;
         const aOrder = a.import_order;

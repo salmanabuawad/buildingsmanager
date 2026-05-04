@@ -503,8 +503,15 @@ export const MeasuredNotExportedAssets = ({ onSelectAsset, onOpenAssetsTab }: Me
     },
     {
       field: 'apartment_floor',
-      headerName: 'קומת דירה',
+      headerName: 'מספר קומה',
       editable: false,
+      cellClass: 'ltr-number',
+      valueFormatter: (params) => {
+        if (params.value == null || params.value === '') return '';
+        const s = String(params.value);
+        const trailing = s.match(/^(\d+)-$/);
+        return trailing ? '-' + trailing[1] : s;
+      }
     },
     {
       field: 'storage_number',

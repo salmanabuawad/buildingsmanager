@@ -2,8 +2,8 @@ import { useState, useRef, useMemo, useCallback, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
 import { Upload, FileText, Download, AlertCircle, CheckCircle, Loader2, X, Save, CheckCircle2, Trash2, RotateCcw, MessageSquare } from 'lucide-react';
-import { api, Asset, AssetType, Building, AddressList } from '../lib/api';
-import { buildingsUpdateTotalArea } from '../lib/restClient';
+import { api, Asset, AssetType, Building, AddressList, compareFloorThenApartment } from '../lib/api';
+import { buildingsUpdateTotalArea, dataPatch } from '../lib/restClient';
 import { AssetValidationHandler } from '../lib/assetValidationHandler';
 import { ValidationResultModal, BatchValidationResults, ValidationProgress } from './ValidationResultModal';
 import { useValidationRules } from '../contexts/ValidationContext';
@@ -272,7 +272,7 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
         'sub_asset_size_6': 'גודל נכס משנה 6',
         'penthouse': 'דירת גג',
         'apartment_number': 'מספר דירה',
-        'apartment_floor': 'קומת דירה',
+        'apartment_floor': 'מספר קומה',
         'storage_number': 'מספר מחסן',
         'storage_floor': 'קומת מחסן',
         'discount_type': 'סוג הנחה',
@@ -987,7 +987,7 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
     }
 
     const errors: string[] = [];
-    let skeletonAssets: Array<{ building_number: number | null; asset_id: string; tax_region?: number; payer_id?: string; apartment_number?: string }> = [];
+    let skeletonAssets: Array<{ building_number: number | null; asset_id: string; tax_region?: number; payer_id?: string; apartment_number?: string; apartment_floor?: string }> = [];
 
     try {
       const lines = await parseExcelFile(file);
@@ -1011,12 +1011,14 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
       let taxRegionIndex = -1;
       let payerIdIndex = -1;
       let apartmentNumberIndex = -1;
+      let apartmentFloorIndex = -1;
 
       const exactBuildingNumberHeader = 'מזהה מבנה';
       const exactAssetIdHeader = 'מזהה נכס';
       const exactTaxRegionHeader = 'אזור מס';
       const exactPayerIdHeader = 'מזהה משלם';
       const exactApartmentNumberHeader = 'מספר דירה';
+      const exactApartmentFloorHeader = 'מספר קומה';
 
       originalHeaders.forEach((header, index) => {
         const headerTrimmed = header.trim();
@@ -1034,6 +1036,9 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
         }
         if (headerTrimmed.toLowerCase() === exactApartmentNumberHeader.toLowerCase()) {
           apartmentNumberIndex = index;
+        }
+        if (headerTrimmed.toLowerCase() === exactApartmentFloorHeader.toLowerCase()) {
+          apartmentFloorIndex = index;
         }
       });
 
@@ -1062,9 +1067,12 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
         const assetId = values[assetIdIndex] ? String(values[assetIdIndex]).trim() : '';
         const taxRegion = values[taxRegionIndex] ? parseInt(String(values[taxRegionIndex]), 10) : null;
         const payerId = values[payerIdIndex] ? String(values[payerIdIndex]).trim() : '';
-        // apartment_number is optional — only read when the column exists
+        // apartment_number and apartment_floor are optional — only read when the column exists
         const apartmentNumber = apartmentNumberIndex !== -1 && values[apartmentNumberIndex]
           ? String(values[apartmentNumberIndex]).trim()
+          : undefined;
+        const apartmentFloor = apartmentFloorIndex !== -1 && values[apartmentFloorIndex]
+          ? String(values[apartmentFloorIndex]).trim()
           : undefined;
 
         // All fields are required
@@ -1074,7 +1082,8 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
             asset_id: assetId,
             tax_region: taxRegion,
             payer_id: payerId,
-            apartment_number: apartmentNumber || undefined
+            apartment_number: apartmentNumber || undefined,
+            apartment_floor: apartmentFloor || undefined
           });
         } else {
           // Log row errors for missing required fields
@@ -1126,8 +1135,12 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
         sub_asset_size_5: 0,
         sub_asset_type_6: '',
         sub_asset_size_6: 0,
-        apartment_number: asset.apartment_number
+        apartment_number: asset.apartment_number,
+        apartment_floor: asset.apartment_floor
       }));
+
+      // Sort by floor then apartment number (default display order)
+      importedRows.sort((a, b) => compareFloorThenApartment(a, b));
 
       // Create deep copy for original state
       const importedRowsCopy = JSON.parse(JSON.stringify(importedRows));
@@ -1367,7 +1380,7 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
         sub_asset_type_6: null,
         sub_asset_size_6: 0,
         apartment_number: asset.apartment_number ?? null,
-        apartment_floor: null,
+        apartment_floor: asset.apartment_floor ?? null,
         storage_number: null,
         storage_floor: null,
         discount_type: null,
@@ -1488,11 +1501,54 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
       });
       
       
-      // Bulk insert skeleton assets - only unique ones
-      const { data: insertedAssets, error: insertError } = await api
-        .from('assets')
-        .insert(finalUniqueAssets)
-        .select();
+      // PRE-CHECK: which asset_ids already exist in DB, so we can UPDATE them instead of failing
+      const allAssetIdsInBatch = finalUniqueAssets.map((a: any) => a.asset_id).filter((id: any) => id != null);
+      const existingAssetIdSet = new Set<number>();
+      if (allAssetIdsInBatch.length > 0) {
+        const { data: existingCheck } = await api
+          .from('assets')
+          .select('asset_id')
+          .in('asset_id', allAssetIdsInBatch);
+        if (existingCheck) {
+          existingCheck.forEach((ea: any) => {
+            if (ea.asset_id != null) existingAssetIdSet.add(Number(ea.asset_id));
+          });
+        }
+      }
+
+      // Split: truly new assets (insert) vs already-existing (update floor/number only)
+      const assetsToActuallyInsert = finalUniqueAssets.filter(
+        (a: any) => a.asset_id == null || !existingAssetIdSet.has(Number(a.asset_id))
+      );
+      const assetsToUpdateFloor = finalUniqueAssets.filter(
+        (a: any) => a.asset_id != null && existingAssetIdSet.has(Number(a.asset_id))
+      );
+
+      // Update apartment_floor + apartment_number for already-existing assets (parallel)
+      let updatedAssetsCount = 0;
+      if (assetsToUpdateFloor.length > 0) {
+        const updateResults = await Promise.all(
+          assetsToUpdateFloor.map(async (asset: any) => {
+            try {
+              const updateBody: Record<string, unknown> = {};
+              if ('apartment_floor' in asset) updateBody.apartment_floor = asset.apartment_floor ?? null;
+              if ('apartment_number' in asset) updateBody.apartment_number = asset.apartment_number ?? null;
+              if (Object.keys(updateBody).length > 0) {
+                await dataPatch('assets', { asset_id: asset.asset_id }, updateBody);
+              }
+              return true;
+            } catch {
+              return false;
+            }
+          })
+        );
+        updatedAssetsCount = updateResults.filter(Boolean).length;
+      }
+
+      // Bulk insert skeleton assets - only truly new ones
+      const { data: insertedAssets, error: insertError } = assetsToActuallyInsert.length > 0
+        ? await api.from('assets').insert(assetsToActuallyInsert).select()
+        : { data: [], error: null };
 
       // Update building total area for all affected buildings after skeleton import
       if (!insertError && insertedAssets && insertedAssets.length > 0) {
@@ -1683,29 +1739,31 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
           }, 100);
         }
       } else {
-        successCount = insertedAssets?.length || 0;
+        const insertedCount = insertedAssets?.length || 0;
+        successCount = insertedCount + updatedAssetsCount;
         const failedCount = validatedSkeletonAssets.length - successCount;
-        
-        // Track successfully saved asset IDs (normalize to string for consistent comparison)
+
+        // Track successfully saved/updated asset IDs (normalize to string for consistent comparison)
         const successfullySavedAssetIds = new Set<string>();
         if (insertedAssets && insertedAssets.length > 0) {
           insertedAssets.forEach((savedAsset: any) => {
             if (savedAsset.asset_id != null) {
-              // Normalize asset_id to string for consistent comparison
-              const normalizedId = String(savedAsset.asset_id);
-              successfullySavedAssetIds.add(normalizedId);
+              successfullySavedAssetIds.add(String(savedAsset.asset_id));
             }
           });
         }
-        
-        // Remove successfully saved assets from the imported list
+        // Also include updated assets (so they're removed from the import grid)
+        assetsToUpdateFloor.forEach((asset: any) => {
+          if (asset.asset_id != null) successfullySavedAssetIds.add(String(asset.asset_id));
+        });
+
+        // Remove successfully saved/updated assets from the imported list
         setImportedAssets(prev => prev.filter((asset: ImportAssetRow) => {
           if (!asset.asset_id) return true; // Keep assets without asset_id (shouldn't happen)
-          // Normalize asset_id to string for consistent comparison
           const normalizedAssetId = String(asset.asset_id);
           return !successfullySavedAssetIds.has(normalizedAssetId);
         }));
-        
+
         setSaveResult({
           successful: successCount,
           failed: failedCount,
@@ -1714,8 +1772,9 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
 
         // Show toast with detailed message
         let toastMessage = '';
+        const updatedMsg = updatedAssetsCount > 0 ? `, עודכנו ${updatedAssetsCount} קיימים` : '';
         if (successCount > 0 && failedCount > 0) {
-          toastMessage = `נשמרו בהצלחה ${successCount} נכסים. נכשלו ${failedCount} נכסים: ${errors.slice(0, 3).join('; ')}${errors.length > 3 ? ` ...ועוד ${errors.length - 3} שגיאות` : ''}`;
+          toastMessage = `נשמרו בהצלחה ${insertedCount} נכסים${updatedMsg}. נכשלו ${failedCount} נכסים: ${errors.slice(0, 3).join('; ')}${errors.length > 3 ? ` ...ועוד ${errors.length - 3} שגיאות` : ''}`;
           setToast({ message: toastMessage, type: 'error' });
           setTimeout(() => setToast(null), 10000);
         } else if (failedCount > 0 && errors.length > 0) {
@@ -1723,7 +1782,11 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
           setToast({ message: toastMessage, type: 'error' });
           setTimeout(() => setToast(null), 10000);
         } else if (successCount > 0) {
-          toastMessage = `נשמרו בהצלחה ${successCount} נכסים`;
+          toastMessage = insertedCount > 0 && updatedAssetsCount > 0
+            ? `נוצרו ${insertedCount} נכסים חדשים, עודכנו ${updatedAssetsCount} קיימים`
+            : updatedAssetsCount > 0
+              ? `עודכנו בהצלחה ${updatedAssetsCount} נכסים קיימים (קומה ומספר דירה)`
+              : `נשמרו בהצלחה ${insertedCount} נכסים`;
           setToast({ message: toastMessage, type: 'success' });
           setTimeout(() => setToast(null), 5000);
         }
@@ -2604,13 +2667,14 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
     const discountFields = ['discount_type', 'discount_date_from', 'discount_date_to'];
     const discountErrors = discountFields.includes(field) ? validateDiscountDates(updatedRow) : [];
 
-    // Mark as dirty and update validation errors
-    setImportedAssets(prev => prev.map(a => 
-      a.id === updatedRow.id 
-        ? { 
-            ...a, 
-            _isDirty: true, 
-            _validationErrors: discountErrors.length > 0 ? discountErrors : undefined 
+    // Capture the new cell value + mark as dirty
+    setImportedAssets(prev => prev.map(a =>
+      a.id === updatedRow.id
+        ? {
+            ...a,
+            [field]: updatedRow[field as keyof ImportAssetRow],
+            _isDirty: true,
+            _validationErrors: discountErrors.length > 0 ? discountErrors : undefined
           }
         : a
     ));
@@ -2748,6 +2812,22 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
             return isFieldEditable(params, fieldName);
           },
           cellStyle: getCellStyle
+        },
+        {
+          field: 'apartment_floor',
+          headerName: 'מספר קומה',
+          editable: (params) => {
+            const fieldName = params.colDef?.field || '';
+            return isFieldEditable(params, fieldName);
+          },
+          cellStyle: getCellStyle,
+          cellClass: 'ltr-number',
+          valueFormatter: (params) => {
+            if (params.value == null || params.value === '') return '';
+            const s = String(params.value);
+            const trailing = s.match(/^(\d+)-$/);
+            return trailing ? '-' + trailing[1] : s;
+          }
         },
         {
           colId: 'actions',
@@ -3204,9 +3284,16 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
     },
     {
       field: 'apartment_floor',
-      headerName: 'קומת דירה',
+      headerName: 'מספר קומה',
       editable: true,
-      cellStyle: getCellStyle
+      cellStyle: getCellStyle,
+      cellClass: 'ltr-number',
+      valueFormatter: (params) => {
+        if (params.value == null || params.value === '') return '';
+        const s = String(params.value);
+        const trailing = s.match(/^(\d+)-$/);
+        return trailing ? '-' + trailing[1] : s;
+      }
     },
     {
       field: 'storage_number',
@@ -3349,7 +3436,7 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
       'גודל נכס משנה 6',
       'דירת גג',
       'מספר דירה',
-      'קומת דירה',
+      'מספר קומה',
       'מספר מחסן',
       'קומת מחסן',
       'סוג הנחה',
@@ -3938,7 +4025,7 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
                         <option value="sub_asset_size_6">גודל נכס משנה 6</option>
                         <option value="penthouse">דירת גג</option>
                         <option value="apartment_number">מספר דירה</option>
-                        <option value="apartment_floor">קומת דירה</option>
+                        <option value="apartment_floor">מספר קומה</option>
                         <option value="storage_number">מספר מחסן</option>
                         <option value="storage_floor">קומת מחסן</option>
                         <option value="discount_type">סוג הנחה</option>

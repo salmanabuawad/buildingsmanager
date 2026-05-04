@@ -1123,7 +1123,7 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
           'תאריך מדידה',         // measurement_date
           'אזור מס',             // tax_region
           'מספר דירה',           // apartment_number
-          'קומת דירה',           // apartment_floor
+          'מספר קומה',           // apartment_floor
           'מספר מחסן',           // storage_number
           'קומת מחסן',           // storage_floor
           'דירת גג',             // penthouse
@@ -1176,7 +1176,7 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
             { wch: 14 }, // תאריך מדידה
             { wch: 10 }, // אזור מס
             { wch: 12 }, // מספר דירה
-            { wch: 12 }, // קומת דירה
+            { wch: 12 }, // מספר קומה
             { wch: 12 }, // מספר מחסן
             { wch: 12 }, // קומת מחסן
             { wch: 10 }, // דירת גג
@@ -4942,7 +4942,7 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
         'אזור מס',
         'דירת גג',
         'מספר דירה',
-        'קומת דירה',
+        'מספר קומה',
         'מספר מחסן',
         'קומת מחסן',
         'סוג הנחה',
@@ -5285,8 +5285,15 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
     },
     {
       field: 'apartment_floor',
-      headerName: 'קומת דירה',
-      cellStyle: { textAlign: 'right' }
+      headerName: 'מספר קומה',
+      cellStyle: { textAlign: 'right' },
+      cellClass: 'ltr-number',
+      valueFormatter: (params) => {
+        if (params.value == null || params.value === '') return '';
+        const s = String(params.value);
+        const trailing = s.match(/^(\d+)-$/);
+        return trailing ? '-' + trailing[1] : s;
+      }
     },
     {
       field: 'storage_number',
@@ -5926,16 +5933,30 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
     },
     {
       field: 'apartment_floor',
-      headerName: 'קומת דירה',
+      headerName: 'מספר קומה',
       editable: (params) => isFieldEditable(params, 'apartment_floor'),
       headerClass: 'ag-right-aligned-header',
       cellStyle: (params: any) => getCellStyle(params),
+      cellClass: 'ltr-number',
+      valueFormatter: (params) => {
+        if (params.value == null || params.value === '') return '';
+        const s = String(params.value);
+        const trailing = s.match(/^(\d+)-$/);
+        return trailing ? '-' + trailing[1] : s;
+      },
       comparator: (a: any, b: any) => {
+        const parseNum = (s: string): number | null => {
+          const n = Number(s); if (!isNaN(n)) return n;
+          const t = s.match(/^(\d+)-$/); if (t) return -parseInt(t[1], 10);
+          return null;
+        };
         const aEmpty = a == null || a === '';
         const bEmpty = b == null || b === '';
         if (aEmpty && bEmpty) return 0;
         if (aEmpty) return 1;
         if (bEmpty) return -1;
+        const na = parseNum(String(a)), nb = parseNum(String(b));
+        if (na !== null && nb !== null) return na - nb;
         return String(a).localeCompare(String(b), undefined, { numeric: true, sensitivity: 'base' });
       }
     },

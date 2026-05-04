@@ -2,6 +2,12 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Force LTR rendering for number cells (e.g. negative floor numbers like -1, -2) */
+.ag-cell.ltr-number {
+  direction: ltr !important;
+  unicode-bidi: plaintext;
+}
+
 input[type="number"]::-webkit-inner-spin-button,
 input[type="number"]::-webkit-outer-spin-button {
   -webkit-appearance: none;

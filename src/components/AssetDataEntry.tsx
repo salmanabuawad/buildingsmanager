@@ -961,12 +961,19 @@ export const AssetDataEntry = forwardRef<AssetDataEntryRef, {}>((props, ref) => 
     },
     {
       field: 'apartment_floor',
-      headerName: 'קומת דירה',
+      headerName: 'מספר קומה',
       editable: (params) => {
         const fieldName = params.colDef?.field || '';
         return isFieldEditable(params, fieldName);
       },
-      cellStyle: (params) => getCellStyle(params, 'apartment_floor', false)
+      cellStyle: (params) => getCellStyle(params, 'apartment_floor', false),
+      cellClass: 'ltr-number',
+      valueFormatter: (params) => {
+        if (params.value == null || params.value === '') return '';
+        const s = String(params.value);
+        const trailing = s.match(/^(\d+)-$/);
+        return trailing ? '-' + trailing[1] : s;
+      }
     },
     {
       field: 'storage_number',

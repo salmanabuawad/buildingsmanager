@@ -2494,9 +2494,16 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
     },
     {
       field: 'apartment_floor',
-      headerName: 'קומת דירה',
+      headerName: 'מספר קומה',
       width: 100,
       sortable: true,
+      cellClass: 'ltr-number',
+      valueFormatter: (params) => {
+        if (params.value == null || params.value === '') return '';
+        const s = String(params.value);
+        const trailing = s.match(/^(\d+)-$/);
+        return trailing ? '-' + trailing[1] : s;
+      }
     },
     {
       field: 'storage_number',
@@ -2981,12 +2988,19 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
     },
     {
       field: 'apartment_floor',
-      headerName: 'קומת דירה',
+      headerName: 'מספר קומה',
       editable: (params) => {
         const fieldName = params.colDef?.field || '';
         return isFieldEditable(params, fieldName);
       },
-      cellStyle: (params) => getCellStyle(params, 'apartment_floor')
+      cellStyle: (params) => getCellStyle(params, 'apartment_floor'),
+      cellClass: 'ltr-number',
+      valueFormatter: (params) => {
+        if (params.value == null || params.value === '') return '';
+        const s = String(params.value);
+        const trailing = s.match(/^(\d+)-$/);
+        return trailing ? '-' + trailing[1] : s;
+      }
     },
     {
       field: 'storage_number',

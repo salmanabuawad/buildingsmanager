@@ -300,14 +300,14 @@ export function RowEditModal({ isOpen, onClose, rowData, assetTypes, operators =
             {/* Apartment Floor */}
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-1">
-                קומת דירה
+                מספר קומה
               </label>
               <input
                 type="text"
                 value={formData.apartment_floor ?? ''}
                 onChange={(e) => handleFieldChange('apartment_floor', e.target.value || undefined)}
                 className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-right"
-                placeholder="קומת דירה"
+                placeholder="מספר קומה"
               />
             </div>
 

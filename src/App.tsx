@@ -1721,9 +1721,6 @@ function App() {
               className={`relative p-2.5 rounded hover:bg-white/10 transition-colors ${userMenuOpen ? 'bg-white/10' : 'opacity-80'}`}
             >
               <User className="h-5 w-5" />
-              {(distributionAlert.residence || distributionAlert.business) && (
-                <span className="absolute top-1 right-1 h-2 w-2 rounded-full bg-amber-400 animate-ping" />
-              )}
             </button>
             {(distributionAlert.residence || distributionAlert.business) && !userMenuOpen && (
               <div className="absolute left-0 top-full mt-1 z-[100] space-y-1 min-w-[220px] pointer-events-none">

@@ -964,6 +964,7 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
             result[7] = (Number(result[7]) || 0) + sharedParkingArea;
           } else {
             // Scan sub-types 1–6 for the one flagged as parking
+            let foundParking = false;
             for (let i = 0; i < 6; i++) {
               const typeIdx = 6 + i * 2;
               const sizeIdx = 7 + i * 2;
@@ -971,7 +972,21 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
               if (!subtypeName) continue;
               if (isParkingType(subtypeName)) {
                 result[sizeIdx] = (Number(result[sizeIdx]) || 0) + sharedParkingArea;
+                foundParking = true;
                 break;
+              }
+            }
+            // Fallback: use_for_parking_shared_area flag may not be set, but distribution
+            // still assigned shared_parking_area via number_of_parking_units > 0 fallback.
+            // In that case add to the last non-empty sub-type (parking is always listed last).
+            if (!foundParking && Number(asset.number_of_parking_units) > 0) {
+              for (let i = 5; i >= 0; i--) {
+                const typeIdx = 6 + i * 2;
+                const sizeIdx = 7 + i * 2;
+                if (String(result[typeIdx] || '').trim()) {
+                  result[sizeIdx] = (Number(result[sizeIdx]) || 0) + sharedParkingArea;
+                  break;
+                }
               }
             }
           }

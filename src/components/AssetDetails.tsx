@@ -1897,6 +1897,7 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
           if (mainTypeName && isParkingType(mainTypeName)) {
             result[7] = (Number(result[7]) || 0) + sharedParkingArea;
           } else {
+            let foundParking = false;
             for (let i = 0; i < 6; i++) {
               const typeIdx = 6 + i * 2;
               const sizeIdx = 7 + i * 2;
@@ -1904,7 +1905,20 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
               if (!subtypeName) continue;
               if (isParkingType(subtypeName)) {
                 result[sizeIdx] = (Number(result[sizeIdx]) || 0) + sharedParkingArea;
+                foundParking = true;
                 break;
+              }
+            }
+            // Fallback: if flag not set but asset has number_of_parking_units,
+            // add to last non-empty sub-type (parking is always listed last)
+            if (!foundParking && Number(asset.number_of_parking_units) > 0) {
+              for (let i = 5; i >= 0; i--) {
+                const typeIdx = 6 + i * 2;
+                const sizeIdx = 7 + i * 2;
+                if (String(result[typeIdx] || '').trim()) {
+                  result[sizeIdx] = (Number(result[sizeIdx]) || 0) + sharedParkingArea;
+                  break;
+                }
               }
             }
           }

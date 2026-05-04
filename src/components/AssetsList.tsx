@@ -875,20 +875,21 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
       // Get asset types to determine business/residence type
       const assetTypesData = getAssetTypes();
       
-      // Helper function to calculate export asset size (asset_size + business_distribution_area for business assets)
+      // Helper function to calculate export asset size (asset_size + business_distribution_area for business assets + shared_parking_area for all)
       const getExportAssetSize = (asset: any): number | string => {
         const assetSize = asset.asset_size || 0;
-        
+        const sharedParkingArea = Number(asset.shared_parking_area) || 0;
+
         // Check if this is a business asset
         if (asset.main_asset_type && assetTypesData.length > 0) {
           const assetTypeName = String(asset.main_asset_type).trim();
-          
+
           // Try string lookup first
           let assetType = assetTypesData.find((at: any) => {
             const atName = String(at.name || '').trim();
             return atName === assetTypeName;
           });
-          
+
           // If not found, try numeric comparison
           if (!assetType) {
             const assetTypeNum = parseInt(assetTypeName, 10);
@@ -900,46 +901,61 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
               });
             }
           }
-          
-          // If it's a business asset, add business_distribution_area to asset_size
+
+          // If it's a business asset, add business_distribution_area + shared_parking_area to asset_size
           if (assetType?.business_residence === 'עסקים') {
             const areaFromDistribution = asset.business_distribution_area || 0;
-            return assetSize + areaFromDistribution;
+            return assetSize + areaFromDistribution + sharedParkingArea;
           }
         }
-        
-        // For non-business assets, return asset_size as is
-        return assetSize || '';
+
+        // For non-business assets, add shared_parking_area if present
+        return (assetSize + sharedParkingArea) || '';
       };
 
-      // Helper: add business_shared_area to sub_asset_size_1, and shared_parking_area to the parking subtype size
+      // Helper: add business_distribution_area to sub_asset_size_1, and shared_parking_area to the parking subtype size
       const applySharedAreasToExportRow = (asset: any, row: any[]): any[] => {
         const result = [...row];
         // Row layout: [payer_id, asset_id, date_from, date_to, main_type, size,
         //   sub1_type(6), sub1_size(7), sub2_type(8), sub2_size(9), ...sub6_type(16), sub6_size(17), ...]
 
-        // Add business_shared_area to sub_asset_size_1 (index 7)
-        const businessSharedArea = Number(asset.business_shared_area) || 0;
-        if (businessSharedArea > 0) {
-          result[7] = (Number(result[7]) || 0) + businessSharedArea;
+        // Add business_distribution_area (per-asset distributed share) to sub_asset_size_1 (index 7)
+        const businessDistributionArea = Number(asset.business_distribution_area) || 0;
+        if (businessDistributionArea > 0) {
+          result[7] = (Number(result[7]) || 0) + businessDistributionArea;
         }
 
-        // Add shared_parking_area to whichever subtype (1–6) is a parking type
+        // Add shared_parking_area to whichever type (main or subtype 1–6) has use_for_parking_shared_area
         const sharedParkingArea = Number(asset.shared_parking_area) || 0;
-        if (sharedParkingArea > 0 && assetTypesData.length > 0) {
-          for (let i = 0; i < 6; i++) {
-            const typeIdx = 6 + i * 2;
-            const sizeIdx = 7 + i * 2;
-            const subtypeName = String(result[typeIdx] || '').trim();
-            if (!subtypeName) continue;
-            let subtype = assetTypesData.find((at: any) => String(at.name || '').trim() === subtypeName);
-            if (!subtype) {
-              const n = parseInt(subtypeName, 10);
-              if (!isNaN(n)) subtype = assetTypesData.find((at: any) => parseInt(String(at.name || ''), 10) === n);
+        if (sharedParkingArea > 0) {
+          // Helper: resolve a type name string to its assetTypesData entry (string or numeric match)
+          const findType = (typeName: string) => {
+            if (!typeName) return undefined;
+            let at = assetTypesData.find((t: any) => String(t.name || '').trim() === typeName);
+            if (!at) {
+              const n = parseInt(typeName, 10);
+              if (!isNaN(n)) at = assetTypesData.find((t: any) => parseInt(String(t.name || ''), 10) === n);
             }
-            if ((subtype as any)?.use_for_parking_shared_area === true) {
-              result[sizeIdx] = (Number(result[sizeIdx]) || 0) + sharedParkingArea;
-              break;
+            return at;
+          };
+          const isParkingType = (typeName: string) => !!(findType(typeName) as any)?.use_for_parking_shared_area;
+
+          // First check main asset type (index 4)
+          const mainTypeName = String(result[4] || '').trim();
+          if (mainTypeName && isParkingType(mainTypeName)) {
+            // Main type is the parking type — add to sub_asset_size_1
+            result[7] = (Number(result[7]) || 0) + sharedParkingArea;
+          } else {
+            // Scan sub-types 1–6 for the one flagged as parking
+            for (let i = 0; i < 6; i++) {
+              const typeIdx = 6 + i * 2;
+              const sizeIdx = 7 + i * 2;
+              const subtypeName = String(result[typeIdx] || '').trim();
+              if (!subtypeName) continue;
+              if (isParkingType(subtypeName)) {
+                result[sizeIdx] = (Number(result[sizeIdx]) || 0) + sharedParkingArea;
+                break;
+              }
             }
           }
         }
@@ -6367,10 +6383,10 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
         if (dirty && 'shared_parking_area' in dirty) return (dirty as any).shared_parking_area;
         return params.data?.shared_parking_area;
       },
-      editable: (params) => !isResidentTaxRegion && isBusinessAssetRow(params) && isFieldEditable(params, 'shared_parking_area'),
+      editable: (params) => !isResidentTaxRegion && isFieldEditable(params, 'shared_parking_area'),
       type: 'numericColumn',
       valueFormatter: (params) => {
-        if (isResidentTaxRegion || !isBusinessAssetRow(params)) return '';
+        if (isResidentTaxRegion) return '';
         const val = params.value;
         if (val === null || val === undefined || val === '' || val === 0) return '';
         const num = typeof val === 'number' ? val : parseFloat(val);

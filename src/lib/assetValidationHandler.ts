@@ -236,29 +236,6 @@ export class AssetValidationHandler {
       }
     }
 
-    // When sum of assets' shared parking area > 0: sum must equal building.shared_parking_area
-    if (validateBuildingSharedParkingArea && buildingSharedParking != null && !isNaN(buildingSharedParking)) {
-      if (buildingSharedParking === 0) {
-        for (let i = 0; i < results.length; i++) {
-          if (!parkingEligibleIds.has(assetsToValidate[i].asset_id)) continue;
-          const v = (assetsToValidate[i] as any).shared_parking_area;
-          const assetVal = (v != null && v !== '') ? Number(v) : 0;
-          if (assetVal !== 0 && !isNaN(assetVal)) {
-            const err = `שטח חניה משותף במבנה הוא 0 – שטח חניה משותף בנכס חייב להיות 0`;
-            if (!results[i].errors.includes(err)) results[i].errors.push(err);
-            results[i].valid = false;
-          }
-        }
-      } else if (Math.abs(assetsSharedParkingSum - buildingSharedParking) > tolerance) {
-        const err = `סכום שטח חניה משותף בנכסים (${assetsSharedParkingSum}) אינו שווה לשטח חניה משותף במבנה (${buildingSharedParking})`;
-        for (let i = 0; i < results.length; i++) {
-          if (parkingEligibleIds.has(assetsToValidate[i].asset_id)) {
-            if (!results[i].errors.includes(err)) results[i].errors.push(err);
-            results[i].valid = false;
-          }
-        }
-      }
-    }
 
     // Each asset's shared_parking_area must not exceed the building's shared_parking_area (only when assets have shared parking area)
     if (validateBuildingSharedParkingArea && buildingSharedParking != null && !isNaN(buildingSharedParking)) {

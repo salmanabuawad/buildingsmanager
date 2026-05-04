@@ -2522,10 +2522,6 @@ export const buildingValidators = {
       if (buildingUnits != null && !isNaN(buildingUnits) && sumUnits !== buildingUnits) {
         errors.push(`סכום מספר יחידות חניה בנכסים (${sumUnits}) אינו שווה למספר יחידות חניה במבנה (${buildingUnits})`);
       }
-      // Only validate building shared_parking_area when sum of assets' shared parking area is > 0
-      if (sumArea > 0 && buildingArea != null && !isNaN(buildingArea) && Math.abs(sumArea - buildingArea) > tolerance) {
-        errors.push(`סכום שטח חניה משותף בנכסים (${sumArea}) אינו שווה לשטח חניה משותף במבנה (${buildingArea})`);
-      }
       if (errors.length > 0) {
         return { valid: false, error: errors.join('; ') };
       }

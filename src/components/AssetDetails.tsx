@@ -1843,6 +1843,7 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
 
       const getExportAssetSize = (a: Asset): number | string => {
         const assetSize = (a as any).asset_size || 0;
+        const sharedParkingArea = Number((a as any).shared_parking_area) || 0;
         if ((a as any).main_asset_type && assetTypesData.length > 0) {
           const assetTypeName = String((a as any).main_asset_type).trim();
           let assetType = assetTypesData.find((at: any) => String(at.name || '').trim() === assetTypeName);
@@ -1852,10 +1853,10 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
           }
           if (assetType && (assetType as any).is_business === true) {
             const dist = (a as any).business_distribution_area || 0;
-            return assetSize + dist;
+            return assetSize + dist + sharedParkingArea;
           }
         }
-        return assetSize || '';
+        return (assetSize + sharedParkingArea) || '';
       };
 
       const headers = [
@@ -1866,34 +1867,45 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
         'מנה', 'מקום גביה', 'מספר פקודה', 'שנת כספים', 'תאריך גביה', 'יום ערך',
       ];
 
-      // Helper: add business_shared_area to sub_asset_size_1, and shared_parking_area to the parking subtype size
+      // Helper: add business_distribution_area to sub_asset_size_1, and shared_parking_area to the parking subtype size
       const applySharedAreasToExportRow = (asset: any, baseRow: any[]): any[] => {
         const result = [...baseRow];
         // Row layout: [payer_id(0), asset_id(1), date_from(2), date_to(3), main_type(4), size(5),
         //   sub1_type(6), sub1_size(7), sub2_type(8), sub2_size(9), ...sub6_type(16), sub6_size(17), ...]
 
-        // Add business_shared_area to sub_asset_size_1 (index 7)
-        const businessSharedArea = Number(asset.business_shared_area) || 0;
-        if (businessSharedArea > 0) {
-          result[7] = (Number(result[7]) || 0) + businessSharedArea;
+        // Add business_distribution_area (per-asset distributed share) to sub_asset_size_1 (index 7)
+        const businessDistributionArea = Number(asset.business_distribution_area) || 0;
+        if (businessDistributionArea > 0) {
+          result[7] = (Number(result[7]) || 0) + businessDistributionArea;
         }
 
-        // Add shared_parking_area to whichever subtype (1–6) has use_for_parking_shared_area flag
+        // Add shared_parking_area to whichever type (main or subtype 1–6) has use_for_parking_shared_area
         const sharedParkingArea = Number(asset.shared_parking_area) || 0;
-        if (sharedParkingArea > 0 && assetTypesData.length > 0) {
-          for (let i = 0; i < 6; i++) {
-            const typeIdx = 6 + i * 2;
-            const sizeIdx = 7 + i * 2;
-            const subtypeName = String(result[typeIdx] || '').trim();
-            if (!subtypeName) continue;
-            let subtype = assetTypesData.find((at: any) => String(at.name || '').trim() === subtypeName);
-            if (!subtype) {
-              const n = parseInt(subtypeName, 10);
-              if (!isNaN(n)) subtype = assetTypesData.find((at: any) => parseInt(String(at.name || ''), 10) === n);
+        if (sharedParkingArea > 0) {
+          const findType = (typeName: string) => {
+            if (!typeName) return undefined;
+            let at = assetTypesData.find((t: any) => String(t.name || '').trim() === typeName);
+            if (!at) {
+              const n = parseInt(typeName, 10);
+              if (!isNaN(n)) at = assetTypesData.find((t: any) => parseInt(String(t.name || ''), 10) === n);
             }
-            if ((subtype as any)?.use_for_parking_shared_area === true) {
-              result[sizeIdx] = (Number(result[sizeIdx]) || 0) + sharedParkingArea;
-              break;
+            return at;
+          };
+          const isParkingType = (typeName: string) => !!(findType(typeName) as any)?.use_for_parking_shared_area;
+
+          const mainTypeName = String(result[4] || '').trim();
+          if (mainTypeName && isParkingType(mainTypeName)) {
+            result[7] = (Number(result[7]) || 0) + sharedParkingArea;
+          } else {
+            for (let i = 0; i < 6; i++) {
+              const typeIdx = 6 + i * 2;
+              const sizeIdx = 7 + i * 2;
+              const subtypeName = String(result[typeIdx] || '').trim();
+              if (!subtypeName) continue;
+              if (isParkingType(subtypeName)) {
+                result[sizeIdx] = (Number(result[sizeIdx]) || 0) + sharedParkingArea;
+                break;
+              }
             }
           }
         }

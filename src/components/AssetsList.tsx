@@ -6625,7 +6625,6 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
           </div>
         </div>
       )}
-      {/* Distribution alert is now rendered in App.tsx below the user icon via onDistributionAlert callback */}
       {building && (() => {
         const needsResidenceDistribution = isResidentTaxRegion &&
           building.need_residence_distribution === true;
@@ -6643,7 +6642,7 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
             });
           }
         }
-        // Notify parent to show alert near user icon
+        // Sync parent state (for any external consumers)
         onDistributionAlert?.({ residence: needsResidenceDistribution, business: needsBusinessDistribution });
         return null;
       })()}
@@ -7048,6 +7047,30 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
                 </button>
               </div>
             )}
+            {/* Distribution alert — inline between toolbar and grid */}
+            {building && (() => {
+              const needsRes = isResidentTaxRegion && building.need_residence_distribution === true;
+              const needsBiz = building.need_business_distribution === true &&
+                !isResidentTaxRegion &&
+                (taxRegion ? (!isMultiTaxRegion) : true);
+              if (!needsRes && !needsBiz) return null;
+              return (
+                <div className="flex flex-col gap-1 px-1 pb-1">
+                  {needsRes && (
+                    <div className="flex items-center gap-2 bg-amber-500 border-r-4 border-amber-700 rounded-lg px-3 py-2 shadow animate-pulse">
+                      <AlertCircle className="h-4 w-4 text-amber-900 shrink-0" />
+                      <p className="text-amber-900 font-bold text-sm">יש צורך לפזר שטח משותף מגורים!</p>
+                    </div>
+                  )}
+                  {needsBiz && (
+                    <div className="flex items-center gap-2 bg-amber-500 border-r-4 border-amber-700 rounded-lg px-3 py-2 shadow animate-pulse">
+                      <AlertCircle className="h-4 w-4 text-amber-900 shrink-0" />
+                      <p className="text-amber-900 font-bold text-sm">יש צורך לפזר שטח משותף עסקים!</p>
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
             {fieldConfigLoading ? (
               <div className="flex-1 min-h-[200px] flex items-center justify-center">
                 <Loader2 className="h-8 w-8 animate-spin text-theme-tab-active" />

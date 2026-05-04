@@ -1752,24 +1752,6 @@ function App() {
         </div>
       </header>
 
-      {/* Distribution alert — fixed below header, pointer-events-none so nothing is blocked */}
-      {(distributionAlert.residence || distributionAlert.business) && (
-        <div className="fixed top-12 left-2 z-[90] space-y-1 pointer-events-none">
-          {distributionAlert.residence && (
-            <div className="bg-amber-500 border-r-4 border-amber-700 rounded-lg px-3 py-2 shadow-lg flex items-center gap-2 opacity-90">
-              <AlertCircle className="h-4 w-4 text-amber-900 shrink-0" />
-              <p className="text-amber-900 font-bold text-sm whitespace-nowrap">יש צורך לפזר שטח משותף מגורים!</p>
-            </div>
-          )}
-          {distributionAlert.business && (
-            <div className="bg-amber-500 border-r-4 border-amber-700 rounded-lg px-3 py-2 shadow-lg flex items-center gap-2 opacity-90">
-              <AlertCircle className="h-4 w-4 text-amber-900 shrink-0" />
-              <p className="text-amber-900 font-bold text-sm whitespace-nowrap">יש צורך לפזר שטח משותף עסקים!</p>
-            </div>
-          )}
-        </div>
-      )}
-
       <div className="flex-1 flex flex-col md:flex-row min-h-0">
       {/* Mobile menu button - hidden for inspector on mobile (task-only full-screen) */}
       {!(isMobile && isInspector) && (

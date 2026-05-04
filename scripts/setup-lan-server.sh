@@ -69,7 +69,7 @@ ALGORITHM=HS256
 ACCESS_TOKEN_EXPIRE_MINUTES=480
 FILES_BASE_PATH=$UPLOADS_DIR
 ASSET_FILES_STORAGE_PATH=$FILES_DIR
-ALLOWED_ORIGINS=http://10.25.236.179,http://10.25.236.179:80,http://localhost
+ALLOWED_ORIGINS=http://10.25.236.179,http://10.25.236.179:80,http://localhost,https://profile-group.co.il,https://www.profile-group.co.il,http://profile-group.co.il,http://www.profile-group.co.il
 ENVIRONMENT=production
 ENV
 chown "$APP_USER:$APP_USER" "$APP_DIR/backend/.env"
@@ -80,10 +80,15 @@ echo "[NGINX] Writing site config..."
 cat > /etc/nginx/conf.d/buildingsmanager.conf << 'NGINX'
 server {
     listen 80;
-    server_name 10.25.236.179 _;
+    server_name 10.25.236.179 profile-group.co.il www.profile-group.co.il _;
 
     root /var/www/buildingsmanager;
     index index.html;
+
+    # Let's Encrypt ACME challenge (used by setup-https.sh)
+    location /.well-known/acme-challenge/ {
+        root /var/www/buildingsmanager;
+    }
 
     # Serve static frontend assets
     location / {
@@ -96,8 +101,10 @@ server {
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
         client_max_body_size 100m;
         proxy_read_timeout 120s;
+        proxy_connect_timeout 10s;
     }
 }
 NGINX

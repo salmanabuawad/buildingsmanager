@@ -31,6 +31,7 @@
     "ag-grid-community": "^34.3.1",
     "ag-grid-react": "^34.3.1",
     "browser-image-compression": "^2.0.2",
+    "docx": "^9.6.1",
     "i18next": "^25.6.1",
     "jszip": "^3.10.1",
     "lucide-react": "^0.344.0",

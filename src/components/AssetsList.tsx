@@ -875,6 +875,23 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
       // Get asset types to determine business/residence type
       const assetTypesData = getAssetTypes();
       
+      // Helper: compute סה"כ שטח עסקי for export (business assets only; empty for non-business)
+      const getExportBusinessTotalArea = (asset: any): number | string => {
+        if (!asset.main_asset_type || !assetTypesData.length) return '';
+        const typeName = String(asset.main_asset_type).trim();
+        let at = assetTypesData.find((t: any) => String(t.name || '').trim() === typeName);
+        if (!at) {
+          const n = parseInt(typeName, 10);
+          if (!isNaN(n)) at = assetTypesData.find((t: any) => parseInt(String(t.name || ''), 10) === n);
+        }
+        if (!at || (at as any).business_residence !== 'עסקים') return '';
+        const size = Number(asset.asset_size) || 0;
+        const dist = Number(asset.business_distribution_area) || 0;
+        const parking = Number(asset.shared_parking_area) || 0;
+        const total = size + dist + parking;
+        return total > 0 ? total : '';
+      };
+
       // Helper function to calculate export asset size (asset_size + business_distribution_area for business assets + shared_parking_area for all)
       const getExportAssetSize = (asset: any): number | string => {
         const assetSize = asset.asset_size || 0;
@@ -1220,7 +1237,7 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
           asset.shared_parking_area ?? '',
           asset.number_of_parking_units ?? '',
           asset.business_distribution_area ?? '',
-          asset.business_total_area ?? '',
+          getExportBusinessTotalArea(asset),
           asset.use_nature || '',
           asset.comment || ''
         ]);
@@ -1386,7 +1403,7 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
       for (const [operatorId, operatorAssets] of byOperator) {
         const operator = operatorsList.find(o => o.id === operatorId);
         if (!operator?.email || !operator.email.includes('@')) continue;
-        const opRows = operatorAssets.map(asset => [
+        const opRows = operatorAssets.map(asset => applySharedAreasToExportRow(asset, [
           asset.payer_id || '', asset.asset_id != null ? String(asset.asset_id) : '',
           formatDateToDDMMYYYY(asset.discount_date_from) || '', formatDateToDDMMYYYY(asset.discount_date_to) || '',
           asset.main_asset_type || '', getExportAssetSize(asset),
@@ -1394,7 +1411,7 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
           asset.sub_asset_type_3 || '', asset.sub_asset_size_3 || '', asset.sub_asset_type_4 || '', asset.sub_asset_size_4 || '',
           asset.sub_asset_type_5 || '', asset.sub_asset_size_5 || '', asset.sub_asset_type_6 || '', asset.sub_asset_size_6 || '',
           '', '', '', '', '', ''
-        ]);
+        ]));
         const opData = [headers, ...opRows];
         const opExcelBlob = createExcelBlob({
           filename: `נכסים_מפעיל_${operatorId}_${dateStr}_${operatorAssets.length}נכסים.xlsx`,
@@ -1409,7 +1426,7 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
         sendItems.push({ to: operator.email, recipientName: operator.name, subject: subj, body, attachmentFilename: `נכסים_מפעיל_${operatorId}_${dateStr}_${operatorAssets.length}נכסים.xlsx`, attachmentBlob: opExcelBlob });
       }
       if (sendItems.length === 0) {
-        const fullRows = assetsForExcel.map((asset: any) => [
+        const fullRows = assetsForExcel.map((asset: any) => applySharedAreasToExportRow(asset, [
           asset.payer_id || '', asset.asset_id != null ? String(asset.asset_id) : '',
           formatDateToDDMMYYYY(asset.discount_date_from) || '', formatDateToDDMMYYYY(asset.discount_date_to) || '',
           asset.main_asset_type || '', getExportAssetSize(asset),
@@ -1417,7 +1434,7 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
           asset.sub_asset_type_3 || '', asset.sub_asset_size_3 || '', asset.sub_asset_type_4 || '', asset.sub_asset_size_4 || '',
           asset.sub_asset_type_5 || '', asset.sub_asset_size_5 || '', asset.sub_asset_type_6 || '', asset.sub_asset_size_6 || '',
           '', '', '', '', '', ''
-        ]);
+        ]));
         const fullExcelBlob = createExcelBlob({
           filename: `נכסים_שליחה_${dateStr}_${assetsForExcel.length}נכסים.xlsx`,
           sheetName: 'נכסים',
@@ -1443,7 +1460,7 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
           return tr != null && regionSet.has(tr);
         });
         if (managerAssets.length === 0) continue;
-        const mgrRows = managerAssets.map((asset: any) => [
+        const mgrRows = managerAssets.map((asset: any) => applySharedAreasToExportRow(asset, [
           asset.payer_id || '', asset.asset_id != null ? String(asset.asset_id) : '',
           formatDateToDDMMYYYY(asset.discount_date_from) || '', formatDateToDDMMYYYY(asset.discount_date_to) || '',
           asset.main_asset_type || '', getExportAssetSize(asset),
@@ -1451,7 +1468,7 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
           asset.sub_asset_type_3 || '', asset.sub_asset_size_3 || '', asset.sub_asset_type_4 || '', asset.sub_asset_size_4 || '',
           asset.sub_asset_type_5 || '', asset.sub_asset_size_5 || '', asset.sub_asset_type_6 || '', asset.sub_asset_size_6 || '',
           '', '', '', '', '', ''
-        ]);
+        ]));
         const mgrData = [headers, ...mgrRows];
         const mgrExcelBlob = createExcelBlob({
           filename: `נכסים_מנהל_${manager.id}_${dateStr}_${managerAssets.length}נכסים.xlsx`,

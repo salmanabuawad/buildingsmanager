@@ -223,7 +223,7 @@ export function RowEditModal({ isOpen, onClose, rowData, assetTypes, operators =
             {/* Operator */}
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-1">
-                מפעיל
+                פקיד/ה
               </label>
               <select
                 value={formData.operator_id != null ? String(formData.operator_id) : ''}

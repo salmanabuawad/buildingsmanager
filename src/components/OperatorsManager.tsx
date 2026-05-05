@@ -50,7 +50,7 @@ export function OperatorsManager() {
       }
     } catch (err) {
       console.error('Error fetching operators:', err);
-      showMessage('error', err instanceof Error ? err.message : 'שגיאה בטעינת מפעילים');
+      showMessage('error', err instanceof Error ? err.message : 'שגיאה בטעינת פקידים/ות');
     } finally {
       if (showLoading) setLoading(false);
     }
@@ -101,11 +101,11 @@ export function OperatorsManager() {
       });
       setItems([...items, newItem]);
       setOriginalItems([...originalItems, newItem]);
-      showMessage('success', 'המפעיל נוסף בהצלחה');
+      showMessage('success', 'הפקיד/ה נוסף/ה בהצלחה');
       resetForm();
     } catch (err) {
       console.error('Error adding operator:', err);
-      showMessage('error', err instanceof Error ? err.message : 'שגיאה בהוספת המפעיל');
+      showMessage('error', err instanceof Error ? err.message : 'שגיאה בהוספת הפקיד/ה');
     } finally {
       setIsSaving(false);
     }
@@ -230,7 +230,7 @@ export function OperatorsManager() {
   const columnDefs: ColDef<Operator>[] = useMemo(() => [
     {
       field: 'name',
-      headerName: 'שם מפעיל',
+      headerName: 'שם פקיד/ה',
       editable: isAdmin,
       cellEditor: 'agTextCellEditor',
       cellStyle: (params: any) => {
@@ -324,14 +324,14 @@ export function OperatorsManager() {
       .map(item => {
         const dirty = dirtyItems.get(item.id) || {};
         return {
-          'שם מפעיל': dirty.name !== undefined ? dirty.name : item.name,
+          'שם פקיד/ה': dirty.name !== undefined ? dirty.name : item.name,
           'אימייל': dirty.email !== undefined ? dirty.email : item.email,
           'טלפון': dirty.phone !== undefined ? dirty.phone : item.phone ?? '',
         };
       });
     exportToExcel({
-      filename: 'מפעילים.xlsx',
-      sheetName: 'מפעילים',
+      filename: 'פקידים_ות.xlsx',
+      sheetName: 'פקידים/ות',
       data: dataToExport,
     });
     showMessage('success', 'הייצוא הושלם בהצלחה');
@@ -351,7 +351,7 @@ export function OperatorsManager() {
 
       const itemsToAdd: Array<{ name: string; email: string; phone?: string }> = [];
       for (const row of jsonData) {
-        const name = String(row['שם מפעיל'] || row['name'] || row['Name'] || '').trim();
+        const name = String(row['שם פקיד/ה'] || row['name'] || row['Name'] || '').trim();
         const email = String(row['אימייל'] || row['email'] || row['Email'] || '').trim();
         const phone = String(row['טלפון'] || row['phone'] || row['Phone'] || '').trim();
         if (name && email && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
@@ -367,7 +367,7 @@ export function OperatorsManager() {
       for (const item of itemsToAdd) {
         await api.operators.create(item);
       }
-      showMessage('success', `יובאו ${itemsToAdd.length} מפעילים בהצלחה`);
+      showMessage('success', `יובאו ${itemsToAdd.length} פקידים/ות בהצלחה`);
       await fetchItems();
     } catch (error) {
       console.error('Error importing:', error);
@@ -385,7 +385,7 @@ export function OperatorsManager() {
       <div className="flex items-center justify-center min-h-screen">
         <div className="text-center">
           <Loader2 className="h-12 w-12 text-theme-tab-active animate-spin mx-auto" />
-          <p className="mt-4 text-slate-700 font-medium">טוען מפעילים...</p>
+          <p className="mt-4 text-slate-700 font-medium">טוען פקידים/ות...</p>
         </div>
       </div>
     );
@@ -407,7 +407,7 @@ export function OperatorsManager() {
           <div className="page-header-icon shrink-0">
             <Users className="w-4 h-4" />
           </div>
-          <h1 className="page-header-title text-sm sm:text-base font-bold">מפעילים</h1>
+          <h1 className="page-header-title text-sm sm:text-base font-bold">פקידים/ות</h1>
           <span className="page-header-badge">{items.length} רשומות</span>
         </div>
       </div>
@@ -465,7 +465,7 @@ export function OperatorsManager() {
                   className="btn btn-action btn-primary"
                 >
                   <Plus className="h-5 w-5" />
-                  <span>הוסף מפעיל</span>
+                  <span>הוסף פקיד/ה</span>
                 </button>
               </>
             )}
@@ -482,15 +482,15 @@ export function OperatorsManager() {
 
         {isAdding && (
           <div className="mb-6 p-4 bg-theme-highlight rounded-lg border border-theme-card-border">
-            <h3 className="text-lg font-semibold text-slate-900 mb-4">הוסף מפעיל חדש</h3>
+            <h3 className="text-lg font-semibold text-slate-900 mb-4">הוסף פקיד/ה חדש/ה</h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">שם מפעיל *</label>
+                <label className="block text-sm font-medium text-slate-700 mb-1">שם פקיד/ה *</label>
                 <input
                   type="text"
                   value={formData.name}
                   onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  placeholder="שם המפעיל"
+                  placeholder="שם הפקיד/ה"
                   className="w-full px-3 py-2 border-2 border-slate-300 rounded-lg focus:ring-2 focus:ring-theme-action-accent focus:border-theme-action-accent"
                 />
               </div>
@@ -572,7 +572,7 @@ export function OperatorsManager() {
                 suppressColumnMoveAnimation: true,
               }}
               localeText={{
-                noRowsToShow: 'אין מפעילים להצגה',
+                noRowsToShow: 'אין פקידים/ות להצגה',
               }}
             />
           </div>

@@ -2421,7 +2421,7 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
       const applyTpl = (t: string, name: string, assetCount?: number) =>
         t.replace(/\{\{name\}\}/g, name).replace(/\{\{date\}\}/g, dateStrHe).replace(/\{\{assetCount\}\}/g, assetCount != null ? String(assetCount) : '');
       const operatorsList = await api.operators.getAll();
-      setExportProgressMessage('מכין מיילים למפעילים ולמנהלים...');
+      setExportProgressMessage('מכין מיילים לפקידים/ות ולמנהלים...');
       const byOperator = new Map<number, typeof exportedAssets>();
       for (const a of exportedAssets) {
         const id = a.operator_id;
@@ -2548,7 +2548,7 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
       }
 
       let successMessage = `נשלחו ${numericAssetIdsForQuery.length} נכסים לעירייה בהצלחה. הקובץ הורד.`;
-      if (sentCount > 0) successMessage += ` ${sentCount} מיילים נשלחו למפעילים ולמנהלים.`;
+      if (sentCount > 0) successMessage += ` ${sentCount} מיילים נשלחו לפקידים/ות ולמנהלים.`;
       const failedEmails = sendItems.length - sentCount;
       if (failedEmails > 0) {
         const errDetail = emailError ? `: ${emailError}` : '';

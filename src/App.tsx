@@ -1179,7 +1179,7 @@ function App() {
     const newTab: Tab = {
       id: operatorsTabId,
       type: 'operators',
-      label: 'מפעילים',
+      label: 'פקידים/ות',
     };
     openTab(newTab);
   }
@@ -2028,7 +2028,7 @@ function App() {
                           onClick={() => { closeSidebarAndMenus(); openOperators(); }}
                           className="w-full flex items-center gap-2 px-3 py-2 text-right bg-transparent hover:bg-theme-sidebar-hover rounded-lg transition-all text-xs text-white/90"
                         >
-                          <span className="text-white/90">מפעילים</span>
+                          <span className="text-white/90">פקידים/ות</span>
                           <Users className="h-3 w-3 text-white/70" />
                         </button>
                         <button

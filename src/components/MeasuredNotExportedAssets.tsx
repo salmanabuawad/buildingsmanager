@@ -1310,7 +1310,7 @@ export const MeasuredNotExportedAssets = ({ onSelectAsset, onOpenAssetsTab }: Me
       const applyTpl = (t: string, name: string, assetCount?: number) =>
         t.replace(/\{\{name\}\}/g, name).replace(/\{\{date\}\}/g, dateStrHe).replace(/\{\{assetCount\}\}/g, assetCount != null ? String(assetCount) : '');
 
-      setExportProgressMessage('מכין מיילים למפעילים ולמנהלים...');
+      setExportProgressMessage('מכין מיילים לפקידים/ות ולמנהלים...');
       const byOperator = new Map<number, typeof assetsToExport>();
       for (const a of assetsToExport) {
         const id = a.operator_id;
@@ -1439,7 +1439,7 @@ export const MeasuredNotExportedAssets = ({ onSelectAsset, onOpenAssetsTab }: Me
       }
 
       let successMessage = `נשלחו ${numericAssetIdsForQuery.length} נכסים לעירייה בהצלחה. הקובץ הורד.`;
-      if (sentCount > 0) successMessage += ` ${sentCount} מיילים נשלחו למפעילים ולמנהלים.`;
+      if (sentCount > 0) successMessage += ` ${sentCount} מיילים נשלחו לפקידים/ות ולמנהלים.`;
       const failedEmails = sendItems.length - sentCount;
       if (failedEmails > 0) {
         const errDetail = emailError ? `: ${emailError}` : '';

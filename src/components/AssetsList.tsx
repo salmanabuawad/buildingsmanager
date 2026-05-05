@@ -330,7 +330,7 @@ const OperatorCellEditor = React.forwardRef<any, OperatorCellEditorParams>((prop
                 ))
               ) : (
                 <div style={{ padding: '8px 12px', color: '#666', fontStyle: 'italic' }}>
-                  {operators.length === 0 ? 'אין מפעילים זמינים' : 'לא נמצאו תוצאות'}
+                  {operators.length === 0 ? 'אין פקידים/ות זמינים' : 'לא נמצאו תוצאות'}
                 </div>
               )}
             </div>
@@ -1393,7 +1393,7 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
           byOperator.get(id)!.push(a);
         }
       }
-      setExportProgressMessage('מכין מיילים למפעילים ולמנהלים...');
+      setExportProgressMessage('מכין מיילים לפקידים/ות ולמנהלים...');
       const sendItems: Array<{ to: string; recipientName: string; subject: string; body: string; attachmentFilename: string; attachmentBlob: Blob }> = [];
       for (const [operatorId, operatorAssets] of byOperator) {
         const operator = operatorsList.find(o => o.id === operatorId);
@@ -1513,7 +1513,7 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
       }
 
       let successMessage = `נשלחו ${assetIdsToMark.length} נכסים לעירייה בהצלחה. הקובץ הורד.`;
-      if (sentCount > 0) successMessage += ` ${sentCount} מיילים נשלחו למפעילים ולמנהלים.`;
+      if (sentCount > 0) successMessage += ` ${sentCount} מיילים נשלחו לפקידים/ות ולמנהלים.`;
       const failedEmails = sendItems.length - sentCount;
       if (failedEmails > 0) {
         const errDetail = emailError ? `: ${emailError}` : '';
@@ -6373,7 +6373,7 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
     },
     {
       field: 'operator_id',
-      headerName: 'מפעיל',
+      headerName: 'פקיד/ה',
       editable: (params) => {
         const fieldName = params.colDef?.field || '';
         return isFieldEditable(params, fieldName);

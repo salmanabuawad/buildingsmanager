@@ -3186,7 +3186,7 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
     },
     {
       field: 'operator_id',
-      headerName: 'מפעיל',
+      headerName: 'פקיד/ה',
       editable: (params) => {
         const fieldName = params.colDef?.field || '';
         return isFieldEditable(params, fieldName);

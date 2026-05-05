@@ -3120,7 +3120,7 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
       width: 120,
       sortable: true,
       filter: true,
-      editable: (params) => isBusinessContext && isFieldEditable(params, 'shared_parking_area'),
+      editable: false, // read-only: set by parking distribution only
       headerClass: 'ag-right-aligned-header',
       cellStyle: { textAlign: 'right' },
       valueFormatter: (params: any) => formatNumberToTwoDecimals(params.value),

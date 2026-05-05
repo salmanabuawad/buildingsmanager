@@ -861,6 +861,24 @@ input[type="number"] {
   border: 2px solid #ef4444 !important;
 }
 
+.ag-theme-alpine .ag-icon-filter {
+  font-size: 0 !important;
+  width: 12px !important;
+  height: 12px !important;
+  display: inline-block !important;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3E%3Cpath d='M1 1.5h10L7 6v4.5H5V6Z' fill='%23555' /%3E%3C/svg%3E") !important;
+  background-size: contain !important;
+  background-repeat: no-repeat !important;
+  background-position: center !important;
+  opacity: 0.75 !important;
+  vertical-align: middle !important;
+}
+
+.ag-theme-alpine .ag-header-cell-filtered .ag-icon-filter {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3E%3Cpath d='M1 1.5h10L7 6v4.5H5V6Z' fill='%231565c0' /%3E%3C/svg%3E") !important;
+  opacity: 1 !important;
+}
+
 html {
   font-size: var(--theme-font-size-base);
   scroll-behavior: smooth;

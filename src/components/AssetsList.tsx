@@ -2532,7 +2532,8 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
           taxRegion: taxRegion || undefined,
           cachedData: cachedData,
           validationRules: validationRules,
-          skipParkingSharedAreaCheck: skipParkingCheck
+          skipParkingSharedAreaCheck: skipParkingCheck,
+          skipParkingUnitsCheck: true // save path checks against all assets separately (line ~2563)
         }
       );
 

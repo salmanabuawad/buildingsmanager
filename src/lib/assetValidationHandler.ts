@@ -34,6 +34,7 @@ export interface ValidationOptions {
   taxRegion?: string; // Optional tax region that will OVERRIDE building tax region for validation (from tab header)
   cachedData?: { assetTypes?: any[]; building?: any; asset?: any }; // Cached data to avoid database queries
   skipParkingSharedAreaCheck?: boolean; // When true, skip the per-asset shared_parking_area vs building check (used during distribution saves)
+  skipParkingUnitsCheck?: boolean; // When true, skip the building-level number_of_parking_units sum check (save path already does this check against all assets)
 }
 
 /**
@@ -225,7 +226,8 @@ export class AssetValidationHandler {
       : null;
 
     // Total number_of_parking_units across ALL assets must equal building.number_of_parking_units
-    if (buildingParkingUnits != null && !isNaN(buildingParkingUnits) && assetsParkingUnitsSum !== buildingParkingUnits) {
+    // Skipped during save-time validation (only dirty assets are passed; save handler does its own correct full-building check)
+    if (!options?.skipParkingUnitsCheck && buildingParkingUnits != null && !isNaN(buildingParkingUnits) && assetsParkingUnitsSum !== buildingParkingUnits) {
       const err = `סה"כ יחידות חניה בנכסים (${assetsParkingUnitsSum}) אינו שווה ליחידות חניה במבנה (${buildingParkingUnits})`;
       for (let i = 0; i < results.length; i++) {
         if (parkingEligibleIds.has(assetsToValidate[i].asset_id)) {

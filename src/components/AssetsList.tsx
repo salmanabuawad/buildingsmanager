@@ -6407,7 +6407,7 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
         if (dirty && 'shared_parking_area' in dirty) return (dirty as any).shared_parking_area;
         return params.data?.shared_parking_area;
       },
-      editable: (params) => !isResidentTaxRegion && isFieldEditable(params, 'shared_parking_area'),
+      editable: false,
       type: 'numericColumn',
       valueFormatter: (params) => {
         if (isResidentTaxRegion) return '';

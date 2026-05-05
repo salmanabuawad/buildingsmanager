@@ -861,22 +861,20 @@ input[type="number"] {
   border: 2px solid #ef4444 !important;
 }
 
-.ag-theme-alpine .ag-icon-filter {
-  font-size: 0 !important;
-  width: 12px !important;
-  height: 12px !important;
-  display: inline-block !important;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3E%3Cpath d='M1 1.5h10L7 6v4.5H5V6Z' fill='%23555' /%3E%3C/svg%3E") !important;
-  background-size: contain !important;
-  background-repeat: no-repeat !important;
-  background-position: center !important;
-  opacity: 0.75 !important;
-  vertical-align: middle !important;
+/* AG Grid v34 filter icon: replace font glyph with a custom funnel SVG.
+   AG Grid uses CSS variables: --ag-icon-font-display-filter controls ::before visibility,
+   --ag-icon-image-filter / --ag-icon-image-display-filter control the ::after image layer. */
+.ag-theme-alpine {
+  --ag-icon-font-display-filter: none;
+  --ag-icon-image-filter: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M2 2h12l-4.5 5.5v5L6.5 14V7.5Z' fill='%23666' /%3E%3C/svg%3E");
+  --ag-icon-image-display-filter: block;
+  --ag-icon-image-opacity-filter: 0.8;
 }
 
-.ag-theme-alpine .ag-header-cell-filtered .ag-icon-filter {
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3E%3Cpath d='M1 1.5h10L7 6v4.5H5V6Z' fill='%231565c0' /%3E%3C/svg%3E") !important;
-  opacity: 1 !important;
+/* Blue funnel when the column has an active filter */
+.ag-theme-alpine .ag-filter-active {
+  --ag-icon-image-filter: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M2 2h12l-4.5 5.5v5L6.5 14V7.5Z' fill='%231565c0' /%3E%3C/svg%3E");
+  --ag-icon-image-opacity-filter: 1;
 }
 
 html {

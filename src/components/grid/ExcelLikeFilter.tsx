@@ -38,14 +38,21 @@ function toDisplayValue(raw: unknown): string {
 
 // ─── component ───────────────────────────────────────────────────────────────
 
-const ExcelLikeFilter = ({ model, onModelChange, onUiChange, api, colDef }: CustomFilterProps<any, any, ExcelLikeFilterModel>) => {
-  const field: string = (colDef as any).field ?? '';
+const ExcelLikeFilter = ({
+  model,
+  onModelChange,
+  onUiChange,
+  api,
+  colDef,
+  getValue,
+}: CustomFilterProps<any, any, ExcelLikeFilterModel>) => {
 
-  // Collect unique values from all rows
+  // Collect unique values from all rows using getValue (handles valueGetters/formatters)
   const collectAllValues = useCallback((): string[] => {
     const seen = new Set<string>();
     api.forEachNode((node: any) => {
-      const raw = node.data ? node.data[field] : undefined;
+      if (!node.data) return; // skip group/loading nodes
+      const raw = getValue(node);
       seen.add(toDisplayValue(raw));
     });
     return Array.from(seen).sort((a, b) => {
@@ -53,7 +60,7 @@ const ExcelLikeFilter = ({ model, onModelChange, onUiChange, api, colDef }: Cust
       if (b === BLANK_LABEL) return -1;
       return a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' });
     });
-  }, [field, api]);
+  }, [api, getValue]);
 
   const [allValues, setAllValues] = useState<string[]>(() => collectAllValues());
   // "pending" = what the checkboxes show (not yet applied)
@@ -66,6 +73,17 @@ const ExcelLikeFilter = ({ model, onModelChange, onUiChange, api, colDef }: Cust
   // Keep a ref of the current committed model for doesFilterPass
   const modelRef = useRef<ExcelLikeFilterModel | null>(model);
   useEffect(() => { modelRef.current = model; }, [model]);
+
+  // Refresh the value list once on mount (covers cases where data changed since last open)
+  useEffect(() => {
+    const fresh = collectAllValues();
+    setAllValues(fresh);
+    // If no active filter, ensure pending reflects all available values
+    if (!modelRef.current) {
+      setPending(new Set(fresh));
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // intentionally runs only once per popup open (component remounts each time)
 
   // Sync pending state when model changes from outside (e.g. setModel / reset)
   useEffect(() => {
@@ -82,7 +100,7 @@ const ExcelLikeFilter = ({ model, onModelChange, onUiChange, api, colDef }: Cust
   useGridFilter({
     doesFilterPass(params: IDoesFilterPassParams): boolean {
       if (!modelRef.current) return true;
-      const raw = params.node.data ? params.node.data[field] : undefined;
+      const raw = getValue(params.node);
       return modelRef.current.values.includes(toDisplayValue(raw));
     },
   });
@@ -130,6 +148,8 @@ const ExcelLikeFilter = ({ model, onModelChange, onUiChange, api, colDef }: Cust
     if (model) setPending(new Set(model.values));
     else setPending(new Set(allValues));
     setSearch('');
+    // Close the popup by re-emitting the current committed model (same mechanism as OK)
+    onModelChange(model ?? null);
   };
 
   // ── render ─────────────────────────────────────────────────────────────────

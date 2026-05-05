@@ -45,6 +45,7 @@ const ASSETS_GRID_DEFAULT_COL_DEF = {
   cellStyle: { textAlign: 'right' as const },
   minWidth: 40,
   filter: ExcelLikeFilter,
+  filterParams: { closeOnApply: true },
 };
 
 const ASSETS_GRID_OPTIONS = {

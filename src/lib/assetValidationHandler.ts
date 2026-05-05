@@ -33,6 +33,7 @@ export interface ValidationOptions {
   validateOnlyLatest?: boolean; // For building mode: validate only latest record per asset_id
   taxRegion?: string; // Optional tax region that will OVERRIDE building tax region for validation (from tab header)
   cachedData?: { assetTypes?: any[]; building?: any; asset?: any }; // Cached data to avoid database queries
+  skipParkingSharedAreaCheck?: boolean; // When true, skip the per-asset shared_parking_area vs building check (used during distribution saves)
 }
 
 /**
@@ -238,7 +239,8 @@ export class AssetValidationHandler {
 
 
     // Each asset's shared_parking_area must not exceed the building's shared_parking_area (only when assets have shared parking area)
-    if (validateBuildingSharedParkingArea && buildingSharedParking != null && !isNaN(buildingSharedParking)) {
+    // Skipped during distribution saves because shared_parking_area is recalculated during distribution
+    if (!options?.skipParkingSharedAreaCheck && validateBuildingSharedParkingArea && buildingSharedParking != null && !isNaN(buildingSharedParking)) {
       for (let i = 0; i < results.length; i++) {
         if (!parkingEligibleIds.has(assetsToValidate[i].asset_id)) continue;
         const v = (assetsToValidate[i] as any).shared_parking_area;

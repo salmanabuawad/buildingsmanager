@@ -2471,7 +2471,7 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
   }, [newAssets, originalAssets, shouldValidateOnBlur]);
 
   // Helper function to run validation programmatically (without modal)
-  async function runValidationProgrammatically(): Promise<{ hasErrors: boolean; errorMessage?: string }> {
+  async function runValidationProgrammatically(opts?: { skipParkingSharedAreaCheck?: boolean }): Promise<{ hasErrors: boolean; errorMessage?: string }> {
     try {
       // Use the assets currently displayed in the grid (not fetching from API)
       const gridAssets = assets || [];
@@ -2525,7 +2525,8 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
           validateOnlyLatest: false,
           taxRegion: taxRegion || undefined,
           cachedData: cachedData,
-          validationRules: validationRules
+          validationRules: validationRules,
+          skipParkingSharedAreaCheck: opts?.skipParkingSharedAreaCheck
         }
       );
 
@@ -2981,7 +2982,8 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
       // Run validation before saving when "מתי להריץ אימות" is before_save (or online)
       let validationResult = { hasErrors: false as boolean, errorMessage: '' as string };
       if (shouldValidateBeforeSave) {
-        validationResult = await runValidationProgrammatically();
+        const isDistribValidation = pendingDistributionTypeRef.current !== null;
+        validationResult = await runValidationProgrammatically({ skipParkingSharedAreaCheck: isDistribValidation });
       }
       if (validationResult.hasErrors) {
         // Stop save operation - don't submit to server

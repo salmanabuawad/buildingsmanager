@@ -3299,9 +3299,11 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
                 totalForDist += hasSubtypes ? (Number(a.sub_asset_size_1) || 0) : (Number(a.asset_size) || 0);
               }
             }
-            computedOverloadRatioForSave = isClearing || totalForDist <= 0
+            computedOverloadRatioForSave = isClearing
               ? 0
-              : (building.business_shared_area / totalForDist) * 100;
+              : totalForDist > 0
+                ? (building.business_shared_area / totalForDist) * 100
+                : null; // totalForDist=0 despite non-clearing: can't recompute here, fall back to building.overload_ratio
           }
 
           if (distributionType === 'residence' && building?.residence_shared_area) {
@@ -3362,15 +3364,21 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
             // Clear flag in DB, then re-fetch building to get authoritative state from server
             const clearAndRefresh = async () => {
               try {
+                // Hoist overloadRatioToSave so it is accessible after the if/else block
+                let overloadRatioToSave: number | null | undefined = undefined;
                 if (effectiveDistributionType === 'business') {
-                  // Only save overload_ratio when business_shared_area is set (non-null).
-                  // When null (parking-only distribution), preserve the existing ratio — don't reset to 0.
-                  const overloadRatioToSave = computedOverloadRatioForSave ??
-                    (building.business_shared_area != null && building.business_shared_area <= 0 ? 0
-                      : building.business_shared_area != null ? (building.overload_ratio ?? null)
-                      : undefined); // null business_shared_area → don't touch overload_ratio
+                  // Always use building.overload_ratio which is set directly by the distribution
+                  // algorithm (the correct value). Do NOT recompute from assetsToSave here —
+                  // that loop includes non-accountable business assets in its denominator while
+                  // the distribution algorithm excludes them, producing a wrong (lower) ratio.
+                  const businessIsClearing = building.business_shared_area == null || building.business_shared_area <= 0;
+                  overloadRatioToSave = businessIsClearing
+                    ? 0
+                    : building.business_shared_area != null
+                      ? (building.overload_ratio ?? null)
+                      : undefined; // null business_shared_area → don't touch overload_ratio
                   const buildingUpdatePayload: Partial<typeof building> = { need_business_distribution: false };
-                  if (overloadRatioToSave !== undefined) buildingUpdatePayload.overload_ratio = overloadRatioToSave as number;
+                  if (overloadRatioToSave != null) buildingUpdatePayload.overload_ratio = overloadRatioToSave as number;
                   await api.buildings.update(building.building_number, buildingUpdatePayload);
                 } else if (effectiveDistributionType === 'residence') {
                   await api.buildings.update(building.building_number, {
@@ -3379,7 +3387,13 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
                 }
                 // Re-fetch from server to get confirmed state
                 const freshBuilding = await api.buildings.getOne(building.building_number);
-                setBuilding(freshBuilding);
+                // When overload_ratio was not sent to DB (parking-only distribution),
+                // preserve the locally-computed value so a stale DB value doesn't overwrite the UI.
+                if (overloadRatioToSave === undefined && building.overload_ratio != null) {
+                  setBuilding({ ...freshBuilding, overload_ratio: building.overload_ratio });
+                } else {
+                  setBuilding(freshBuilding);
+                }
               } catch (err) {
                 console.warn('Failed to clear distribution flag or refresh building:', err);
               }

@@ -2,6 +2,7 @@
  * ExcelLikeFilter – AG Grid v34 React custom filter (Excel-style).
  *
  * Uses the v34 API: CustomFilterProps + useGridFilter hook.
+ * Popup close uses the official hidePopup callback from afterGuiAttached.
  *
  * Layout:
  *  ┌─────────────────────────┐
@@ -17,7 +18,7 @@
 
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useGridFilter } from 'ag-grid-react';
-import type { CustomFilterProps, IDoesFilterPassParams } from 'ag-grid-community';
+import type { CustomFilterProps, IAfterGuiAttachedParams, IDoesFilterPassParams } from 'ag-grid-community';
 
 // ─── constants ───────────────────────────────────────────────────────────────
 
@@ -43,11 +44,13 @@ const ExcelLikeFilter = ({
   onModelChange,
   onUiChange,
   api,
-  colDef,
   getValue,
 }: CustomFilterProps<any, any, ExcelLikeFilterModel>) => {
 
-  // Collect unique values from all rows using getValue (handles valueGetters/formatters)
+  // Official AG Grid hook to close the popup: captured from afterGuiAttached
+  const hidePopupRef = useRef<(() => void) | undefined>();
+
+  // Collect unique values from all rows using getValue (handles valueGetters)
   const collectAllValues = useCallback((): string[] => {
     const seen = new Set<string>();
     api.forEachNode((node: any) => {
@@ -74,16 +77,26 @@ const ExcelLikeFilter = ({
   const modelRef = useRef<ExcelLikeFilterModel | null>(model);
   useEffect(() => { modelRef.current = model; }, [model]);
 
-  // Refresh the value list once on mount (covers cases where data changed since last open)
-  useEffect(() => {
-    const fresh = collectAllValues();
-    setAllValues(fresh);
-    // If no active filter, ensure pending reflects all available values
-    if (!modelRef.current) {
-      setPending(new Set(fresh));
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []); // intentionally runs only once per popup open (component remounts each time)
+  // Register doesFilterPass + afterGuiAttached with the grid.
+  // afterGuiAttached fires each time the popup opens — ideal to refresh values
+  // and capture the hidePopup callback.
+  useGridFilter({
+    doesFilterPass(params: IDoesFilterPassParams): boolean {
+      if (!modelRef.current) return true;
+      const raw = getValue(params.node);
+      return modelRef.current.values.includes(toDisplayValue(raw));
+    },
+    afterGuiAttached(params?: IAfterGuiAttachedParams) {
+      // Capture official popup-close callback
+      hidePopupRef.current = params?.hidePopup;
+      // Refresh value list every time popup opens
+      const fresh = collectAllValues();
+      setAllValues(fresh);
+      if (!modelRef.current) {
+        setPending(new Set(fresh));
+      }
+    },
+  });
 
   // Sync pending state when model changes from outside (e.g. setModel / reset)
   useEffect(() => {
@@ -95,15 +108,6 @@ const ExcelLikeFilter = ({
       setPending(new Set(fresh));
     }
   }, [model, collectAllValues]);
-
-  // Register doesFilterPass with the grid
-  useGridFilter({
-    doesFilterPass(params: IDoesFilterPassParams): boolean {
-      if (!modelRef.current) return true;
-      const raw = getValue(params.node);
-      return modelRef.current.values.includes(toDisplayValue(raw));
-    },
-  });
 
   // ── derived ────────────────────────────────────────────────────────────────
   const visible = search
@@ -134,22 +138,18 @@ const ExcelLikeFilter = ({
     onUiChange();
   };
 
-  const handleOk = (e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
+  const handleOk = () => {
     const isAll = allValues.every((v) => pending.has(v));
     onModelChange(isAll ? null : { values: Array.from(pending) });
+    hidePopupRef.current?.();
   };
 
-  const handleCancel = (e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
+  const handleCancel = () => {
     // Revert pending to current committed model
     if (model) setPending(new Set(model.values));
     else setPending(new Set(allValues));
     setSearch('');
-    // Close the popup by re-emitting the current committed model (same mechanism as OK)
-    onModelChange(model ?? null);
+    hidePopupRef.current?.();
   };
 
   // ── render ─────────────────────────────────────────────────────────────────
@@ -201,8 +201,8 @@ const ExcelLikeFilter = ({
 
       {/* Buttons */}
       <div style={styles.buttonRow}>
-        <button onMouseDown={handleOk} style={styles.okBtn} type="button">אישור</button>
-        <button onMouseDown={handleCancel} style={styles.cancelBtn} type="button">ביטול</button>
+        <button onClick={handleOk} style={styles.okBtn} type="button">אישור</button>
+        <button onClick={handleCancel} style={styles.cancelBtn} type="button">ביטול</button>
       </div>
     </div>
   );

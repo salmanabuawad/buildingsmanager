@@ -190,7 +190,10 @@ export class AssetValidationHandler {
     };
     const parkingEligibleIds = new Set<string | number>();
     let assetsSharedParkingSum = 0;
+    let assetsParkingUnitsSum = 0;
     for (const asset of assetsToValidate) {
+      const u = (asset as any).number_of_parking_units;
+      if (u != null && u !== '') assetsParkingUnitsSum += Number(u) || 0;
       if (!isParkingEligible(asset)) continue;
       parkingEligibleIds.add(asset.asset_id);
       const v = (asset as any).shared_parking_area;
@@ -221,7 +224,16 @@ export class AssetValidationHandler {
       ? Number(building.number_of_parking_units)
       : null;
 
-
+    // Total number_of_parking_units across ALL assets must equal building.number_of_parking_units
+    if (buildingParkingUnits != null && !isNaN(buildingParkingUnits) && assetsParkingUnitsSum !== buildingParkingUnits) {
+      const err = `סה"כ יחידות חניה בנכסים (${assetsParkingUnitsSum}) אינו שווה ליחידות חניה במבנה (${buildingParkingUnits})`;
+      for (let i = 0; i < results.length; i++) {
+        if (parkingEligibleIds.has(assetsToValidate[i].asset_id)) {
+          if (!results[i].errors.includes(err)) results[i].errors.push(err);
+          results[i].valid = false;
+        }
+      }
+    }
 
     // Each asset's shared_parking_area must not exceed the building's shared_parking_area (only when assets have shared parking area)
     // Skipped during distribution saves because shared_parking_area is recalculated during distribution

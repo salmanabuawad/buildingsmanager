@@ -2473,6 +2473,11 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
   // Helper function to run validation programmatically (without modal)
   async function runValidationProgrammatically(opts?: { skipParkingSharedAreaCheck?: boolean }): Promise<{ hasErrors: boolean; errorMessage?: string }> {
     try {
+      // Auto-detect distribution save: shared_parking_area is read-only in the grid, so any change to it
+      // can only come from distribution. Skip the per-asset parking check in that case.
+      const hasSharedParkingChanges = [...dirtyAssets.values()].some(ch => 'shared_parking_area' in ch);
+      const skipParkingCheck = opts?.skipParkingSharedAreaCheck ?? (pendingDistributionTypeRef.current !== null || hasSharedParkingChanges);
+
       // Use the assets currently displayed in the grid (not fetching from API)
       const gridAssets = assets || [];
       
@@ -2526,7 +2531,7 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
           taxRegion: taxRegion || undefined,
           cachedData: cachedData,
           validationRules: validationRules,
-          skipParkingSharedAreaCheck: opts?.skipParkingSharedAreaCheck
+          skipParkingSharedAreaCheck: skipParkingCheck
         }
       );
 
@@ -2982,8 +2987,7 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
       // Run validation before saving when "מתי להריץ אימות" is before_save (or online)
       let validationResult = { hasErrors: false as boolean, errorMessage: '' as string };
       if (shouldValidateBeforeSave) {
-        const isDistribValidation = pendingDistributionTypeRef.current !== null;
-        validationResult = await runValidationProgrammatically({ skipParkingSharedAreaCheck: isDistribValidation });
+        validationResult = await runValidationProgrammatically();
       }
       if (validationResult.hasErrors) {
         // Stop save operation - don't submit to server

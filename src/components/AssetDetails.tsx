@@ -1864,8 +1864,10 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
         //   sub1_type(6), sub1_size(7), sub2_type(8), sub2_size(9), ...sub6_type(16), sub6_size(17), ...]
 
         // Add business_distribution_area (per-asset distributed share) to sub_asset_size_1 (index 7)
+        // Only when sub_asset_type_1 (index 6) is non-empty; if no sub-types exist the value is
+        // already included in the main asset size via getExportAssetSize.
         const businessDistributionArea = Number(asset.business_distribution_area) || 0;
-        if (businessDistributionArea > 0) {
+        if (businessDistributionArea > 0 && String(result[6] || '').trim()) {
           result[7] = (Number(result[7]) || 0) + businessDistributionArea;
         }
 
@@ -1885,7 +1887,11 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
 
           const mainTypeName = String(result[4] || '').trim();
           if (mainTypeName && isParkingType(mainTypeName)) {
-            result[7] = (Number(result[7]) || 0) + sharedParkingArea;
+            // Main type is the parking type — only add to sub_asset_size_1 when sub1 exists.
+            // If no sub-types, the value is already in main asset size via getExportAssetSize.
+            if (String(result[6] || '').trim()) {
+              result[7] = (Number(result[7]) || 0) + sharedParkingArea;
+            }
           } else {
             let foundParking = false;
             for (let i = 0; i < 6; i++) {

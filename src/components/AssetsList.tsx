@@ -3363,11 +3363,15 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
             const clearAndRefresh = async () => {
               try {
                 if (effectiveDistributionType === 'business') {
-                  const overloadRatioToSave = computedOverloadRatioForSave ?? (building.business_shared_area! <= 0 ? 0 : (building.overload_ratio ?? null));
-                  await api.buildings.update(building.building_number, {
-                    overload_ratio: overloadRatioToSave,
-                    need_business_distribution: false
-                  });
+                  // Only save overload_ratio when business_shared_area is set (non-null).
+                  // When null (parking-only distribution), preserve the existing ratio — don't reset to 0.
+                  const overloadRatioToSave = computedOverloadRatioForSave ??
+                    (building.business_shared_area != null && building.business_shared_area <= 0 ? 0
+                      : building.business_shared_area != null ? (building.overload_ratio ?? null)
+                      : undefined); // null business_shared_area → don't touch overload_ratio
+                  const buildingUpdatePayload: Partial<typeof building> = { need_business_distribution: false };
+                  if (overloadRatioToSave !== undefined) buildingUpdatePayload.overload_ratio = overloadRatioToSave as number;
+                  await api.buildings.update(building.building_number, buildingUpdatePayload);
                 } else if (effectiveDistributionType === 'residence') {
                   await api.buildings.update(building.building_number, {
                     need_residence_distribution: false
@@ -4901,7 +4905,11 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
       setIsValidatedForSave(false);
 
       // Update building with computed overload_ratio so it is correct when user clicks "Save all"
-      setBuilding(prev => prev ? { ...prev, overload_ratio: overloadRatioPercent } : null);
+      // Only update overload_ratio when business_shared_area is set — parking-only distribution
+      // should not reset a previously computed business overload ratio.
+      if (!isClearingDistribution) {
+        setBuilding(prev => prev ? { ...prev, overload_ratio: overloadRatioPercent } : null);
+      }
 
       // Show success message
       const sharedAreaText = building.business_shared_area! > 0

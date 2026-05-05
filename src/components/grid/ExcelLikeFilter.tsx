@@ -1,32 +1,33 @@
 /**
- * ExcelLikeFilter – AG Grid Community custom filter that mimics Excel's column filter.
+ * ExcelLikeFilter – AG Grid v34 React custom filter (Excel-style).
  *
- * Layout (matches Excel exactly):
+ * Uses the v34 API: CustomFilterProps + useGridFilter hook.
+ *
+ * Layout:
  *  ┌─────────────────────────┐
  *  │ 🔍 Search...            │
  *  ├─────────────────────────┤
- *  │ ☑ (Select All)          │
+ *  │ ☑ (בחר הכל)             │
  *  │ ☑ value1                │
  *  │ ☑ value2                │
- *  │  ...                    │
  *  ├─────────────────────────┤
- *  │  [OK]        [Cancel]   │
+ *  │  [אישור]    [ביטול]     │
  *  └─────────────────────────┘
  */
 
-import React, {
-  forwardRef,
-  useCallback,
-  useEffect,
-  useImperativeHandle,
-  useRef,
-  useState,
-} from 'react';
-import type { IFilterParams, IDoesFilterPassParams } from 'ag-grid-community';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { useGridFilter } from 'ag-grid-react';
+import type { CustomFilterProps, IDoesFilterPassParams } from 'ag-grid-community';
 
 // ─── constants ───────────────────────────────────────────────────────────────
 
 const BLANK_LABEL = '(ריק)';
+
+// ─── model ───────────────────────────────────────────────────────────────────
+
+export interface ExcelLikeFilterModel {
+  values: string[]; // display-values that are checked (kept visible)
+}
 
 // ─── helpers ─────────────────────────────────────────────────────────────────
 
@@ -35,27 +36,16 @@ function toDisplayValue(raw: unknown): string {
   return String(raw);
 }
 
-function getFieldValue(node: any, field: string): unknown {
-  const data = node.data;
-  if (!data) return undefined;
-  return data[field];
-}
-
-// ─── model type ──────────────────────────────────────────────────────────────
-
-export interface ExcelLikeFilterModel {
-  values: string[];
-}
-
 // ─── component ───────────────────────────────────────────────────────────────
 
-const ExcelLikeFilter = forwardRef<unknown, IFilterParams>((props, ref) => {
-  const field: string = (props.colDef as any).field ?? '';
+const ExcelLikeFilter = ({ model, onModelChange, onUiChange, api, colDef }: CustomFilterProps<any, any, ExcelLikeFilterModel>) => {
+  const field: string = (colDef as any).field ?? '';
 
+  // Collect unique values from all rows
   const collectAllValues = useCallback((): string[] => {
     const seen = new Set<string>();
-    props.api.forEachNode((node) => {
-      const raw = field ? getFieldValue(node, field) : undefined;
+    api.forEachNode((node: any) => {
+      const raw = node.data ? node.data[field] : undefined;
       seen.add(toDisplayValue(raw));
     });
     return Array.from(seen).sort((a, b) => {
@@ -63,100 +53,89 @@ const ExcelLikeFilter = forwardRef<unknown, IFilterParams>((props, ref) => {
       if (b === BLANK_LABEL) return -1;
       return a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' });
     });
-  }, [field, props.api]);
+  }, [field, api]);
 
   const [allValues, setAllValues] = useState<string[]>(() => collectAllValues());
-  const [selected, setSelected] = useState<Set<string>>(() => new Set(collectAllValues()));
-  const [committed, setCommitted] = useState<Set<string> | null>(null);
+  // "pending" = what the checkboxes show (not yet applied)
+  const [pending, setPending] = useState<Set<string>>(() => {
+    if (model) return new Set(model.values);
+    return new Set(collectAllValues());
+  });
   const [search, setSearch] = useState('');
 
+  // Keep a ref of the current committed model for doesFilterPass
+  const modelRef = useRef<ExcelLikeFilterModel | null>(model);
+  useEffect(() => { modelRef.current = model; }, [model]);
+
+  // Sync pending state when model changes from outside (e.g. setModel / reset)
   useEffect(() => {
     const fresh = collectAllValues();
     setAllValues(fresh);
-    setSelected((prev) => {
-      const next = new Set(prev);
-      fresh.forEach((v) => next.add(v));
-      return next;
-    });
-  }, [collectAllValues]);
+    if (model) {
+      setPending(new Set(model.values));
+    } else {
+      setPending(new Set(fresh));
+    }
+  }, [model, collectAllValues]);
+
+  // Register doesFilterPass with the grid
+  useGridFilter({
+    doesFilterPass(params: IDoesFilterPassParams): boolean {
+      if (!modelRef.current) return true;
+      const raw = params.node.data ? params.node.data[field] : undefined;
+      return modelRef.current.values.includes(toDisplayValue(raw));
+    },
+  });
 
   // ── derived ────────────────────────────────────────────────────────────────
   const visible = search
     ? allValues.filter((v) => v.toLowerCase().includes(search.toLowerCase()))
     : allValues;
 
-  const allVisibleSelected = visible.length > 0 && visible.every((v) => selected.has(v));
-  const someVisibleSelected = visible.some((v) => selected.has(v));
-
-  // ── AG Grid filter interface ───────────────────────────────────────────────
-  useImperativeHandle(ref, () => ({
-    isFilterActive(): boolean {
-      return committed !== null;
-    },
-    doesFilterPass(params: IDoesFilterPassParams): boolean {
-      if (committed === null) return true;
-      if (!field) return true;
-      const raw = getFieldValue(params.node, field);
-      return committed.has(toDisplayValue(raw));
-    },
-    getModel(): ExcelLikeFilterModel | null {
-      if (committed === null) return null;
-      return { values: Array.from(committed) };
-    },
-    setModel(model: ExcelLikeFilterModel | null) {
-      if (!model) {
-        setCommitted(null);
-        setSelected(new Set(allValues));
-      } else {
-        const s = new Set(model.values);
-        setCommitted(s);
-        setSelected(s);
-      }
-    },
-  }));
+  const allVisibleSelected = visible.length > 0 && visible.every((v) => pending.has(v));
+  const someVisibleSelected = visible.some((v) => pending.has(v));
 
   // ── handlers ───────────────────────────────────────────────────────────────
   const toggleValue = (value: string) => {
-    setSelected((prev) => {
+    setPending((prev) => {
       const next = new Set(prev);
       if (next.has(value)) next.delete(value);
       else next.add(value);
       return next;
     });
+    onUiChange();
   };
 
   const toggleSelectAll = () => {
-    setSelected((prev) => {
+    setPending((prev) => {
       const next = new Set(prev);
-      if (allVisibleSelected) {
-        visible.forEach((v) => next.delete(v));
-      } else {
-        visible.forEach((v) => next.add(v));
-      }
+      if (allVisibleSelected) visible.forEach((v) => next.delete(v));
+      else visible.forEach((v) => next.add(v));
       return next;
     });
+    onUiChange();
   };
 
-  const handleOk = () => {
-    const isAll = allValues.every((v) => selected.has(v));
-    setCommitted(isAll ? null : new Set(selected));
-    props.filterChangedCallback();
+  const handleOk = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const isAll = allValues.every((v) => pending.has(v));
+    onModelChange(isAll ? null : { values: Array.from(pending) });
   };
 
-  const handleCancel = () => {
-    // Revert pending selection to last committed state
-    if (committed === null) {
-      setSelected(new Set(allValues));
-    } else {
-      setSelected(new Set(committed));
-    }
+  const handleCancel = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    // Revert pending to current committed model
+    if (model) setPending(new Set(model.values));
+    else setPending(new Set(allValues));
     setSearch('');
   };
 
   // ── render ─────────────────────────────────────────────────────────────────
   return (
     <div style={styles.container} dir="rtl">
-      {/* Search box */}
+      {/* Search */}
       <div style={styles.searchRow}>
         <input
           type="text"
@@ -168,23 +147,21 @@ const ExcelLikeFilter = forwardRef<unknown, IFilterParams>((props, ref) => {
         />
       </div>
 
-      {/* Unified checkbox list: (Select All) + values */}
+      {/* Checkbox list */}
       <div style={styles.listContainer}>
-        {/* Select All row — always visible */}
+        {/* (בחר הכל) */}
         <label style={styles.itemLabel}>
           <input
             type="checkbox"
             checked={allVisibleSelected}
-            ref={(el) => {
-              if (el) el.indeterminate = !allVisibleSelected && someVisibleSelected;
-            }}
+            ref={(el) => { if (el) el.indeterminate = !allVisibleSelected && someVisibleSelected; }}
             onChange={toggleSelectAll}
             style={styles.checkbox}
           />
           <span style={styles.selectAllText}>(בחר הכל)</span>
         </label>
 
-        {/* Value rows */}
+        {/* Values */}
         {visible.length === 0 ? (
           <div style={styles.noResults}>אין תוצאות</div>
         ) : (
@@ -192,7 +169,7 @@ const ExcelLikeFilter = forwardRef<unknown, IFilterParams>((props, ref) => {
             <label key={value} style={styles.itemLabel}>
               <input
                 type="checkbox"
-                checked={selected.has(value)}
+                checked={pending.has(value)}
                 onChange={() => toggleValue(value)}
                 style={styles.checkbox}
               />
@@ -202,23 +179,18 @@ const ExcelLikeFilter = forwardRef<unknown, IFilterParams>((props, ref) => {
         )}
       </div>
 
-      {/* OK / Cancel buttons */}
+      {/* Buttons */}
       <div style={styles.buttonRow}>
-        <button onClick={handleOk} style={styles.okBtn} type="button">
-          אישור
-        </button>
-        <button onClick={handleCancel} style={styles.cancelBtn} type="button">
-          ביטול
-        </button>
+        <button onMouseDown={handleOk} style={styles.okBtn} type="button">אישור</button>
+        <button onMouseDown={handleCancel} style={styles.cancelBtn} type="button">ביטול</button>
       </div>
     </div>
   );
-});
+};
 
-ExcelLikeFilter.displayName = 'ExcelLikeFilter';
 export default ExcelLikeFilter;
 
-// ─── styles ───────────────────────────────────────────────────────────────────
+// ─── styles ──────────────────────────────────────────────────────────────────
 
 const styles: Record<string, React.CSSProperties> = {
   container: {
@@ -232,9 +204,7 @@ const styles: Record<string, React.CSSProperties> = {
     border: '1px solid #b0b0b0',
     boxShadow: '2px 2px 6px rgba(0,0,0,0.15)',
   },
-  searchRow: {
-    marginBottom: 4,
-  },
+  searchRow: { marginBottom: 4 },
   searchInput: {
     width: '100%',
     boxSizing: 'border-box',
@@ -247,7 +217,7 @@ const styles: Record<string, React.CSSProperties> = {
     outline: 'none',
   },
   listContainer: {
-    maxHeight: 200,
+    maxHeight: 150,
     overflowY: 'auto',
     border: '1px solid #b0b0b0',
     marginBottom: 6,
@@ -266,30 +236,11 @@ const styles: Record<string, React.CSSProperties> = {
     overflow: 'hidden',
     textOverflow: 'ellipsis',
   },
-  selectAllText: {
-    fontWeight: 500,
-  },
-  noResults: {
-    padding: '6px',
-    color: '#999',
-    textAlign: 'center',
-    fontSize: 12,
-  },
-  blankText: {
-    color: '#999',
-    fontStyle: 'italic',
-  },
-  checkbox: {
-    cursor: 'pointer',
-    flexShrink: 0,
-    margin: 0,
-    accentColor: '#1565c0',
-  },
-  buttonRow: {
-    display: 'flex',
-    gap: 4,
-    justifyContent: 'flex-end',
-  },
+  selectAllText: { fontWeight: 500 },
+  noResults: { padding: '6px', color: '#999', textAlign: 'center', fontSize: 12 },
+  blankText: { color: '#999', fontStyle: 'italic' },
+  checkbox: { cursor: 'pointer', flexShrink: 0, margin: 0, accentColor: '#1565c0' },
+  buttonRow: { display: 'flex', gap: 4, justifyContent: 'flex-end' },
   okBtn: {
     padding: '3px 12px',
     backgroundColor: '#fff',
@@ -298,7 +249,6 @@ const styles: Record<string, React.CSSProperties> = {
     borderRadius: 2,
     cursor: 'pointer',
     fontSize: 12,
-    fontWeight: 400,
   },
   cancelBtn: {
     padding: '3px 12px',
@@ -308,6 +258,5 @@ const styles: Record<string, React.CSSProperties> = {
     borderRadius: 2,
     cursor: 'pointer',
     fontSize: 12,
-    fontWeight: 400,
   },
 };

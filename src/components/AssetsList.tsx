@@ -5353,11 +5353,7 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
       valueGetter: (params) => {
         const d = params.data;
         if (!d) return null;
-        const base = Number(d.asset_size) || 0;
-        const hasSubTypes = !!(d.sub_asset_type_1 || d.sub_asset_type_2 || d.sub_asset_type_3 ||
-          d.sub_asset_type_4 || d.sub_asset_type_5 || d.sub_asset_type_6);
-        const parking = !hasSubTypes ? (Number(d.shared_parking_area) || 0) : 0;
-        const total = base + parking;
+        const total = Number(d.asset_size) || 0;
         return total || null;
       },
       valueFormatter: (params) => params.value ? params.value.toLocaleString() : '',
@@ -6181,11 +6177,7 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
       valueGetter: (params) => {
         const d = params.data;
         if (!d) return null;
-        const base = Number(d.asset_size) || 0;
-        const hasSubTypes = !!(d.sub_asset_type_1 || d.sub_asset_type_2 || d.sub_asset_type_3 ||
-          d.sub_asset_type_4 || d.sub_asset_type_5 || d.sub_asset_type_6);
-        const parking = !hasSubTypes ? (Number(d.shared_parking_area) || 0) : 0;
-        const total = base + parking;
+        const total = Number(d.asset_size) || 0;
         return total || null;
       },
       valueFormatter: (params) => {
@@ -6486,7 +6478,7 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
       type: 'numericColumn',
       // The DB column is unused (stays 0; no trigger populates it). Compute
       // on the fly: for business assets only, total = asset_size +
-      // business_distribution_area.
+      // business_distribution_area + shared_parking_area (when no sub-types).
       valueGetter: (params: any) => {
         const row = params.data as Asset | undefined;
         if (!row) return '';
@@ -6496,7 +6488,10 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
         if (!at || at.business_residence !== 'עסקים') return '';
         const size = Number(row.asset_size) || 0;
         const dist = Number(row.business_distribution_area) || 0;
-        const total = size + dist;
+        const hasSubTypes = !!(row.sub_asset_type_1 || row.sub_asset_type_2 || row.sub_asset_type_3 ||
+          row.sub_asset_type_4 || row.sub_asset_type_5 || row.sub_asset_type_6);
+        const parking = !hasSubTypes ? (Number(row.shared_parking_area) || 0) : 0;
+        const total = size + dist + parking;
         return total > 0 ? total : '';
       },
       valueFormatter: (params) => {

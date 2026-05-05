@@ -2473,10 +2473,11 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
   // Helper function to run validation programmatically (without modal)
   async function runValidationProgrammatically(opts?: { skipParkingSharedAreaCheck?: boolean }): Promise<{ hasErrors: boolean; errorMessage?: string }> {
     try {
-      // Auto-detect distribution save: shared_parking_area is read-only in the grid, so any change to it
-      // can only come from distribution. Skip the per-asset parking check in that case.
-      const hasSharedParkingChanges = [...dirtyAssets.values()].some(ch => 'shared_parking_area' in ch);
-      const skipParkingCheck = opts?.skipParkingSharedAreaCheck ?? (pendingDistributionTypeRef.current !== null || hasSharedParkingChanges);
+      // Always skip the per-asset shared_parking_area > building check in automatic validation
+      // (pre-save and online). shared_parking_area is managed by distribution and may be
+      // temporarily out-of-range until distribution is run. The explicit "Validate" button
+      // (validateBuildingAssets called directly) still performs this check.
+      const skipParkingCheck = opts?.skipParkingSharedAreaCheck ?? true;
 
       // Use the assets currently displayed in the grid (not fetching from API)
       const gridAssets = assets || [];
@@ -2768,6 +2769,9 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
           taxRegion: taxRegion || undefined, // Pass taxRegion to validate against tab's tax region (if specific tab)
           cachedData: cachedData, // Pass cached data to avoid database queries (asset is added per-validation)
           validationRules: validationRules, // Pass validation rules to avoid loading from DB
+          // When validating before distribution, skip per-asset shared_parking_area check:
+          // those values will be recalculated by distribution itself.
+          skipParkingSharedAreaCheck: options?.forDistribute === true,
           onProgress: options?.silent ? undefined : (progress) => {
             setBatchValidationProgress({
               current: progress.current,

@@ -32,6 +32,8 @@ import { Toast } from './Toast';
 import { FileViewer } from './FileViewer';
 import { AssetFilesModal } from './AssetFilesModal';
 import { AssetStatisticsModal } from './AssetStatisticsModal';
+import ExcelLikeFilter from './grid/ExcelLikeFilter';
+
 const ASSETS_GRID_DEFAULT_COL_DEF = {
   resizable: false,
   wrapHeaderText: true,
@@ -42,7 +44,7 @@ const ASSETS_GRID_DEFAULT_COL_DEF = {
   headerStyle: { fontSize: '11px', textAlign: 'right' as const, fontWeight: 'normal', WebkitFontSmoothing: 'antialiased', MozOsxFontSmoothing: 'grayscale' },
   cellStyle: { textAlign: 'right' as const },
   minWidth: 40,
-  filter: true,
+  filter: ExcelLikeFilter,
 };
 
 const ASSETS_GRID_OPTIONS = {

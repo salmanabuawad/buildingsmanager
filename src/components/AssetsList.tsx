@@ -42,6 +42,8 @@ const ASSETS_GRID_DEFAULT_COL_DEF = {
   headerStyle: { fontSize: '11px', textAlign: 'right' as const, fontWeight: 'normal', WebkitFontSmoothing: 'antialiased', MozOsxFontSmoothing: 'grayscale' },
   cellStyle: { textAlign: 'right' as const },
   minWidth: 40,
+  filter: true,
+  floatingFilter: true,
 };
 
 const ASSETS_GRID_OPTIONS = {
@@ -5349,6 +5351,16 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
     {
       field: 'asset_size',
       headerName: !isResidentTaxRegion ? 'גודל נכס ללא שטח משותף' : t('mainAssetSize'),
+      valueGetter: (params) => {
+        const d = params.data;
+        if (!d) return null;
+        const base = Number(d.asset_size) || 0;
+        const hasSubTypes = !!(d.sub_asset_type_1 || d.sub_asset_type_2 || d.sub_asset_type_3 ||
+          d.sub_asset_type_4 || d.sub_asset_type_5 || d.sub_asset_type_6);
+        const parking = !hasSubTypes ? (Number(d.shared_parking_area) || 0) : 0;
+        const total = base + parking;
+        return total || null;
+      },
       valueFormatter: (params) => params.value ? params.value.toLocaleString() : '',
       cellStyle: (params: any) => getCellStyle(params)
     },
@@ -6167,6 +6179,16 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
       editable: (params) => isFieldEditable(params, 'asset_size'),
       type: 'numericColumn',
       valueParser: (params) => numericValueParser(params),
+      valueGetter: (params) => {
+        const d = params.data;
+        if (!d) return null;
+        const base = Number(d.asset_size) || 0;
+        const hasSubTypes = !!(d.sub_asset_type_1 || d.sub_asset_type_2 || d.sub_asset_type_3 ||
+          d.sub_asset_type_4 || d.sub_asset_type_5 || d.sub_asset_type_6);
+        const parking = !hasSubTypes ? (Number(d.shared_parking_area) || 0) : 0;
+        const total = base + parking;
+        return total || null;
+      },
       valueFormatter: (params) => {
         const val = params.value;
         if (val === null || val === undefined || val === '' || val === 0) return '';

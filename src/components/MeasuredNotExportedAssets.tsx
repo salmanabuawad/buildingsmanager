@@ -1215,23 +1215,14 @@ export const MeasuredNotExportedAssets = ({ onSelectAsset, onOpenAssetsTab }: Me
           data: regionExcelBlob
         });
 
-        // Create עדכון_פרטי_נכס file: all asset+building fields NOT in the main export
+        // Create עדכון_פרטי_נכס file
         const boolToHe = (v: any) => v === true || v === 'כן' ? 'כן' : v === false || v === 'לא' ? 'לא' : '';
         const detailsHeaders = [
-          // identifiers
           'זיהוי נכס', 'זיהוי משלם',
-          // asset fields
-          'מספר בניין', 'תאריך מדידה',
-          'מספר דירה', 'קומה', 'מספר מחסן', 'קומת מחסן',
-          'סוג הנחה', 'שטח פיזור', 'סה"כ שטח עסקים',
-          'מהות שימוש', 'הערה',
-          'שטח חניה משותף', 'מספר יחידות חניה',
-          'מעלית', 'בית צמוד/דו משפחתי', 'קונדו', 'טאון האוס', 'פנטהאוס',
-          // building fields
+          'מספר בניין', 'מספר דירה', 'קומה', 'מספר מחסן', 'קומת מחסן',
+          'מהות שימוש', 'הערה', 'מספר יחידות חניה',
+          'מעלית', 'בית צמוד/דו משפחתי', 'דירת גג',
           'גוש', 'חלקה', 'מספר בניין ברחוב', 'קוד רחוב',
-          'שטח שירות מגורים', 'שטח שירות עסקים', 'אחוז העמסה',
-          'שטח חניה משותף (בניין)', 'מספר יחידות חניה (בניין)',
-          'הערה על בניין',
         ];
         const detailsRows = regionAssetsForExcel.map(asset => {
           const bld = buildings.get(asset.building_number);
@@ -1239,33 +1230,20 @@ export const MeasuredNotExportedAssets = ({ onSelectAsset, onOpenAssetsTab }: Me
             asset.asset_id != null ? String(asset.asset_id) : '',
             asset.payer_id || '',
             asset.building_number != null ? String(asset.building_number) : '',
-            asset.measurement_date || '',
             asset.apartment_number || '',
             asset.apartment_floor || '',
             asset.storage_number || '',
             asset.storage_floor || '',
-            asset.discount_type || '',
-            asset.business_distribution_area != null ? asset.business_distribution_area : '',
-            asset.business_total_area != null ? asset.business_total_area : '',
             asset.use_nature || '',
             asset.comment || '',
-            asset.shared_parking_area != null ? asset.shared_parking_area : '',
             asset.number_of_parking_units != null ? asset.number_of_parking_units : '',
             boolToHe(asset.elevator),
             boolToHe(asset.single_double_family),
-            boolToHe(asset.condo),
-            boolToHe(asset.townhouses),
             boolToHe(asset.penthouse),
             bld?.gosh != null ? bld.gosh : '',
             bld?.helka != null ? bld.helka : '',
             bld?.building_number_in_street != null ? bld.building_number_in_street : '',
             bld?.address != null ? bld.address : '',
-            bld?.residence_shared_area != null ? bld.residence_shared_area : '',
-            bld?.business_shared_area != null ? bld.business_shared_area : '',
-            bld?.overload_ratio != null ? bld.overload_ratio : '',
-            bld?.shared_parking_area != null ? bld.shared_parking_area : '',
-            bld?.number_of_parking_units != null ? bld.number_of_parking_units : '',
-            bld?.note || '',
           ];
         });
         const detailsFilename = `עדכון_פרטי_נכס_${taxRegion}_${dateStr}.xlsx`;
@@ -1273,19 +1251,12 @@ export const MeasuredNotExportedAssets = ({ onSelectAsset, onOpenAssetsTab }: Me
           filename: detailsFilename,
           sheetName: 'פרטי נכס',
           data: [detailsHeaders, ...detailsRows],
-          decimalFormatColumnIndices: [9, 10, 13, 24, 25, 26, 27],
           columnWidths: [
-            { wch: 15 }, { wch: 15 }, // identifiers
-            { wch: 14 }, { wch: 14 }, // building_number, measurement_date
-            { wch: 12 }, { wch: 10 }, { wch: 12 }, { wch: 12 }, // apt/storage
-            { wch: 14 }, { wch: 12 }, { wch: 16 }, // discount / areas
-            { wch: 18 }, { wch: 20 }, // use_nature, comment
-            { wch: 16 }, { wch: 18 }, // parking
-            { wch: 10 }, { wch: 18 }, { wch: 10 }, { wch: 14 }, { wch: 12 }, // booleans
-            { wch: 10 }, { wch: 10 }, { wch: 18 }, { wch: 12 }, // gush/helka/street
-            { wch: 18 }, { wch: 18 }, { wch: 14 }, // shared areas
-            { wch: 20 }, { wch: 22 }, // building parking
-            { wch: 25 }, // note
+            { wch: 15 }, { wch: 15 }, // זיהוי נכס, זיהוי משלם
+            { wch: 14 }, { wch: 12 }, { wch: 10 }, { wch: 12 }, { wch: 12 }, // בניין, דירה, קומה, מחסן
+            { wch: 18 }, { wch: 20 }, { wch: 18 }, // מהות, הערה, חניה
+            { wch: 10 }, { wch: 18 }, { wch: 12 }, // מעלית, צמוד, גג
+            { wch: 10 }, { wch: 10 }, { wch: 18 }, { wch: 12 }, // גוש, חלקה, רחוב, קוד
           ]
         });
         zipFiles.push({

@@ -1136,6 +1136,16 @@ export const MeasuredNotExportedAssets = ({ onSelectAsset, onOpenAssetsTab }: Me
         });
       }
       
+      // Fetch building data for all exported assets (may not all be in state)
+      setExportProgressMessage('טוען נתוני בניינים...');
+      const exportBuildingsMap = new Map(buildings);
+      const missingBuildingNums = [...new Set(exportedAssets.map((a: any) => a.building_number))]
+        .filter((bn: number) => !exportBuildingsMap.has(bn));
+      if (missingBuildingNums.length > 0) {
+        const fetched = await Promise.all(missingBuildingNums.map((bn: number) => api.buildings.getOne(bn).catch(() => null)));
+        missingBuildingNums.forEach((bn: number, i: number) => { if (fetched[i]) exportBuildingsMap.set(bn, fetched[i]); });
+      }
+
       setExportProgressMessage('מכין קבצים ל-ZIP...');
       // Process each tax region: create Excel file and download files
       // Iterate over all tax regions that have assets (not just those with files)
@@ -1225,7 +1235,7 @@ export const MeasuredNotExportedAssets = ({ onSelectAsset, onOpenAssetsTab }: Me
           'גוש', 'חלקה', 'מספר בניין ברחוב', 'קוד רחוב',
         ];
         const detailsRows = regionAssetsForExcel.map(asset => {
-          const bld = buildings.get(asset.building_number);
+          const bld = exportBuildingsMap.get(asset.building_number);
           return [
             asset.asset_id != null ? String(asset.asset_id) : '',
             asset.payer_id || '',

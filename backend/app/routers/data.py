@@ -45,6 +45,42 @@ def _get_columns(db: Session, table: str) -> list[str]:
     return [row[0] for row in r.fetchall()]
 
 
+def _get_column_types(db: Session, table: str) -> dict[str, str]:
+    """Return {column_name: data_type} for table from information_schema."""
+    r = db.execute(
+        text(
+            "SELECT column_name, data_type FROM information_schema.columns "
+            "WHERE table_schema = 'public' AND table_name = :t"
+        ),
+        {"t": table},
+    )
+    return {row[0]: row[1] for row in r.fetchall()}
+
+
+_NUMERIC_TYPES = frozenset({
+    "bigint", "integer", "smallint", "numeric", "real", "double precision",
+    "decimal", "money",
+})
+
+
+def _cast_param(value: str, data_type: str):
+    """Cast a query-string value to the appropriate Python type for the given PostgreSQL column type."""
+    if data_type in _NUMERIC_TYPES:
+        try:
+            if "." in str(value):
+                return float(value)
+            return int(value)
+        except (ValueError, TypeError):
+            return value
+    if data_type == "boolean":
+        lv = str(value).lower()
+        if lv in ("true", "1", "yes"):
+            return True
+        if lv in ("false", "0", "no"):
+            return False
+    return value
+
+
 def _validate_select(select: str, columns: list[str]) -> str:
     if not select or select.strip() == "*":
         return ", ".join(f'"{c}"' for c in columns)
@@ -59,11 +95,13 @@ def _validate_select(select: str, columns: list[str]) -> str:
 def _build_where_and_params(
     columns: list[str],
     query_params: dict,
+    col_types: dict[str, str] | None = None,
 ) -> tuple[str, dict]:
     """Build WHERE clause and params from query string. Ignore select, limit, offset, order."""
     skip = {"select", "limit", "offset", "order", "or"}
     clauses = []
     params: dict = {}
+    col_types = col_types or {}
     for key, value in query_params.items():
         if key in skip or value is None or value == "":
             continue
@@ -81,7 +119,7 @@ def _build_where_and_params(
             col = key.replace("__neq", "")
             if col in columns:
                 p = f"p_{len(params)}"
-                params[p] = value
+                params[p] = _cast_param(value, col_types.get(col, "text"))
                 clauses.append(f'"{col}" != :{p}')
             continue
         if key.endswith("__in"):
@@ -91,13 +129,13 @@ def _build_where_and_params(
                 placeholders = []
                 for i, v in enumerate(parts):
                     p = f"p_in_{len(params)}_{i}"
-                    params[p] = v.strip()
+                    params[p] = _cast_param(v.strip(), col_types.get(col, "text"))
                     placeholders.append(f":{p}")
                 clauses.append(f'"{col}" IN ({", ".join(placeholders)})')
             continue
         if key in columns:
             p = f"p_{len(params)}"
-            params[p] = value
+            params[p] = _cast_param(value, col_types.get(key, "text"))
             clauses.append(f'"{key}" = :{p}')
     where_sql = " AND ".join(clauses) if clauses else "1=1"
     return where_sql, params
@@ -115,8 +153,9 @@ def _get_table_data(
     columns = _get_columns(db, table)
     if not columns:
         return []
+    col_types = _get_column_types(db, table)
     select_sql = _validate_select(select, columns)
-    where_sql, where_params = _build_where_and_params(columns, query_params)
+    where_sql, where_params = _build_where_and_params(columns, query_params, col_types)
     order_sql = ""
     if order:
         # Support order=col, order=col.desc, or order=col:1 (1=asc) / order=col:-1 (desc)
@@ -321,7 +360,8 @@ async def patch_table(
     columns = _get_columns(db, table)
     if not columns:
         raise HTTPException(status_code=500, detail="Table not found")
-    where_sql, where_params = _build_where_and_params(columns, q)
+    col_types = _get_column_types(db, table)
+    where_sql, where_params = _build_where_and_params(columns, q, col_types)
     if where_sql == "1=1":
         raise HTTPException(status_code=400, detail="PATCH requires at least one filter")
     body = await request.json()
@@ -387,7 +427,8 @@ def delete_table(
     columns = _get_columns(db, table)
     if not columns:
         raise HTTPException(status_code=500, detail="Table not found")
-    where_sql, params = _build_where_and_params(columns, q)
+    col_types = _get_column_types(db, table)
+    where_sql, params = _build_where_and_params(columns, q, col_types)
     if where_sql == "1=1":
         raise HTTPException(status_code=400, detail="DELETE requires at least one filter")
     try:

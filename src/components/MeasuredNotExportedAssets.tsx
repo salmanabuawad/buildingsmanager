@@ -1136,15 +1136,15 @@ export const MeasuredNotExportedAssets = ({ onSelectAsset, onOpenAssetsTab }: Me
         });
       }
       
-      // Fetch building data for all exported assets (may not all be in state)
+      // Fetch building data fresh for all exported assets (always fetch to avoid stale state)
       setExportProgressMessage('טוען נתוני בניינים...');
-      const exportBuildingsMap = new Map(buildings);
-      const missingBuildingNums = [...new Set(exportedAssets.map((a: any) => a.building_number))]
-        .filter((bn: number) => !exportBuildingsMap.has(bn));
-      if (missingBuildingNums.length > 0) {
-        const fetched = await Promise.all(missingBuildingNums.map((bn: number) => api.buildings.getOne(bn).catch(() => null)));
-        missingBuildingNums.forEach((bn: number, i: number) => { if (fetched[i]) exportBuildingsMap.set(bn, fetched[i]); });
-      }
+      const exportBuildingsMap = new Map<number, Building>();
+      const uniqueBuildingNums = [...new Set(exportedAssets.map((a: any) => Number(a.building_number)).filter((bn: number) => !isNaN(bn) && bn > 0))];
+      const fetchedBuildings = await Promise.all(uniqueBuildingNums.map((bn: number) => api.buildings.getOne(bn).catch((err: any) => {
+        console.warn(`[export] Failed to fetch building ${bn}:`, err);
+        return null;
+      })));
+      uniqueBuildingNums.forEach((bn: number, i: number) => { if (fetchedBuildings[i]) exportBuildingsMap.set(bn, fetchedBuildings[i]!); });
 
       setExportProgressMessage('מכין קבצים ל-ZIP...');
       // Process each tax region: create Excel file and download files

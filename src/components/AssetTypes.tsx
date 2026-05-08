@@ -18,6 +18,7 @@ import { useFillHandle } from '../lib/useFillHandle';
 import { useFieldConfig } from '../lib/useFieldConfig';
 import { exportToExcel } from '../lib/excelExport';
 import { numericValueParser, numericValueParserInt } from '../lib/numberUtils';
+import ExcelLikeFilter from './grid/ExcelLikeFilter';
 
 // Custom tooltip component that supports line breaks - uses standardized tooltip styles
 const CustomTooltip = (params: ITooltipParams) => {
@@ -1879,7 +1880,7 @@ export function AssetTypes() {
                   headerStyle: { fontSize: '11px', textAlign: 'right', fontWeight: 'normal', WebkitFontSmoothing: 'antialiased', MozOsxFontSmoothing: 'grayscale' },
                   minWidth: 40,
                   sortable: true,
-                  filter: true
+                  filter: ExcelLikeFilter
                 }}
                 getRowStyle={(params: any) => {
                   const assetType = params.data as AssetType;

@@ -4226,7 +4226,7 @@ export const api = {
       user_email: string | null;
       full_name?: string | null;
       phone?: string | null;
-      user_role: 'admin' | 'user' | 'inspector';
+      user_role: 'admin' | 'user';
       active: boolean;
       created_at: string;
       updated_at: string;
@@ -4244,21 +4244,18 @@ export const api = {
       return data || [];
     },
     update: async (userId: number, updates: {
-      user_role?: 'admin' | 'user' | 'inspector';
+      user_role?: 'admin' | 'user';
       active?: boolean;
       user_name?: string;
       user_email?: string;
       full_name?: string | null;
       phone?: string | null;
     }): Promise<void> => {
-      const { error } = await api
-        .from('users')
-        .eq('user_id', userId)
-        .update({
-          ...updates,
-          updated_at: new Date().toISOString(),
-        });
-      
+      const { error } = await dataPatch(
+        'users',
+        { user_id: userId },
+        { ...updates, updated_at: new Date().toISOString() }
+      );
       if (error) {
         console.error('Error updating user:', error);
         throw new Error(`Failed to update user: ${error.message}`);
@@ -4268,7 +4265,7 @@ export const api = {
       user_name: string;
       user_email: string;
       password: string;
-      user_role?: 'admin' | 'user' | 'inspector';
+      user_role?: 'admin' | 'user';
       full_name?: string | null;
       phone?: string | null;
     }): Promise<{

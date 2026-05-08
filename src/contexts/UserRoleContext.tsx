@@ -1,14 +1,13 @@
 import { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
 import { getSession } from '../lib/usersTableAuth';
 
-export type UserRole = 'admin' | 'user' | 'inspector';
+export type UserRole = 'admin' | 'user';
 
 interface UserRoleContextType {
   userRole: UserRole | null;
   isLoading: boolean;
   isAdmin: boolean;
   isReadOnly: boolean;
-  isInspector: boolean;
   isDev: boolean;
   refreshRole: () => Promise<void>;
 }
@@ -29,7 +28,7 @@ export function UserRoleProvider({ children }: { children: ReactNode }) {
       setIsLoading(false);
       return;
     }
-    setUserRole((s.user_role === 'admin' ? 'admin' : s.user_role === 'inspector' ? 'inspector' : 'user') as UserRole);
+    setUserRole((s.user_role === 'admin' ? 'admin' : 'user') as UserRole);
     setUserName(s.user_name ?? null);
     setIsLoading(false);
   }, []);
@@ -44,7 +43,6 @@ export function UserRoleProvider({ children }: { children: ReactNode }) {
 
   const isAdmin = userRole === 'admin';
   const isReadOnly = userRole === 'user';
-  const isInspector = userRole === 'inspector';
   const isDev = (userName?.toLowerCase().trim() === 'dev');
 
   return (
@@ -53,7 +51,6 @@ export function UserRoleProvider({ children }: { children: ReactNode }) {
       isLoading,
       isAdmin,
       isReadOnly,
-      isInspector,
       isDev,
       refreshRole,
     }}>

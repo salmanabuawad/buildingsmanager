@@ -8,6 +8,7 @@ import { AgGridReact } from 'ag-grid-react';
 import { ColDef } from 'ag-grid-community';
 import { useGridPreferences } from '../lib/useGridPreferences';
 import { exportToExcel } from '../lib/excelExport';
+import ExcelLikeFilter from './grid/ExcelLikeFilter';
 
 export function FieldConfigManager() {
   const invalidateFieldConfig = useFieldConfigInvalidate();
@@ -796,7 +797,7 @@ export function FieldConfigManager() {
               wrapText: true,
               autoHeight: false,
               sortable: true,
-              filter: true,
+              filter: ExcelLikeFilter,
               headerClass: 'ag-right-aligned-header',
               headerStyle: { fontSize: '11px', textAlign: 'right', fontWeight: 'normal', WebkitFontSmoothing: 'antialiased', MozOsxFontSmoothing: 'grayscale' },
               cellStyle: { textAlign: 'right' },

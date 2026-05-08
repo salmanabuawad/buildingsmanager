@@ -352,7 +352,7 @@ def create_inspector_access_token(
         raise HTTPException(status_code=400, detail="user_id required")
     expires = timedelta(days=7)
     token = create_access_token(
-        data={"sub": f"uid:{user_id}", "role": "inspector", "task_id": task_id},
+        data={"sub": f"uid:{user_id}", "role": "user", "task_id": task_id},
         expires_delta=expires,
     )
     return {"token": token, "expires_in_days": 7}

@@ -7,7 +7,7 @@ const FILE_SESSION_MAX_AGE = 60 * 60 * 24; // 24 hours
 export interface UsersTableSession {
   user_id: number;
   user_name: string;
-  user_role: 'admin' | 'user' | 'inspector';
+  user_role: 'admin' | 'user';
   access_token?: string;
 }
 
@@ -94,7 +94,7 @@ export async function loginUsersTable(
       return { success: false, error: 'שגיאה בהתחברות.' };
     }
 
-    const role = (d.user_role === 'admin' ? 'admin' : d.user_role === 'inspector' ? 'inspector' : 'user') as 'admin' | 'user' | 'inspector';
+    const role = (d.user_role === 'admin' ? 'admin' : 'user') as 'admin' | 'user';
     const session: UsersTableSession = {
       user_id: d.user_id,
       user_name: d.user_name,
@@ -135,7 +135,7 @@ export async function loginByOtp(
       return { success: false, error: 'קוד לא תקף או שפג תוקפו.' };
     }
 
-    const role = (d.user_role === 'admin' ? 'admin' : d.user_role === 'inspector' ? 'inspector' : 'user') as 'admin' | 'user' | 'inspector';
+    const role = (d.user_role === 'admin' ? 'admin' : 'user') as 'admin' | 'user';
     const session: UsersTableSession = {
       user_id: d.user_id,
       user_name: d.user_name,
@@ -166,7 +166,7 @@ export async function loginByTaskToken(
       return { success: false, error: 'טוקן לא תקף או שפג תוקפו.' };
     }
 
-    const role = (d.user_role === 'admin' ? 'admin' : d.user_role === 'inspector' ? 'inspector' : 'user') as 'admin' | 'user' | 'inspector';
+    const role = (d.user_role === 'admin' ? 'admin' : 'user') as 'admin' | 'user';
     const session: UsersTableSession = {
       user_id: d.user_id,
       user_name: d.user_name,

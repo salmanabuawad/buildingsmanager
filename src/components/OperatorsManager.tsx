@@ -9,6 +9,7 @@ import { useGridPreferences } from '../lib/useGridPreferences';
 import { useFieldConfig } from '../lib/useFieldConfig';
 import { exportToExcel } from '../lib/excelExport';
 import * as XLSX from 'xlsx';
+import ExcelLikeFilter from './grid/ExcelLikeFilter';
 
 export function OperatorsManager() {
   const { isAdmin } = useUserRole();
@@ -552,7 +553,7 @@ export function OperatorsManager() {
                 headerStyle: { fontSize: '11px', textAlign: 'right', fontWeight: 'normal', WebkitFontSmoothing: 'antialiased', MozOsxFontSmoothing: 'grayscale' },
                 minWidth: 40,
                 sortable: true,
-                filter: true
+                filter: ExcelLikeFilter
               }}
               onCellValueChanged={onCellValueChanged}
               onGridReady={async (params) => {

@@ -22,9 +22,10 @@ import { formatNumberToTwoDecimals, numericValueParserInt } from '../lib/numberU
 import { useGridPreferences } from '../lib/useGridPreferences';
 import { processColumnHeader } from '../lib/gridHeaderUtils';
 import { useFieldConfig } from '../lib/useFieldConfig';
-import { exportToExcel, createExcelBlob } from '../lib/excelExport';
-import { getAssetFileBlobForZip } from '../lib/apiClient';
+import { exportToExcel } from '../lib/excelExport';
 import { useUIConfig } from '../contexts/UIConfigContext';
+import { runExportToAutomation } from '../lib/exportAutomationService';
+import ExcelLikeFilter from './grid/ExcelLikeFilter';
 
 interface AssetDetailsProps {
   assetId?: number;
@@ -1838,247 +1839,17 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
         }
       }
 
-      // STEP 2: Build Excel data for this single asset
-      const assetTypesData = assetTypes.length > 0 ? assetTypes : getAssetTypes();
-
-      const getExportAssetSize = (a: Asset): number | string => {
-        const assetSize = Number((a as any).asset_size) || 0;
-        const dist = Number((a as any).business_distribution_area) || 0;
-        const sharedParking = Number((a as any).shared_parking_area) || 0;
-        const total = assetSize + dist + sharedParking;
-        return total > 0 ? total : '';
-      };
-
-      const headers = [
-        'זיהוי משלם', 'זיהוי נכס', 'תחילת שינוי', 'סוף שינוי', 'סוג נכס', 'גודל נכס',
-        'נכס משנה 1', 'גודל נכס משנה 1', 'נכס משנה 2', 'גודל נכס משנה 2',
-        'נכס משנה 3', 'גודל נכס משנה 3', 'נכס משנה 4', 'גודל נכס משנה 4',
-        'נכס משנה 5', 'גודל נכס משנה 5', 'נכס משנה 6', 'גודל נכס משנה 6',
-        'מנה', 'מקום גביה', 'מספר פקודה', 'שנת כספים', 'תאריך גביה', 'יום ערך',
-      ];
-
-      // Helper: add business_distribution_area to sub_asset_size_1, and shared_parking_area to the parking subtype size
-      const applySharedAreasToExportRow = (asset: any, baseRow: any[]): any[] => {
-        const result = [...baseRow];
-        // Row layout: [payer_id(0), asset_id(1), date_from(2), date_to(3), main_type(4), size(5),
-        //   sub1_type(6), sub1_size(7), sub2_type(8), sub2_size(9), ...sub6_type(16), sub6_size(17), ...]
-
-        // Add business_distribution_area (per-asset distributed share) to sub_asset_size_1 (index 7)
-        // Only when sub_asset_type_1 (index 6) is non-empty; if no sub-types exist the value is
-        // already included in the main asset size via getExportAssetSize.
-        const businessDistributionArea = Number(asset.business_distribution_area) || 0;
-        if (businessDistributionArea > 0 && String(result[6] || '').trim()) {
-          result[7] = (Number(result[7]) || 0) + businessDistributionArea;
-        }
-
-        // Add shared_parking_area to whichever type (main or subtype 1–6) has use_for_parking_shared_area
-        const sharedParkingArea = Number(asset.shared_parking_area) || 0;
-        if (sharedParkingArea > 0) {
-          const findType = (typeName: string) => {
-            if (!typeName) return undefined;
-            let at = assetTypesData.find((t: any) => String(t.name || '').trim() === typeName);
-            if (!at) {
-              const n = parseInt(typeName, 10);
-              if (!isNaN(n)) at = assetTypesData.find((t: any) => parseInt(String(t.name || ''), 10) === n);
-            }
-            return at;
-          };
-          const isParkingType = (typeName: string) => !!(findType(typeName) as any)?.use_for_parking_shared_area;
-
-          const mainTypeName = String(result[4] || '').trim();
-          if (mainTypeName && isParkingType(mainTypeName)) {
-            // Main type is the parking type — only add to sub_asset_size_1 when sub1 exists.
-            // If no sub-types, the value is already in main asset size via getExportAssetSize.
-            if (String(result[6] || '').trim()) {
-              result[7] = (Number(result[7]) || 0) + sharedParkingArea;
-            }
-          } else {
-            let foundParking = false;
-            for (let i = 0; i < 6; i++) {
-              const typeIdx = 6 + i * 2;
-              const sizeIdx = 7 + i * 2;
-              const subtypeName = String(result[typeIdx] || '').trim();
-              if (!subtypeName) continue;
-              if (isParkingType(subtypeName)) {
-                result[sizeIdx] = (Number(result[sizeIdx]) || 0) + sharedParkingArea;
-                foundParking = true;
-                break;
-              }
-            }
-            // Fallback: if flag not set but asset has number_of_parking_units,
-            // add to last non-empty sub-type (parking is always listed last)
-            if (!foundParking && Number(asset.number_of_parking_units) > 0) {
-              for (let i = 5; i >= 0; i--) {
-                const typeIdx = 6 + i * 2;
-                const sizeIdx = 7 + i * 2;
-                if (String(result[typeIdx] || '').trim()) {
-                  result[sizeIdx] = (Number(result[sizeIdx]) || 0) + sharedParkingArea;
-                  break;
-                }
-              }
-            }
-          }
-        }
-
-        return result;
-      };
-
-      const a = latestMeasurement as any;
-      const baseRow = [
-        a.payer_id || '',
-        numericAssetId != null ? String(numericAssetId) : '',
-        formatDateToDDMMYYYY(a.discount_date_from) || '',
-        formatDateToDDMMYYYY(a.discount_date_to) || '',
-        a.main_asset_type || '',
-        getExportAssetSize(latestMeasurement),
-        a.sub_asset_type_1 || '', a.sub_asset_size_1 || '',
-        a.sub_asset_type_2 || '', a.sub_asset_size_2 || '',
-        a.sub_asset_type_3 || '', a.sub_asset_size_3 || '',
-        a.sub_asset_type_4 || '', a.sub_asset_size_4 || '',
-        a.sub_asset_type_5 || '', a.sub_asset_size_5 || '',
-        a.sub_asset_type_6 || '', a.sub_asset_size_6 || '',
-        '', '', '', '', '', '',
-      ];
-      const row = applySharedAreasToExportRow(a, baseRow);
-
-      const now = new Date();
-      const dateStr = now.toISOString().split('T')[0].replace(/-/g, '');
-      const assetTaxRegion = a.tax_region ? String(a.tax_region).trim() : (taxRegion || 'unknown');
-
-      const excelFilename = `שליחת_נתונים_${assetTaxRegion}_${dateStr}.xlsx`;
-      const excelBlob = createExcelBlob({
-        filename: excelFilename,
-        sheetName: 'נכסים',
-        data: [headers, row],
-        decimalFormatColumnIndices: [5, 7, 9, 11, 13, 15, 17],
-        columnWidths: [
-          { wch: 15 }, { wch: 15 }, { wch: 20 }, { wch: 20 }, { wch: 12 }, { wch: 12 },
-          { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 },
-          { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 },
-          { wch: 10 }, { wch: 12 }, { wch: 12 }, { wch: 12 }, { wch: 15 }, { wch: 15 },
-        ],
+      // STEP 2: All export logic is now in the shared service
+      const result = await runExportToAutomation({
+        assets: [latestMeasurement],
+        buildingsMap: building ? new Map([[latestMeasurement.building_number, building]]) : undefined,
+        assetTypes: assetTypes.length > 0 ? assetTypes : getAssetTypes(),
+        onProgress: (msg) => setToast({ message: msg, type: 'info' }),
+        createUpdateSheet: true,
+        markAsExported: true,
       });
 
-      // STEP 3: Get ACTIVE files only (measurement_date IS NULL).
-      // Active files are stored with NULL date — they belong to the current assets-table record.
-      // History files have a specific date and are excluded here automatically.
-      setToast({ message: 'טוען קבצים...', type: 'info' });
-      const assetFiles = await api.assets.files.getAll(numericAssetId, null);
-
-      const zipFiles: Array<{ filename: string; data: Blob }> = [];
-      zipFiles.push({ filename: `${assetTaxRegion}/${excelFilename}`, data: excelBlob });
-
-      // STEP 4: Download files and add to ZIP
-      const fileListData: any[][] = [['מזהה נכס', 'מזהה משלם', 'שם קובץ']];
-      const payerId = a.payer_id || '';
-
-      const extractFilenameFromUrl = (url: string | undefined): string => {
-        if (!url) return '';
-        const u = url.replace(/\\/g, '/');
-        return u.split('/').pop()?.split('?')[0] ?? '';
-      };
-      const getFilePathForDownload = (file: any): string => {
-        const filePath = typeof file?.file_path === 'string' ? file.file_path.trim() : '';
-        if (filePath && !filePath.startsWith('http') && !filePath.startsWith('/')) {
-          if (!filePath.includes('/')) return `${numericAssetId}/${filePath}`;
-          return filePath;
-        }
-        const url: string | undefined = file?.file_url;
-        if (typeof url === 'string' && url.length > 0) {
-          const u = url.replace(/\\/g, '/');
-          const idxBucket = u.indexOf('structure-drawings/');
-          if (idxBucket !== -1) return u.substring(idxBucket + 'structure-drawings/'.length).split('?')[0];
-          const filename = extractFilenameFromUrl(url);
-          if (filename) return `${numericAssetId}/${filename}`;
-        }
-        const name = typeof file?.file_name === 'string' ? file.file_name.trim() : '';
-        if (name) return `${numericAssetId}/${name}`;
-        return `${numericAssetId}/unknown`;
-      };
-
-      for (const file of assetFiles) {
-        let fileName = file.file_name;
-        if (!fileName && file.file_url) fileName = extractFilenameFromUrl(file.file_url);
-        fileListData.push([numericAssetId, payerId, fileName || '']);
-        try {
-          const filePath = getFilePathForDownload(file);
-          if (!filePath) continue;
-          const result = await getAssetFileBlobForZip(filePath, file.file_url);
-          if (result.error || !result.data) continue;
-          zipFiles.push({ filename: `${assetTaxRegion}/${numericAssetId}_${fileName || extractFilenameFromUrl(file.file_url)}`, data: result.data });
-        } catch (err) {
-          console.warn('[AssetDetails] Error processing file for ZIP:', err);
-        }
-      }
-
-      if (fileListData.length > 1) {
-        const fileListFilename = `רשימת_קבצים_${assetTaxRegion}_${dateStr}.xlsx`;
-        const fileListBlob = createExcelBlob({
-          filename: fileListFilename,
-          sheetName: 'רשימת קבצים',
-          data: fileListData,
-          columnWidths: [{ wch: 15 }, { wch: 15 }, { wch: 30 }],
-        });
-        zipFiles.push({ filename: `${assetTaxRegion}/${fileListFilename}`, data: fileListBlob });
-      }
-
-      // STEP 5: Send emails to operators and managers
-      setToast({ message: 'שולח מיילים...', type: 'info' });
-      const dateStrHe = now.toLocaleDateString('he-IL');
-      const { emailService } = await import('../lib/emailService');
-      const [templateOp, templateMgr] = await Promise.all([
-        api.systemConfiguration.getEmailTemplate('email_template_operator'),
-        api.systemConfiguration.getEmailTemplate('email_template_manager'),
-      ]).catch(() => [null, null]);
-      const applyTpl = (t: string, name: string, count?: number) =>
-        t.replace(/\{\{name\}\}/g, name).replace(/\{\{date\}\}/g, dateStrHe).replace(/\{\{assetCount\}\}/g, count != null ? String(count) : '');
-
-      const operatorsList = await api.operators.getAll();
-      const sendItems: Array<{ to: string; subject: string; body: string; attachmentFilename: string; attachmentBlob: Blob }> = [];
-
-      const operatorId = a.operator_id;
-      if (operatorId != null) {
-        const operator = operatorsList.find((o: any) => o.id === operatorId);
-        if (operator?.email?.includes('@')) {
-          const subj = templateOp ? applyTpl(templateOp.subject, operator.name, 1) : `שליחת נתונים - ${dateStrHe}`;
-          const body = templateOp ? applyTpl(templateOp.body, operator.name, 1) : `שלום ${operator.name},\n\nמצורף קובץ הנתונים.\nתאריך: ${dateStrHe}\n\nבברכה,\nמערכת ניהול נכסים`;
-          sendItems.push({ to: operator.email, subject: subj, body, attachmentFilename: `נכסים_מפעיל_${operatorId}_${dateStr}_1נכסים.xlsx`, attachmentBlob: excelBlob });
-        }
-      }
-
-      const managersList = await api.managers.getAll();
-      for (const manager of managersList) {
-        if (!manager.email?.includes('@')) continue;
-        const regionStrs = (manager.tax_regions || '').split(',').map((s: string) => s.trim()).filter(Boolean);
-        const regionSet = new Set(regionStrs.map((s: string) => { const n = parseInt(s, 10); return isNaN(n) ? null : n; }).filter((n: number | null): n is number => n !== null));
-        const assetTaxRegionNum = a.tax_region != null ? (typeof a.tax_region === 'string' ? parseInt(a.tax_region, 10) : a.tax_region) : null;
-        if (assetTaxRegionNum == null || !regionSet.has(assetTaxRegionNum)) continue;
-        const subj = templateMgr ? applyTpl(templateMgr.subject, manager.name, 1) : `שליחת נתונים - ${dateStrHe}`;
-        const body = templateMgr ? applyTpl(templateMgr.body, manager.name, 1) : `שלום ${manager.name},\n\nמצורף קובץ הנתונים.\nתאריך: ${dateStrHe}\n\nבברכה,\nמערכת ניהול נכסים`;
-        sendItems.push({ to: manager.email, subject: subj, body, attachmentFilename: `נכסים_מנהל_${manager.id}_${dateStr}_1נכסים.xlsx`, attachmentBlob: excelBlob });
-      }
-
-      let sentCount = 0;
-      let emailError: string | undefined;
-      if (sendItems.length > 0) {
-        const { sentCount: n, lastError } = await emailService.sendExportEmailsWithProgress(
-          sendItems,
-          { concurrency: 3, onProgress: () => {} }
-        );
-        sentCount = n;
-        emailError = lastError;
-      }
-
-      // STEP 6: Download ZIP
-      setToast({ message: 'מוריד קובץ ZIP...', type: 'info' });
-      const zipFilename = `שליחת_נתונים_${dateStr}.zip`;
-      const { createAndDownloadZip } = await import('../lib/zipExport');
-      await createAndDownloadZip(zipFilename, zipFiles);
-
-      // STEP 7: Mark as exported (only after successful send)
-      await api.assets.markExportedByIds([numericAssetId]);
-
-      // Update local state
+      // Update local state after successful export
       const today = new Date().toISOString().split('T')[0];
       setAllMeasurements(prev =>
         prev.map(m =>
@@ -2092,14 +1863,14 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
       }
       window.dispatchEvent(new CustomEvent('exportToAutomationSuccess'));
 
-      const failedEmails = sendItems.length - sentCount;
+      const failedEmails = result.failedEmails;
       let successMessage = 'הנכס נשלח לעירייה בהצלחה. הקובץ הורד.';
-      if (sentCount > 0) successMessage += ` ${sentCount} מיילים נשלחו.`;
+      if (result.sentEmails > 0) successMessage += ` ${result.sentEmails} מיילים נשלחו.`;
       if (failedEmails > 0) {
-        const errDetail = emailError ? `: ${emailError}` : '';
+        const errDetail = result.emailError ? `: ${result.emailError}` : '';
         successMessage += ` ⚠️ ${failedEmails} מיילים נכשלו${errDetail}`;
       }
-      setToast({ message: successMessage, type: failedEmails > 0 && sentCount === 0 ? 'error' : 'success' });
+      setToast({ message: successMessage, type: failedEmails > 0 && result.sentEmails === 0 ? 'error' : 'success' });
       setTimeout(() => setToast(null), failedEmails > 0 ? 12000 : 6000);
     } catch (err: any) {
       setToast({ message: err?.message || 'שגיאה בשליחה לעירייה', type: 'error' });
@@ -4290,7 +4061,8 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
                   sortable: false,
                   headerClass: 'ag-right-aligned-header',
                   cellStyle: { textAlign: 'right' },
-                  minWidth: 40
+                  minWidth: 40,
+                  filter: ExcelLikeFilter,
                 }}
                 getRowId={(params) => {
                   // Use id + measurement_date + is_latest to ensure uniqueness
@@ -4449,7 +4221,8 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
                         }
                         return baseStyle;
                       },
-                      minWidth: 40
+                      minWidth: 40,
+                      filter: ExcelLikeFilter,
                     }}
                     gridOptions={{
                       suppressColumnVirtualisation: false, // Enable virtualization for better performance

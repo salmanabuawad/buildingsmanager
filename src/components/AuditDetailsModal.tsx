@@ -5,6 +5,7 @@ import { ColDef } from 'ag-grid-community';
 import { X, Loader2 } from 'lucide-react';
 import { useGridPreferences } from '../lib/useGridPreferences';
 import { getAssetTypes } from '../lib/validation';
+import ExcelLikeFilter from './grid/ExcelLikeFilter';
 
 interface ParsedAuditData {
   asset?: any;
@@ -590,7 +591,7 @@ export function AuditDetailsModal({ isOpen, onClose, actionId }: AuditDetailsMod
                             wrapText: true,
                             autoHeight: false,
                             sortable: true,
-                            filter: true,
+                            filter: ExcelLikeFilter,
                             headerClass: 'ag-right-aligned-header',
                             cellStyle: { textAlign: 'right' },
                             minWidth: 100
@@ -634,7 +635,7 @@ export function AuditDetailsModal({ isOpen, onClose, actionId }: AuditDetailsMod
                             wrapText: true,
                             autoHeight: false,
                             sortable: true,
-                            filter: true,
+                            filter: ExcelLikeFilter,
                             headerClass: 'ag-right-aligned-header',
                             cellStyle: { textAlign: 'right' },
                             minWidth: 100
@@ -685,7 +686,7 @@ export function AuditDetailsModal({ isOpen, onClose, actionId }: AuditDetailsMod
                             wrapText: true,
                             autoHeight: false,
                             sortable: true,
-                            filter: true,
+                            filter: ExcelLikeFilter,
                             headerClass: 'ag-right-aligned-header',
                             cellStyle: { textAlign: 'right' },
                             minWidth: 100
@@ -729,7 +730,7 @@ export function AuditDetailsModal({ isOpen, onClose, actionId }: AuditDetailsMod
                             wrapText: true,
                             autoHeight: false,
                             sortable: true,
-                            filter: true,
+                            filter: ExcelLikeFilter,
                             headerClass: 'ag-right-aligned-header',
                             cellStyle: { textAlign: 'right' },
                             minWidth: 100
@@ -776,7 +777,7 @@ export function AuditDetailsModal({ isOpen, onClose, actionId }: AuditDetailsMod
                         wrapText: true,
                         autoHeight: false,
                         sortable: true,
-                        filter: true,
+                        filter: ExcelLikeFilter,
                         headerClass: 'ag-right-aligned-header',
                         cellStyle: { textAlign: 'right' },
                         minWidth: 100

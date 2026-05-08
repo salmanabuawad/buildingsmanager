@@ -9,6 +9,7 @@ import { useGridPreferences } from '../lib/useGridPreferences';
 import { useFieldConfig } from '../lib/useFieldConfig';
 import { processColumnHeader } from '../lib/gridHeaderUtils';
 import { exportToExcel } from '../lib/excelExport';
+import ExcelLikeFilter from './grid/ExcelLikeFilter';
 
 export function AddressListComponent() {
   const { t } = useTranslation();
@@ -769,7 +770,7 @@ export function AddressListComponent() {
               wrapText: true,
               autoHeight: false,
               sortable: true,
-              filter: true,
+              filter: ExcelLikeFilter,
               headerClass: 'ag-right-aligned-header',
               headerStyle: { fontSize: '11px', textAlign: 'right', fontWeight: 'normal', WebkitFontSmoothing: 'antialiased', MozOsxFontSmoothing: 'grayscale' },
               cellStyle: { textAlign: 'right' },

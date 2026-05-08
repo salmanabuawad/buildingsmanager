@@ -17,6 +17,7 @@ import { useFieldConfig } from '../lib/useFieldConfig';
 import { useFieldConfigVersion } from '../contexts/FieldConfigContext';
 import { useFontSize } from '../contexts/FontSizeContext';
 import { processColumnHeader } from '../lib/gridHeaderUtils';
+import ExcelLikeFilter from './grid/ExcelLikeFilter';
 import {
   ListTodo,
   Plus,
@@ -74,8 +75,8 @@ const PRIORITY_LABELS: Record<string, string> = {
 };
 
 export function InspectionTasksManager() {
-  const { isAdmin, isInspector, isDev } = useUserRole();
-  const showTasks = isDev || isInspector;
+  const { isAdmin, isDev } = useUserRole();
+  const showTasks = isDev;
   const [tasks, setTasks] = useState<InspectionTask[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -143,12 +144,12 @@ export function InspectionTasksManager() {
   };
 
   useEffect(() => {
-    if (detailTask && isInspector && (detailTask.status === 'in_progress' || detailTask.status === 'pending_approval')) {
+    if (detailTask && (detailTask.status === 'in_progress' || detailTask.status === 'pending_approval')) {
       loadDetailAssetsForUpload();
     } else {
       setDetailAssetsForUpload([]);
     }
-  }, [detailTask?.id, detailTask?.status, detailTask?.asset_ids, isInspector]);
+  }, [detailTask?.id, detailTask?.status, detailTask?.asset_ids]);
 
 
   const saveDetailReport = async () => {
@@ -208,13 +209,6 @@ export function InspectionTasksManager() {
     }
   };
 
-  // Inspector: default to showing only their own tasks
-  useEffect(() => {
-    if (isInspector) {
-      const s = getSession();
-      if (s?.user_id) setFilterAssignedTo(s.user_id);
-    }
-  }, [isInspector]);
 
   const loadUsers = async () => {
     try {
@@ -301,7 +295,7 @@ export function InspectionTasksManager() {
     }
   }, [createOpen, createBuildingNumber]);
 
-  const inspectors = users.filter((u) => u.user_role === 'inspector');
+  const inspectors = users.filter((u) => u.user_role !== 'admin');
 
   // Row data for AG Grid (tasks + name lookups from users), newest first
   type TaskRow = InspectionTask & { assigned_to_name: string; created_by_name: string; approved_by_name: string };
@@ -571,13 +565,6 @@ export function InspectionTasksManager() {
     );
   }
 
-  if (!isAdmin && !isInspector) {
-    return (
-      <div className="p-4 text-slate-600" dir="rtl">
-        גישה זו זמינה למנהלים ולפקחים בלבד.
-      </div>
-    );
-  }
 
   return (
     <div className="flex flex-col flex-1 min-h-0 w-full py-2" style={{ maxWidth: '100vw', width: '100%', paddingLeft: '0.5rem', paddingRight: '0.5rem' }} dir="rtl">
@@ -671,6 +658,7 @@ export function InspectionTasksManager() {
               headerClass: 'buildings-list-header',
               headerStyle: { fontSize: '11px', textAlign: 'right', fontWeight: 'normal' },
               minWidth: 40,
+              filter: ExcelLikeFilter,
             }}
             suppressColumnVirtualisation
             suppressMovableColumns
@@ -808,7 +796,7 @@ export function InspectionTasksManager() {
               </button>
             </div>
             <div className="overflow-y-auto overscroll-contain px-4 pb-6 sm:pb-4 min-h-0" style={{ paddingBottom: 'max(1.5rem, env(safe-area-inset-bottom))' }}>
-            {(detailTask.status === 'new' || detailTask.status === 'in_progress' || detailTask.status === 'pending_approval') && (isAdmin || isInspector) && (
+            {(detailTask.status === 'new' || detailTask.status === 'in_progress' || detailTask.status === 'pending_approval') && isAdmin && (
               <div className="mb-4 p-3 bg-slate-50 rounded-lg border border-slate-200 space-y-3">
                 <h3 className="text-sm font-medium text-slate-700">עריכת משימה</h3>
                 <div>
@@ -843,7 +831,7 @@ export function InspectionTasksManager() {
             )}
             <p><Building2 className="inline h-4 w-4 ml-1" /> בניין: {detailTask.building_number}</p>
             <p><User className="inline h-4 w-4 ml-1" /> סטטוס: {STATUS_LABELS[detailTask.status] ?? detailTask.status}</p>
-            {isInspector && detailTask.status === 'new' && detailTask.assigned_to === getSession()?.user_id && (
+            {!isAdmin && detailTask.status === 'new' && detailTask.assigned_to === getSession()?.user_id && (
               <div className="mt-4 p-4 bg-amber-50 border border-amber-200 rounded-lg">
                 <p className="text-sm text-amber-800 mb-3">התחל לעבוד על המשימה כדי להוסיף דיווח, תמונות ווידאו.</p>
                 <button
@@ -857,7 +845,7 @@ export function InspectionTasksManager() {
                 </button>
               </div>
             )}
-            {isInspector && (detailTask.status === 'in_progress' || detailTask.status === 'pending_approval') && (
+            {!isAdmin && (detailTask.status === 'in_progress' || detailTask.status === 'pending_approval') && detailTask.assigned_to === getSession()?.user_id && (
               <div className="mt-4 p-3 bg-slate-50 rounded-lg border border-slate-200 space-y-3">
                 <label className="block text-sm font-medium text-slate-700">דיווח ביקורת</label>
                 <textarea

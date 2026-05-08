@@ -4,6 +4,7 @@ import { ColDef } from 'ag-grid-community';
 import { X, BarChart3, FileSpreadsheet } from 'lucide-react';
 import { Asset, AssetType } from '../lib/api';
 import { exportToExcel } from '../lib/excelExport';
+import ExcelLikeFilter from './grid/ExcelLikeFilter';
 
 interface AssetStatisticsModalProps {
   isOpen: boolean;
@@ -324,7 +325,7 @@ export function AssetStatisticsModal({ isOpen, onClose, assets, assetTypes, buil
                 defaultColDef={{
                   resizable: true,
                   sortable: true,
-                  filter: true,
+                  filter: ExcelLikeFilter,
                   headerClass: 'ag-right-aligned-header',
                   headerStyle: { textAlign: 'right' },
                   cellStyle: { textAlign: 'right' }

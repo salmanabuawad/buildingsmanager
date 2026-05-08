@@ -5,6 +5,7 @@ import { Loader2, User, Shield, UserX, CheckCircle2, XCircle, Save, RefreshCw, K
 import { AgGridReact } from 'ag-grid-react';
 import { ColDef, CellValueChangedEvent } from 'ag-grid-community';
 import { useFieldConfig } from '../lib/useFieldConfig';
+import ExcelLikeFilter from './grid/ExcelLikeFilter';
 
 interface User {
   user_id: number;
@@ -13,7 +14,7 @@ interface User {
   user_email: string | null;
   full_name?: string | null;
   phone?: string | null;
-  user_role: 'admin' | 'user' | 'inspector';
+  user_role: 'admin' | 'user';
   active: boolean;
   created_at: string;
   updated_at: string;
@@ -40,7 +41,7 @@ export function UserManagement() {
     phone: '',
     password: '',
     confirmPassword: '',
-    user_role: 'user' as 'admin' | 'user' | 'inspector',
+    user_role: 'user' as 'admin' | 'user',
   });
   const [creatingUser, setCreatingUser] = useState(false);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
@@ -69,7 +70,7 @@ export function UserManagement() {
     fetchUsers();
   }, []);
 
-  const handleUpdateUser = useCallback(async (userId: number, updates: { user_role?: 'admin' | 'user' | 'inspector'; active?: boolean; user_name?: string; user_email?: string | null; full_name?: string | null; phone?: string | null }) => {
+  const handleUpdateUser = useCallback(async (userId: number, updates: { user_role?: 'admin' | 'user'; active?: boolean; user_name?: string; user_email?: string | null; full_name?: string | null; phone?: string | null }) => {
     if (!isAdmin) {
       setError('אין לך הרשאה לעדכן משתמשים');
       return;
@@ -96,7 +97,7 @@ export function UserManagement() {
     }
   }, [isAdmin]);
 
-  const handleRoleChange = (userId: number, newRole: 'admin' | 'user' | 'inspector') => {
+  const handleRoleChange = (userId: number, newRole: 'admin' | 'user') => {
     handleUpdateUser(userId, { user_role: newRole });
   };
 
@@ -113,8 +114,8 @@ export function UserManagement() {
     else if (field === 'user_email') handleUpdateUser(user.user_id, { user_email: newValue != null ? String(newValue).trim() || null : null });
     else if (field === 'full_name') handleUpdateUser(user.user_id, { full_name: newValue != null ? String(newValue).trim() || null : null });
     else if (field === 'phone') handleUpdateUser(user.user_id, { phone: newValue != null ? String(newValue).trim() || null : null });
-    else if (field === 'user_role') handleUpdateUser(user.user_id, { user_role: newValue as 'admin' | 'user' | 'inspector' });
-    else if (field === 'active') handleUpdateUser(user.user_id, { active: !!newValue });
+    else if (field === 'user_role') handleUpdateUser(user.user_id, { user_role: user.user_role });
+    else if (field === 'active') handleUpdateUser(user.user_id, { active: user.active });
   }, [handleUpdateUser]);
 
   const columnDefs: ColDef<User>[] = useMemo(() => [
@@ -127,11 +128,11 @@ export function UserManagement() {
       headerName: 'תפקיד',
       editable: true,
       cellEditor: 'agSelectCellEditor',
-      cellEditorParams: { values: ['מנהל', 'פקח', 'משתמש'] },
+      cellEditorParams: { values: ['מנהל', 'משתמש'] },
       width: 100,
-      valueGetter: (p) => (p.data?.user_role === 'admin' ? 'מנהל' : p.data?.user_role === 'inspector' ? 'פקח' : 'משתמש'),
-      valueParser: (p) => ({ 'מנהל': 'admin', 'פקח': 'inspector', 'משתמש': 'user' }[p.newValue as string] || 'user'),
-      valueSetter: (p) => { if (p.data) p.data.user_role = ({ 'מנהל': 'admin', 'פקח': 'inspector', 'משתמש': 'user' }[p.newValue as string] || 'user') as 'admin' | 'user' | 'inspector'; },
+      valueGetter: (p) => (p.data?.user_role === 'admin' ? 'מנהל' : 'משתמש'),
+      valueParser: (p) => ({ 'מנהל': 'admin', 'משתמש': 'user' }[p.newValue as string] || 'user'),
+      valueSetter: (p) => { if (p.data) p.data.user_role = ({ 'מנהל': 'admin', 'משתמש': 'user' }[p.newValue as string] || 'user') as 'admin' | 'user'; },
     },
     {
       field: 'active',
@@ -432,6 +433,7 @@ export function UserManagement() {
                 resizable: true,
                 sortable: true,
                 cellStyle: { textAlign: 'right', direction: 'rtl' },
+                filter: ExcelLikeFilter,
               }}
               singleClickEdit={true}
               stopEditingWhenCellsLoseFocus={true}
@@ -620,12 +622,11 @@ export function UserManagement() {
                 </label>
                 <select
                   value={newUser.user_role}
-                  onChange={(e) => setNewUser({ ...newUser, user_role: e.target.value as 'admin' | 'user' | 'inspector' })}
+                  onChange={(e) => setNewUser({ ...newUser, user_role: e.target.value as 'admin' | 'user' })}
                   disabled={creatingUser}
                   className="w-full px-3 py-2 border border-purple-300 rounded-lg bg-white hover:bg-purple-50 focus:outline-none focus:ring-2 focus:ring-purple-500 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <option value="user">משתמש</option>
-                  <option value="inspector">פקח</option>
                   <option value="admin">מנהל</option>
                 </select>
               </div>

@@ -4,6 +4,7 @@ import { AgGridReact } from 'ag-grid-react';
 import { ColDef } from 'ag-grid-community';
 import { useFieldConfig } from '../lib/useFieldConfig';
 import 'ag-grid-community/styles/ag-theme-alpine.css';
+import ExcelLikeFilter from './grid/ExcelLikeFilter';
 import { BarChart3, Calendar, Loader2, AlertCircle, RefreshCw } from 'lucide-react';
 import { formatDateToDDMMYYYY, parseDateFromDDMMYYYY } from '../lib/dateUtils';
 
@@ -330,7 +331,8 @@ export const MeasurementProgressDashboard = ({ onOpenBuildingsList, onOpenMeasur
                   cellStyle: { textAlign: 'right', fontSize: '16px' },
                   headerClass: 'buildings-list-header',
                   headerStyle: { fontSize: '11px', textAlign: 'right', fontWeight: 'normal', WebkitFontSmoothing: 'antialiased', MozOsxFontSmoothing: 'grayscale' },
-                  minWidth: 40
+                  minWidth: 40,
+                  filter: ExcelLikeFilter,
                 }}
                 gridOptions={{
                   suppressColumnVirtualisation: true,

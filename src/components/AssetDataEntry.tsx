@@ -13,6 +13,7 @@ import { useFieldConfig } from '../lib/useFieldConfig';
 import { processColumnHeader } from '../lib/gridHeaderUtils';
 import { exportToExcel } from '../lib/excelExport';
 import { useUserRole } from '../contexts/UserRoleContext';
+import ExcelLikeFilter from './grid/ExcelLikeFilter';
 import { useUIConfig } from '../contexts/UIConfigContext';
 interface AssetRow {
   id: string;
@@ -1595,7 +1596,8 @@ export const AssetDataEntry = forwardRef<AssetDataEntryRef, {}>((props, ref) => 
               autoHeight: false,
               cellStyle: { textAlign: 'right' },
               headerStyle: { fontSize: '11px', textAlign: 'right', fontWeight: 'normal', WebkitFontSmoothing: 'antialiased', MozOsxFontSmoothing: 'grayscale' },
-              minWidth: 40
+              minWidth: 40,
+              filter: ExcelLikeFilter,
             }}
             gridOptions={{
               suppressColumnVirtualisation: true,

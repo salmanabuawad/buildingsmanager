@@ -77,9 +77,9 @@ function TabContentFallback() {
 }
 
 function App() {
-  const { isLoading: roleLoading, isReadOnly, isAdmin, isInspector, isDev, userRole, refreshRole } = useUserRole();
+  const { isLoading: roleLoading, isReadOnly, isAdmin, isDev, userRole, refreshRole } = useUserRole();
   useHeartbeat();
-  const roleLabel = userRole === 'admin' ? 'מנהל' : userRole === 'inspector' ? 'פקח' : 'משתמש';
+  const roleLabel = userRole === 'admin' ? 'מנהל' : 'משתמש';
   const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
   const [checkingAuth, setCheckingAuth] = useState(true);
   const [showSessionExpired, setShowSessionExpired] = useState(false);
@@ -87,9 +87,6 @@ function App() {
   const [tabs, setTabs] = useState<Tab[]>(() => {
     const s = getSession();
     const isDevUser = s?.user_name?.toLowerCase().trim() === 'dev';
-    if (s?.user_role === 'inspector') {
-      return [{ id: 'inspection-tasks', type: 'inspection-tasks', label: 'משימות ביקורת', refreshKey: Date.now() }];
-    }
     const defaultTabs = [
       { id: 'measurement-progress-dashboard', type: 'measurement-progress-dashboard', label: 'התקדמות פעילות מדידות', refreshKey: Date.now() },
       ...(isDevUser ? [{ id: 'inspection-tasks', type: 'inspection-tasks' as const, label: 'משימות ביקורת', refreshKey: Date.now() }] : []),
@@ -98,8 +95,7 @@ function App() {
     return defaultTabs;
   });
   const [activeTabId, setActiveTabId] = useState(() => {
-    const s = getSession();
-    return s?.user_role === 'inspector' ? 'inspection-tasks' : 'measurement-progress-dashboard';
+    return 'measurement-progress-dashboard';
   });
   const [showCreateBuildingModal, setShowCreateBuildingModal] = useState(false);
   const [buildingsMenuOpen, setBuildingsMenuOpen] = useState(false);
@@ -177,7 +173,6 @@ function App() {
   const { refreshRules } = useValidationRules();
   const isMobile = useIsMobile();
   const mobileDefaultAppliedRef = useRef(false);
-  const inspectorDefaultAppliedRef = useRef(false);
 
   // Refs to child components for checking dirty state
   const buildingsListRef = useRef<BuildingsListRef | null>(null);
@@ -234,19 +229,8 @@ function App() {
     return () => window.removeEventListener('auth:unauthorized', handler);
   }, []);
 
-  // Inspector: only inspection-tasks tab; hide other pages
-  useEffect(() => {
-    if (!roleLoading && isAuthenticated && isInspector) {
-      setTabs((prev) => {
-        const inspectionOnly = prev.filter((t) => t.type === 'inspection-tasks');
-        return inspectionOnly.length > 0 ? inspectionOnly : [{ id: 'inspection-tasks', type: 'inspection-tasks', label: 'משימות ביקורת', refreshKey: Date.now() }];
-      });
-      setActiveTabId('inspection-tasks');
-    }
-  }, [roleLoading, isAuthenticated, isInspector]);
-
   // Deep link: switch to inspection-tasks tab when hash is #inspection-tasks or #inspection-tasks/123
-  // Only for dev or inspector (tasks hidden for non-dev non-inspector)
+  // Only for dev (tasks hidden for non-dev)
   useEffect(() => {
     if (!isAuthenticated) return;
     const hash = window.location.hash || '';
@@ -254,7 +238,7 @@ function App() {
       const cleanHash = hash.split('?')[0] || '#inspection-tasks';
       window.history.replaceState(null, '', window.location.pathname + (window.location.search || '') + cleanHash);
     }
-    if ((isDev || isInspector) && (hash.match(/#inspection-tasks\/\d+/) || hash === '#inspection-tasks')) {
+    if (isDev && (hash.match(/#inspection-tasks\/\d+/) || hash === '#inspection-tasks')) {
       setTabs((prev) => {
         const has = prev.some((t) => t.type === 'inspection-tasks');
         if (!has) return [...prev, { id: 'inspection-tasks', type: 'inspection-tasks', label: 'משימות ביקורת', refreshKey: Date.now() }];
@@ -262,7 +246,7 @@ function App() {
       });
       setActiveTabId('inspection-tasks');
     }
-  }, [isAuthenticated, isDev, isInspector]);
+  }, [isAuthenticated, isDev]);
 
   // Load UI configuration (מתי להריץ אימות: off | before_save | online)
   useEffect(() => {
@@ -319,22 +303,9 @@ function App() {
     setActiveTabId('mobile-tasks-upload');
   }, [isAuthenticated, isMobile]);
 
-  // Inspector: only inspection-tasks tab (aligned with ref_only)
-  useEffect(() => {
-    if (!isAuthenticated || !isInspector || inspectorDefaultAppliedRef.current || roleLoading) return;
-    inspectorDefaultAppliedRef.current = true;
-    setTabs([
-      { id: 'inspection-tasks', type: 'inspection-tasks', label: 'משימות ביקורת', refreshKey: Date.now() }
-    ]);
-    setActiveTabId('inspection-tasks');
-  }, [isAuthenticated, isInspector, roleLoading]);
-
   const getDefaultTabsForSession = useCallback((): Tab[] => {
     const s = getSession();
     const isDevUser = s?.user_name?.toLowerCase().trim() === 'dev';
-    if (s?.user_role === 'inspector') {
-      return [{ id: 'inspection-tasks', type: 'inspection-tasks', label: 'משימות ביקורת', refreshKey: Date.now() }];
-    }
     return [
       { id: 'measurement-progress-dashboard', type: 'measurement-progress-dashboard', label: 'התקדמות פעילות מדידות', refreshKey: Date.now() },
       ...(isDevUser ? [{ id: 'inspection-tasks', type: 'inspection-tasks' as const, label: 'משימות ביקורת', refreshKey: Date.now() }] : []),
@@ -343,8 +314,7 @@ function App() {
   }, []);
 
   const getDefaultActiveTabId = useCallback((): string => {
-    const s = getSession();
-    return s?.user_role === 'inspector' ? 'inspection-tasks' : 'measurement-progress-dashboard';
+    return 'measurement-progress-dashboard';
   }, []);
 
   const handleLoginSuccess = async () => {
@@ -357,7 +327,6 @@ function App() {
     setTabs(freshTabs);
     setActiveTabId(freshActiveTabId);
     mobileDefaultAppliedRef.current = false;
-    inspectorDefaultAppliedRef.current = false;
   };
 
   const handleLogout = () => {
@@ -369,7 +338,6 @@ function App() {
     ]);
     setActiveTabId('measurement-progress-dashboard');
     mobileDefaultAppliedRef.current = false;
-    inspectorDefaultAppliedRef.current = false;
     setIsAuthenticated(false);
   };
 
@@ -1195,7 +1163,7 @@ function App() {
   }
 
   function openInspectionTasks() {
-    if (!isDev && !isInspector) return;
+    if (!isDev) return;
     const id = 'inspection-tasks-panel';
     const newTab: Tab = { id, type: 'inspection-tasks', label: 'משימות ביקורת', refreshKey: Date.now() };
     openTab(newTab);
@@ -1753,8 +1721,7 @@ function App() {
       </header>
 
       <div className="flex-1 flex flex-col md:flex-row min-h-0">
-      {/* Mobile menu button - hidden for inspector on mobile (task-only full-screen) */}
-      {!(isMobile && isInspector) && (
+      {/* Mobile menu button */}
       <button
         onClick={() => setSidebarOpen(!sidebarOpen)}
         className="md:hidden fixed z-50 min-h-[44px] min-w-[44px] p-3 left-2 bg-app-sidebar rounded-xl shadow-lg border border-app-sidebar-hover touch-manipulation"
@@ -1763,10 +1730,8 @@ function App() {
       >
         <Menu className="h-6 w-6 text-white" />
       </button>
-      )}
 
-      {/* Sidebar - hidden on mobile for inspector (task management only, full-screen) */}
-      {!(isMobile && isInspector) && (
+      {/* Sidebar */}
       <div className={`${sidebarOpen ? 'fixed inset-0 z-40 md:relative md:z-auto' : 'hidden md:flex'} md:w-[72px] lg:w-20 bg-app-sidebar border-l border-white/10 flex flex-col shrink-0 overflow-visible`}>
         {sidebarOpen && (
           <button
@@ -1784,25 +1749,14 @@ function App() {
           )}
         </div>
         <nav className="flex-1 p-2 space-y-0.5 overflow-visible min-h-0">
-          {!isInspector && (
-            <button
+          <button
               onClick={() => { closeSidebarAndMenus(); openAssetSearch(); }}
               className={`w-full flex items-center justify-center p-2.5 rounded transition-all duration-200 text-white relative mb-1 ${isSidebarItemActive('asset-search') ? 'bg-app-sidebar-active border-r-[3px] border-r-app-sidebar-indicator' : 'hover:bg-app-sidebar-hover'}`}
               title="חיפוש נכס"
             >
               <Search className="h-5 w-5 shrink-0" />
             </button>
-          )}
-          {isInspector && (
-            <button
-              onClick={() => { closeSidebarAndMenus(); openInspectionTasks(); }}
-              className={`w-full flex items-center justify-center p-2.5 rounded transition-all duration-200 text-white relative ${isSidebarItemActive('inspection-tasks') ? 'bg-app-sidebar-active border-r-[3px] border-r-app-sidebar-indicator' : 'hover:bg-app-sidebar-hover'}`}
-              title="משימות ביקורת"
-            >
-              <ClipboardList className="h-5 w-5 shrink-0" />
-            </button>
-          )}
-          {!isInspector && isMobile && (
+          {isMobile && (
             <button
               onClick={() => { closeSidebarAndMenus(); openMobileTasksUpload(); }}
               className={`w-full flex items-center justify-center p-2.5 rounded transition-all duration-200 text-white relative ${isSidebarItemActive('mobile-tasks-upload') ? 'bg-app-sidebar-active border-r-[3px] border-r-app-sidebar-indicator' : 'hover:bg-app-sidebar-hover'}`}
@@ -1811,7 +1765,6 @@ function App() {
               <ClipboardList className="h-5 w-5 shrink-0" />
             </button>
           )}
-          {!isInspector && (
           <div className="relative">
             <button
               onClick={() => {
@@ -1859,8 +1812,6 @@ function App() {
               </div>
             )}
           </div>
-          )}
-          {!isInspector && (
           <div className="relative">
             <button
               onClick={() => {
@@ -1908,8 +1859,6 @@ function App() {
               </div>
             )}
           </div>
-          )}
-          {!isInspector && (
           <div className="relative">
             <button
               onClick={() => {
@@ -2052,7 +2001,6 @@ function App() {
               </div>
             )}
           </div>
-          )}
         </nav>
         
         <div className="p-2 border-t border-white/10 flex flex-col items-center gap-1">
@@ -2060,14 +2008,12 @@ function App() {
         </div>
         
       </div>
-      )}
 
       <div
-        className={`flex-1 flex flex-col min-w-0 ${isMobile && isInspector ? 'pt-0' : 'pt-[52px] md:pt-0'}`}
+        className={`flex-1 flex flex-col min-w-0 pt-[52px] md:pt-0`}
         onClick={closeSidebarAndMenus}
       >
-        {/* Tabs bar - hidden for inspector on mobile (task-only full-screen) */}
-        {!(isMobile && isInspector) && (
+        {/* Tabs bar */}
         <div className="bg-app-tabs-bg border-b border-app-input-border">
           <div className="px-2 sm:px-4 py-1.5">
             <div className="flex flex-row-reverse items-center justify-end gap-1 overflow-x-auto scrollbar-hide min-h-[40px]">
@@ -2155,7 +2101,6 @@ function App() {
             </div>
           </div>
         </div>
-        )}
 
         <div className="flex-1 overflow-hidden flex flex-col min-h-0">
           {/* Main Content Area - no scroll; grid pages fill available space */}

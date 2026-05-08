@@ -4,6 +4,7 @@ import { AgGridReact } from 'ag-grid-react';
 import { ColDef } from 'ag-grid-community';
 import { useGridPreferences } from '../lib/useGridPreferences';
 import { RefreshCw, Loader2 } from 'lucide-react';
+import ExcelLikeFilter from './grid/ExcelLikeFilter';
 
 interface ParsedAuditData {
   asset?: any;
@@ -402,7 +403,7 @@ export function AuditLog() {
               wrapText: true,
               autoHeight: false,
               sortable: true,
-              filter: true,
+              filter: ExcelLikeFilter,
               headerClass: 'ag-right-aligned-header',
               cellStyle: { textAlign: 'right' },
               minWidth: 100
@@ -449,7 +450,7 @@ export function AuditLog() {
                 wrapText: true,
                 autoHeight: false,
                 sortable: true,
-                filter: true,
+                filter: ExcelLikeFilter,
                 headerClass: 'ag-right-aligned-header',
                 cellStyle: { textAlign: 'right' },
                 minWidth: 100

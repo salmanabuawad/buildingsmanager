@@ -3,6 +3,7 @@ import { Manager, api } from '../lib/api';
 import { useUserRole } from '../contexts/UserRoleContext';
 import { useFieldConfig } from '../lib/useFieldConfig';
 import { Loader2, UserCog, Plus, Trash2, Check, Save, X } from 'lucide-react';
+import ExcelLikeFilter from './grid/ExcelLikeFilter';
 import { Toast } from './Toast';
 import { AgGridReact } from 'ag-grid-react';
 import { ColDef, CellValueChangedEvent } from 'ag-grid-community';
@@ -291,6 +292,7 @@ export function ManagersManager() {
           domLayout="normal"
           suppressCellFocus={true}
           singleClickEdit={true}
+          defaultColDef={{ filter: ExcelLikeFilter }}
         />
           </div>
         </div>

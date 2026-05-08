@@ -40,18 +40,27 @@ def get_measured_not_exported(
     _payload: dict = Depends(require_jwt),
     db: Session = Depends(get_db),
 ):
-    """Return assets that are measured and not yet exported. Uses actual DB columns (building_number, measurement_date, exported_to_automation)."""
-    if building_number is None or building_number <= 0:
-        return []
+    """Return assets that are measured and not yet exported. Uses actual DB columns (building_number, measurement_date, exported_to_automation).
+    If building_number is provided, filters by it; otherwise returns all measured-not-exported assets."""
     try:
-        result = db.execute(
-            text(
-                "SELECT * FROM assets WHERE measurement_date IS NOT NULL AND "
-                "(exported_to_automation IS NULL OR exported_to_automation = false) "
-                "AND building_number = :bn"
-            ),
-            {"bn": building_number},
-        )
+        if building_number is not None and building_number > 0:
+            result = db.execute(
+                text(
+                    "SELECT * FROM assets WHERE measurement_date IS NOT NULL AND "
+                    "(exported_to_automation IS NULL OR exported_to_automation = false) "
+                    "AND building_number = :bn "
+                    "ORDER BY asset_id"
+                ),
+                {"bn": building_number},
+            )
+        else:
+            result = db.execute(
+                text(
+                    "SELECT * FROM assets WHERE measurement_date IS NOT NULL AND "
+                    "(exported_to_automation IS NULL OR exported_to_automation = false) "
+                    "ORDER BY building_number, asset_id"
+                )
+            )
         rows = result.fetchall()
         if not rows:
             return []

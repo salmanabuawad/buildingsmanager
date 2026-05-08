@@ -15,6 +15,7 @@ import * as XLSX from 'xlsx';
 import { processColumnHeader } from '../lib/gridHeaderUtils';
 import { useFieldConfig } from '../lib/useFieldConfig';
 import { exportToExcel } from '../lib/excelExport';
+import ExcelLikeFilter from './grid/ExcelLikeFilter';
 
 interface ImportAssetRow {
   id: string;
@@ -3844,7 +3845,8 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
                   headerClass: 'ag-right-aligned-header',
                   headerStyle: { fontSize: '11px', textAlign: 'right', fontWeight: 'normal', WebkitFontSmoothing: 'antialiased', MozOsxFontSmoothing: 'grayscale' },
                   cellStyle: { textAlign: 'right' },
-                  minWidth: 40
+                  minWidth: 40,
+                  filter: ExcelLikeFilter,
                 }}
                 gridOptions={{
                   suppressColumnVirtualisation: true,

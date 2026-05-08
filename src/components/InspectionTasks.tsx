@@ -9,6 +9,7 @@ import 'ag-grid-community/styles/ag-theme-alpine.css';
 import { useFieldConfig } from '../lib/useFieldConfig';
 import { notifyTaskAssigned, notifyTaskReturned } from '../lib/inspectionTaskNotifications';
 import { compressFile, getFileTypeCategory } from '../lib/fileCompression';
+import ExcelLikeFilter from './grid/ExcelLikeFilter';
 
 const STATUS_LABELS: Record<InspectionTaskStatus, string> = {
   new: 'חדש',
@@ -270,8 +271,8 @@ function FileRow({
 }
 
 export function InspectionTasks() {
-  const { isInspector, isAdmin, isDev } = useUserRole();
-  const canCreateTasks = !isInspector; // admin and editor can create; inspector cannot
+  const { isAdmin, isDev } = useUserRole();
+  const canCreateTasks = true;
   const [tasks, setTasks] = useState<InspectionTask[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -411,17 +412,15 @@ export function InspectionTasks() {
     }
   }, [isDev]);
 
-  // Load all users for grid name resolution (assigned_to, created_by, approved_by); inspectors for dropdowns
+  // Load all users for grid name resolution (assigned_to, created_by, approved_by); non-admin users for assignment dropdowns
   useEffect(() => {
     if (!isDev) return;
     api.users.getAll().then((uList) => {
       const list = uList as UserOption[];
       setAllUsers(list);
-      if (!isInspector) {
-        setInspectors(list.filter((u) => u.user_role === 'inspector'));
-      }
+      setInspectors(list.filter((u) => u.user_role !== 'admin'));
     }).catch(() => {});
-  }, [isInspector, isDev]);
+  }, [isDev]);
 
   // Load task detail when a task is clicked or after a mutation
   useEffect(() => {
@@ -484,13 +483,13 @@ export function InspectionTasks() {
   useEffect(() => {
     if (!isDev) return;
     const session = getSession();
-    const inspectorAssigned = isInspector && detailTask && session?.user_id === detailTask.assigned_to;
-    if (!selectedTaskId || !detailTask || (!inspectorAssigned && !isAdmin)) {
+    const assignedToMe = detailTask && session?.user_id === detailTask.assigned_to;
+    if (!selectedTaskId || !detailTask || (!assignedToMe && !isAdmin)) {
       setTaskAssets([]);
       return;
     }
     api.inspectionTasks.getAssetsForFileSelection(selectedTaskId).then(setTaskAssets).catch(() => setTaskAssets([]));
-  }, [selectedTaskId, detailTask?.id, detailTask?.assigned_to, isInspector, isAdmin, isDev]);
+  }, [selectedTaskId, detailTask?.id, detailTask?.assigned_to, isAdmin, isDev]);
 
   useEffect(() => {
     if (!isDev || !createModalOpen || !canCreateTasks) return;
@@ -498,7 +497,7 @@ export function InspectionTasks() {
       try {
         const [bList, uList] = await Promise.all([api.buildings.getAll(), api.users.getAll()]);
         setBuildings(bList);
-        setInspectors((uList as UserOption[]).filter((u) => u.user_role === 'inspector' && u.user_name));
+        setInspectors((uList as UserOption[]).filter((u) => u.user_role !== 'admin' && u.user_name));
       } catch (e) {
         console.error('Load buildings/users for create task:', e);
       }
@@ -513,7 +512,7 @@ export function InspectionTasks() {
       try {
         const [bList, uList] = await Promise.all([api.buildings.getAll(), api.users.getAll()]);
         setBuildings((prev) => (prev.length > 0 ? prev : bList));
-        setInspectors((prev) => (prev.length > 0 ? prev : (uList as UserOption[]).filter((u) => u.user_role === 'inspector' && u.user_name)));
+        setInspectors((prev) => (prev.length > 0 ? prev : (uList as UserOption[]).filter((u) => u.user_role !== 'admin' && u.user_name)));
       } catch (e) {
         console.error('Load buildings/users for admin edit task:', e);
       }
@@ -521,12 +520,12 @@ export function InspectionTasks() {
     load();
   }, [isAdmin, selectedTaskId, isDev]);
 
-  // Init edit form from detailTask (admin: all fields; inspector: when in_progress and assigned to me)
+  // Init edit form from detailTask (admin: all fields; assigned user: when in_progress)
   useEffect(() => {
     if (!detailTask) return;
     const session = getSession();
-    const inspectorCanEdit = isInspector && session?.user_id === detailTask.assigned_to && detailTask.status === 'in_progress';
-    if (!isAdmin && !inspectorCanEdit) return;
+    const assignedCanEdit = session?.user_id === detailTask.assigned_to && detailTask.status === 'in_progress';
+    if (!isAdmin && !assignedCanEdit) return;
     setEditTaskTitle(detailTask.title);
     setEditTaskNote(detailTask.note ?? '');
     setEditTaskPriority((detailTask as InspectionTask & { priority?: InspectionTaskPriority }).priority ?? 'medium');
@@ -535,7 +534,7 @@ export function InspectionTasks() {
       setEditTaskAssignedTo(detailTask.assigned_to ?? '');
       setEditTaskAssetIds(detailTask.asset_ids ?? []);
     }
-  }, [detailTask?.id, detailTask?.title, detailTask?.building_number, detailTask?.assigned_to, detailTask?.note, detailTask?.asset_ids, detailTask?.status, (detailTask as InspectionTask & { priority?: InspectionTaskPriority })?.priority, isAdmin, isInspector]);
+  }, [detailTask?.id, detailTask?.title, detailTask?.building_number, detailTask?.assigned_to, detailTask?.note, detailTask?.asset_ids, detailTask?.status, (detailTask as InspectionTask & { priority?: InspectionTaskPriority })?.priority, isAdmin]);
 
   // Load building assets for admin edit form (asset_ids selector)
   useEffect(() => {
@@ -578,7 +577,7 @@ export function InspectionTasks() {
   })();
 
   const canInspectorEdit =
-    isInspector &&
+    !isAdmin &&
     detailTask &&
     session?.user_id === detailTask.assigned_to &&
     (detailTask.status === 'new' || detailTask.status === 'in_progress');
@@ -888,7 +887,7 @@ export function InspectionTasks() {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-4 sm:mb-6">
         <h2 className="text-lg sm:text-xl font-bold text-slate-800 flex items-center gap-2 min-h-[44px] items-center">
           <ClipboardList className="w-6 h-6 sm:w-7 sm:h-7 text-app-accent shrink-0" />
-          <span className="text-base sm:text-xl">{isInspector ? 'משימות והעלאות' : 'ניהול משימות ביקורת'}</span>
+          <span className="text-base sm:text-xl">ניהול משימות ביקורת</span>
         </h2>
         <div className="flex flex-wrap items-center gap-2">
           {canCreateTasks && (
@@ -1557,7 +1556,6 @@ export function InspectionTasks() {
       {tasks.length === 0 ? (
         <div className="bg-slate-50 border border-slate-200 rounded-xl p-6 sm:p-8 text-center text-slate-600 text-base">
           אין משימות ביקורת כרגע.
-          {isInspector && ' משימות שיוקצו אליך יופיעו כאן.'}
         </div>
       ) : (
         <div className="ag-theme-alpine w-full flex-1 min-h-[240px]" dir="rtl">
@@ -1568,7 +1566,7 @@ export function InspectionTasks() {
             defaultColDef={{
               resizable: true,
               sortable: true,
-              filter: true,
+              filter: ExcelLikeFilter,
               cellStyle: { textAlign: 'right' },
               headerClass: 'ag-right-aligned-header',
               minWidth: 60,

@@ -13,6 +13,7 @@ import { processColumnHeader } from '../lib/gridHeaderUtils';
 import { exportToExcel } from '../lib/excelExport';
 import { useFieldConfig } from '../lib/useFieldConfig';
 import { useUIConfig } from '../contexts/UIConfigContext';
+import ExcelLikeFilter from './grid/ExcelLikeFilter';
 
 interface TransferAreasProps {
   buildingNumber: number;
@@ -2203,7 +2204,8 @@ export const TransferAreas = forwardRef<TransferAreasRef, TransferAreasProps>(({
                 headerClass: 'ag-right-aligned-header',
                 headerStyle: { fontSize: '11px', textAlign: 'right', fontWeight: 'normal', WebkitFontSmoothing: 'antialiased', MozOsxFontSmoothing: 'grayscale' },
                 cellStyle: { textAlign: 'right' },
-                minWidth: 40
+                minWidth: 40,
+                filter: ExcelLikeFilter,
               }}
               gridOptions={{
                 suppressColumnVirtualisation: true,

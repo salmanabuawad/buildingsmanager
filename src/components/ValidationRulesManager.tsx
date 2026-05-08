@@ -10,6 +10,7 @@ import { useGridPreferences } from '../lib/useGridPreferences';
 import { useFieldConfig } from '../lib/useFieldConfig';
 import { processColumnHeader } from '../lib/gridHeaderUtils';
 import { exportToExcel } from '../lib/excelExport';
+import ExcelLikeFilter from './grid/ExcelLikeFilter';
 
 export function ValidationRulesManager() {
   const { t } = useTranslation();
@@ -662,7 +663,8 @@ export function ValidationRulesManager() {
     autoHeight: true,
     headerStyle: { fontSize: '11px', textAlign: 'right', fontWeight: 'normal', WebkitFontSmoothing: 'antialiased', MozOsxFontSmoothing: 'grayscale' },
     cellStyle: { textAlign: 'right' },
-    minWidth: 40
+    minWidth: 40,
+    filter: ExcelLikeFilter,
   }), []);
 
   const gridOptions = useMemo(() => ({

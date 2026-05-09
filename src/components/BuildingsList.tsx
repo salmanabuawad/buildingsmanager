@@ -136,7 +136,7 @@ const AddressCellEditor = React.forwardRef<any, AddressCellEditorParams>((props,
     },
     // Tell ag-grid this editor uses a popup (for better positioning)
     isPopup: () => false // We use fixed positioning, not ag-grid's popup system
-  }), [selectedValue, fieldName]); // Removed props.data to avoid recreating unnecessarily
+  }), []); // getValue() reads from ref — no state deps needed
 
   // Initialize with current value
   useEffect(() => {
@@ -245,87 +245,17 @@ const AddressCellEditor = React.forwardRef<any, AddressCellEditorParams>((props,
 
   // Select an address
   const selectAddress = useCallback((address: AddressList) => {
-    const streetCode = Number(address.street_code); // Ensure it's a number
-    const oldValue = props.value;
-    
-    
-    // CRITICAL: Set value in ref FIRST - this is what getValue() will return
+    const streetCode = Number(address.street_code);
+
+    // Set ref FIRST — this is what getValue() reads
     selectedValueRef.current = streetCode;
     setSelectedValue(streetCode);
-    
-    // Close dropdown first
     setShowDropdown(false);
-    
-    // Update search value to show selected address
     setSearchValue(`${address.street_code} - ${address.street_description}`);
-    
-    
-    // CRITICAL: Don't call setDataValue before stopEditing - it causes issues
-    // Instead, let ag-grid's natural flow handle it:
-    // 1. stopEditing() will call getValue() which returns selectedValueRef.current
-    // 2. ag-grid will call valueSetter with the value from getValue()
-    // 3. ag-grid will trigger onCellValueChanged
-    
-    // Just ensure the ref is set correctly
-    
-    // Stop editing - AG Grid will:
-    // 1. Call getValue() which returns selectedValueRef.current (streetCode)
-    // 2. Call valueSetter to update node.data[fieldName]
-    // 3. Trigger onCellValueChanged
+
+    // stopEditing() triggers: getValue() → valueSetter → onCellValueChanged
     props.stopEditing();
-    
-    // After stopEditing, use setDataValue to ensure the value is persisted
-    // This is needed because sometimes ag-grid doesn't properly update the value
-    const node = props.node;
-    const column = props.column;
-    const api = props.api;
-    
-    setTimeout(() => {
-      if (node && column) {
-        const colId = column.getColId();
-        const currentValue = node.data?.[fieldName];
-        
-        // If value doesn't match, force update
-        if (currentValue !== streetCode && streetCode != null) {
-          console.warn('[AddressCellEditor] Value mismatch after stopEditing, forcing update');
-          node.setDataValue(colId, streetCode);
-          
-          // Refresh to ensure display is updated
-          if (api) {
-            api.refreshCells({ 
-              rowNodes: [node], 
-              columns: [colId], 
-              force: true 
-            });
-            api.redrawRows({ rowNodes: [node] });
-          }
-        } else if (currentValue === streetCode) {
-          // Value is correct, just refresh display
-          if (api) {
-            api.refreshCells({ 
-              rowNodes: [node], 
-              columns: [colId], 
-              force: true 
-            });
-            api.redrawRows({ rowNodes: [node] });
-          }
-        }
-      }
-    }, 50);
-    
-    // Refresh to ensure display is updated after stopEditing completes
-    setTimeout(() => {
-      if (node && column && api) {
-        const colId = column.getColId();
-        api.refreshCells({ 
-          rowNodes: [node], 
-          columns: [colId], 
-          force: true 
-        });
-        api.redrawRows({ rowNodes: [node] });
-      }
-    }, 100);
-  }, [fieldName]); // Remove props from dependencies to avoid recreating unnecessarily
+  }, [props.stopEditing]); // eslint-disable-line react-hooks/exhaustive-deps
 
 
   // Handle click outside

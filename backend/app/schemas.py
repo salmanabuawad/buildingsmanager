@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from pydantic import BaseModel
-from typing import Any, Optional, List
+from typing import Any, Optional, List, Union
 from datetime import datetime
 from decimal import Decimal
 
@@ -23,7 +23,7 @@ class SessionLogin(BaseModel):
 
 class SessionLoginResponse(BaseModel):
     """Response shape expected by frontend (usersTableAuth)."""
-    user_id: int | str
+    user_id: Union[int, str]
     user_name: str
     user_role: str
     access_token: str

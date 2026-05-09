@@ -6,6 +6,7 @@ GET /api/data/{table}?select=*&limit=1000&offset=0&order=col&col=val&col__neq=va
 """
 from datetime import date, datetime
 from decimal import Decimal
+from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy.orm import Session
 from sqlalchemy import text
@@ -95,7 +96,7 @@ def _validate_select(select: str, columns: list[str]) -> str:
 def _build_where_and_params(
     columns: list[str],
     query_params: dict,
-    col_types: dict[str, str] | None = None,
+    col_types: Optional[dict[str, str]] = None,
 ) -> tuple[str, dict]:
     """Build WHERE clause and params from query string. Ignore select, limit, offset, order."""
     skip = {"select", "limit", "offset", "order", "or"}
@@ -147,7 +148,7 @@ def _get_table_data(
     select: str,
     limit: int,
     offset: int,
-    order: str | None,
+    order: Optional[str],
     query_params: dict,
 ) -> list[dict]:
     columns = _get_columns(db, table)

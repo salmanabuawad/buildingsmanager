@@ -1,7 +1,7 @@
 import json
 from datetime import datetime, date
 from decimal import Decimal
-from typing import Any
+from typing import Any, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Body
 from sqlalchemy.orm import Session
@@ -25,7 +25,7 @@ def _serialize_row(row: Any) -> dict:
     return out
 
 
-def _to_pg_text_array(value: Any) -> str | None:
+def _to_pg_text_array(value: Any) -> Optional[str]:
     """Convert a Python list to a PostgreSQL text-array literal, e.g. '{"a","b"}'."""
     if not isinstance(value, list):
         return None

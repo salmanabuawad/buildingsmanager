@@ -1469,7 +1469,7 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
       // Update assets state without triggering validation
       setAssets(prevAssets =>
         prevAssets.map(asset =>
-          String(asset.asset_id) === String(assetId) ? updatedAsset : asset
+          String((asset as any).id || asset.asset_id) === String(assetId) ? updatedAsset : asset
         )
       );
       return;
@@ -1478,7 +1478,7 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
     try {
       const { data, colDef } = event;
       const field = colDef.field;
-      const assetId = String(data.asset_id);
+      const assetId = String((data as any).id || data.asset_id);
       const isNew = newAssets.has(assetId);
       const oldValue = event.oldValue;
       let newValue = event.newValue;
@@ -1644,9 +1644,9 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
     const asset = event.data as Asset;
     if (!field || !asset) return;
     
-    const assetId = String(asset.asset_id);
+    const assetId = String((asset as any).id || asset.asset_id);
     const cellKey = `${assetId}_${field}`;
-    
+
     // Check if this is a numeric field
     const isNumericField = event.colDef?.type === 'numericColumn' ||
       field === 'asset_size' || 
@@ -1677,8 +1677,10 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
     if (isRefreshingAfterSaveRef.current) return;
     const { data, column, colDef } = event;
     const field = colDef?.field ?? column?.getColDef?.()?.field;
-    if (!data?.asset_id || !field) return;
-    const assetId = String(data.asset_id);
+    // Use id (tempId for new rows) || asset_id (for existing rows)
+    const rowKey = String((data as any).id || data?.asset_id || '');
+    if (!rowKey || !field) return;
+    const assetId = rowKey;
     const isNew = newAssets.has(assetId);
     const cellKey = `${assetId}_${field}`;
     const editStartValue = cellEditStartValues.current.get(cellKey);
@@ -1786,7 +1788,7 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
       // Use startTransition to prevent blocking the UI
       startTransition(() => {
         setAssets(prev => prev.map(a =>
-          String(a.asset_id) === assetId ? { ...a, [field]: newValue, ...extraChanges } : a
+          String((a as any).id || a.asset_id) === assetId ? { ...a, [field]: newValue, ...extraChanges } : a
         ));
         setIsValidatedForSave(false);
         if (shouldValidateOnBlur) {
@@ -6517,7 +6519,7 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
               hideDisabledCheckboxes: true
             }}
             domLayout="normal"
-            getRowId={(params) => String(params.data.asset_id)}
+            getRowId={(params) => String((params.data as any).id || params.data.asset_id)}
             onCellValueChanged={onCellValueChanged}
             onCellEditingStopped={onCellEditingStopped}
             onCellEditingStarted={onCellEditingStarted}

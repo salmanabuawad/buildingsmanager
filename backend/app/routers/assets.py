@@ -104,6 +104,36 @@ def get_assets_by_ids(
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@router.post("/mark-exported")
+def mark_exported_route(
+    _payload: dict = Depends(require_jwt),
+    db: Session = Depends(get_db),
+):
+    """Mark all measured-but-not-exported assets as exported. Calls asset_service.mark_exported logic."""
+    from datetime import date
+    from sqlalchemy import text as _text
+    today = date.today()
+    date_str = f"{today.day:02d}/{today.month:02d}/{today.year}"
+    try:
+        result = db.execute(
+            _text(
+                "UPDATE assets SET exported_to_automation = true, export_to_automation_at = :export_date, updated_at = now() "
+                "WHERE (exported_to_automation IS NOT TRUE) "
+                "AND measurement_date IS NOT NULL "
+                "AND TRIM(COALESCE(measurement_date::text, '')) <> '' "
+                "RETURNING asset_id"
+            ),
+            {"export_date": date_str},
+        )
+        rows = result.fetchall()
+        ids = [r[0] for r in rows]
+        db.commit()
+        return {"updated_count": len(ids), "asset_ids": ids}
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @router.post("/mark-exported-by-ids")
 def mark_exported_by_ids(
     body: dict = Body(...),
@@ -311,100 +341,3 @@ def asset_delete_bulk_transactional(
         raise HTTPException(status_code=500, detail=str(exc)) from exc
 
 
-@router.get("/{asset_id}", response_model=AssetResponse)
-def get_asset(
-    asset_id: int,
-    db: Session = Depends(get_db),
-    current_user=Depends(get_current_user)
-):
-    asset = db.query(Asset).filter(Asset.asset_id == asset_id).first()
-    if not asset:
-        raise HTTPException(status_code=404, detail="Asset not found")
-    return asset
-
-
-@router.post("/", response_model=AssetResponse, status_code=status.HTTP_201_CREATED)
-def create_asset(
-    asset: AssetCreate,
-    db: Session = Depends(get_db),
-    current_user=Depends(get_current_user)
-):
-    if current_user.role not in ["admin", "editor"]:
-        raise HTTPException(status_code=403, detail="Insufficient permissions")
-
-    existing = db.query(Asset).filter(Asset.asset_id == asset.asset_id).first()
-    if existing:
-        raise HTTPException(status_code=400, detail="Asset ID already exists")
-
-    db_asset = Asset(**asset.dict())
-    db.add(db_asset)
-    db.commit()
-    db.refresh(db_asset)
-    return db_asset
-
-
-@router.put("/{asset_id}", response_model=AssetResponse)
-def update_asset(
-    asset_id: int,
-    asset_update: AssetUpdate,
-    db: Session = Depends(get_db),
-    current_user=Depends(get_current_user)
-):
-    if current_user.role not in ["admin", "editor"]:
-        raise HTTPException(status_code=403, detail="Insufficient permissions")
-
-    db_asset = db.query(Asset).filter(Asset.asset_id == asset_id).first()
-    if not db_asset:
-        raise HTTPException(status_code=404, detail="Asset not found")
-
-    for key, value in asset_update.dict(exclude_unset=True).items():
-        setattr(db_asset, key, value)
-
-    db.commit()
-    db.refresh(db_asset)
-    return db_asset
-
-
-@router.delete("/{asset_id}", status_code=status.HTTP_204_NO_CONTENT)
-def delete_asset(
-    asset_id: int,
-    db: Session = Depends(get_db),
-    current_user=Depends(get_current_user)
-):
-    if current_user.role != "admin":
-        raise HTTPException(status_code=403, detail="Insufficient permissions")
-
-    db_asset = db.query(Asset).filter(Asset.asset_id == asset_id).first()
-    if not db_asset:
-        raise HTTPException(status_code=404, detail="Asset not found")
-
-    db.delete(db_asset)
-    db.commit()
-    return None
-
-
-@router.post("/bulk", response_model=List[AssetResponse])
-def bulk_create_or_update_assets(
-    assets: List[AssetCreate],
-    db: Session = Depends(get_db),
-    current_user=Depends(get_current_user)
-):
-    if current_user.role not in ["admin", "editor"]:
-        raise HTTPException(status_code=403, detail="Insufficient permissions")
-
-    result_assets = []
-    for asset_data in assets:
-        existing = db.query(Asset).filter(Asset.asset_id == asset_data.asset_id).first()
-        if existing:
-            for key, value in asset_data.dict(exclude_unset=True).items():
-                setattr(existing, key, value)
-            result_assets.append(existing)
-        else:
-            new_asset = Asset(**asset_data.dict())
-            db.add(new_asset)
-            result_assets.append(new_asset)
-
-    db.commit()
-    for asset in result_assets:
-        db.refresh(asset)
-    return result_assets

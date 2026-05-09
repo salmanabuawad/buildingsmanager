@@ -406,8 +406,8 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
                   ? `סוג נכס ${newAssetTypeName} תקף רק באזורי מס: ${validRegionsStr}, אך הנכס הוא באזור מס ${assetTaxRegionNum}`
                   : `סוג נכס ${newAssetTypeName} לא תקף לאזור מס ${assetTaxRegionNum}`;
                 
-                setError(errorMsg);
-                setTimeout(() => setError(null), 5000);
+                setToast({ message: errorMsg, type: 'error' });
+                setTimeout(() => setToast(null), 6000);
                 setValidationErrors(prev => {
                   const newMap = new Map(prev);
                   const errorMap = new Map<string, string>();
@@ -456,8 +456,8 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
       if (field === 'measurement_date' && updatedAsset.measurement_date) {
         const dateValidation = inputValidators.validateDateFormat(updatedAsset.measurement_date);
         if (!dateValidation.valid) {
-          setError(dateValidation.error || 'Invalid date format');
-          setTimeout(() => setError(null), 3000);
+          setToast({ message: dateValidation.error || 'Invalid date format', type: 'error' });
+          setTimeout(() => setToast(null), 3000);
           setValidationErrors(prev => {
             const newMap = new Map(prev);
             const errorMap = new Map<string, string>();
@@ -580,8 +580,8 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
 
     } catch (error) {
       console.error('Error tracking change:', error);
-      setError('Failed to track change');
-      setTimeout(() => setError(null), 3000);
+      setToast({ message: 'Failed to track change', type: 'error' });
+      setTimeout(() => setToast(null), 3000);
     }
   }, [validationTaxRegion, assetTypes, building, validateDiscountDates, shouldValidateOnBlur]);
 

@@ -1,5 +1,9 @@
 #!/bin/bash
-# Deploy script for profile.wavelync.com remote server
+# Deploy script for profile.wavelync.com
+# Usage:
+#   ./deploy.sh          → full deploy (build frontend + backend)
+#   ./deploy.sh backend  → backend only (no build, instant)
+#   ./deploy.sh frontend → frontend build + deploy only
 
 set -e
 
@@ -18,8 +22,9 @@ BACKEND_FILES=(
   "backend/app/routers/audit.py"
   "backend/app/routers/files.py"
   "backend/app/routers/asset_types.py"
+  "backend/app/routers/inspection_tasks.py"
   "backend/app/routers/users.py"
-  "backend/app/utils.py"
+  "backend/app/routers/change_log.py"
   "backend/app/services/workflow_service.py"
   "backend/app/main.py"
   "backend/app/models.py"
@@ -29,6 +34,8 @@ BACKEND_FILES=(
   "backend/app/config.py"
 )
 
+MODE="${1:-full}"
+
 ssh_run() {
   ssh -i "$SSH_KEY" "$REMOTE_USER@$REMOTE_HOST" "$@"
 }
@@ -37,47 +44,43 @@ scp_file() {
   scp -i "$SSH_KEY" "$1" "$REMOTE_USER@$REMOTE_HOST:$2"
 }
 
-echo "=============================="
-echo "  BuildingsManager Deployment"
-echo "=============================="
-echo ""
+deploy_frontend() {
+  echo "[frontend] Building..."
+  npm run build
+  echo "[frontend] Deploying..."
+  ssh_run "rm -rf $REMOTE_WEB_ROOT/assets && mkdir -p $REMOTE_WEB_ROOT/assets"
+  scp -i "$SSH_KEY" -r dist/assets/* "$REMOTE_USER@$REMOTE_HOST:$REMOTE_WEB_ROOT/assets/"
+  scp_file "dist/index.html" "$REMOTE_WEB_ROOT/index.html"
+  for f in dist/*.js dist/*.svg dist/*.ico dist/*.png dist/*.txt; do
+    [ -f "$f" ] && scp_file "$f" "$REMOTE_WEB_ROOT/"
+  done
+  echo "[frontend] Done."
+}
 
-# --- Frontend ---
-echo "[1/3] Building frontend..."
-npm run build
-echo "      Build complete."
+deploy_backend() {
+  echo "[backend] Deploying files..."
+  for FILE in "${BACKEND_FILES[@]}"; do
+    LOCAL="$FILE"
+    REMOTE="$REMOTE_APP_DIR/$FILE"
+    REMOTE_DIR=$(dirname "$REMOTE")
+    ssh_run "mkdir -p $REMOTE_DIR"
+    scp_file "$LOCAL" "$REMOTE" 2>/dev/null || echo "  (skipped: $FILE)"
+  done
+  PID=$(ssh_run "$UVICORN_PID_CMD" 2>/dev/null || true)
+  if [ -n "$PID" ]; then
+    ssh_run "kill -HUP $PID"
+    echo "[backend] Reloaded (PID $PID)."
+  else
+    echo "[backend] WARNING: uvicorn PID not found."
+  fi
+}
 
-echo "[2/3] Deploying frontend to server..."
-# Clear remote assets dir to remove stale hashed files, then copy fresh
-ssh_run "rm -rf $REMOTE_WEB_ROOT/assets && mkdir -p $REMOTE_WEB_ROOT/assets"
-scp -i "$SSH_KEY" -r dist/assets/* "$REMOTE_USER@$REMOTE_HOST:$REMOTE_WEB_ROOT/assets/"
-scp_file "dist/index.html" "$REMOTE_WEB_ROOT/index.html"
-# Copy any other top-level dist files (favicon, config.js, etc.) if present
-for f in dist/*.js dist/*.svg dist/*.ico dist/*.png dist/*.txt; do
-  [ -f "$f" ] && scp_file "$f" "$REMOTE_WEB_ROOT/"
-done
-echo "      Frontend deployed."
+echo "=== Deploy: $MODE ==="
 
-# --- Backend ---
-echo "[3/3] Deploying backend files to server..."
-for FILE in "${BACKEND_FILES[@]}"; do
-  LOCAL="$FILE"
-  REMOTE="$REMOTE_APP_DIR/$FILE"
-  REMOTE_DIR=$(dirname "$REMOTE")
-  ssh_run "mkdir -p $REMOTE_DIR"
-  scp_file "$LOCAL" "$REMOTE" 2>/dev/null || echo "      (skipped: $FILE — not found locally)"
-done
+case "$MODE" in
+  backend)  deploy_backend ;;
+  frontend) deploy_frontend ;;
+  *)        deploy_frontend && deploy_backend ;;
+esac
 
-echo "      Reloading uvicorn..."
-PID=$(ssh_run "$UVICORN_PID_CMD" 2>/dev/null || true)
-if [ -n "$PID" ]; then
-  ssh_run "kill -HUP $PID"
-  echo "      Uvicorn reloaded (PID $PID)."
-else
-  echo "      WARNING: Could not find uvicorn PID — reload skipped."
-fi
-
-echo ""
-echo "=============================="
-echo "  Deployment complete!"
-echo "=============================="
+echo "=== Done ==="

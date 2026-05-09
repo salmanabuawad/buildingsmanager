@@ -2,8 +2,8 @@ import React, { useEffect, useState, useMemo, useCallback, useRef, useImperative
 import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
 import { Building, AddressList, api } from '../lib/api';
-import { buildingValidators, getAssetTypes } from '../lib/validation';
-import { runExportToAutomation } from '../lib/exportAutomationService';
+import { getAssetFileBlobForZip } from '../lib/apiClient';
+import { buildingValidators, getAssetTypes, setLatestExportDate } from '../lib/validation';
 import { AgGridReact } from 'ag-grid-react';
 import { ColDef, ICellEditorParams } from 'ag-grid-community';
 import { Search, AlertCircle, Plus, Loader2, Save, X, Trash2, Check, CheckCircle2, Download, Building2 } from 'lucide-react';
@@ -14,12 +14,12 @@ import { useFieldConfigVersion } from '../contexts/FieldConfigContext';
 import { useFontSize } from '../contexts/FontSizeContext';
 import { processColumnHeader } from '../lib/gridHeaderUtils';
 import { useFillHandle } from '../lib/useFillHandle';
-import { exportToExcel } from '../lib/excelExport';
+import { exportToExcel, createExcelBlob } from '../lib/excelExport';
+import { createAndDownloadZip } from '../lib/zipExport';
 import { formatDateToDDMMYYYY } from '../lib/dateUtils';
 import { useUserRole } from '../contexts/UserRoleContext';
 import { useUIConfig } from '../contexts/UIConfigContext';
 import { Toast } from './Toast';
-import ExcelLikeFilter from './grid/ExcelLikeFilter';
 
 // Validation tooltip icon component that uses fixed positioning to avoid overflow clipping
 const ValidationTooltipIcon = ({ message }: { message: string }) => {
@@ -136,7 +136,7 @@ const AddressCellEditor = React.forwardRef<any, AddressCellEditorParams>((props,
     },
     // Tell ag-grid this editor uses a popup (for better positioning)
     isPopup: () => false // We use fixed positioning, not ag-grid's popup system
-  }), []); // getValue() reads from ref — no state deps needed
+  }), [selectedValue, fieldName]); // Removed props.data to avoid recreating unnecessarily
 
   // Initialize with current value
   useEffect(() => {
@@ -246,26 +246,31 @@ const AddressCellEditor = React.forwardRef<any, AddressCellEditorParams>((props,
   // Select an address
   const selectAddress = useCallback((address: AddressList) => {
     const streetCode = Number(address.street_code);
-    const node = props.node;
-    const column = props.column;
-    const api = props.api;
 
-    // Set ref FIRST — this is what getValue() reads
+    // Set ref first — getValue() reads this for legacy AG Grid path
     selectedValueRef.current = streetCode;
     setSelectedValue(streetCode);
     setShowDropdown(false);
     setSearchValue(`${address.street_code} - ${address.street_description}`);
 
-    // stopEditing() → getValue() → valueSetter → onCellValueChanged
-    props.stopEditing();
+    // AG Grid 32 reactiveCustomComponents: true ignores getValue()/useImperativeHandle.
+    // Must call onValueChange BEFORE stopEditing so AG Grid knows the new value,
+    // then stopEditing(false) commits it and fires onCellValueChanged → React state update.
+    if (typeof (props as any).onValueChange === 'function') {
+      (props as any).onValueChange(streetCode);
+    }
+    props.stopEditing(false);
 
-    // Force cell re-render so the renderer shows the new street description
+    // Refresh cell display after commit (needed for renderer to show the street description)
+    const node = props.node;
+    const column = props.column;
+    const api = props.api;
     setTimeout(() => {
       if (node && column && api) {
         api.refreshCells({ rowNodes: [node], columns: [column.getColId()], force: true });
       }
     }, 0);
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [fieldName]); // eslint-disable-line react-hooks/exhaustive-deps
 
 
   // Handle click outside
@@ -318,15 +323,13 @@ const AddressCellEditor = React.forwardRef<any, AddressCellEditorParams>((props,
           textAlign: 'right'
         }}
       />
-      {showDropdown && (() => {
+      {showDropdown && createPortal(
+        (() => {
           // Calculate dropdown position using input element
-          // NOTE: The dropdown is NOT a portal — it stays in the editor's DOM tree so AG Grid's
-          // click-outside detection doesn't cancel the edit when the user clicks a dropdown item.
-          // position:fixed still escapes the grid cell's overflow:hidden clipping.
           let dropdownTop = 0;
           let dropdownLeft = 0;
           let dropdownWidth = 300;
-
+          
           if (inputRef.current) {
             const inputRect = inputRef.current.getBoundingClientRect();
             dropdownTop = inputRect.bottom;
@@ -338,12 +341,12 @@ const AddressCellEditor = React.forwardRef<any, AddressCellEditorParams>((props,
             dropdownLeft = cellRect.left;
             dropdownWidth = Math.max(cellRect.width, 300);
           }
-
+          
           return (
             <div
               ref={dropdownRef}
               style={{
-                position: 'fixed', // fixed escapes grid clipping while staying in DOM tree
+                position: 'fixed', // Use fixed positioning to escape grid clipping
                 top: `${dropdownTop}px`,
                 left: `${dropdownLeft}px`,
                 width: `${dropdownWidth}px`,
@@ -353,7 +356,7 @@ const AddressCellEditor = React.forwardRef<any, AddressCellEditorParams>((props,
                 border: '1px solid #ccc',
                 borderRadius: '4px',
                 boxShadow: '0 4px 12px rgba(0,0,0,0.2)',
-                zIndex: 99999,
+                zIndex: 99999, // Very high z-index to appear above everything
                 direction: 'rtl',
                 textAlign: 'right'
               }}
@@ -362,12 +365,18 @@ const AddressCellEditor = React.forwardRef<any, AddressCellEditorParams>((props,
                 filteredAddresses.map((address, index) => (
                   <div
                     key={address.id || `${address.street_code}-${index}`}
-                    onMouseDown={(e) => {
-                      // Use mousedown (not click) so the value is committed before
-                      // any other mousedown handler can interfere
-                      e.preventDefault(); // prevent input blur
+                    onClick={(e) => {
+                      e.preventDefault();
                       e.stopPropagation();
-                      selectAddress(address);
+                      // Use setTimeout to ensure the click event is fully processed
+                      setTimeout(() => {
+                        selectAddress(address);
+                      }, 0);
+                    }}
+                    onMouseDown={(e) => {
+                      // Also handle mousedown to ensure click works
+                      e.preventDefault();
+                      e.stopPropagation();
                     }}
                     onMouseEnter={() => setSelectedIndex(index)}
                     style={{
@@ -375,7 +384,7 @@ const AddressCellEditor = React.forwardRef<any, AddressCellEditorParams>((props,
                       cursor: 'pointer',
                       backgroundColor: selectedIndex === index ? '#e3f2fd' : 'white',
                       borderBottom: index < filteredAddresses.length - 1 ? '1px solid #eee' : 'none',
-                      userSelect: 'none'
+                      userSelect: 'none' // Prevent text selection
                     }}
                   >
                     <div style={{ fontWeight: 'bold' }}>{address.street_code}</div>
@@ -389,7 +398,9 @@ const AddressCellEditor = React.forwardRef<any, AddressCellEditorParams>((props,
               )}
             </div>
           );
-        })()}
+        })(),
+        document.body
+      )}
     </div>
   );
 });
@@ -404,7 +415,6 @@ const BUILDINGS_GRID_DEFAULT_COL_DEF = {
   headerClass: 'buildings-list-header',
   headerStyle: { fontSize: '11px', textAlign: 'right' as const, fontWeight: 'normal', WebkitFontSmoothing: 'antialiased', MozOsxFontSmoothing: 'grayscale' },
   minWidth: 40,
-  filter: ExcelLikeFilter,
 };
 
 const BUILDINGS_GRID_OPTIONS = {
@@ -668,11 +678,10 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
       if (showLoading) setLoading(true);
       const data = await api.buildings.getAll();
       
-      // Preserve new buildings that haven't been saved yet (failed saves remain visible)
-      const existingNewBuildings = buildings.filter(b => {
-        const key = b._tempId || b.building_number;
-        return newBuildings.has(key);
-      });
+      // Preserve new buildings that haven't been saved yet (failed saves remain visible).
+      // getBuildingKey now returns the canonical key (number when available) so this single
+      // check correctly covers both un-keyed rows (_tempId) and re-keyed rows (building_number).
+      const existingNewBuildings = buildings.filter(b => newBuildings.has(getBuildingKey(b)));
       const mergedBuildings = [...(data || []), ...existingNewBuildings];
       
       // Batch state updates in a transition to prevent multiple grid refreshes
@@ -748,9 +757,15 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
     return !!(building._isNew || building._tempId);
   }, []);
 
-  // Helper function to get building key for tracking
+  // Helper function to get building key for tracking.
+  // Prefer the building_number when it is a valid positive integer — that is the canonical
+  // key after the user types one (dirtyBuildings / newBuildings are re-keyed to it at that
+  // point).  Fall back to _tempId (or 0) only when no positive number exists yet.
   const getBuildingKey = useCallback((building: Building): string | number => {
-    return building._tempId || building.building_number;
+    if (typeof building.building_number === 'number' && building.building_number > 0) {
+      return building.building_number;
+    }
+    return (building as any)._tempId || building.building_number;
   }, []);
 
   // Sort buildings to put errored rows first
@@ -863,11 +878,12 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
         // If grid isn't mounted, fall back to state below.
       }
 
-      // Collect only buildings with dirty changes (or new buildings)
+      // Collect only buildings with dirty changes (or new buildings), except those marked for deletion.
+      // getBuildingKey returns the canonical key (building_number when > 0, else _tempId) which
+      // matches the keys used in dirtyBuildings/newBuildings after any re-keying.
       for (const building of buildings) {
         const buildingKey = getBuildingKey(building);
 
-        // Only validate buildings with changes (or new buildings), except those marked for deletion
         if (!buildingsToDelete.has(buildingKey) && (dirtyBuildings.has(buildingKey) || newBuildings.has(buildingKey))) {
           // Prefer live grid row (reflects in-flight valueSetter mutation)
           const effective = liveByKey.get(buildingKey) ?? building;
@@ -1286,31 +1302,37 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
     if (field === 'building_number' && isNew && newValue !== null && newValue !== undefined && newValue !== '' && Number(newValue) > 0) {
       const newValueNum = Number(newValue);
       const oldTempId = building._tempId;
-      
+      // When the user edits building_number a second time (e.g. "12" → "123") the previous
+      // number-based key ("12") is still in the tracking sets; we must remove it too.
+      const prevBuildingNum = (oldValue != null && Number(oldValue) > 0) ? Number(oldValue) : null;
+
       // Update newBuildings tracking to use the new building_number
       setNewBuildings(prev => {
         const next = new Set(prev);
-        if (oldTempId) {
-          next.delete(oldTempId);
-        }
+        if (oldTempId) next.delete(oldTempId);
+        if (prevBuildingNum) next.delete(prevBuildingNum);
         next.add(newValueNum);
         return next;
       });
-      
+
       // Update dirtyBuildings tracking to use the new building_number
       setDirtyBuildings(prev => {
         const next = new Map(prev);
-        const existingChanges = oldTempId ? next.get(oldTempId) : (next.get(buildingKey) || {});
+        // Gather existing changes from whichever key is currently in the map
+        const existingChanges =
+          (oldTempId ? next.get(oldTempId) : undefined) ??
+          (prevBuildingNum ? next.get(prevBuildingNum) : undefined) ??
+          next.get(buildingKey) ??
+          {};
         const mergedChanges = { ...existingChanges, [field]: newValue };
-        if (oldTempId) {
-          next.delete(oldTempId);
-        } else {
-          next.delete(buildingKey);
-        }
+        // Remove ALL stale keys for this building
+        if (oldTempId) next.delete(oldTempId);
+        if (prevBuildingNum) next.delete(prevBuildingNum);
+        next.delete(buildingKey); // buildingKey is the new number so this is a no-op on first edit, safe otherwise
         next.set(newValueNum, mergedChanges);
         return next;
       });
-      
+
       newBuildingKey = newValueNum;
     }
 
@@ -2060,24 +2082,430 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
         return;
       }
 
-      // All export logic is now in the shared service
-      const result = await runExportToAutomation({
-        assets: exportedAssets,
-        assetTypes: getAssetTypes().length > 0 ? getAssetTypes() : await api.assetTypes.getAll(),
-        onProgress: (msg) => setExportProgressMessage?.(msg),
-        createUpdateSheet: true,
-        markAsExported: true,
+      // Define headers for asset export - matching export_automatiom_sample.xlsx format
+      const headers = [
+        'זיהוי משלם',
+        'זיהוי נכס',
+        'תחילת שינוי',
+        'סוף שינוי',
+        'סוג נכס',
+        'גודל נכס',
+        'נכס משנה 1',
+        'גודל נכס משנה 1',
+        'נכס משנה 2',
+        'גודל נכס משנה 2',
+        'נכס משנה 3',
+        'גודל נכס משנה 3',
+        'נכס משנה 4',
+        'גודל נכס משנה 4',
+        'נכס משנה 5',
+        'גודל נכס משנה 5',
+        'נכס משנה 6',
+        'גודל נכס משנה 6',
+        'מנה',
+        'מקום גביה',
+        'מספר פקודה',
+        'שנת כספים',
+        'תאריך גביה',
+        'יום ערך'
+      ];
+
+      // Get asset types to determine business/residence type
+      const assetTypes = getAssetTypes();
+      
+      // Helper function to calculate export asset size (asset_size + business_distribution_area for business assets)
+      const getExportAssetSize = (asset: any): number | string => {
+        const assetSize = asset.asset_size || 0;
+        
+        // Check if this is a business asset
+        if (asset.main_asset_type && assetTypes.length > 0) {
+          const assetTypeName = String(asset.main_asset_type).trim();
+          
+          // Try string lookup first
+          let assetType = assetTypes.find((at: any) => {
+            const atName = String(at.name || '').trim();
+            return atName === assetTypeName;
+          });
+          
+          // If not found, try numeric comparison
+          if (!assetType) {
+            const assetTypeNum = parseInt(assetTypeName, 10);
+            if (!isNaN(assetTypeNum)) {
+              assetType = assetTypes.find((at: any) => {
+                const atName = String(at.name || '').trim();
+                const atNameNum = parseInt(atName, 10);
+                return !isNaN(atNameNum) && atNameNum === assetTypeNum;
+              });
+            }
+          }
+          
+          // If it's a business asset, add business_distribution_area to asset_size
+          if (assetType?.business_residence === 'עסקים') {
+            const areaFromDistribution = asset.business_distribution_area || 0;
+            return assetSize + areaFromDistribution;
+          }
+        }
+        
+        // For non-business assets, return asset_size as is
+        return assetSize || '';
+      };
+
+      // Generate filename with current date
+      const now = new Date();
+      const dateStr = now.toISOString().split('T')[0].replace(/-/g, '');
+
+      // Group assets by tax region BEFORE creating Excel files
+      const assetsByTaxRegionForExcel = new Map<string, any[]>();
+      exportedAssets.forEach(asset => {
+        const taxRegion = asset.tax_region ? String(asset.tax_region).trim() : 'unknown';
+        if (!assetsByTaxRegionForExcel.has(taxRegion)) {
+          assetsByTaxRegionForExcel.set(taxRegion, []);
+        }
+        assetsByTaxRegionForExcel.get(taxRegion)!.push(asset);
       });
 
-      let successMessage = `נשלחו ${result.exported} נכסים לעירייה בהצלחה. הקובץ הורד.`;
-      if (result.sentEmails > 0) successMessage += ` ${result.sentEmails} מיילים נשלחו לפקידים/ות ולמנהלים.`;
-      const failedEmails = result.failedEmails;
-      if (failedEmails > 0) {
-        const errDetail = result.emailError ? `: ${result.emailError}` : '';
-        successMessage += ` ⚠️ ${failedEmails} מיילים נכשלו${errDetail}`;
+      // Get all files: use business asset_id (DB asset_files.asset_id -> assets.asset_id)
+      const numericAssetIdsForFiles = exportedAssets
+        .map(asset => { const aid = typeof asset.asset_id === 'string' ? parseInt(asset.asset_id, 10) : Number(asset.asset_id); return !isNaN(aid) && aid > 0 ? aid : null; })
+        .filter((id): id is number => id !== null);
+      const filesByAsset = numericAssetIdsForFiles.length > 0
+        ? await api.assets.files.getAllBulk(numericAssetIdsForFiles)
+        : new Map<number, any[]>();
+      
+      const assetMap = new Map<number, any>();
+      exportedAssets.forEach(asset => {
+        const aid = typeof asset.asset_id === 'string' ? parseInt(asset.asset_id, 10) : Number(asset.asset_id);
+        if (!isNaN(aid) && aid > 0) assetMap.set(aid, asset);
+      });
+      
+      setExportProgressMessage('מכין קבצים ל-ZIP...');
+      // Prepare files array for ZIP
+      const zipFiles: Array<{ filename: string; data: Blob }> = [];
+
+      // Group assets by tax region for folder organization (for files)
+      const assetsByTaxRegion = new Map<string, Array<{ assetId: number; asset: any; files: any[] }>>();
+      
+      // Build file list and organize by tax region
+      for (const [assetId, files] of filesByAsset.entries()) {
+        if (!files || files.length === 0) continue;
+        
+        const asset = assetMap.get(assetId);
+        if (!asset) continue;
+        
+        const taxRegion = asset?.tax_region ? String(asset.tax_region).trim() : 'unknown';
+        
+        // Initialize tax region group if needed
+        if (!assetsByTaxRegion.has(taxRegion)) {
+          assetsByTaxRegion.set(taxRegion, []);
+        }
+        
+        assetsByTaxRegion.get(taxRegion)!.push({
+          assetId,
+          asset,
+          files
+        });
       }
-      setToast({ message: successMessage, type: failedEmails > 0 && result.sentEmails === 0 ? 'error' : 'success' });
-      setTimeout(() => setToast(null), failedEmails > 0 ? 12000 : 8000);
+      
+      // Process each tax region: create Excel file and download files
+      // Iterate over all tax regions that have assets (not just those with files)
+      for (const [taxRegion, regionAssetsForExcel] of assetsByTaxRegionForExcel.entries()) {
+        // Get files for this tax region (if any)
+        const regionAssets = assetsByTaxRegion.get(taxRegion) || [];
+        
+        // Convert assets to rows for this tax region
+        const rows = regionAssetsForExcel.map(asset => [
+          asset.payer_id || '',                                    // זיהוי משלם
+          asset.asset_id != null ? String(asset.asset_id) : '',   // זיהוי נכס (convert to string)
+          formatDateToDDMMYYYY(asset.discount_date_from) || '',  // תחילת שינוי
+          formatDateToDDMMYYYY(asset.discount_date_to) || '',    // סוף שינוי
+          asset.main_asset_type || '',                             // סוג נכס
+          getExportAssetSize(asset),                               // גודל נכס (asset_size + business_distribution_area for business)
+          asset.sub_asset_type_1 || '',                            // נכס משנה 1
+          asset.sub_asset_size_1 || '',                            // גודל נכס משנה 1
+          asset.sub_asset_type_2 || '',                            // נכס משנה 2
+          asset.sub_asset_size_2 || '',                            // גודל נכס משנה 2
+          asset.sub_asset_type_3 || '',                            // נכס משנה 3
+          asset.sub_asset_size_3 || '',                            // גודל נכס משנה 3
+          asset.sub_asset_type_4 || '',                            // נכס משנה 4
+          asset.sub_asset_size_4 || '',                            // גודל נכס משנה 4
+          asset.sub_asset_type_5 || '',                            // נכס משנה 5
+          asset.sub_asset_size_5 || '',                            // גודל נכס משנה 5
+          asset.sub_asset_type_6 || '',                            // סוג נכס משני 6
+          asset.sub_asset_size_6 || '',                            // גודל נכסי משני 6
+          '',                                                      // מנה (empty in sample)
+          '',                                                      // מקום גביה (empty in sample)
+          '',                                                      // מספר פקודה (empty in sample)
+          '',                                                      // שנת כספים (empty in sample)
+          '',                                                      // תאריך גביה (empty in sample)
+          ''                                                       // יום ערך (empty in sample)
+        ]);
+
+        // Create data array with headers and rows for this tax region
+        const data = [headers, ...rows];
+
+        // Create Excel file for this tax region
+        const excelFilename = `שליחת_נתונים_${taxRegion}_${dateStr}.xlsx`;
+        const regionExcelBlob = createExcelBlob({
+          filename: excelFilename,
+          sheetName: 'נכסים',
+          data,
+          decimalFormatColumnIndices: [5, 7, 9, 11, 13, 15, 17],
+          columnWidths: [
+            { wch: 15 }, // זיהוי משלם
+            { wch: 15 }, // זיהוי נכס
+            { wch: 20 }, // תחילת שינוי
+            { wch: 20 }, // סוף שינוי
+            { wch: 12 }, // סוג נכס
+            { wch: 12 }, // גודל נכס
+            { wch: 15 }, // נכס משנה 1
+            { wch: 15 }, // גודל נכס משנה 1
+            { wch: 15 }, // נכס משנה 2
+            { wch: 15 }, // גודל נכס משנה 2
+            { wch: 15 }, // נכס משנה 3
+            { wch: 15 }, // גודל נכס משנה 3
+            { wch: 15 }, // נכס משנה 4
+            { wch: 15 }, // גודל נכס משנה 4
+            { wch: 15 }, // נכס משנה 5
+            { wch: 15 }, // גודל נכס משנה 5
+            { wch: 15 }, // נכס משנה 6
+            { wch: 15 }, // גודל נכס משנה 6
+            { wch: 10 }, // מנה
+            { wch: 12 }, // מקום גביה
+            { wch: 12 }, // מספר פקודה
+            { wch: 12 }, // שנת כספים
+            { wch: 15 }, // תאריך גביה
+            { wch: 15 }  // יום ערך
+          ]
+        });
+        
+        // Add Excel file to ZIP in tax region folder
+        zipFiles.push({
+          filename: `${taxRegion}/${excelFilename}`,
+          data: regionExcelBlob
+        });
+        
+        // Prepare file list data for this tax region
+        const fileListData: any[][] = [
+          ['מזהה נכס', 'מזהה משלם', 'שם קובץ']
+        ];
+        
+        // Download and add files for this tax region
+        for (const { assetId, asset, files } of regionAssets) {
+          const payerId = asset?.payer_id || '';
+          
+          for (const file of files) {
+            // Extract file name from URL if file_name is not available
+            let fileName = file.file_name;
+            if (!fileName && file.file_url) {
+              const urlParts = file.file_url.split('/');
+              fileName = urlParts[urlParts.length - 1].split('?')[0];
+            }
+            
+            // Add row to file list Excel: asset_id, payer_id, file_name
+            fileListData.push([
+              assetId,
+              payerId,
+              fileName || ''
+            ]);
+            
+            // Download file from backend and add to ZIP
+            try {
+              const urlParts = (file.file_url || '').split('/');
+              const urlFileName = urlParts[urlParts.length - 1].split('?')[0];
+              let filePath = typeof file.file_path === 'string' && file.file_path.trim()
+                ? file.file_path.trim()
+                : '';
+              if (!filePath && file.file_url) {
+                const idx = (file.file_url || '').indexOf('structure-drawings/');
+                if (idx !== -1) {
+                  filePath = file.file_url.substring(idx + 'structure-drawings/'.length).split('?')[0];
+                } else {
+                  filePath = `${assetId}/${urlFileName}`;
+                }
+              }
+              if (filePath && !filePath.includes('/')) filePath = `${assetId}/${filePath}`;
+              if (!filePath) continue;
+              const result = await getAssetFileBlobForZip(filePath, file.file_url);
+              if (result.error || !result.data) {
+                console.warn(`Error downloading file for asset ${assetId}:`, result.error?.message);
+                continue;
+              }
+              const fileData = result.data;
+              const zipFilePath = `${taxRegion}/${assetId}_${fileName || urlFileName}`;
+              zipFiles.push({
+                filename: zipFilePath,
+                data: fileData
+              });
+            } catch (err) {
+              console.warn(`Error processing file for asset ${assetId}:`, err);
+            }
+          }
+        }
+        
+        // Create file list Excel for this tax region
+        if (fileListData.length > 1) {
+          const fileListFilename = `רשימת_קבצים_${taxRegion}_${dateStr}.xlsx`;
+          const fileListExcelBlob = createExcelBlob({
+            filename: fileListFilename,
+            sheetName: 'רשימת קבצים',
+            data: fileListData,
+            columnWidths: [
+              { wch: 15 }, // מזהה נכס
+              { wch: 15 }, // מזהה משלם
+              { wch: 30 }  // שם קובץ
+            ]
+          });
+          
+          // Add file list Excel to ZIP in tax region folder
+          zipFiles.push({
+            filename: `${taxRegion}/${fileListFilename}`,
+            data: fileListExcelBlob
+          });
+        }
+      }
+      
+      // Create ZIP file as Blob
+      const zipFilename = `שליחת_נתונים_${dateStr}.zip`;
+      const { createZipBlob } = await import('../lib/zipExport');
+      const zipBlob = await createZipBlob(zipFiles);
+      
+      const dateStrHe = new Date().toLocaleDateString('he-IL');
+      const { emailService } = await import('../lib/emailService');
+      const [templateOp, templateMgr] = await Promise.all([
+        api.systemConfiguration.getEmailTemplate('email_template_operator'),
+        api.systemConfiguration.getEmailTemplate('email_template_manager'),
+      ]).catch(() => [null, null]);
+      const applyTpl = (t: string, name: string, assetCount?: number) =>
+        t.replace(/\{\{name\}\}/g, name).replace(/\{\{date\}\}/g, dateStrHe).replace(/\{\{assetCount\}\}/g, assetCount != null ? String(assetCount) : '');
+      const operatorsList = await api.operators.getAll();
+      setExportProgressMessage('מכין מיילים למפעילים ולמנהלים...');
+      const byOperator = new Map<number, typeof exportedAssets>();
+      for (const a of exportedAssets) {
+        const id = a.operator_id;
+        if (id != null) {
+          if (!byOperator.has(id)) byOperator.set(id, []);
+          byOperator.get(id)!.push(a);
+        }
+      }
+      const sendItems: Array<{ to: string; recipientName: string; subject: string; body: string; attachmentFilename: string; attachmentBlob: Blob }> = [];
+      for (const [operatorId, operatorAssets] of byOperator) {
+        const operator = operatorsList.find(o => o.id === operatorId);
+        if (!operator?.email || !operator.email.includes('@')) continue;
+        const opRows = operatorAssets.map(asset => [
+          asset.payer_id || '', asset.asset_id != null ? String(asset.asset_id) : '',
+          formatDateToDDMMYYYY(asset.discount_date_from) || '', formatDateToDDMMYYYY(asset.discount_date_to) || '',
+          asset.main_asset_type || '', getExportAssetSize(asset),
+          asset.sub_asset_type_1 || '', asset.sub_asset_size_1 || '', asset.sub_asset_type_2 || '', asset.sub_asset_size_2 || '',
+          asset.sub_asset_type_3 || '', asset.sub_asset_size_3 || '', asset.sub_asset_type_4 || '', asset.sub_asset_size_4 || '',
+          asset.sub_asset_type_5 || '', asset.sub_asset_size_5 || '', asset.sub_asset_type_6 || '', asset.sub_asset_size_6 || '',
+          '', '', '', '', '', ''
+        ]);
+        const opData = [headers, ...opRows];
+        const opExcelBlob = createExcelBlob({
+          filename: `נכסים_מפעיל_${operatorId}_${dateStr}_${operatorAssets.length}נכסים.xlsx`,
+          sheetName: 'נכסים',
+          data: opData,
+          decimalFormatColumnIndices: [5, 7, 9, 11, 13, 15, 17],
+          columnWidths: [{ wch: 15 }, { wch: 15 }, { wch: 20 }, { wch: 20 }, { wch: 12 }, { wch: 12 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 10 }, { wch: 12 }, { wch: 12 }, { wch: 12 }, { wch: 15 }, { wch: 15 }]
+        });
+        const subj = templateOp ? applyTpl(templateOp.subject, operator.name, operatorAssets.length) : `שליחת נתונים - ${dateStrHe}`;
+        const body = templateOp ? applyTpl(templateOp.body, operator.name, operatorAssets.length) : `שלום ${operator.name},\n\nמצורף קובץ הנתונים.\nתאריך: ${dateStrHe}\n\nבברכה,\nמערכת ניהול נכסים`;
+        // Use operator.id (stable, automation-friendly) instead of operator.name in filename.
+        sendItems.push({ to: operator.email, recipientName: operator.name, subject: subj, body, attachmentFilename: `נכסים_מפעיל_${operatorId}_${dateStr}_${operatorAssets.length}נכסים.xlsx`, attachmentBlob: opExcelBlob });
+      }
+      if (sendItems.length === 0) {
+        const fullRows = exportedAssets.map((asset: any) => [
+          asset.payer_id || '', asset.asset_id != null ? String(asset.asset_id) : '',
+          formatDateToDDMMYYYY(asset.discount_date_from) || '', formatDateToDDMMYYYY(asset.discount_date_to) || '',
+          asset.main_asset_type || '', getExportAssetSize(asset),
+          asset.sub_asset_type_1 || '', asset.sub_asset_size_1 || '', asset.sub_asset_type_2 || '', asset.sub_asset_size_2 || '',
+          asset.sub_asset_type_3 || '', asset.sub_asset_size_3 || '', asset.sub_asset_type_4 || '', asset.sub_asset_size_4 || '',
+          asset.sub_asset_type_5 || '', asset.sub_asset_size_5 || '', asset.sub_asset_type_6 || '', asset.sub_asset_size_6 || '',
+          '', '', '', '', '', ''
+        ]);
+        const fullExcelBlob = createExcelBlob({
+          filename: `נכסים_שליחה_${dateStr}_${exportedAssets.length}נכסים.xlsx`,
+          sheetName: 'נכסים',
+          data: [headers, ...fullRows],
+          columnWidths: [{ wch: 15 }, { wch: 15 }, { wch: 20 }, { wch: 20 }, { wch: 12 }, { wch: 12 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 10 }, { wch: 12 }, { wch: 12 }, { wch: 12 }, { wch: 15 }, { wch: 15 }]
+        });
+        for (const operator of operatorsList) {
+          if (!operator?.email || !operator.email.includes('@')) continue;
+          const subj = templateOp ? applyTpl(templateOp.subject, operator.name, exportedAssets.length) : `שליחת נתונים - ${dateStrHe}`;
+          const body = templateOp ? applyTpl(templateOp.body, operator.name, exportedAssets.length) : `שלום ${operator.name},\n\nמצורף קובץ הנתונים.\nתאריך: ${dateStrHe}\n\nבברכה,\nמערכת ניהול נכסים`;
+          // Use operator.id in filename (instead of generic "שליחה") so the automation can classify reliably.
+          sendItems.push({ to: operator.email, recipientName: operator.name, subject: subj, body, attachmentFilename: `נכסים_מפעיל_${operator.id}_${dateStr}_${exportedAssets.length}נכסים.xlsx`, attachmentBlob: fullExcelBlob });
+        }
+      }
+      const managersList = await api.managers.getAll();
+      for (const manager of managersList) {
+        if (!manager.email || !manager.email.includes('@')) continue;
+        const regionStrs = (manager.tax_regions || '').split(',').map((s: string) => s.trim()).filter(Boolean);
+        const regionSet = new Set(regionStrs.map((s: string) => { const n = parseInt(s, 10); return isNaN(n) ? null : n; }).filter((n: number | null): n is number => n !== null));
+        const managerAssets = exportedAssets.filter((a: any) => {
+          const tr = a.tax_region != null ? (typeof a.tax_region === 'string' ? parseInt(a.tax_region, 10) : a.tax_region) : null;
+          return tr != null && regionSet.has(tr);
+        });
+        if (managerAssets.length === 0) continue;
+        const mgrRows = managerAssets.map((asset: any) => [
+          asset.payer_id || '', asset.asset_id != null ? String(asset.asset_id) : '',
+          formatDateToDDMMYYYY(asset.discount_date_from) || '', formatDateToDDMMYYYY(asset.discount_date_to) || '',
+          asset.main_asset_type || '', getExportAssetSize(asset),
+          asset.sub_asset_type_1 || '', asset.sub_asset_size_1 || '', asset.sub_asset_type_2 || '', asset.sub_asset_size_2 || '',
+          asset.sub_asset_type_3 || '', asset.sub_asset_size_3 || '', asset.sub_asset_type_4 || '', asset.sub_asset_size_4 || '',
+          asset.sub_asset_type_5 || '', asset.sub_asset_size_5 || '', asset.sub_asset_type_6 || '', asset.sub_asset_size_6 || '',
+          '', '', '', '', '', ''
+        ]);
+        const mgrData = [headers, ...mgrRows];
+        const mgrExcelBlob = createExcelBlob({
+          filename: `נכסים_מנהל_${manager.id}_${dateStr}_${managerAssets.length}נכסים.xlsx`,
+          sheetName: 'נכסים',
+          data: mgrData,
+          decimalFormatColumnIndices: [5, 7, 9, 11, 13, 15, 17],
+          columnWidths: [{ wch: 15 }, { wch: 15 }, { wch: 20 }, { wch: 20 }, { wch: 12 }, { wch: 12 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 10 }, { wch: 12 }, { wch: 12 }, { wch: 12 }, { wch: 15 }, { wch: 15 }]
+        });
+        const subj = templateMgr ? applyTpl(templateMgr.subject, manager.name, managerAssets.length) : `שליחת נתונים - ${dateStrHe}`;
+        const body = templateMgr ? applyTpl(templateMgr.body, manager.name, managerAssets.length) : `שלום ${manager.name},\n\nמצורף קובץ הנתונים.\nתאריך: ${dateStrHe}\n\nבברכה,\nמערכת ניהול נכסים`;
+        // Use manager.id (stable, automation-friendly) instead of manager.name in filename.
+        sendItems.push({ to: manager.email, recipientName: manager.name, subject: subj, body, attachmentFilename: `נכסים_מנהל_${manager.id}_${dateStr}_${managerAssets.length}נכסים.xlsx`, attachmentBlob: mgrExcelBlob });
+      }
+      let sentCount = 0;
+      if (sendItems.length > 0) {
+        const { sentCount: n } = await emailService.sendExportEmailsWithProgress(
+          sendItems.map((item) => ({
+            to: item.to,
+            subject: item.subject,
+            body: item.body,
+            attachmentFilename: item.attachmentFilename,
+            attachmentBlob: item.attachmentBlob,
+          })),
+          {
+            concurrency: 3,
+            onProgress: (sent, total) =>
+              setExportProgressMessage(`שולח מיילים ${sent} מתוך ${total}...`),
+          }
+        );
+        sentCount = n;
+      }
+      setExportProgressMessage('מוריד קובץ ZIP...');
+      const { createAndDownloadZip } = await import('../lib/zipExport');
+      await createAndDownloadZip(zipFilename, zipFiles);
+
+      // Mark as exported only after successful send so the count updates correctly
+      try {
+        await api.assets.markExportedByIds(numericAssetIdsForQuery);
+        const d = new Date();
+        setLatestExportDate(
+          `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`
+        );
+      } catch (markErr: any) {
+        console.error('[BuildingsList] Error marking assets as exported after send:', markErr);
+      }
+
+      let successMessage = `נשלחו ${numericAssetIdsForQuery.length} נכסים לעירייה בהצלחה. הקובץ הורד.`;
+      if (sentCount > 0) successMessage += ` ${sentCount} מיילים נשלחו למפעילים ולמנהלים.`;
+      setToast({ message: successMessage, type: 'success' });
+      setTimeout(() => setToast(null), 8000);
       await fetchExportToAutomationCount();
       window.dispatchEvent(new CustomEvent('exportToAutomationSuccess'));
     } catch (error: any) {
@@ -2102,7 +2530,7 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
     
     try {
       // מתי להריץ אימות: when validation_mode is 'off', skip validation before save
-      if (shouldValidateBeforeSave) {
+      if (true || shouldValidateBeforeSave) {
         const validationResult = await runValidationProgrammatically();
         if (validationResult.hasErrors) {
           setIsSaving(false);
@@ -2185,16 +2613,26 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
       try {
         // Collect bulk creates/updates
         const buildingsToCreate: any[] = [];
+        // Track keys for new buildings so we only mark them saved AFTER successful API call
+        const newBuildingKeys: Array<{ buildingKey: string | number; buildingNumber: number }> = [];
         const buildingsToUpdate: Array<{ building_number: number; updates: any }> = [];
+        // Track keys for existing buildings so we only mark them saved AFTER successful API call
+        const existingBuildingKeys: Array<{ buildingKey: string | number; buildingNumber: number }> = [];
+
+        // Guard against the same building appearing under multiple keys (e.g. tempId AND
+        // building_number when the user edited the number field more than once).
+        const processedBuildingRefs = new Set<object>();
 
         for (const buildingKey of allBuildingsToSave) {
           const building = findBuildingByKey(buildingKey);
           if (!building) continue;
           if (buildingsToDelete.has(buildingKey)) continue;
+          // Skip if we already queued this exact building object under a different key
+          if (processedBuildingRefs.has(building)) continue;
+          processedBuildingRefs.add(building);
 
           const changes = dirtyBuildings.get(buildingKey) || {};
           const isNew = isNewBuilding(building);
-
 
           if (isNew) {
             const finalBuilding = { ...building, ...changes };
@@ -2209,8 +2647,8 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
 
             const { _tempId, _isNew, created_at, updated_at, ...buildingData } = finalBuilding as any;
             buildingsToCreate.push(buildingData);
-            successfullySaved.add(buildingKey);
-            successfullySaved.add(finalBuilding.building_number);
+            // Don't mark as saved yet — wait until API succeeds
+            newBuildingKeys.push({ buildingKey, buildingNumber: finalBuilding.building_number });
           } else {
             const actualBuildingNumber = building.building_number;
             if (!actualBuildingNumber || actualBuildingNumber <= 0) {
@@ -2225,8 +2663,8 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
               if (v !== undefined) (updates as any)[k] = v;
             }
             buildingsToUpdate.push({ building_number: actualBuildingNumber, updates });
-            successfullySaved.add(buildingKey);
-            successfullySaved.add(actualBuildingNumber);
+            // Don't mark as saved yet — wait until API succeeds
+            existingBuildingKeys.push({ buildingKey, buildingNumber: actualBuildingNumber });
           }
         }
 
@@ -2237,6 +2675,11 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
             throw new Error(createResult.error || 'שגיאה בשמירת מבנים חדשים');
           }
           savedCount += createResult.count;
+          // Mark new buildings as saved only after success
+          for (const { buildingKey, buildingNumber } of newBuildingKeys) {
+            successfullySaved.add(buildingKey);
+            successfullySaved.add(buildingNumber);
+          }
         }
 
         if (buildingsToUpdate.length > 0) {
@@ -2245,6 +2688,11 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
             throw new Error(updateResult.error || 'שגיאה בעדכון מבנים');
           }
           savedCount += updateResult.count;
+          // Mark existing buildings as saved only after success
+          for (const { buildingKey, buildingNumber } of existingBuildingKeys) {
+            successfullySaved.add(buildingKey);
+            successfullySaved.add(buildingNumber);
+          }
           
           // Update building state with returned buildings (includes updated distribution flags).
           // Recalculate total_building_area from shared areas so UI shows correct total after e.g. shared_parking_area update.
@@ -2327,8 +2775,9 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
       });
       setNewBuildings(prev => {
         const next = new Set(prev);
-        for (const buildingKey of successfullySaved) {
-          next.delete(buildingKey);
+        // Clear both saved and deleted buildings (allKeysToClear covers both categories)
+        for (const key of allKeysToClear) {
+          next.delete(key);
         }
         return next;
       });
@@ -3408,6 +3857,7 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
               key={`buildings-grid-${configVersion}-${fontSize}`}
               ref={gridRef}
               rowData={sortedBuildings}
+              getRowId={(params) => String(params.data._tempId || params.data.building_number)}
               columnDefs={configuredColumnDefs}
                 defaultColDef={BUILDINGS_GRID_DEFAULT_COL_DEF}
               gridOptions={BUILDINGS_GRID_OPTIONS}
@@ -3660,10 +4110,8 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
                         {filteredAddresses.map((address, index) => (
                           <div
                             key={address.id || `${address.street_code}-${index}`}
-                            onMouseDown={(e) => {
-                              // Prevent input blur so the click always fires
-                              e.preventDefault();
-                              setNewBuilding(prev => ({ ...prev, building_address: Number(address.street_code) }));
+                            onClick={() => {
+                              setNewBuilding(prev => ({ ...prev, building_address: address.street_code }));
                               setAddressSearchValue(`${address.street_code} - ${address.street_description}`);
                               setShowAddressDropdown(false);
                             }}

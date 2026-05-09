@@ -2655,8 +2655,10 @@ export const buildingValidators = {
       }
     }
 
-    // Validate tax_region with all rules
-    if (building.tax_region != null) {
+    // Validate tax_region — required for all buildings
+    if (building.tax_region == null || building.tax_region === '' || building.tax_region === 0) {
+      errors.tax_region = 'אזור מיסים נדרש';
+    } else {
       const taxRegionResult = await buildingValidators.validateTaxRegion(building.tax_region, false);
       if (!taxRegionResult.valid) {
         errors.tax_region = taxRegionResult.error || 'אזור מיסים אינו תקף';

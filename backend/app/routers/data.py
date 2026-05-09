@@ -4,14 +4,13 @@ from __future__ import annotations
 Generic /api/data/{table} endpoint for frontend queries.
 GET /api/data/{table}?select=*&limit=1000&offset=0&order=col&col=val&col__neq=val&col__notnull=1&col__isnull=1&col__in=a,b,c
 """
-from datetime import date, datetime
-from decimal import Decimal
 from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy.orm import Session
 from sqlalchemy import text
 from app.database import get_db
 from app.auth import decode_token
+from app.utils import serialize_value as _serialize
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from app.services.workflow_service import update_building_total_area
 
@@ -177,16 +176,6 @@ def _get_table_data(
     if not rows:
         return []
     keys = list(rows[0]._mapping.keys())
-
-    def _serialize(v):
-        if v is None:
-            return None
-        if isinstance(v, (datetime, date)):
-            return v.isoformat()
-        if isinstance(v, Decimal):
-            return float(v)
-        return v
-
     return [dict((k, _serialize(row._mapping[k])) for k in keys) for row in rows]
 
 
@@ -228,15 +217,6 @@ async def insert_table(
     if not columns:
         raise HTTPException(status_code=500, detail="Table not found")
 
-    def _serialize(v):
-        if v is None:
-            return None
-        if isinstance(v, (datetime, date)):
-            return v.isoformat()
-        if isinstance(v, Decimal):
-            return float(v)
-        return v
-
     inserted = []
     try:
         for row in rows:
@@ -252,7 +232,7 @@ async def insert_table(
             db_row = result.fetchone()
             if db_row:
                 keys = list(db_row._mapping.keys())
-                inserted.append(dict((k, _serialize(db_row._mapping[k])) for k in keys))
+                inserted.append({k: _serialize(db_row._mapping[k]) for k in keys})
         db.commit()
     except Exception as e:
         db.rollback()
@@ -279,15 +259,6 @@ async def upsert_table(
     columns = _get_columns(db, table)
     if not columns:
         raise HTTPException(status_code=500, detail="Table not found")
-
-    def _serialize(v):
-        if v is None:
-            return None
-        if isinstance(v, (datetime, date)):
-            return v.isoformat()
-        if isinstance(v, Decimal):
-            return float(v)
-        return v
 
     upserted = []
     try:

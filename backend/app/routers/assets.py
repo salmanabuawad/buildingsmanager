@@ -1,5 +1,4 @@
 from datetime import date, datetime
-from decimal import Decimal
 from fastapi import APIRouter, Depends, HTTPException, status, Body
 from sqlalchemy.orm import Session
 from sqlalchemy import text
@@ -8,6 +7,7 @@ from app.database import get_db
 from app.models import Asset
 from app.schemas import AssetCreate, AssetUpdate, AssetResponse
 from app.auth import get_current_user, require_jwt
+from app.utils import serialize_value as _ser
 from app.services.workflow_service import (
     copy_asset_to_history,
     delete_asset_transactional,
@@ -66,15 +66,6 @@ def get_measured_not_exported(
             return []
         keys = list(rows[0]._mapping.keys())
 
-        def _ser(v):
-            if v is None:
-                return None
-            if isinstance(v, (datetime, date)):
-                return v.isoformat()
-            if isinstance(v, Decimal):
-                return float(v)
-            return v
-
         return [dict((k, _ser(r._mapping[k])) for k in keys) for r in rows]
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -82,14 +73,6 @@ def get_measured_not_exported(
 
 def _serialize_asset_row(row: Any, keys: List[str]) -> dict:
     """Serialize a raw assets row (dates, decimals) for JSON."""
-    def _ser(v):
-        if v is None:
-            return None
-        if isinstance(v, (datetime, date)):
-            return v.isoformat()
-        if isinstance(v, Decimal):
-            return float(v)
-        return v
     return dict((k, _ser(row._mapping[k])) for k in keys)
 
 
@@ -140,7 +123,6 @@ def mark_exported_by_ids(
     if not ids:
         return {"updated_count": 0, "asset_ids": []}
     try:
-        from datetime import date
         today = date.today()
         date_str = f"{today.day:02d}/{today.month:02d}/{today.year}"
         placeholders = ", ".join(f":id{i}" for i in range(len(ids)))

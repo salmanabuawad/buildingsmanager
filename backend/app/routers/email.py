@@ -4,7 +4,7 @@ Handles email sending (test and send).
 """
 
 from fastapi import APIRouter, HTTPException, Depends
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel
 from typing import List, Optional
 import smtplib
 from email.mime.multipart import MIMEMultipart

@@ -9,7 +9,6 @@ import json
 import os
 import uuid
 from datetime import datetime, date, timedelta
-from decimal import Decimal
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form, Query, status
@@ -19,6 +18,7 @@ from sqlalchemy.orm import Session
 from app.auth import require_jwt, create_access_token
 from app.config import settings
 from app.database import get_db
+from app.utils import serialize_value as _ser, row_to_dict as _row_to_dict
 
 router = APIRouter()
 reports_router = APIRouter()
@@ -43,20 +43,6 @@ def _parse_uid(sub: str | None) -> int | None:
     except (ValueError, TypeError):
         return None
 
-
-def _ser(v):
-    if v is None:
-        return None
-    if isinstance(v, (datetime, date)):
-        return v.isoformat()
-    if isinstance(v, Decimal):
-        return float(v)
-    return v
-
-
-def _row_to_dict(row) -> dict:
-    m = row._mapping
-    return {k: _ser(m[k]) for k in m.keys()}
 
 
 def _get_user_id(payload: dict) -> int:

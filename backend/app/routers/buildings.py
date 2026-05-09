@@ -2,8 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, status, Body
 from sqlalchemy.orm import Session
 from sqlalchemy import text
 from sqlalchemy.exc import IntegrityError
-from typing import Any
-from typing import List
+from typing import Any, List
 from app.auth import get_current_user, require_jwt
 from app.database import get_db
 from app.models import Building

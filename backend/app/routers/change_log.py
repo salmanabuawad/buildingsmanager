@@ -1,6 +1,4 @@
 import json
-from datetime import datetime, date
-from decimal import Decimal
 from typing import Any, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Body
@@ -9,20 +7,9 @@ from sqlalchemy import text
 
 from app.database import get_db
 from app.auth import require_jwt
+from app.utils import row_to_dict as _serialize_row
 
 router = APIRouter()
-
-
-def _serialize_row(row: Any) -> dict:
-    out = {}
-    for k, v in dict(row).items():
-        if isinstance(v, (datetime, date)):
-            out[k] = v.isoformat()
-        elif isinstance(v, Decimal):
-            out[k] = float(v)
-        else:
-            out[k] = v
-    return out
 
 
 def _to_pg_text_array(value: Any) -> Optional[str]:

@@ -7,13 +7,12 @@ from pathlib import Path
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, status, Query
 from sqlalchemy.orm import Session
 from sqlalchemy import text
-from typing import List
 from fastapi.responses import FileResponse
 from app.database import get_db
+from app.utils import row_to_dict as _row_to_dict
 from app.auth import require_jwt, _parse_uid
 from app.config import settings
 import uuid
-from datetime import datetime
 
 router = APIRouter()
 
@@ -76,19 +75,6 @@ def _guess_mime_type(file_name: str) -> str:
     mt, _ = mimetypes.guess_type(file_name)
     return mt or "application/octet-stream"
 
-
-def _row_to_dict(row) -> dict:
-    if row is None:
-        return None
-    m = row._mapping
-    d = {}
-    for k in m.keys():
-        v = m[k]
-        if isinstance(v, datetime):
-            d[k] = v.isoformat()
-        else:
-            d[k] = v
-    return d
 
 
 @router.post("/upload/{asset_id}")

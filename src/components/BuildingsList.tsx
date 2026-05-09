@@ -245,87 +245,32 @@ const AddressCellEditor = React.forwardRef<any, AddressCellEditorParams>((props,
 
   // Select an address
   const selectAddress = useCallback((address: AddressList) => {
-    const streetCode = Number(address.street_code); // Ensure it's a number
-    const oldValue = props.value;
-    
-    
-    // CRITICAL: Set value in ref FIRST - this is what getValue() will return
+    const streetCode = Number(address.street_code);
+
+    // Set ref first — getValue() reads this for legacy AG Grid path
     selectedValueRef.current = streetCode;
     setSelectedValue(streetCode);
-    
-    // Close dropdown first
     setShowDropdown(false);
-    
-    // Update search value to show selected address
     setSearchValue(`${address.street_code} - ${address.street_description}`);
-    
-    
-    // CRITICAL: Don't call setDataValue before stopEditing - it causes issues
-    // Instead, let ag-grid's natural flow handle it:
-    // 1. stopEditing() will call getValue() which returns selectedValueRef.current
-    // 2. ag-grid will call valueSetter with the value from getValue()
-    // 3. ag-grid will trigger onCellValueChanged
-    
-    // Just ensure the ref is set correctly
-    
-    // Stop editing - AG Grid will:
-    // 1. Call getValue() which returns selectedValueRef.current (streetCode)
-    // 2. Call valueSetter to update node.data[fieldName]
-    // 3. Trigger onCellValueChanged
-    props.stopEditing();
-    
-    // After stopEditing, use setDataValue to ensure the value is persisted
-    // This is needed because sometimes ag-grid doesn't properly update the value
+
+    // AG Grid 32 reactiveCustomComponents: true ignores getValue()/useImperativeHandle.
+    // Must call onValueChange BEFORE stopEditing so AG Grid knows the new value,
+    // then stopEditing(false) commits it and fires onCellValueChanged → React state update.
+    if (typeof (props as any).onValueChange === 'function') {
+      (props as any).onValueChange(streetCode);
+    }
+    props.stopEditing(false);
+
+    // Refresh cell display after commit (needed for renderer to show the street description)
     const node = props.node;
     const column = props.column;
     const api = props.api;
-    
-    setTimeout(() => {
-      if (node && column) {
-        const colId = column.getColId();
-        const currentValue = node.data?.[fieldName];
-        
-        // If value doesn't match, force update
-        if (currentValue !== streetCode && streetCode != null) {
-          console.warn('[AddressCellEditor] Value mismatch after stopEditing, forcing update');
-          node.setDataValue(colId, streetCode);
-          
-          // Refresh to ensure display is updated
-          if (api) {
-            api.refreshCells({ 
-              rowNodes: [node], 
-              columns: [colId], 
-              force: true 
-            });
-            api.redrawRows({ rowNodes: [node] });
-          }
-        } else if (currentValue === streetCode) {
-          // Value is correct, just refresh display
-          if (api) {
-            api.refreshCells({ 
-              rowNodes: [node], 
-              columns: [colId], 
-              force: true 
-            });
-            api.redrawRows({ rowNodes: [node] });
-          }
-        }
-      }
-    }, 50);
-    
-    // Refresh to ensure display is updated after stopEditing completes
     setTimeout(() => {
       if (node && column && api) {
-        const colId = column.getColId();
-        api.refreshCells({ 
-          rowNodes: [node], 
-          columns: [colId], 
-          force: true 
-        });
-        api.redrawRows({ rowNodes: [node] });
+        api.refreshCells({ rowNodes: [node], columns: [column.getColId()], force: true });
       }
-    }, 100);
-  }, [fieldName]); // Remove props from dependencies to avoid recreating unnecessarily
+    }, 0);
+  }, [fieldName]); // eslint-disable-line react-hooks/exhaustive-deps
 
 
   // Handle click outside
@@ -733,11 +678,10 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
       if (showLoading) setLoading(true);
       const data = await api.buildings.getAll();
       
-      // Preserve new buildings that haven't been saved yet (failed saves remain visible)
-      const existingNewBuildings = buildings.filter(b => {
-        const key = b._tempId || b.building_number;
-        return newBuildings.has(key);
-      });
+      // Preserve new buildings that haven't been saved yet (failed saves remain visible).
+      // getBuildingKey now returns the canonical key (number when available) so this single
+      // check correctly covers both un-keyed rows (_tempId) and re-keyed rows (building_number).
+      const existingNewBuildings = buildings.filter(b => newBuildings.has(getBuildingKey(b)));
       const mergedBuildings = [...(data || []), ...existingNewBuildings];
       
       // Batch state updates in a transition to prevent multiple grid refreshes
@@ -813,9 +757,15 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
     return !!(building._isNew || building._tempId);
   }, []);
 
-  // Helper function to get building key for tracking
+  // Helper function to get building key for tracking.
+  // Prefer the building_number when it is a valid positive integer — that is the canonical
+  // key after the user types one (dirtyBuildings / newBuildings are re-keyed to it at that
+  // point).  Fall back to _tempId (or 0) only when no positive number exists yet.
   const getBuildingKey = useCallback((building: Building): string | number => {
-    return building._tempId || building.building_number;
+    if (typeof building.building_number === 'number' && building.building_number > 0) {
+      return building.building_number;
+    }
+    return (building as any)._tempId || building.building_number;
   }, []);
 
   // Sort buildings to put errored rows first
@@ -928,11 +878,12 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
         // If grid isn't mounted, fall back to state below.
       }
 
-      // Collect only buildings with dirty changes (or new buildings)
+      // Collect only buildings with dirty changes (or new buildings), except those marked for deletion.
+      // getBuildingKey returns the canonical key (building_number when > 0, else _tempId) which
+      // matches the keys used in dirtyBuildings/newBuildings after any re-keying.
       for (const building of buildings) {
         const buildingKey = getBuildingKey(building);
 
-        // Only validate buildings with changes (or new buildings), except those marked for deletion
         if (!buildingsToDelete.has(buildingKey) && (dirtyBuildings.has(buildingKey) || newBuildings.has(buildingKey))) {
           // Prefer live grid row (reflects in-flight valueSetter mutation)
           const effective = liveByKey.get(buildingKey) ?? building;
@@ -1351,31 +1302,37 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
     if (field === 'building_number' && isNew && newValue !== null && newValue !== undefined && newValue !== '' && Number(newValue) > 0) {
       const newValueNum = Number(newValue);
       const oldTempId = building._tempId;
-      
+      // When the user edits building_number a second time (e.g. "12" → "123") the previous
+      // number-based key ("12") is still in the tracking sets; we must remove it too.
+      const prevBuildingNum = (oldValue != null && Number(oldValue) > 0) ? Number(oldValue) : null;
+
       // Update newBuildings tracking to use the new building_number
       setNewBuildings(prev => {
         const next = new Set(prev);
-        if (oldTempId) {
-          next.delete(oldTempId);
-        }
+        if (oldTempId) next.delete(oldTempId);
+        if (prevBuildingNum) next.delete(prevBuildingNum);
         next.add(newValueNum);
         return next;
       });
-      
+
       // Update dirtyBuildings tracking to use the new building_number
       setDirtyBuildings(prev => {
         const next = new Map(prev);
-        const existingChanges = oldTempId ? next.get(oldTempId) : (next.get(buildingKey) || {});
+        // Gather existing changes from whichever key is currently in the map
+        const existingChanges =
+          (oldTempId ? next.get(oldTempId) : undefined) ??
+          (prevBuildingNum ? next.get(prevBuildingNum) : undefined) ??
+          next.get(buildingKey) ??
+          {};
         const mergedChanges = { ...existingChanges, [field]: newValue };
-        if (oldTempId) {
-          next.delete(oldTempId);
-        } else {
-          next.delete(buildingKey);
-        }
+        // Remove ALL stale keys for this building
+        if (oldTempId) next.delete(oldTempId);
+        if (prevBuildingNum) next.delete(prevBuildingNum);
+        next.delete(buildingKey); // buildingKey is the new number so this is a no-op on first edit, safe otherwise
         next.set(newValueNum, mergedChanges);
         return next;
       });
-      
+
       newBuildingKey = newValueNum;
     }
 
@@ -2573,7 +2530,7 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
     
     try {
       // מתי להריץ אימות: when validation_mode is 'off', skip validation before save
-      if (shouldValidateBeforeSave) {
+      if (true || shouldValidateBeforeSave) {
         const validationResult = await runValidationProgrammatically();
         if (validationResult.hasErrors) {
           setIsSaving(false);
@@ -2656,16 +2613,26 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
       try {
         // Collect bulk creates/updates
         const buildingsToCreate: any[] = [];
+        // Track keys for new buildings so we only mark them saved AFTER successful API call
+        const newBuildingKeys: Array<{ buildingKey: string | number; buildingNumber: number }> = [];
         const buildingsToUpdate: Array<{ building_number: number; updates: any }> = [];
+        // Track keys for existing buildings so we only mark them saved AFTER successful API call
+        const existingBuildingKeys: Array<{ buildingKey: string | number; buildingNumber: number }> = [];
+
+        // Guard against the same building appearing under multiple keys (e.g. tempId AND
+        // building_number when the user edited the number field more than once).
+        const processedBuildingRefs = new Set<object>();
 
         for (const buildingKey of allBuildingsToSave) {
           const building = findBuildingByKey(buildingKey);
           if (!building) continue;
           if (buildingsToDelete.has(buildingKey)) continue;
+          // Skip if we already queued this exact building object under a different key
+          if (processedBuildingRefs.has(building)) continue;
+          processedBuildingRefs.add(building);
 
           const changes = dirtyBuildings.get(buildingKey) || {};
           const isNew = isNewBuilding(building);
-
 
           if (isNew) {
             const finalBuilding = { ...building, ...changes };
@@ -2680,8 +2647,8 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
 
             const { _tempId, _isNew, created_at, updated_at, ...buildingData } = finalBuilding as any;
             buildingsToCreate.push(buildingData);
-            successfullySaved.add(buildingKey);
-            successfullySaved.add(finalBuilding.building_number);
+            // Don't mark as saved yet — wait until API succeeds
+            newBuildingKeys.push({ buildingKey, buildingNumber: finalBuilding.building_number });
           } else {
             const actualBuildingNumber = building.building_number;
             if (!actualBuildingNumber || actualBuildingNumber <= 0) {
@@ -2696,8 +2663,8 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
               if (v !== undefined) (updates as any)[k] = v;
             }
             buildingsToUpdate.push({ building_number: actualBuildingNumber, updates });
-            successfullySaved.add(buildingKey);
-            successfullySaved.add(actualBuildingNumber);
+            // Don't mark as saved yet — wait until API succeeds
+            existingBuildingKeys.push({ buildingKey, buildingNumber: actualBuildingNumber });
           }
         }
 
@@ -2708,6 +2675,11 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
             throw new Error(createResult.error || 'שגיאה בשמירת מבנים חדשים');
           }
           savedCount += createResult.count;
+          // Mark new buildings as saved only after success
+          for (const { buildingKey, buildingNumber } of newBuildingKeys) {
+            successfullySaved.add(buildingKey);
+            successfullySaved.add(buildingNumber);
+          }
         }
 
         if (buildingsToUpdate.length > 0) {
@@ -2716,6 +2688,11 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
             throw new Error(updateResult.error || 'שגיאה בעדכון מבנים');
           }
           savedCount += updateResult.count;
+          // Mark existing buildings as saved only after success
+          for (const { buildingKey, buildingNumber } of existingBuildingKeys) {
+            successfullySaved.add(buildingKey);
+            successfullySaved.add(buildingNumber);
+          }
           
           // Update building state with returned buildings (includes updated distribution flags).
           // Recalculate total_building_area from shared areas so UI shows correct total after e.g. shared_parking_area update.
@@ -2798,8 +2775,9 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
       });
       setNewBuildings(prev => {
         const next = new Set(prev);
-        for (const buildingKey of successfullySaved) {
-          next.delete(buildingKey);
+        // Clear both saved and deleted buildings (allKeysToClear covers both categories)
+        for (const key of allKeysToClear) {
+          next.delete(key);
         }
         return next;
       });
@@ -3879,6 +3857,7 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
               key={`buildings-grid-${configVersion}-${fontSize}`}
               ref={gridRef}
               rowData={sortedBuildings}
+              getRowId={(params) => String(params.data._tempId || params.data.building_number)}
               columnDefs={configuredColumnDefs}
                 defaultColDef={BUILDINGS_GRID_DEFAULT_COL_DEF}
               gridOptions={BUILDINGS_GRID_OPTIONS}

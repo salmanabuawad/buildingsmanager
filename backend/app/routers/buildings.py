@@ -1,13 +1,10 @@
-from fastapi import APIRouter, Depends, HTTPException, status, Body
+from fastapi import APIRouter, Depends, HTTPException, Body
 from sqlalchemy.orm import Session
 from sqlalchemy import text
 from sqlalchemy.exc import IntegrityError
 from typing import Any
-from typing import List
-from app.auth import get_current_user, require_jwt
+from app.auth import require_jwt
 from app.database import get_db
-from app.models import Building
-from app.schemas import BuildingCreate, BuildingUpdate, BuildingResponse
 from app.services.workflow_service import (
     update_buildings_with_distribution_flags,
     update_building_total_area,
@@ -16,71 +13,6 @@ from app.services.workflow_service import (
 )
 
 router = APIRouter()
-
-
-@router.get("/", response_model=List[BuildingResponse])
-def get_buildings(
-    skip: int = 0,
-    limit: int = 1000,
-    db: Session = Depends(get_db),
-    current_user=Depends(get_current_user)
-):
-    buildings = db.query(Building).offset(skip).limit(limit).all()
-    return buildings
-
-
-@router.get("/{building_number}", response_model=BuildingResponse)
-def get_building(
-    building_number: int,
-    db: Session = Depends(get_db),
-    current_user=Depends(get_current_user)
-):
-    building = db.query(Building).filter(Building.building_number == building_number).first()
-    if not building:
-        raise HTTPException(status_code=404, detail="Building not found")
-    return building
-
-
-@router.post("/", response_model=BuildingResponse, status_code=status.HTTP_201_CREATED)
-def create_building(
-    building: BuildingCreate,
-    db: Session = Depends(get_db),
-    current_user=Depends(get_current_user)
-):
-    if current_user.role not in ["admin", "editor"]:
-        raise HTTPException(status_code=403, detail="Insufficient permissions")
-
-    existing = db.query(Building).filter(Building.building_number == building.building_number).first()
-    if existing:
-        raise HTTPException(status_code=400, detail="Building number already exists")
-
-    db_building = Building(**building.dict())
-    db.add(db_building)
-    db.commit()
-    db.refresh(db_building)
-    return db_building
-
-
-@router.put("/{building_number}", response_model=BuildingResponse)
-def update_building(
-    building_number: int,
-    building_update: BuildingUpdate,
-    db: Session = Depends(get_db),
-    current_user=Depends(get_current_user)
-):
-    if current_user.role not in ["admin", "editor"]:
-        raise HTTPException(status_code=403, detail="Insufficient permissions")
-
-    db_building = db.query(Building).filter(Building.building_number == building_number).first()
-    if not db_building:
-        raise HTTPException(status_code=404, detail="Building not found")
-
-    for key, value in building_update.dict(exclude_unset=True).items():
-        setattr(db_building, key, value)
-
-    db.commit()
-    db.refresh(db_building)
-    return db_building
 
 
 @router.post("/create")

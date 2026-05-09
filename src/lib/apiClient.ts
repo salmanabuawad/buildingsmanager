@@ -272,7 +272,7 @@ const auth = {
   },
 };
 
-/** Headers for file/inspection API: Bearer token from session login, else legacy auth_token, else X-Users-Table-Session fallback. */
+/** Headers for file API: Bearer token from session login, else legacy auth_token, else X-Users-Table-Session fallback. */
 export function getFileApiHeaders(): Record<string, string> {
   const token = getAccessToken();
   if (token) {

@@ -92,8 +92,7 @@ backend/
 │       ├── audit.py         # Audit log endpoints
 │       ├── data.py          # Generic table query endpoint
 │       ├── users.py         # User management endpoints
-│       ├── operators_managers.py  # Operators & managers
-│       └── inspection_tasks.py   # Inspection tasks & reports
+│       └── operators_managers.py  # Operators & managers
 ├── requirements.txt
 ├── startup.sh              # Production startup script
 └── .env.example
@@ -142,14 +141,6 @@ backend/
 - `POST /api/data/{table}/upsert` - Upsert rows
 - `DELETE /api/data/{table}` - Delete rows by filter
 
-### Inspection Tasks
-- `GET /api/inspection-tasks` - List tasks
-- `POST /api/inspection-tasks` - Create task
-- `PATCH /api/inspection-tasks/{id}` - Update task
-- `POST /api/inspection-tasks/{id}/take` - Take task
-- `POST /api/inspection-tasks/{id}/submit` - Submit task
-- `POST /api/inspection-tasks/{id}/approve` - Approve task
-
 ### Audit
 - `GET /api/audit` - List audit logs
 
@@ -165,7 +156,6 @@ curl -H "Authorization: Bearer <your_token>" http://localhost:8000/api/buildings
 
 - **admin**: Full access to all resources
 - **user**: Standard access
-- **inspector**: Mobile inspection access
 
 ## Deployment
 

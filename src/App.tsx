@@ -5,9 +5,9 @@
  * training data, or automated analysis) is prohibited. See COPYRIGHT.
  */
 import { useState, useEffect, useCallback, useRef, lazy, Suspense } from 'react';
-import { X, Settings, Building, Home, Tag, Search, Plus, Building2, Upload, ChevronDown, ChevronLeft, Trash2, Database, CheckCircle2, AlertCircle, Loader2, Menu, MapPin, Edit, Save, FileText, RefreshCw, Download, LogOut, Users, UserCog, BarChart3, ClipboardList, HelpCircle, User, Sun, SlidersHorizontal } from 'lucide-react';
+import { X, Settings, Building, Home, Tag, Search, Plus, Building2, Upload, ChevronDown, ChevronLeft, Trash2, Database, CheckCircle2, AlertCircle, Loader2, Menu, MapPin, Edit, Save, FileText, RefreshCw, Download, LogOut, Users, UserCog, BarChart3, HelpCircle, User, Sun, SlidersHorizontal } from 'lucide-react';
 import { api, AssetType } from './lib/api';
-import { getSession, logoutUsersTable, loginByTaskToken } from './lib/usersTableAuth';
+import { getSession, logoutUsersTable } from './lib/usersTableAuth';
 import { assetValidators, validateEntity, getAssetTypes, getLatestExportDate as getCachedLatestExportDate } from './lib/validation';
 import { useUserRole } from './contexts/UserRoleContext';
 import { useUIConfig } from './contexts/UIConfigContext';
@@ -17,7 +17,6 @@ import { loadFieldConfigurations } from './lib/fieldConfigUtils';
 import { useFieldConfigBumpVersion } from './contexts/FieldConfigContext';
 import { Login } from './components/Login';
 import { HelpModal } from './components/HelpModal';
-import { useIsMobile } from './hooks/useIsMobile';
 import { useHeartbeat } from './hooks/useHeartbeat';
 import { SessionExpiredModal } from './components/SessionExpiredModal';
 import { FontSizeProvider } from './contexts/FontSizeContext';
@@ -47,12 +46,10 @@ const OperatorsManager = lazy(() => import('./components/OperatorsManager').then
 const ManagersManager = lazy(() => import('./components/ManagersManager').then((mod) => ({ default: mod.ManagersManager })));
 const MeasuredNotExportedAssets = lazy(() => import('./components/MeasuredNotExportedAssets').then((mod) => ({ default: mod.MeasuredNotExportedAssets })));
 const MeasurementProgressDashboard = lazy(() => import('./components/MeasurementProgressDashboard').then((mod) => ({ default: mod.MeasurementProgressDashboard })));
-const MobileTasksAndUpload = lazy(() => import('./components/MobileTasksAndUpload').then((mod) => ({ default: mod.MobileTasksAndUpload })));
-const InspectionTasksManager = lazy(() => import('./components/InspectionTasksManager').then((mod) => ({ default: mod.InspectionTasksManager })));
 
 interface Tab {
   id: string;
-  type: 'buildings' | 'assets' | 'admin' | 'asset-types' | 'asset-search' | 'validation-rules' | 'building-list-import' | 'assets-file-import' | 'assets-skeleton-import' | 'asset-details' | 'transfer-areas' | 'address-list' | 'field-config' | 'asset-data-entry' | 'audit-log' | 'user-management' | 'system-configuration' | 'operators' | 'managers' | 'measured-not-exported-assets' | 'measurement-progress-dashboard' | 'mobile-tasks-upload' | 'inspection-tasks';
+  type: 'buildings' | 'assets' | 'admin' | 'asset-types' | 'asset-search' | 'validation-rules' | 'building-list-import' | 'assets-file-import' | 'assets-skeleton-import' | 'asset-details' | 'transfer-areas' | 'address-list' | 'field-config' | 'asset-data-entry' | 'audit-log' | 'user-management' | 'system-configuration' | 'operators' | 'managers' | 'measured-not-exported-assets' | 'measurement-progress-dashboard';
   buildingNumber?: number;
   label: string;
   refreshKey?: number;
@@ -77,7 +74,7 @@ function TabContentFallback() {
 }
 
 function App() {
-  const { isLoading: roleLoading, isReadOnly, isAdmin, isDev, userRole, refreshRole } = useUserRole();
+  const { isLoading: roleLoading, isReadOnly, isAdmin, userRole, refreshRole } = useUserRole();
   useHeartbeat();
   const roleLabel = userRole === 'admin' ? 'מנהל' : 'משתמש';
   const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
@@ -85,11 +82,8 @@ function App() {
   const [showSessionExpired, setShowSessionExpired] = useState(false);
 
   const [tabs, setTabs] = useState<Tab[]>(() => {
-    const s = getSession();
-    const isDevUser = s?.user_name?.toLowerCase().trim() === 'dev';
-    const defaultTabs = [
+    const defaultTabs: Tab[] = [
       { id: 'measurement-progress-dashboard', type: 'measurement-progress-dashboard', label: 'התקדמות פעילות מדידות', refreshKey: Date.now() },
-      ...(isDevUser ? [{ id: 'inspection-tasks', type: 'inspection-tasks' as const, label: 'משימות ביקורת', refreshKey: Date.now() }] : []),
       { id: 'buildings', type: 'buildings', label: 'מבנים', refreshKey: Date.now() },
     ];
     return defaultTabs;
@@ -171,9 +165,6 @@ function App() {
   const bumpFieldConfigVersion = useFieldConfigBumpVersion();
   const { setContextFromTabType, openHelp } = useHelp();
   const { refreshRules } = useValidationRules();
-  const isMobile = useIsMobile();
-  const mobileDefaultAppliedRef = useRef(false);
-
   // Refs to child components for checking dirty state
   const buildingsListRef = useRef<BuildingsListRef | null>(null);
   const assetsListRef = useRef<AssetsListRef | null>(null);
@@ -192,35 +183,11 @@ function App() {
   const [resetExportLoading, setResetExportLoading] = useState(false);
   const [latestExportDate, setLatestExportDate] = useState<string | null>(null);
   
-  // Check authentication (users-table session only) + handle one-time task token from email link
+  // Check authentication (users-table session only)
   useEffect(() => {
-    (async () => {
-      const hash = window.location.hash || '';
-      const tokenMatch = hash.match(/[?&]token=([^&]+)/);
-      const token = tokenMatch ? decodeURIComponent(tokenMatch[1]) : new URLSearchParams(window.location.search).get('token');
-
-      if (token && !getSession()) {
-        const result = await loginByTaskToken(token);
-        if (result.success) {
-          setIsAuthenticated(true);
-          await refreshRole();
-          const cleanHash = result.taskId ? `#inspection-tasks/${result.taskId}` : '#inspection-tasks';
-          window.history.replaceState(null, '', window.location.pathname + (window.location.search || '') + cleanHash);
-          setTabs((prev) => {
-            const has = prev.some((t) => t.type === 'inspection-tasks');
-            if (!has) return [...prev, { id: 'inspection-tasks', type: 'inspection-tasks', label: 'משימות ביקורת', refreshKey: Date.now() }];
-            return prev;
-          });
-          setActiveTabId('inspection-tasks');
-          setCheckingAuth(false);
-          return;
-        }
-      }
-
-      setIsAuthenticated(!!getSession());
-      setCheckingAuth(false);
-    })();
-  }, [refreshRole]);
+    setIsAuthenticated(!!getSession());
+    setCheckingAuth(false);
+  }, []);
 
   // Show session-expired modal instead of hard redirect on 401
   useEffect(() => {
@@ -228,25 +195,6 @@ function App() {
     window.addEventListener('auth:unauthorized', handler);
     return () => window.removeEventListener('auth:unauthorized', handler);
   }, []);
-
-  // Deep link: switch to inspection-tasks tab when hash is #inspection-tasks or #inspection-tasks/123
-  // Only for dev (tasks hidden for non-dev)
-  useEffect(() => {
-    if (!isAuthenticated) return;
-    const hash = window.location.hash || '';
-    if (hash.includes('?token=')) {
-      const cleanHash = hash.split('?')[0] || '#inspection-tasks';
-      window.history.replaceState(null, '', window.location.pathname + (window.location.search || '') + cleanHash);
-    }
-    if (isDev && (hash.match(/#inspection-tasks\/\d+/) || hash === '#inspection-tasks')) {
-      setTabs((prev) => {
-        const has = prev.some((t) => t.type === 'inspection-tasks');
-        if (!has) return [...prev, { id: 'inspection-tasks', type: 'inspection-tasks', label: 'משימות ביקורת', refreshKey: Date.now() }];
-        return prev;
-      });
-      setActiveTabId('inspection-tasks');
-    }
-  }, [isAuthenticated, isDev]);
 
   // Load UI configuration (מתי להריץ אימות: off | before_save | online)
   useEffect(() => {
@@ -292,23 +240,9 @@ function App() {
     }
   }, [isAuthenticated, activeTabId, tabs, setContextFromTabType]);
 
-  // On mobile: when user first opens app (or just logged in), focus on task list + upload
-  useEffect(() => {
-    if (!isAuthenticated || !isMobile || mobileDefaultAppliedRef.current) return;
-    mobileDefaultAppliedRef.current = true;
-    setTabs([
-      { id: 'mobile-tasks-upload', type: 'mobile-tasks-upload', label: 'משימות והעלאות', refreshKey: Date.now() },
-      { id: 'buildings', type: 'buildings', label: 'מבנים', refreshKey: Date.now() }
-    ]);
-    setActiveTabId('mobile-tasks-upload');
-  }, [isAuthenticated, isMobile]);
-
   const getDefaultTabsForSession = useCallback((): Tab[] => {
-    const s = getSession();
-    const isDevUser = s?.user_name?.toLowerCase().trim() === 'dev';
     return [
       { id: 'measurement-progress-dashboard', type: 'measurement-progress-dashboard', label: 'התקדמות פעילות מדידות', refreshKey: Date.now() },
-      ...(isDevUser ? [{ id: 'inspection-tasks', type: 'inspection-tasks' as const, label: 'משימות ביקורת', refreshKey: Date.now() }] : []),
       { id: 'buildings', type: 'buildings', label: 'מבנים', refreshKey: Date.now() },
     ];
   }, []);
@@ -326,7 +260,6 @@ function App() {
     const freshActiveTabId = getDefaultActiveTabId();
     setTabs(freshTabs);
     setActiveTabId(freshActiveTabId);
-    mobileDefaultAppliedRef.current = false;
   };
 
   const handleLogout = () => {
@@ -337,7 +270,6 @@ function App() {
       { id: 'buildings', type: 'buildings', label: 'מבנים', refreshKey: Date.now() },
     ]);
     setActiveTabId('measurement-progress-dashboard');
-    mobileDefaultAppliedRef.current = false;
     setIsAuthenticated(false);
   };
 
@@ -594,9 +526,6 @@ function App() {
         return transferAreasRef.current?.hasUnsavedChanges() || false;
       case 'asset-data-entry':
         return assetDataEntryRef.current?.hasUnsavedChanges() || false;
-      case 'mobile-tasks-upload':
-      case 'inspection-tasks':
-        return false;
       default:
         return false;
     }
@@ -1162,13 +1091,6 @@ function App() {
     openTab(newTab);
   }
 
-  function openInspectionTasks() {
-    if (!isDev) return;
-    const id = 'inspection-tasks-panel';
-    const newTab: Tab = { id, type: 'inspection-tasks', label: 'משימות ביקורת', refreshKey: Date.now() };
-    openTab(newTab);
-  }
-
   async function exportSchemaToCSV() {
     try {
       const data = await api.schema.getTablesFieldsTypes();
@@ -1322,21 +1244,6 @@ function App() {
 
     // Remove all other building-list-import tabs, then add new one
     openTab(newTab);
-  }
-
-  function openMobileTasksUpload() {
-    handleNavigation(() => {
-      const id = 'mobile-tasks-upload';
-      const existing = tabs.find(t => t.id === id);
-      if (existing) {
-        setActiveTabId(id);
-        setSidebarOpen(false);
-        return;
-      }
-      const newTab: Tab = { id, type: 'mobile-tasks-upload', label: 'משימות והעלאות', refreshKey: Date.now() };
-      openTab(newTab);
-      setSidebarOpen(false);
-    });
   }
 
   function openAssetsFileImport() {
@@ -1756,15 +1663,6 @@ function App() {
             >
               <Search className="h-5 w-5 shrink-0" />
             </button>
-          {isMobile && (
-            <button
-              onClick={() => { closeSidebarAndMenus(); openMobileTasksUpload(); }}
-              className={`w-full flex items-center justify-center p-2.5 rounded transition-all duration-200 text-white relative ${isSidebarItemActive('mobile-tasks-upload') ? 'bg-app-sidebar-active border-r-[3px] border-r-app-sidebar-indicator' : 'hover:bg-app-sidebar-hover'}`}
-              title="משימות והעלאות"
-            >
-              <ClipboardList className="h-5 w-5 shrink-0" />
-            </button>
-          )}
           <div className="relative">
             <button
               onClick={() => {
@@ -1891,15 +1789,6 @@ function App() {
                     </button>
                     {managerActionsSubmenuOpen && (
                       <div className="mr-2 mt-1 space-y-0.5 border-r-2 border-app-sidebar-indicator/50 pr-2">
-                        {isDev && (
-                        <button
-                          onClick={() => { closeSidebarAndMenus(); openInspectionTasks(); }}
-                          className="w-full flex items-center gap-2 px-3 py-2 text-right bg-transparent hover:bg-theme-sidebar-hover rounded-lg transition-all text-xs text-white/90"
-                        >
-                          <span className="text-white/90">משימות ביקורת</span>
-                          <ClipboardList className="h-3 w-3 text-white/70" />
-                        </button>
-                        )}
                         <button
                           onClick={() => { closeSidebarAndMenus(); openResetExportModal(); }}
                           disabled={resetExportLoading}
@@ -2070,20 +1959,14 @@ function App() {
                       <Settings className="h-5 w-5 text-slate-600 shrink-0" />
                     ) : tab.type === 'buildings' ? (
                       <img src="/buildings.png" alt="Buildings" className="h-5 w-5 shrink-0" />
-                    ) : tab.type === 'mobile-tasks-upload' ? (
-                      <ClipboardList className="h-5 w-5 text-slate-600 shrink-0" />
-                    ) : tab.type === 'inspection-tasks' ? (
-                      <ClipboardList className="h-5 w-5 text-slate-600 shrink-0" />
                     ) : (
                       <Building className="h-5 w-5 text-slate-600 shrink-0" />
                     )}
-                    {tab.type !== 'mobile-tasks-upload' && (
                     <span className={`whitespace-nowrap text-sm hidden sm:inline ${
                       activeTabId === tab.id ? 'text-app-text-primary' : 'text-app-text-muted'
                     }`}>
                       {tab.label}
                     </span>
-                    )}
                   </div>
                   {tab.type !== 'buildings' && tab.type !== 'measurement-progress-dashboard' && (
                     <button
@@ -2224,12 +2107,6 @@ function App() {
                 onOpenBuildingsList={openBuildingsList}
                 onOpenMeasuredNotExportedAssets={openMeasuredNotExportedAssets}
               />
-            )}
-            {activeTab?.type === 'mobile-tasks-upload' && (
-              <MobileTasksAndUpload />
-            )}
-            {activeTab?.type === 'inspection-tasks' && (
-              <InspectionTasksManager key={activeTab.refreshKey} />
             )}
             </Suspense>
           </div>

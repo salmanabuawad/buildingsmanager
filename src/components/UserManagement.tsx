@@ -336,6 +336,8 @@ export function UserManagement() {
     setNewUser({
       user_name: '',
       user_email: '',
+      full_name: '',
+      phone: '',
       password: '',
       confirmPassword: '',
       user_role: 'user',
@@ -569,6 +571,7 @@ export function UserManagement() {
                   value={newUser.user_name}
                   onChange={(e) => setNewUser({ ...newUser, user_name: e.target.value })}
                   disabled={creatingUser}
+                  autoComplete="off"
                   className="w-full px-3 py-2 border border-purple-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 disabled:opacity-50 disabled:cursor-not-allowed"
                   placeholder="הזן שם משתמש"
                 />
@@ -583,6 +586,7 @@ export function UserManagement() {
                   value={newUser.full_name}
                   onChange={(e) => setNewUser({ ...newUser, full_name: e.target.value })}
                   disabled={creatingUser}
+                  autoComplete="off"
                   className="w-full px-3 py-2 border border-purple-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 disabled:opacity-50 disabled:cursor-not-allowed"
                   placeholder="הזן שם מלא"
                 />
@@ -597,6 +601,7 @@ export function UserManagement() {
                   value={newUser.user_email}
                   onChange={(e) => setNewUser({ ...newUser, user_email: e.target.value })}
                   disabled={creatingUser}
+                  autoComplete="off"
                   className="w-full px-3 py-2 border border-purple-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 disabled:opacity-50 disabled:cursor-not-allowed"
                   placeholder="הזן אימייל"
                 />
@@ -611,6 +616,7 @@ export function UserManagement() {
                   value={newUser.phone}
                   onChange={(e) => setNewUser({ ...newUser, phone: e.target.value })}
                   disabled={creatingUser}
+                  autoComplete="off"
                   className="w-full px-3 py-2 border border-purple-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 disabled:opacity-50 disabled:cursor-not-allowed"
                   placeholder="הזן טלפון"
                 />

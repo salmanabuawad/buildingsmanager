@@ -12,7 +12,7 @@ from app.database import init_pool, close_pool
 from app.limiter import limiter
 from app.queue_worker import start_queue_worker, stop_queue_worker
 from app.routers import rest, rpc, auth, files, email
-from app.routers import inspection_tasks, export_to_automation, export_zip
+from app.routers import export_to_automation, export_zip
 from app.routers.data import router as data_router, bulk_router as data_bulk_router
 from app.routers.service_ops import router as service_ops_router
 
@@ -48,8 +48,6 @@ app.include_router(rest.router, prefix="/api/rest", tags=["REST"])
 app.include_router(rpc.router, prefix="/api/rpc", tags=["RPC"])
 app.include_router(files.router, prefix="/api/files", tags=["Files"])
 app.include_router(email.router, prefix="/api/email", tags=["Email"])
-app.include_router(inspection_tasks.router, prefix="/api/inspection-tasks", tags=["Inspection Tasks"])
-app.include_router(inspection_tasks.reports_router, prefix="/api/inspection-reports", tags=["Inspection Reports"])
 app.include_router(export_to_automation.router, prefix="/api/export", tags=["Export"])
 app.include_router(export_zip.router, prefix="/api/export", tags=["Export ZIP"])
 # Service-layer REST endpoints (assets, buildings, audit, etc.)

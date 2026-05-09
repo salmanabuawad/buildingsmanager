@@ -577,7 +577,7 @@ function normalizeAssetFile(row: Record<string, unknown> & { id: number; asset_i
       const last = u.split('/').pop()?.split('?')[0];
       if (last) resolvedPath = last;
     } else if (url && !url.startsWith('http')) {
-      // file_url holds storage path (e.g. inspections/1/uuid.ext)
+      // file_url holds storage path (e.g. assets/1/uuid.ext)
       resolvedPath = url.replace(/\\/g, '/').split('?')[0].trim();
     }
   }
@@ -4454,7 +4454,7 @@ export const api = {
       return null;
     },
     /** Email templates stored in DB (system_configuration). Placeholders: {{name}}, {{date}}, {{assetCount}}, {{inspectorName}}, {{taskTitle}}, {{taskId}}, {{taskLink}}, {{action}} */
-    getEmailTemplate: async (name: 'email_template_operator' | 'email_template_manager' | 'email_template_inspection_task'): Promise<{ subject: string; body: string } | null> => {
+    getEmailTemplate: async (name: 'email_template_operator' | 'email_template_manager'): Promise<{ subject: string; body: string } | null> => {
       const config = await api.systemConfiguration.getByName(name);
       if (!config?.value) return null;
       try {

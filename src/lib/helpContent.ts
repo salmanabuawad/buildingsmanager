@@ -12,7 +12,6 @@ export type HelpContextId =
   | 'asset-types'
   | 'measurement-progress-dashboard'
   | 'measured-not-exported-assets'
-  | 'inspection-tasks'
   | 'validation-rules'
   | 'address-list'
   | 'field-config'
@@ -38,7 +37,7 @@ export const HELP_CONTENT: Record<HelpContextId, HelpEntry> = {
     content: `מדריך משתמש מלא – מערכת ניהול נכסים (© Kortex Digital)
 💡 בכל מסך – לחץ F1 להצגת עזרה מותאמת להקשר.
 
-תפקידים: מנהל (גישה מלאה) | משתמש (עריכה וניהול) | פקח (משימות ביקורת בלבד)
+תפקידים: מנהל (גישה מלאה) | משתמש (עריכה וניהול)
 
 ■ איך ליצור מבנה חדש?
 תפריט מבנים → מבנה חדש → מלא מספר בניין, אזור מס, כתובת ופרטים → שמור. המבנה יופיע ברשימה.
@@ -217,25 +216,6 @@ export const HELP_CONTENT: Record<HelpContextId, HelpEntry> = {
 
 דרישות: פקידים/ות ומנהלים מוגדרים בהגדרות מערכת; הגדרות SMTP פעילות.`,
   },
-  'inspection-tasks': {
-    title: 'עזרה – משימות ביקורת',
-    content: `משימות ביקורת – ניהול משימות לפקחים. תפריט: ניהול → פעולות מנהל → משימות ביקורת.
-
-מנהלים – כל הפעולות:
-• יצירה – "משימה חדשה": מבנה חובה, נכסים אופציונלי (נבחרים ראשונים), פקח, עדיפות (גבוה/בינוני/נמוך)
-• עריכה – לחץ על משימה → ערוך כותרת, מבנה, נכסים, פקח, הערה
-• הקצאה – משימה במצב "חדש" → הפקח מקבל אימייל
-• החזרה – משימה "ממתין לאישור" → "החזר לפקח" + הערה → הפקח מקבל אימייל
-• אישור – משימה "ממתין לאישור" → "אשר משימה"
-• ביטול – חלון אישור; המשימה נשמרת עם סטטוס "בוטל"
-• קישור חד־פעמי – גישה ללא התחברות לפתיחת משימה
-
-פקחים – משימות שהוקצו אליהם בלבד:
-• קבלת משימה – "קבל משימה" → מצב "בביצוע"
-• מילוי דוח – טקסט בחלון הדוח
-• העלאת קבצים – בחר נכס מרשימה → העלה תמונה/וידאו (מתכווץ ל־30KB)
-• שליחה – "שלח לאישור" → מנהל מאשר או מחזיר`,
-  },
   'validation-rules': {
     title: 'עזרה – כללי תקינות',
     content: `כללי תקינות – חוקי אימות בהזנת נכסים ומבנים.
@@ -268,7 +248,7 @@ export const HELP_CONTENT: Record<HelpContextId, HelpEntry> = {
     content: `הגדרות שדות – תצורת עמודות בגרידים. תפריט: ניהול → הגדרות מערכת → הגדרות שדות.
 
 לכל שדה: רוחב (תווים), שם בעברית, סיכה (ימין/שמאל), נראות, סדר.
-גרידים: מבנים, נכסים, סוגי נכס, כתובות, פקידים/ות, מנהלים, משתמשים, משימות ביקורת וכו'.
+גרידים: מבנים, נכסים, סוגי נכס, כתובות, פקידים/ות, מנהלים, משתמשים וכו'.
 
 הגדרות נשמרות במערכת; השינויים חלים ברענון. ניתן לייצא/לייבא הגדרות.`,
   },
@@ -279,7 +259,6 @@ export const HELP_CONTENT: Record<HelpContextId, HelpEntry> = {
 תפקידים:
 • מנהל – גישה מלאה
 • משתמש – עריכה וניהול נכסים/מבנים
-• פקח – משימות ביקורת שהוקצו אליו בלבד
 
 פעולות:
 • הוספה – "הוסף משתמש": שם משתמש, שם מלא, אימייל, סיסמה (מינימום 6), תפקיד
@@ -396,7 +375,6 @@ export function getHelpContextForTabType(tabType: string): HelpContextId {
     'asset-details': 'asset-details',
     'asset-types': 'asset-types',
     'measured-not-exported-assets': 'measured-not-exported-assets',
-    'inspection-tasks': 'inspection-tasks',
     'validation-rules': 'validation-rules',
     'address-list': 'address-list',
     'field-config': 'field-config',
@@ -412,7 +390,6 @@ export function getHelpContextForTabType(tabType: string): HelpContextId {
     'asset-search': 'asset-search',
     'audit-log': 'audit-log',
     admin: 'general',
-    'mobile-tasks-upload': 'inspection-tasks',
   };
   return map[tabType] ?? 'general';
 }

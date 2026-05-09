@@ -38,10 +38,6 @@ TABLE_PK: Dict[str, str] = {
     "operators": "operator_id",
     "managers": "manager_id",
     "system_configuration": "id",
-    "inspection_tasks": "id",
-    "inspection_reports": "id",
-    "inspection_report_files": "id",
-    "inspection_task_history": "id",
 }
 
 DELETE_BY_QUERY_ALLOWED_FILTERS: Dict[str, Optional[set]] = {

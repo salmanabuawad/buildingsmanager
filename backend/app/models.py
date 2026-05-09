@@ -5,7 +5,7 @@ NOTE: The original models had significant drift from the actual DB schema
 (wrong PKs, wrong column names, phantom columns). These models now reflect
 the real tables so ORM-based queries work correctly.
 
-Endpoints that already use raw SQL (buildings/create, data.py, inspection_tasks,
+Endpoints that already use raw SQL (buildings/create, data.py,
 auth) are unaffected; they never used the ORM for DML.
 """
 

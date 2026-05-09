@@ -228,6 +228,13 @@ CREATE TABLE IF NOT EXISTS buildings (
   need_residence_distribution boolean DEFAULT false,
   need_business_distribution boolean DEFAULT false,
   action_id bigint,
+  building_address integer REFERENCES address_list(street_code) ON DELETE SET NULL,
+  address integer,
+  note text,
+  net_area numeric,
+  asset_count integer,
+  shared_parking_area numeric,
+  number_of_parking_units integer,
   created_at timestamptz DEFAULT now()
 );
 

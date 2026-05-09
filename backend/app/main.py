@@ -2,6 +2,47 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.config import settings
 from app.routers import auth, buildings, assets, asset_types, files, audit, email, data, operators_managers, inspection_tasks, users, change_log
+from app.database import engine
+from sqlalchemy import text
+
+
+def run_migrations():
+    """Auto-apply missing columns to buildings table on startup."""
+    migrations = [
+        "ALTER TABLE buildings ADD COLUMN IF NOT EXISTS building_address integer",
+        "ALTER TABLE buildings ADD COLUMN IF NOT EXISTS address integer",
+        "ALTER TABLE buildings ADD COLUMN IF NOT EXISTS note text",
+        "ALTER TABLE buildings ADD COLUMN IF NOT EXISTS net_area numeric",
+        "ALTER TABLE buildings ADD COLUMN IF NOT EXISTS asset_count integer",
+        "ALTER TABLE buildings ADD COLUMN IF NOT EXISTS shared_parking_area numeric",
+        "ALTER TABLE buildings ADD COLUMN IF NOT EXISTS number_of_parking_units integer",
+    ]
+    try:
+        with engine.connect() as conn:
+            for sql in migrations:
+                conn.execute(text(sql))
+            # FK constraint (skip if exists)
+            conn.execute(text("""
+                DO $$
+                BEGIN
+                  IF NOT EXISTS (
+                    SELECT 1 FROM information_schema.table_constraints
+                    WHERE constraint_name = 'fk_buildings_building_address'
+                      AND table_name = 'buildings'
+                  ) THEN
+                    ALTER TABLE buildings
+                      ADD CONSTRAINT fk_buildings_building_address
+                      FOREIGN KEY (building_address) REFERENCES address_list(street_code)
+                      ON DELETE SET NULL;
+                  END IF;
+                END$$;
+            """))
+            conn.commit()
+    except Exception as e:
+        print(f"[migration] Warning: {e}")
+
+
+run_migrations()
 
 app = FastAPI(
     title="AssetFlow API",

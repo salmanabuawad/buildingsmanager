@@ -3656,8 +3656,10 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
                         {filteredAddresses.map((address, index) => (
                           <div
                             key={address.id || `${address.street_code}-${index}`}
-                            onClick={() => {
-                              setNewBuilding(prev => ({ ...prev, building_address: address.street_code }));
+                            onMouseDown={(e) => {
+                              // Prevent input blur so the click always fires
+                              e.preventDefault();
+                              setNewBuilding(prev => ({ ...prev, building_address: Number(address.street_code) }));
                               setAddressSearchValue(`${address.street_code} - ${address.street_description}`);
                               setShowAddressDropdown(false);
                             }}

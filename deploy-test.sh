@@ -20,6 +20,7 @@ BACKEND_FILES=(
   "backend/app/routers/files.py"
   "backend/app/routers/asset_types.py"
   "backend/app/routers/users.py"
+  "backend/app/utils.py"
   "backend/app/services/workflow_service.py"
   "backend/app/main.py"
   "backend/app/models.py"

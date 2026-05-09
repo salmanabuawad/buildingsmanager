@@ -246,6 +246,9 @@ const AddressCellEditor = React.forwardRef<any, AddressCellEditorParams>((props,
   // Select an address
   const selectAddress = useCallback((address: AddressList) => {
     const streetCode = Number(address.street_code);
+    const node = props.node;
+    const column = props.column;
+    const api = props.api;
 
     // Set ref FIRST — this is what getValue() reads
     selectedValueRef.current = streetCode;
@@ -253,9 +256,16 @@ const AddressCellEditor = React.forwardRef<any, AddressCellEditorParams>((props,
     setShowDropdown(false);
     setSearchValue(`${address.street_code} - ${address.street_description}`);
 
-    // stopEditing() triggers: getValue() → valueSetter → onCellValueChanged
+    // stopEditing() → getValue() → valueSetter → onCellValueChanged
     props.stopEditing();
-  }, [props.stopEditing]); // eslint-disable-line react-hooks/exhaustive-deps
+
+    // Force cell re-render so the renderer shows the new street description
+    setTimeout(() => {
+      if (node && column && api) {
+        api.refreshCells({ rowNodes: [node], columns: [column.getColId()], force: true });
+      }
+    }, 0);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
 
   // Handle click outside
@@ -308,13 +318,15 @@ const AddressCellEditor = React.forwardRef<any, AddressCellEditorParams>((props,
           textAlign: 'right'
         }}
       />
-      {showDropdown && createPortal(
-        (() => {
+      {showDropdown && (() => {
           // Calculate dropdown position using input element
+          // NOTE: The dropdown is NOT a portal — it stays in the editor's DOM tree so AG Grid's
+          // click-outside detection doesn't cancel the edit when the user clicks a dropdown item.
+          // position:fixed still escapes the grid cell's overflow:hidden clipping.
           let dropdownTop = 0;
           let dropdownLeft = 0;
           let dropdownWidth = 300;
-          
+
           if (inputRef.current) {
             const inputRect = inputRef.current.getBoundingClientRect();
             dropdownTop = inputRect.bottom;
@@ -326,12 +338,12 @@ const AddressCellEditor = React.forwardRef<any, AddressCellEditorParams>((props,
             dropdownLeft = cellRect.left;
             dropdownWidth = Math.max(cellRect.width, 300);
           }
-          
+
           return (
             <div
               ref={dropdownRef}
               style={{
-                position: 'fixed', // Use fixed positioning to escape grid clipping
+                position: 'fixed', // fixed escapes grid clipping while staying in DOM tree
                 top: `${dropdownTop}px`,
                 left: `${dropdownLeft}px`,
                 width: `${dropdownWidth}px`,
@@ -341,7 +353,7 @@ const AddressCellEditor = React.forwardRef<any, AddressCellEditorParams>((props,
                 border: '1px solid #ccc',
                 borderRadius: '4px',
                 boxShadow: '0 4px 12px rgba(0,0,0,0.2)',
-                zIndex: 99999, // Very high z-index to appear above everything
+                zIndex: 99999,
                 direction: 'rtl',
                 textAlign: 'right'
               }}
@@ -350,18 +362,12 @@ const AddressCellEditor = React.forwardRef<any, AddressCellEditorParams>((props,
                 filteredAddresses.map((address, index) => (
                   <div
                     key={address.id || `${address.street_code}-${index}`}
-                    onClick={(e) => {
-                      e.preventDefault();
-                      e.stopPropagation();
-                      // Use setTimeout to ensure the click event is fully processed
-                      setTimeout(() => {
-                        selectAddress(address);
-                      }, 0);
-                    }}
                     onMouseDown={(e) => {
-                      // Also handle mousedown to ensure click works
-                      e.preventDefault();
+                      // Use mousedown (not click) so the value is committed before
+                      // any other mousedown handler can interfere
+                      e.preventDefault(); // prevent input blur
                       e.stopPropagation();
+                      selectAddress(address);
                     }}
                     onMouseEnter={() => setSelectedIndex(index)}
                     style={{
@@ -369,7 +375,7 @@ const AddressCellEditor = React.forwardRef<any, AddressCellEditorParams>((props,
                       cursor: 'pointer',
                       backgroundColor: selectedIndex === index ? '#e3f2fd' : 'white',
                       borderBottom: index < filteredAddresses.length - 1 ? '1px solid #eee' : 'none',
-                      userSelect: 'none' // Prevent text selection
+                      userSelect: 'none'
                     }}
                   >
                     <div style={{ fontWeight: 'bold' }}>{address.street_code}</div>
@@ -383,9 +389,7 @@ const AddressCellEditor = React.forwardRef<any, AddressCellEditorParams>((props,
               )}
             </div>
           );
-        })(),
-        document.body
-      )}
+        })()}
     </div>
   );
 });

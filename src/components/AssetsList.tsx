@@ -2633,12 +2633,8 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
 
         if (isDistributionSave && distributionType && building) {
           if (distributionType === 'business' && building?.business_shared_area != null) {
-            // Recompute overload_ratio from assets we're saving so it is always correct.
-            // שטח עסקים כללי = business_shared_area + shared_parking_area
-            const totalBizShared =
-              (building.business_shared_area > 0 ? Number(building.business_shared_area) : 0)
-              + (building.shared_parking_area != null && Number(building.shared_parking_area) > 0 ? Number(building.shared_parking_area) : 0);
-            const isClearing = totalBizShared <= 0;
+            // Recompute overload_ratio from assets we're saving so it is always correct
+            const isClearing = building.business_shared_area <= 0;
             let totalForDist = 0;
             if (!isClearing && assetsToSave.length > 0 && assetTypes?.length) {
               for (const a of assetsToSave) {
@@ -2651,7 +2647,7 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
             computedOverloadRatioForSave = isClearing
               ? 0
               : totalForDist > 0
-                ? (totalBizShared / totalForDist) * 100
+                ? (building.business_shared_area / totalForDist) * 100
                 : null; // totalForDist=0 despite non-clearing: can't recompute here, fall back to building.overload_ratio
           }
 
@@ -2660,11 +2656,8 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
           } else if (distributionType === 'business' && building?.business_shared_area != null) {
             const overloadRatioValue = computedOverloadRatioForSave ?? building.overload_ratio ?? 0;
             const overloadRatioStr = Number(overloadRatioValue).toFixed(2);
-            const totalBizArea =
-              (building.business_shared_area > 0 ? Number(building.business_shared_area) : 0)
-              + (building.shared_parking_area != null && Number(building.shared_parking_area) > 0 ? Number(building.shared_parking_area) : 0);
-            const sharedAreaText = totalBizArea > 0
-              ? totalBizArea.toLocaleString('he-IL')
+            const sharedAreaText = building.business_shared_area > 0
+              ? building.business_shared_area.toLocaleString('he-IL')
               : '0 (clearing previous distribution)';
             description = `Distributed business shared area (עסקים) (${sharedAreaText}) to ${assetsToSave.length} assets. Overload ratio: ${overloadRatioStr}%`;
           }
@@ -3982,13 +3975,8 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
         totalForDistribution += contribSize;
       }
 
-      // שטח עסקים כללי = business_shared_area + shared_parking_area (חניה נכללת בשטח העסקים)
-      const totalBusinessSharedArea =
-        (building.business_shared_area != null && building.business_shared_area > 0 ? Number(building.business_shared_area) : 0)
-        + (building.shared_parking_area != null && Number(building.shared_parking_area) > 0 ? Number(building.shared_parking_area) : 0);
-
-      // If combined shared area is 0 or null, we're clearing business distribution (parking-only distribution may still run)
-      const isClearingDistribution = totalBusinessSharedArea <= 0;
+      // If shared area is 0 or null, we're clearing business distribution (parking-only distribution may still run)
+      const isClearingDistribution = building.business_shared_area == null || building.business_shared_area <= 0;
 
       if (totalForDistribution <= 0 && !isClearingDistribution) {
         setToast({ message: 'סכום שטחי הנכסים העסקיים הוא 0 או שלילי', type: 'error' });
@@ -3997,10 +3985,10 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
         return;
       }
 
-      // overload_ratio = (business_shared_area + shared_parking_area) / totalForDistribution * 100
-      const overloadRatioPercent = isClearingDistribution
+      // overload_ratio = (business_shared_area / totalForDistribution) * 100 (stored as percentage for display)
+      const overloadRatioPercent = isClearingDistribution || building.business_shared_area! <= 0
         ? 0
-        : (totalForDistribution > 0 ? (totalBusinessSharedArea / totalForDistribution) * 100 : 0);
+        : (totalForDistribution > 0 ? (building.business_shared_area! / totalForDistribution) * 100 : 0);
       // Decimal ratio for distribution: newDistributionArea = overloadRatio * contribSize
       const overloadRatio = overloadRatioPercent / 100;
 

@@ -5,6 +5,7 @@ import { api, AssetFile } from '../lib/api';
 import { toBackendFileUrl } from '../lib/apiClient';
 import { FileViewer } from './FileViewer';
 import { PdfThumbnail } from './PdfThumbnail';
+import { useUserRole } from '../contexts/UserRoleContext';
 
 interface AssetFilesModalProps {
   isOpen: boolean;
@@ -16,6 +17,7 @@ interface AssetFilesModalProps {
 }
 
 export function AssetFilesModal({ isOpen, onClose, assetId, measurementDate, onFilesDeleted, isUploading = false }: AssetFilesModalProps) {
+  const { isReadOnly } = useUserRole();
   const [files, setFiles] = useState<AssetFile[]>([]);
   const [loading, setLoading] = useState(false);
   const [selectedFiles, setSelectedFiles] = useState<Set<number>>(new Set());
@@ -223,6 +225,7 @@ export function AssetFilesModal({ isOpen, onClose, assetId, measurementDate, onF
                 <Eye className="h-4 w-4" />
                 צפה בנבחרים{selectedFiles.size > 0 ? ` (${selectedFiles.size})` : ''}
               </button>
+              {!isReadOnly && (
               <button
                 onClick={handleDeleteClick}
                 disabled={selectedFiles.size === 0 || deleting}
@@ -231,6 +234,7 @@ export function AssetFilesModal({ isOpen, onClose, assetId, measurementDate, onF
                 <Trash2 className="h-4 w-4" />
                 מחק נבחרים{selectedFiles.size > 0 ? ` (${selectedFiles.size})` : ''}
               </button>
+              )}
               <button
                 onClick={onClose}
                 className="flex items-center gap-1 px-2 py-1 text-xs bg-gray-500 hover:bg-gray-600 text-white rounded transition-colors font-bold"

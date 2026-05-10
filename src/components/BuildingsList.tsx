@@ -3764,6 +3764,7 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
         </div>
       )}
       <div className="flex flex-col flex-1 min-h-0 w-full px-2 sm:px-4 md:px-6 py-1.5 sm:py-2">
+        {!isReadOnly && (
         <div className="page-header mb-1.5 rounded-md px-2 py-1.5 flex-shrink-0 w-full">
           <div className="relative flex items-center gap-1.5 flex-wrap w-full">
             <div className="page-header-icon shrink-0">
@@ -3773,6 +3774,7 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
             <span className="page-header-badge">סה"כ מבנים: {filteredBuildings.length}</span>
           </div>
         </div>
+        )}
 
         <div className="mb-1.5 flex flex-wrap items-center gap-2 sm:gap-3 flex-shrink-0">
           <div className="relative w-full sm:w-auto sm:min-w-[14rem] sm:max-w-[20rem]">
@@ -3798,6 +3800,7 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
                     <span>הוסף מבנה</span>
                   </button>
                 )}
+                {!isReadOnly && (
                 <button
                   type="button"
                   onClick={handleValidateAll}
@@ -3806,6 +3809,7 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
                   <CheckCircle2 className="h-5 w-5" />
                   <span>אמת הכל</span>
                 </button>
+                )}
                 <button
                   type="button"
                   onClick={handleExportBuildingsToExcel}

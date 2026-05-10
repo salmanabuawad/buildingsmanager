@@ -5917,10 +5917,176 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
     });
   }, [t, onSelectAsset, buildingNumber, assetTypes, newAssets, dirtyAssets, building, taxRegion, selectedAssets, deletedAssets, validationErrors, getCellStyle, isResidentTaxRegion, isMultiTaxRegion, isFieldEditable, penthouseCellRenderer, assetsWithFiles, sourceAssetId, applySourceValues, operators]);
 
+  // Read-only column definitions for user role — matches export-to-automation field layout
+  const readOnlyColumnDefs = useMemo<ColDef<Asset>[]>(() => {
+    if (!isReadOnly) return [];
+
+    function fmtArea(v: unknown): string {
+      const n = Number(v);
+      return n > 0 ? n.toFixed(2) : '';
+    }
+
+    function buildTotalAreaTooltip(data: any): string {
+      if (!data) return '';
+      const lines: string[] = [];
+      const mainType = data.main_asset_type;
+      const mainSize = Number(data.asset_size);
+      if (mainType && mainSize > 0) {
+        const at = assetTypes.find((t: AssetType) => t.name === mainType);
+        const desc = at?.description || '';
+        lines.push(`נכס: ${mainType}${desc ? ` — ${desc}` : ''}: ${mainSize.toFixed(2)} מ"ר`);
+      }
+      for (let i = 1; i <= 6; i++) {
+        const t = data[`sub_asset_type_${i}`];
+        const s = Number(data[`sub_asset_size_${i}`]);
+        if (t && s > 0) {
+          const at = assetTypes.find((a: AssetType) => a.name === t);
+          const desc = at?.description || '';
+          lines.push(`  ${i}. ${t}${desc ? ` — ${desc}` : ''}: ${s.toFixed(2)} מ"ר`);
+        }
+      }
+      const biz = Number(data.business_distribution_area);
+      if (biz > 0) lines.push(`שטח עסקים משותף: ${biz.toFixed(2)} מ"ר`);
+      const park = Number(data.shared_parking_area);
+      if (park > 0) lines.push(`שטח חניה משותף: ${park.toFixed(2)} מ"ר`);
+      return lines.join('\n');
+    }
+
+    return [
+      {
+        headerName: 'שרטוט',
+        field: 'structure_drawing_url',
+        width: 56,
+        pinned: 'right',
+        sortable: false,
+        filter: false,
+        editable: false,
+        suppressMovable: true,
+        suppressHeaderMenuButton: true,
+        cellRenderer: (params: any) => {
+          const asset = params.data as Asset;
+          if (!asset) return null;
+          const hasFiles = assetsWithFiles.has(asset.asset_id);
+          return (
+            <div className="flex items-center justify-center h-full">
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  if (hasFiles) {
+                    setSelectedAssetIdForFiles(asset.asset_id);
+                    setAssetFilesModalOpen(true);
+                  }
+                }}
+                disabled={!hasFiles}
+                className={`p-1 transition-colors hover:scale-110 ${hasFiles ? 'text-green-600 hover:text-green-700 cursor-pointer' : 'text-gray-300 cursor-not-allowed opacity-50'}`}
+                title={hasFiles ? 'צפה בקבצים' : 'אין קבצים'}
+              >
+                <FileText className="h-5 w-5" />
+              </button>
+            </div>
+          );
+        },
+      },
+      {
+        field: 'asset_id',
+        headerName: 'זיהוי נכס',
+        width: 110,
+        pinned: 'right',
+        editable: false,
+        cellStyle: {
+          cursor: 'pointer',
+          color: '#059669',
+          fontWeight: '600',
+          textDecoration: 'underline',
+          textDecorationColor: '#10b981',
+          textUnderlineOffset: '2px',
+        },
+        cellRenderer: (params: any) => {
+          return (
+            <span title="לחץ לצפייה בפרטי הנכס">
+              {params.value != null ? String(params.value) : ''}
+            </span>
+          );
+        },
+        onCellClicked: (params: any) => {
+          const asset = params.data as Asset;
+          if (asset) {
+            const assetId = String(asset.asset_id);
+            onSelectAsset(assetId, assetId, buildingNumber, taxRegion);
+          }
+        },
+      },
+      {
+        field: 'payer_id',
+        headerName: 'זיהוי משלם',
+        width: 120,
+        editable: false,
+      },
+      {
+        field: 'measurement_date',
+        headerName: 'תאריך מדידה',
+        width: 120,
+        editable: false,
+        valueFormatter: (p) => formatDateToDDMMYYYY(p.value) || '',
+      },
+      {
+        headerName: 'מהות שימוש',
+        flex: 1,
+        minWidth: 160,
+        editable: false,
+        valueGetter: (p) => {
+          const row = p.data as any;
+          return row?.main_asset_type || '';
+        },
+      },
+      {
+        headerName: 'שטח כולל',
+        width: 120,
+        editable: false,
+        valueGetter: (p) => {
+          const row = p.data as any;
+          if (!row) return '';
+          const total = (Number(row.asset_size) || 0)
+            + (Number(row.business_distribution_area) || 0)
+            + (Number(row.shared_parking_area) || 0);
+          return fmtArea(total);
+        },
+        tooltipValueGetter: (p) => buildTotalAreaTooltip(p.data),
+        cellStyle: { cursor: 'help' },
+      },
+      {
+        field: 'apartment_number',
+        headerName: 'מספר דירה',
+        width: 100,
+        editable: false,
+      },
+      {
+        field: 'apartment_floor',
+        headerName: 'קומה',
+        width: 80,
+        editable: false,
+      },
+      {
+        field: 'number_of_parking_units',
+        headerName: 'יחידות חניה',
+        width: 110,
+        editable: false,
+      },
+      {
+        field: 'comment',
+        headerName: 'הערה',
+        width: 180,
+        editable: false,
+      },
+    ];
+  }, [isReadOnly, assetTypes, assetsWithFiles, setSelectedAssetIdForFiles, setAssetFilesModalOpen, onSelectAsset, buildingNumber, taxRegion]);
+
   // Apply field configurations to column definitions (ref_only pattern: rely on columnDefs prop only)
   const configVersion = useFieldConfigVersion();
   const fontSize = useFontSize();
   const [configuredColumnDefs, fieldConfigLoading] = useFieldConfig(columnDefs, 'assets-list');
+  // User role gets a simplified read-only column set
+  const activeColumnDefs = isReadOnly ? readOnlyColumnDefs : configuredColumnDefs;
 
   // Check if all visible assets are residential assets (מגורים)
   const filteredAssets = useMemo(() => {
@@ -6085,7 +6251,7 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
           {/* All Action Buttons in One Row */}
           <div className="flex flex-wrap items-center gap-2 justify-end">
             {/* Hide add button if building has more than one tax region and no specific taxRegion is selected, or in error fixing mode */}
-            {!isErrorFixingMode && (() => {
+            {!isReadOnly && !isErrorFixingMode && (() => {
               const hasMultipleTaxRegions = building?.tax_region && building.tax_region.includes(',');
               // If a specific taxRegion is selected (we're in a tax region tab), show buttons
               // If no taxRegion but building has multiple regions, hide buttons
@@ -6119,6 +6285,7 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
                 </button>
               );
             })()}
+            {!isReadOnly && (
             <button
               type="button"
               onClick={handleBatchValidateBuildingAssets}
@@ -6128,6 +6295,7 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
               <CheckCircle2 className="h-5 w-5" />
               <span>{selectedAssets.size > 0 ? `אמת נבחרים (${selectedAssets.size})` : 'אמת הכל'}</span>
             </button>
+            )}
             {!isErrorFixingMode && (
               <>
                 <input
@@ -6153,7 +6321,7 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
               </button>
             )}
             {/* Export to automation button - follows export condition (measured but not exported) */}
-            {!isErrorFixingMode && (() => {
+            {!isReadOnly && !isErrorFixingMode && (() => {
               const hasUnsavedChanges = dirtyAssets.size > 0 || newAssets.size > 0 || deletedAssets.size > 0;
               const distributionPending = building?.need_business_distribution === true || building?.need_residence_distribution === true;
               const sendDisabled = loading || exporting || exportToAutomationCount === 0 || hasUnsavedChanges || distributionPending;
@@ -6178,7 +6346,7 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
               );
             })()}
             {/* Statistics button - visible in business and residence tabs (not in multi-tax tabs) */}
-            {!isErrorFixingMode && !isMultiTaxRegion && (
+            {!isReadOnly && !isErrorFixingMode && !isMultiTaxRegion && (
               <button
                 type="button"
                 onClick={() => setShowAssetStatisticsModal(true)}
@@ -6191,7 +6359,7 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
               </button>
             )}
             {/* Change tax region button - only show in "all assets" tab (when taxRegion is not set) and not in error fixing mode */}
-            {!isErrorFixingMode && !taxRegion && building && availableTaxRegions.length > 1 && (
+            {!isReadOnly && !isErrorFixingMode && !taxRegion && building && availableTaxRegions.length > 1 && (
               <button
                 type="button"
                 onClick={() => setChangeTaxRegionModalOpen(true)}
@@ -6204,7 +6372,7 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
               </button>
             )}
             {/* Distribute shared area button - always visible in residence tabs, enabled when flag is on (blinking alert), hidden in error fixing mode */}
-            {!isErrorFixingMode && building && isResidentTaxRegion && (building.residence_shared_area != null || building.need_residence_distribution === true) && (
+            {!isReadOnly && !isErrorFixingMode && building && isResidentTaxRegion && (building.residence_shared_area != null || building.need_residence_distribution === true) && (
               <button
                 type="button"
                 onClick={async () => {
@@ -6242,7 +6410,7 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
               </button>
             )}
             {/* Distribute business shared area button - always visible in business tabs, enabled when flag is on (blinking alert), hidden in error fixing mode */}
-            {!isErrorFixingMode && building && taxRegion && !isMultiTaxRegion && !isResidentTaxRegion && (building.business_shared_area != null || building.need_business_distribution === true) && (
+            {!isReadOnly && !isErrorFixingMode && building && taxRegion && !isMultiTaxRegion && !isResidentTaxRegion && (building.business_shared_area != null || building.need_business_distribution === true) && (
               <button
                 type="button"
                 onClick={async () => {
@@ -6363,7 +6531,8 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
               );
             })()}
           </div>
-          {/* Invalid-only filter — persistent, below buttons */}
+          {/* Invalid-only filter — persistent, below buttons — hidden for user role */}
+          {!isReadOnly && (
           <div className="flex justify-start mt-1.5">
             <label className={`flex items-center gap-1.5 select-none text-sm font-medium border rounded px-2 py-1 transition-colors ${
               validationErrors.size > 0
@@ -6383,6 +6552,7 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
               </span>
             </label>
           </div>
+          )}
 
           {/* Tab Navigation - hidden in error fixing mode */}
           {!isErrorFixingMode && building && (
@@ -6503,12 +6673,12 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
                 <Loader2 className="h-8 w-8 animate-spin text-theme-tab-active" />
               </div>
             ) : (
-            <div className="ag-theme-alpine flex-1 min-h-[200px]" style={{ width: '100%', minWidth: '100%', overflowX: 'auto' }}>
+            <div className={`ag-theme-alpine flex-1 min-h-[200px]${isReadOnly ? ' user-mode-grid' : ''}`} style={{ width: '100%', minWidth: '100%', overflowX: 'auto' }}>
               <AgGridReact
             key={`assets-grid-${configVersion}-${fontSize}`}
             ref={gridRef}
             rowData={filteredAssets}
-            columnDefs={configuredColumnDefs}
+            columnDefs={activeColumnDefs}
             getRowStyle={getRowStyle}
             defaultColDef={ASSETS_GRID_DEFAULT_COL_DEF}
             gridOptions={ASSETS_GRID_OPTIONS}

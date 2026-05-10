@@ -2496,7 +2496,8 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
         if (!row || !isBusinessContext) return '';
         const size = Number(row.asset_size) || 0;
         const dist = Number(row.business_distribution_area) || 0;
-        const total = size + dist;
+        const parking = Number(row.shared_parking_area) || 0;
+        const total = size + dist + parking;
         return total > 0 ? total : '';
       },
       valueFormatter: (params: any) => formatNumberToTwoDecimals(params.value),

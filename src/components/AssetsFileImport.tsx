@@ -2054,6 +2054,8 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
           discount_date_from: asset.discount_date_from || null,
           discount_date_to: asset.discount_date_to || null,
           comment: asset.comment || null,
+          shared_parking_area: asset.shared_parking_area != null ? asset.shared_parking_area : null,
+          number_of_parking_units: asset.number_of_parking_units != null ? asset.number_of_parking_units : null,
           // If file is from automation, mark as coming from automation.
           // Any later edit in the app will flip this back to false via DB trigger.
           data_from_automation: importFromAutomation ? true : false,
@@ -2473,6 +2475,31 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
           } catch (areaError) {
             console.warn(`Failed to update building total area for building ${buildingNum} after import:`, areaError);
             // Don't fail the operation if area update fails
+          }
+        }
+
+        // Update building parking totals (number_of_parking_units, shared_parking_area) from all current assets in each building
+        for (const buildingNum of affectedBuildingNumbers) {
+          try {
+            const { data: allAssets } = await api
+              .from('assets')
+              .select('number_of_parking_units, shared_parking_area')
+              .eq('building_number', buildingNum);
+            if (allAssets && allAssets.length > 0) {
+              const totalUnits = allAssets.reduce((s: number, a: any) => s + (Number(a.number_of_parking_units) || 0), 0);
+              const totalArea = allAssets.reduce((s: number, a: any) => s + (Number(a.shared_parking_area) || 0), 0);
+              const updates: Record<string, number> = {};
+              if (totalUnits > 0) updates.number_of_parking_units = totalUnits;
+              if (totalArea > 0) updates.shared_parking_area = totalArea;
+              if (Object.keys(updates).length > 0) {
+                await api
+                  .from('buildings')
+                  .update(updates)
+                  .eq('building_number', buildingNum);
+              }
+            }
+          } catch (parkingError) {
+            console.warn(`Failed to update parking totals for building ${buildingNum} after import:`, parkingError);
           }
         }
 

@@ -46,10 +46,12 @@ const OperatorsManager = lazy(() => import('./components/OperatorsManager').then
 const ManagersManager = lazy(() => import('./components/ManagersManager').then((mod) => ({ default: mod.ManagersManager })));
 const MeasuredNotExportedAssets = lazy(() => import('./components/MeasuredNotExportedAssets').then((mod) => ({ default: mod.MeasuredNotExportedAssets })));
 const MeasurementProgressDashboard = lazy(() => import('./components/MeasurementProgressDashboard').then((mod) => ({ default: mod.MeasurementProgressDashboard })));
+const UserAssetsView = lazy(() => import('./components/UserAssetsView').then((mod) => ({ default: mod.UserAssetsView })));
+import { UserProfileModal } from './components/UserProfileModal';
 
 interface Tab {
   id: string;
-  type: 'buildings' | 'assets' | 'admin' | 'asset-types' | 'asset-search' | 'validation-rules' | 'building-list-import' | 'assets-file-import' | 'assets-skeleton-import' | 'asset-details' | 'transfer-areas' | 'address-list' | 'field-config' | 'asset-data-entry' | 'audit-log' | 'user-management' | 'system-configuration' | 'operators' | 'managers' | 'measured-not-exported-assets' | 'measurement-progress-dashboard';
+  type: 'buildings' | 'assets' | 'admin' | 'asset-types' | 'asset-search' | 'validation-rules' | 'building-list-import' | 'assets-file-import' | 'assets-skeleton-import' | 'asset-details' | 'transfer-areas' | 'address-list' | 'field-config' | 'asset-data-entry' | 'audit-log' | 'user-management' | 'system-configuration' | 'operators' | 'managers' | 'measured-not-exported-assets' | 'measurement-progress-dashboard' | 'user-assets';
   buildingNumber?: number;
   label: string;
   refreshKey?: number;
@@ -98,6 +100,7 @@ function App() {
   const [systemConfigSubmenuOpen, setSystemConfigSubmenuOpen] = useState(false);
   const [managerActionsSubmenuOpen, setManagerActionsSubmenuOpen] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
+  const [showProfileModal, setShowProfileModal] = useState(false);
   const [settingsMenuOpen, setSettingsMenuOpen] = useState(false);
   const [distributionAlert, setDistributionAlert] = useState<{ residence: boolean; business: boolean }>({ residence: false, business: false });
   const settingsMenuRef = useRef<HTMLDivElement>(null);
@@ -241,23 +244,47 @@ function App() {
   }, [isAuthenticated, activeTabId, tabs, setContextFromTabType]);
 
   const getDefaultTabsForSession = useCallback((): Tab[] => {
+    if (userRole === 'user') {
+      return [{ id: 'buildings', type: 'buildings', label: 'מבנים', refreshKey: Date.now() }];
+    }
     return [
       { id: 'measurement-progress-dashboard', type: 'measurement-progress-dashboard', label: 'התקדמות פעילות מדידות', refreshKey: Date.now() },
       { id: 'buildings', type: 'buildings', label: 'מבנים', refreshKey: Date.now() },
     ];
-  }, []);
+  }, [userRole]);
 
   const getDefaultActiveTabId = useCallback((): string => {
+    if (userRole === 'user') return 'buildings';
     return 'measurement-progress-dashboard';
-  }, []);
+  }, [userRole]);
+
+  // On page refresh: if already authenticated as 'user' role but tabs still contain admin dashboard, reset to buildings only
+  useEffect(() => {
+    if (isAuthenticated && userRole === 'user') {
+      const hasDashboard = tabs.some(t => t.type === 'measurement-progress-dashboard');
+      if (hasDashboard) {
+        setTabs([{ id: 'buildings', type: 'buildings', label: 'מבנים', refreshKey: Date.now() }]);
+        setActiveTabId('buildings');
+      }
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isAuthenticated, userRole]);
 
   const handleLoginSuccess = async () => {
     setIsAuthenticated(true);
     await refreshRole();
     await refreshRules();
-    // Reset tabs to fresh defaults for the newly logged-in user (don't remember previous session's tabs)
-    const freshTabs = getDefaultTabsForSession();
-    const freshActiveTabId = getDefaultActiveTabId();
+    // Read role directly from session (state update from refreshRole is async)
+    const s = getSession();
+    const loginRole = s?.user_role === 'admin' ? 'admin' : 'user';
+    const isUserRole = loginRole === 'user';
+    const freshTabs: Tab[] = isUserRole
+      ? [{ id: 'buildings', type: 'buildings', label: 'מבנים', refreshKey: Date.now() }]
+      : [
+          { id: 'measurement-progress-dashboard', type: 'measurement-progress-dashboard', label: 'התקדמות פעילות מדידות', refreshKey: Date.now() },
+          { id: 'buildings', type: 'buildings', label: 'מבנים', refreshKey: Date.now() },
+        ];
+    const freshActiveTabId = isUserRole ? 'buildings' : 'measurement-progress-dashboard';
     setTabs(freshTabs);
     setActiveTabId(freshActiveTabId);
   };
@@ -713,6 +740,16 @@ function App() {
   }
 
 
+  // Helper: build a leading tab list for setTabs calls inside handleSelectBuilding.
+  // Admins get [dashboard, buildings, ...rest]; users get [buildings, ...rest] (no dashboard).
+  function buildLeadingTabs(prev: Tab[]): Tab[] {
+    const bTab = prev.find(t => t.id === 'buildings') || { id: 'buildings', type: 'buildings' as const, label: 'מבנים', refreshKey: Date.now() };
+    if (isReadOnly) return [bTab];
+    const dTab = prev.find(t => t.type === 'measurement-progress-dashboard')
+      || { id: 'measurement-progress-dashboard', type: 'measurement-progress-dashboard' as const, label: 'התקדמות פעילות מדידות', refreshKey: Date.now() };
+    return [dTab, bTab];
+  }
+
   function handleSelectBuilding(buildingNumber: number, taxRegions?: string) {
     handleNavigation(() => {
       const buildingsTab: Tab = { id: 'buildings', type: 'buildings', label: 'מבנים', refreshKey: Date.now() };
@@ -721,12 +758,10 @@ function App() {
       const existingBuildingsTab = tabs.find(t => t.id === 'buildings');
       if (!existingBuildingsTab) {
         setTabs(prev => {
-          const dashboardTab = prev.find(t => t.type === 'measurement-progress-dashboard');
-          const tabsWithoutEssential = prev.filter(t => 
+          const tabsWithoutEssential = prev.filter(t =>
             t.type !== 'measurement-progress-dashboard' && t.type !== 'buildings'
           );
-          const dashboardTabToKeep: Tab = dashboardTab || { id: 'measurement-progress-dashboard', type: 'measurement-progress-dashboard', label: 'התקדמות פעילות מדידות', refreshKey: Date.now() };
-          return [dashboardTabToKeep, buildingsTab, ...tabsWithoutEssential];
+          return [...buildLeadingTabs(prev), ...tabsWithoutEssential];
         });
       }
 
@@ -740,18 +775,12 @@ function App() {
           if (existingTab) {
             // Tab already exists, close all other assets tabs and switch to it
             setTabs(prev => {
-              // Close all assets tabs except the one we're switching to
-              // Keep dashboard first, buildings second
-              const dashboardTab = prev.find(t => t.type === 'measurement-progress-dashboard');
-              const buildingsTab = prev.find(t => t.id === 'buildings');
-              const otherTabs = prev.filter(t => 
-                t.type !== 'measurement-progress-dashboard' && 
-                t.id !== 'buildings' && 
-                (t.id === 'buildings' || t.type !== 'assets' || t.id === singleRegionTabId)
+              const otherTabs = prev.filter(t =>
+                t.type !== 'measurement-progress-dashboard' &&
+                t.id !== 'buildings' &&
+                (t.type !== 'assets' || t.id === singleRegionTabId)
               );
-              const dashboardTabToKeep: Tab = dashboardTab || { id: 'measurement-progress-dashboard', type: 'measurement-progress-dashboard', label: 'התקדמות פעילות מדידות', refreshKey: Date.now() };
-              const buildingsTabToKeep: Tab = buildingsTab || { id: 'buildings', type: 'buildings', label: 'מבנים', refreshKey: Date.now() };
-              return [dashboardTabToKeep, buildingsTabToKeep, ...otherTabs];
+              return [...buildLeadingTabs(prev), ...otherTabs];
             });
             setActiveTabId(singleRegionTabId);
           } else {
@@ -766,21 +795,13 @@ function App() {
             setTabs(prev => {
               // Check if tab already exists
               const existingTab = prev.find(t => t.id === singleRegionTab.id);
-              if (existingTab) {
-                return prev;
-              }
-              // Close all assets tabs, then add new one
-              // Keep dashboard first, buildings second
-              const dashboardTab = prev.find(t => t.type === 'measurement-progress-dashboard');
-              const buildingsTab = prev.find(t => t.id === 'buildings');
-              const otherTabs = prev.filter(t => 
-                t.type !== 'measurement-progress-dashboard' && 
-                t.id !== 'buildings' && 
+              if (existingTab) return prev;
+              const otherTabs = prev.filter(t =>
+                t.type !== 'measurement-progress-dashboard' &&
+                t.id !== 'buildings' &&
                 t.type !== 'assets'
               );
-              const dashboardTabToKeep: Tab = dashboardTab || { id: 'measurement-progress-dashboard', type: 'measurement-progress-dashboard', label: 'התקדמות פעילות מדידות', refreshKey: Date.now() };
-              const buildingsTabToKeep: Tab = buildingsTab || { id: 'buildings', type: 'buildings', label: 'מבנים', refreshKey: Date.now() };
-              return [dashboardTabToKeep, buildingsTabToKeep, ...otherTabs, singleRegionTab];
+              return [...buildLeadingTabs(prev), ...otherTabs, singleRegionTab];
             });
             setActiveTabId(singleRegionTabId);
           }
@@ -819,19 +840,12 @@ function App() {
           // Activate the "all assets" tab (first tab)
           // Update tabs: close all previous assets tabs, then add new tabs for this building
           setTabs(prev => {
-            // Keep dashboard first, buildings second, then non-assets tabs, close all assets tabs
-            const dashboardTab = prev.find(t => t.type === 'measurement-progress-dashboard');
-            const buildingsTab = prev.find(t => t.id === 'buildings');
-            const otherTabs = prev.filter(t => 
-              t.type !== 'measurement-progress-dashboard' && 
-              t.id !== 'buildings' && 
+            const otherTabs = prev.filter(t =>
+              t.type !== 'measurement-progress-dashboard' &&
+              t.id !== 'buildings' &&
               t.type !== 'assets'
             );
-            const dashboardTabToKeep: Tab = dashboardTab || { id: 'measurement-progress-dashboard', type: 'measurement-progress-dashboard', label: 'התקדמות פעילות מדידות', refreshKey: Date.now() };
-            const buildingsTabToKeep: Tab = buildingsTab || { id: 'buildings', type: 'buildings', label: 'מבנים', refreshKey: Date.now() };
-            // Combine: dashboard + buildings + other tabs + all new tabs
-            const newTabs = [dashboardTabToKeep, buildingsTabToKeep, ...otherTabs, ...tabsToCreate];
-            return newTabs;
+            return [...buildLeadingTabs(prev), ...otherTabs, ...tabsToCreate];
           });
           
           // Set active tab to "all assets" (first tab)
@@ -844,22 +858,18 @@ function App() {
         const allAssetsTabId = `assets-${buildingNumber}-all`;
         setTabs(prev => {
           if (prev.find(t => t.id === allAssetsTabId)) return prev;
-          const dashboardTab = prev.find(t => t.type === 'measurement-progress-dashboard');
-          const buildingsTab = prev.find(t => t.id === 'buildings');
           const otherTabs = prev.filter(t =>
             t.type !== 'measurement-progress-dashboard' &&
             t.id !== 'buildings' &&
             t.type !== 'assets'
           );
-          const dashboardTabToKeep: Tab = dashboardTab || { id: 'measurement-progress-dashboard', type: 'measurement-progress-dashboard', label: 'התקדמות פעילות מדידות', refreshKey: Date.now() };
-          const buildingsTabToKeep: Tab = buildingsTab || { id: 'buildings', type: 'buildings', label: 'מבנים', refreshKey: Date.now() };
           const allAssetsTab: Tab = {
             id: allAssetsTabId,
             type: 'assets',
             buildingNumber,
             label: `מבנה ${buildingNumber}`
           };
-          return [dashboardTabToKeep, buildingsTabToKeep, ...otherTabs, allAssetsTab];
+          return [...buildLeadingTabs(prev), ...otherTabs, allAssetsTab];
         });
         setActiveTabId(allAssetsTabId);
       }
@@ -1608,6 +1618,14 @@ function App() {
                         <p className="text-xs text-white/80">{roleLabel}</p>
                       </div>
                       <button
+                        onClick={() => { setUserMenuOpen(false); setShowProfileModal(true); }}
+                        className="w-full flex items-center justify-center gap-2 py-2 px-3 text-sm text-white/90 hover:bg-app-sidebar-hover hover:text-white transition-colors"
+                        title="עריכת פרטים"
+                      >
+                        <User className="h-4 w-4" />
+                        עריכת פרטים
+                      </button>
+                      <button
                         onClick={() => {
                           setUserMenuOpen(false);
                           handleLogout();
@@ -1628,7 +1646,8 @@ function App() {
       </header>
 
       <div className="flex-1 flex flex-col md:flex-row min-h-0">
-      {/* Mobile menu button */}
+      {/* Mobile menu button — hidden for user role */}
+      {!isReadOnly && (
       <button
         onClick={() => setSidebarOpen(!sidebarOpen)}
         className="md:hidden fixed z-50 min-h-[44px] min-w-[44px] p-3 left-2 bg-app-sidebar rounded-xl shadow-lg border border-app-sidebar-hover touch-manipulation"
@@ -1637,9 +1656,10 @@ function App() {
       >
         <Menu className="h-6 w-6 text-white" />
       </button>
+      )}
 
-      {/* Sidebar */}
-      <div className={`${sidebarOpen ? 'fixed inset-0 z-40 md:relative md:z-auto' : 'hidden md:flex'} md:w-[72px] lg:w-20 bg-app-sidebar border-l border-white/10 flex flex-col shrink-0 overflow-visible`}>
+      {/* Sidebar — hidden entirely for user role */}
+      <div className={`${isReadOnly ? 'hidden' : sidebarOpen ? 'fixed inset-0 z-40 md:relative md:z-auto' : 'hidden md:flex'} md:w-[72px] lg:w-20 bg-app-sidebar border-l border-white/10 flex flex-col shrink-0 overflow-visible`}>
         {sidebarOpen && (
           <button
             onClick={() => setSidebarOpen(false)}
@@ -1656,6 +1676,7 @@ function App() {
           )}
         </div>
         <nav className="flex-1 p-2 space-y-0.5 overflow-visible min-h-0">
+          {!isReadOnly && (
           <button
               onClick={() => { closeSidebarAndMenus(); openAssetSearch(); }}
               className={`w-full flex items-center justify-center p-2.5 rounded transition-all duration-200 text-white relative mb-1 ${isSidebarItemActive('asset-search') ? 'bg-app-sidebar-active border-r-[3px] border-r-app-sidebar-indicator' : 'hover:bg-app-sidebar-hover'}`}
@@ -1663,6 +1684,7 @@ function App() {
             >
               <Search className="h-5 w-5 shrink-0" />
             </button>
+          )}
           <div className="relative">
             <button
               onClick={() => {
@@ -1682,9 +1704,16 @@ function App() {
                 <button
                   onClick={() => {
                     closeSidebarAndMenus();
-                    const dashboardTab: Tab = { id: 'measurement-progress-dashboard', type: 'measurement-progress-dashboard', label: 'התקדמות פעילות מדידות', refreshKey: Date.now() };
-                    const buildingsTab: Tab = { id: 'buildings', type: 'buildings', label: 'מבנים', refreshKey: Date.now() };
-                    setTabs([dashboardTab, buildingsTab]);
+                    const buildingsTabItem: Tab = { id: 'buildings', type: 'buildings', label: 'מבנים', refreshKey: Date.now() };
+                    if (isReadOnly) {
+                      setTabs(prev => {
+                        const nonBuildings = prev.filter(t => t.id !== 'buildings');
+                        return [buildingsTabItem, ...nonBuildings];
+                      });
+                    } else {
+                      const dashboardTab: Tab = { id: 'measurement-progress-dashboard', type: 'measurement-progress-dashboard', label: 'התקדמות פעילות מדידות', refreshKey: Date.now() };
+                      setTabs([dashboardTab, buildingsTabItem]);
+                    }
                     setActiveTabId('buildings');
                   }}
                   className="w-full text-right py-2 px-3 text-sm text-white/90 hover:bg-app-sidebar-hover rounded"
@@ -1710,7 +1739,7 @@ function App() {
               </div>
             )}
           </div>
-          <div className="relative">
+          {!isReadOnly && <div className="relative">
             <button
               onClick={() => {
                 setBuildingsMenuOpen(false);
@@ -1756,8 +1785,8 @@ function App() {
                 )}
               </div>
             )}
-          </div>
-          <div className="relative">
+          </div>}
+          {!isReadOnly && <div className="relative">
             <button
               onClick={() => {
                 setBuildingsMenuOpen(false);
@@ -1889,9 +1918,9 @@ function App() {
                 )}
               </div>
             )}
-          </div>
+          </div>}
         </nav>
-        
+
         <div className="p-2 border-t border-white/10 flex flex-col items-center gap-1">
           <p className="text-[9px] text-white/50 pt-1">© Kortex</p>
         </div>
@@ -1957,6 +1986,8 @@ function App() {
                       <Users className="h-5 w-5 text-slate-600 shrink-0" />
                     ) : tab.type === 'system-configuration' ? (
                       <Settings className="h-5 w-5 text-slate-600 shrink-0" />
+                    ) : tab.type === 'user-assets' ? (
+                      <Home className="h-5 w-5 text-slate-600 shrink-0" />
                     ) : tab.type === 'buildings' ? (
                       <img src="/buildings.png" alt="Buildings" className="h-5 w-5 shrink-0" />
                     ) : (
@@ -2107,6 +2138,9 @@ function App() {
                 onOpenBuildingsList={openBuildingsList}
                 onOpenMeasuredNotExportedAssets={openMeasuredNotExportedAssets}
               />
+            )}
+            {activeTab?.type === 'user-assets' && (
+              <UserAssetsView key={activeTab.refreshKey} />
             )}
             </Suspense>
           </div>
@@ -2375,6 +2409,9 @@ function App() {
           onResolved={() => setShowSessionExpired(false)}
           onLogout={() => { setShowSessionExpired(false); handleLogout(); }}
         />
+      )}
+      {showProfileModal && (
+        <UserProfileModal onClose={() => setShowProfileModal(false)} />
       )}
     </div>
     </FontSizeProvider>

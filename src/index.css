@@ -838,6 +838,24 @@ input[type="number"] {
   position: relative;
 }
 
+.user-mode-grid .ag-tooltip {
+  font-size: var(--theme-font-size-base, 16px) !important;
+  padding: 14px 18px !important;
+  max-width: 600px !important;
+  line-height: 1.9 !important;
+  white-space: pre-line !important;
+}
+
+[data-font-size="small"] .user-mode-grid .ag-tooltip {
+  font-size: var(--theme-font-size-base, 13px) !important;
+}
+
+[data-font-size="large"] .user-mode-grid .ag-tooltip {
+  font-size: var(--theme-font-size-base, 22px) !important;
+  padding: 18px 24px !important;
+  max-width: 700px !important;
+}
+
 .validation-error-tooltip,
 .ag-tooltip.validation-error {
   font-size: 18px !important;

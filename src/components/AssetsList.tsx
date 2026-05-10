@@ -5976,7 +5976,12 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
         if (colId === 'actions') return false;
         return !READONLY_HIDDEN_FIELDS.has(col.field ?? '');
       })
-      .map(col => ({ ...col, editable: false }));
+      .map(col => {
+        const base = { ...col, editable: false };
+        if (col.field === 'main_asset_type') return { ...base, headerName: 'סוג נכס', headerTooltip: 'סוג נכס' };
+        if (col.field === 'asset_size') return { ...base, headerName: 'גודל כללי', headerTooltip: 'גודל כללי' };
+        return base;
+      });
   }, [isReadOnly, configuredColumnDefs, READONLY_HIDDEN_FIELDS]);
 
   // Check if all visible assets are residential assets (מגורים)

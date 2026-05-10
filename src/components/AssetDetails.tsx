@@ -3909,6 +3909,7 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
               </div>
             )}
           </div>
+          {!isReadOnly && (
           <div className="flex items-center bg-white/20 rounded-lg p-1 gap-1 shrink-0">
             <button
               onClick={() => {
@@ -3928,6 +3929,7 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
               <Square className="h-4 w-4" />
             </button>
           </div>
+          )}
         </div>
       </div>
 

@@ -6030,7 +6030,7 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
         valueFormatter: (p) => formatDateToDDMMYYYY(p.value) || '',
       },
       {
-        headerName: 'מהות שימוש',
+        headerName: 'סוג נכס',
         flex: 1,
         minWidth: 160,
         editable: false,

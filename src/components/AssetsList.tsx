@@ -5962,6 +5962,10 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
     'sub_asset_type_4', 'sub_asset_size_4',
     'sub_asset_type_5', 'sub_asset_size_5',
     'sub_asset_type_6', 'sub_asset_size_6',
+    'use_nature',
+    'business_distribution_area',
+    'business_total_area',
+    'shared_parking_area',
   ]), []);
 
   const activeColumnDefs = useMemo(() => {

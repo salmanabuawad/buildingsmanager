@@ -6035,8 +6035,7 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
       },
       {
         headerName: 'סוג נכס',
-        flex: 1,
-        minWidth: 160,
+        width: 130,
         editable: false,
         valueGetter: (p) => {
           const row = p.data as any;

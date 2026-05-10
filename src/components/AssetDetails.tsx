@@ -210,6 +210,7 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
   // apartment_*, storage_*, sub_asset_type_*, sub_asset_size_*, comment, …)
   // stay editable. Mirrors the AssetsList behavior (commit 7e7b59b4).
   const isFieldEditable = useCallback((params: any, fieldName: string): boolean => {
+    if (isReadOnly) return false;
     if (!params || !params.data) return false;
     const asset = params.data as Asset;
     const baseEditable = asset.is_latest === true;
@@ -221,7 +222,7 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
     }
 
     return baseEditable;
-  }, [isAssetNotAccountable]);
+  }, [isAssetNotAccountable, isReadOnly]);
 
   // Get area description for tab based on main asset type
   const areaDescriptionForTab = useMemo(() => {
@@ -2039,7 +2040,7 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
 
     return (
       <div className="flex items-center justify-center gap-1 h-full">
-        {isLatest ? (
+        {isLatest && !isReadOnly ? (
           <div className="flex flex-col items-center gap-1">
             <label className="flex items-center justify-center p-1 text-theme-tab-active hover:text-theme-tab-active-hover transition-colors hover:scale-110 cursor-pointer" title={t('upload') || 'העלה קובץ'}>
               <Upload className="h-5 w-5" />

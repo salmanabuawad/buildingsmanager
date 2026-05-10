@@ -24,6 +24,7 @@ import { processColumnHeader } from '../lib/gridHeaderUtils';
 import { useFieldConfig } from '../lib/useFieldConfig';
 import { exportToExcel } from '../lib/excelExport';
 import { useUIConfig } from '../contexts/UIConfigContext';
+import { useUserRole } from '../contexts/UserRoleContext';
 import { runExportToAutomation } from '../lib/exportAutomationService';
 import ExcelLikeFilter from './grid/ExcelLikeFilter';
 
@@ -45,6 +46,7 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
   const { preferences, setEditMode } = usePreferences();
   const { validationRules } = useValidationRules(); // Get validation rules from context
   const { shouldValidateOnBlur, shouldValidateBeforeSave } = useUIConfig();
+  const { isReadOnly } = useUserRole();
   const editMode = preferences.editMode;
   const [asset, setAsset] = useState<Asset | null>(null);
   const [allMeasurements, setAllMeasurements] = useState<Asset[]>([]);
@@ -3928,7 +3930,7 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
         </div>
       </div>
 
-      {allMeasurements.length > 0 && (
+      {!isReadOnly && allMeasurements.length > 0 && (
         <div className="action-bar mb-2">
           <div className="flex flex-wrap items-center gap-2 justify-end">
                   <button

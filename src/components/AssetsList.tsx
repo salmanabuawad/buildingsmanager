@@ -5926,6 +5926,10 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
       return n > 0 ? n.toFixed(2) : '';
     }
 
+    function fixTypo(s: string): string {
+      return s.replace(/נגס/g, 'נכס');
+    }
+
     function buildTotalAreaTooltip(data: any): string {
       if (!data) return '';
       const lines: string[] = [];
@@ -5933,16 +5937,16 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
       const mainSize = Number(data.asset_size);
       if (mainType && mainSize > 0) {
         const at = assetTypes.find((t: AssetType) => t.name === mainType);
-        const desc = at?.description || '';
-        lines.push(`נכס: ${mainType}${desc ? ` — ${desc}` : ''}: ${mainSize.toFixed(2)} מ"ר`);
+        const desc = fixTypo(at?.description || '');
+        lines.push(`נכס: ${fixTypo(mainType)}${desc ? ` — ${desc}` : ''}: ${mainSize.toFixed(2)} מ"ר`);
       }
       for (let i = 1; i <= 6; i++) {
         const t = data[`sub_asset_type_${i}`];
         const s = Number(data[`sub_asset_size_${i}`]);
         if (t && s > 0) {
           const at = assetTypes.find((a: AssetType) => a.name === t);
-          const desc = at?.description || '';
-          lines.push(`  ${i}. ${t}${desc ? ` — ${desc}` : ''}: ${s.toFixed(2)} מ"ר`);
+          const desc = fixTypo(at?.description || '');
+          lines.push(`  ${i}. ${fixTypo(t)}${desc ? ` — ${desc}` : ''}: ${s.toFixed(2)} מ"ר`);
         }
       }
       const biz = Number(data.business_distribution_area);
@@ -6036,7 +6040,7 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
         editable: false,
         valueGetter: (p) => {
           const row = p.data as any;
-          return row?.main_asset_type || '';
+          return (row?.main_asset_type || '').replace(/נגס/g, 'נכס');
         },
       },
       {

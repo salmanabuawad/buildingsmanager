@@ -6473,7 +6473,7 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
               
               return (
                 <>
-                  {!isErrorFixingMode && shouldShowTransferButton && (
+                  {!isReadOnly && !isErrorFixingMode && shouldShowTransferButton && (
                     <button
                       type="button"
                       onClick={async () => {
@@ -6647,8 +6647,8 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
                 </button>
               </div>
             )}
-            {/* Distribution alert — inline between toolbar and grid */}
-            {building && (() => {
+            {/* Distribution alert — inline between toolbar and grid — hidden in user mode */}
+            {!isReadOnly && building && (() => {
               const needsRes = isResidentTaxRegion && building.need_residence_distribution === true;
               const needsBiz = building.need_business_distribution === true &&
                 !isResidentTaxRegion &&

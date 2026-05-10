@@ -4976,6 +4976,34 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
     fetchHistoryCounts();
   }, [buildingNumber, isResidentTaxRegion, isMultiTaxRegion]);
 
+  // Shared display helpers (used in both admin and user-mode column definitions)
+  const fixTypo = useCallback((s: string) => s.replace(/נגס/g, 'נכס'), []);
+  const buildTotalAreaTooltip = useCallback((data: any): string => {
+    if (!data) return '';
+    const lines: string[] = [];
+    const mainType = data.main_asset_type;
+    const mainSize = Number(data.asset_size);
+    if (mainType && mainSize > 0) {
+      const at = assetTypes.find((t: AssetType) => t.name === mainType);
+      const desc = fixTypo(at?.description || '');
+      lines.push(`נכס: ${fixTypo(mainType)}${desc ? ` — ${desc}` : ''}: ${mainSize.toFixed(2)} מ"ר`);
+    }
+    for (let i = 1; i <= 6; i++) {
+      const t = data[`sub_asset_type_${i}`];
+      const s = Number(data[`sub_asset_size_${i}`]);
+      if (t && s > 0) {
+        const at = assetTypes.find((a: AssetType) => a.name === t);
+        const desc = fixTypo(at?.description || '');
+        lines.push(`  ${i}. ${fixTypo(t)}${desc ? ` — ${desc}` : ''}: ${s.toFixed(2)} מ"ר`);
+      }
+    }
+    const biz = Number(data.business_distribution_area);
+    if (biz > 0) lines.push(`שטח עסקים משותף: ${biz.toFixed(2)} מ"ר`);
+    const park = Number(data.shared_parking_area);
+    if (park > 0) lines.push(`שטח חניה משותף: ${park.toFixed(2)} מ"ר`);
+    return lines.join('\n');
+  }, [assetTypes, fixTypo]);
+
   const columnDefs: ColDef<Asset>[] = useMemo(() => {
     const isBusinessAssetRow = (params: any) => {
       if (!params?.data?.main_asset_type || !assetTypes?.length) return false;
@@ -5209,7 +5237,7 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
         
         return (
           <div className="flex items-center justify-center gap-1 h-full">
-            {!isErrorFixingMode && !isNew && taxRegion && (
+            {!isErrorFixingMode && !isNew && taxRegion && !isReadOnly && (
               <label
                 className="flex items-center justify-center p-1 text-theme-tab-active hover:text-theme-tab-active-hover transition-colors hover:scale-110 cursor-pointer"
                 title={t('upload') || 'העלה קובץ'}
@@ -5529,6 +5557,7 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
       field: 'main_asset_type',
       ...processColumnHeader(t('mainAssetType')),
       editable: (params) => isFieldEditable(params, 'main_asset_type'),
+      valueGetter: (params) => fixTypo((params.data as any)?.main_asset_type || ''),
       tooltipValueGetter: (params) => getAssetTypeTooltip(params.value),
       headerClass: 'ag-right-aligned-header',
       cellStyle: (params: any) => getCellStyle(params)
@@ -5563,8 +5592,12 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
         const num = typeof val === 'number' ? val : parseFloat(val);
         return isNaN(num) || num === 0 ? '' : num.toFixed(2);
       },
+      tooltipValueGetter: (p) => buildTotalAreaTooltip(p.data),
       headerClass: 'ag-right-aligned-header',
-      cellStyle: (params: any) => getCellStyle(params)
+      cellStyle: (params: any) => {
+        const base = getCellStyle(params);
+        return isReadOnly ? { ...base, cursor: 'help' } : base;
+      }
     },
     {
       field: 'sub_asset_type_1',
@@ -5915,181 +5948,32 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
       }
       return colDef;
     });
-  }, [t, onSelectAsset, buildingNumber, assetTypes, newAssets, dirtyAssets, building, taxRegion, selectedAssets, deletedAssets, validationErrors, getCellStyle, isResidentTaxRegion, isMultiTaxRegion, isFieldEditable, penthouseCellRenderer, assetsWithFiles, sourceAssetId, applySourceValues, operators]);
-
-  // Read-only column definitions for user role — matches export-to-automation field layout
-  const readOnlyColumnDefs = useMemo<ColDef<Asset>[]>(() => {
-    if (!isReadOnly) return [];
-
-    function fmtArea(v: unknown): string {
-      const n = Number(v);
-      return n > 0 ? n.toFixed(2) : '';
-    }
-
-    function fixTypo(s: string): string {
-      return s.replace(/נגס/g, 'נכס');
-    }
-
-    function buildTotalAreaTooltip(data: any): string {
-      if (!data) return '';
-      const lines: string[] = [];
-      const mainType = data.main_asset_type;
-      const mainSize = Number(data.asset_size);
-      if (mainType && mainSize > 0) {
-        const at = assetTypes.find((t: AssetType) => t.name === mainType);
-        const desc = fixTypo(at?.description || '');
-        lines.push(`נכס: ${fixTypo(mainType)}${desc ? ` — ${desc}` : ''}: ${mainSize.toFixed(2)} מ"ר`);
-      }
-      for (let i = 1; i <= 6; i++) {
-        const t = data[`sub_asset_type_${i}`];
-        const s = Number(data[`sub_asset_size_${i}`]);
-        if (t && s > 0) {
-          const at = assetTypes.find((a: AssetType) => a.name === t);
-          const desc = fixTypo(at?.description || '');
-          lines.push(`  ${i}. ${fixTypo(t)}${desc ? ` — ${desc}` : ''}: ${s.toFixed(2)} מ"ר`);
-        }
-      }
-      const biz = Number(data.business_distribution_area);
-      if (biz > 0) lines.push(`שטח עסקים משותף: ${biz.toFixed(2)} מ"ר`);
-      const park = Number(data.shared_parking_area);
-      if (park > 0) lines.push(`שטח חניה משותף: ${park.toFixed(2)} מ"ר`);
-      return lines.join('\n');
-    }
-
-    return [
-      {
-        headerName: 'שרטוט',
-        field: 'structure_drawing_url',
-        width: 84,
-        pinned: 'right',
-        sortable: false,
-        filter: false,
-        editable: false,
-        suppressMovable: true,
-        suppressHeaderMenuButton: true,
-        cellRenderer: (params: any) => {
-          const asset = params.data as Asset;
-          if (!asset) return null;
-          const hasFiles = assetsWithFiles.has(asset.asset_id);
-          return (
-            <div className="flex items-center justify-center h-full">
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  if (hasFiles) {
-                    setSelectedAssetIdForFiles(asset.asset_id);
-                    setAssetFilesModalOpen(true);
-                  }
-                }}
-                disabled={!hasFiles}
-                className={`p-1 transition-colors hover:scale-110 ${hasFiles ? 'text-green-600 hover:text-green-700 cursor-pointer' : 'text-gray-300 cursor-not-allowed opacity-50'}`}
-                title={hasFiles ? 'צפה בקבצים' : 'אין קבצים'}
-              >
-                <FileText className="h-5 w-5" />
-              </button>
-            </div>
-          );
-        },
-      },
-      {
-        field: 'asset_id',
-        headerName: 'זיהוי נכס',
-        width: 165,
-        pinned: 'right',
-        editable: false,
-        cellStyle: {
-          cursor: 'pointer',
-          color: '#059669',
-          fontWeight: '600',
-          textDecoration: 'underline',
-          textDecorationColor: '#10b981',
-          textUnderlineOffset: '2px',
-        },
-        cellRenderer: (params: any) => {
-          return (
-            <span title="לחץ לצפייה בפרטי הנכס">
-              {params.value != null ? String(params.value) : ''}
-            </span>
-          );
-        },
-        onCellClicked: (params: any) => {
-          const asset = params.data as Asset;
-          if (asset) {
-            const assetId = String(asset.asset_id);
-            onSelectAsset(assetId, assetId, buildingNumber, taxRegion);
-          }
-        },
-      },
-      {
-        field: 'payer_id',
-        headerName: 'זיהוי משלם',
-        width: 180,
-        editable: false,
-      },
-      {
-        field: 'measurement_date',
-        headerName: 'תאריך מדידה',
-        width: 180,
-        editable: false,
-        valueFormatter: (p) => formatDateToDDMMYYYY(p.value) || '',
-      },
-      {
-        headerName: 'סוג נכס',
-        width: 195,
-        editable: false,
-        valueGetter: (p) => {
-          const row = p.data as any;
-          return (row?.main_asset_type || '').replace(/נגס/g, 'נכס');
-        },
-      },
-      {
-        headerName: 'שטח כולל',
-        width: 180,
-        editable: false,
-        valueGetter: (p) => {
-          const row = p.data as any;
-          if (!row) return '';
-          const total = (Number(row.asset_size) || 0)
-            + (Number(row.business_distribution_area) || 0)
-            + (Number(row.shared_parking_area) || 0);
-          return fmtArea(total);
-        },
-        tooltipValueGetter: (p) => buildTotalAreaTooltip(p.data),
-        cellStyle: { cursor: 'help' },
-      },
-      {
-        field: 'apartment_number',
-        headerName: 'מספר דירה',
-        width: 150,
-        editable: false,
-      },
-      {
-        field: 'apartment_floor',
-        headerName: 'קומה',
-        width: 120,
-        editable: false,
-      },
-      {
-        field: 'number_of_parking_units',
-        headerName: 'יחידות חניה',
-        width: 165,
-        editable: false,
-      },
-      {
-        field: 'comment',
-        headerName: 'הערה',
-        width: 270,
-        editable: false,
-      },
-    ];
-  }, [isReadOnly, assetTypes, assetsWithFiles, setSelectedAssetIdForFiles, setAssetFilesModalOpen, onSelectAsset, buildingNumber, taxRegion]);
+  }, [t, onSelectAsset, buildingNumber, assetTypes, newAssets, dirtyAssets, building, taxRegion, selectedAssets, deletedAssets, validationErrors, getCellStyle, isResidentTaxRegion, isMultiTaxRegion, isFieldEditable, isReadOnly, penthouseCellRenderer, assetsWithFiles, sourceAssetId, applySourceValues, operators, buildTotalAreaTooltip]);
 
   // Apply field configurations to column definitions (ref_only pattern: rely on columnDefs prop only)
   const configVersion = useFieldConfigVersion();
   const fontSize = useFontSize();
   const [configuredColumnDefs, fieldConfigLoading] = useFieldConfig(columnDefs, 'assets-list');
-  // User role gets a simplified read-only column set
-  const activeColumnDefs = isReadOnly ? readOnlyColumnDefs : configuredColumnDefs;
+  // User role: same columns as admin but sub_asset_type/size and actions filtered out, all non-editable
+  const READONLY_HIDDEN_FIELDS = useMemo(() => new Set([
+    'sub_asset_type_1', 'sub_asset_size_1',
+    'sub_asset_type_2', 'sub_asset_size_2',
+    'sub_asset_type_3', 'sub_asset_size_3',
+    'sub_asset_type_4', 'sub_asset_size_4',
+    'sub_asset_type_5', 'sub_asset_size_5',
+    'sub_asset_type_6', 'sub_asset_size_6',
+  ]), []);
+
+  const activeColumnDefs = useMemo(() => {
+    if (!isReadOnly) return configuredColumnDefs;
+    return configuredColumnDefs
+      .filter(col => {
+        const colId = (col as any).colId ?? col.field ?? '';
+        if (colId === 'actions') return false;
+        return !READONLY_HIDDEN_FIELDS.has(col.field ?? '');
+      })
+      .map(col => ({ ...col, editable: false }));
+  }, [isReadOnly, configuredColumnDefs, READONLY_HIDDEN_FIELDS]);
 
   // Check if all visible assets are residential assets (מגורים)
   const filteredAssets = useMemo(() => {
@@ -6685,6 +6569,8 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
             getRowStyle={getRowStyle}
             defaultColDef={ASSETS_GRID_DEFAULT_COL_DEF}
             gridOptions={ASSETS_GRID_OPTIONS}
+            tooltipShowDelay={isReadOnly ? 400 : 2000}
+            tooltipHideDelay={isReadOnly ? 999999 : 10000}
             rowSelection={{
               mode: 'singleRow',
               enableClickSelection: true,

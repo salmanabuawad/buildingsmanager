@@ -5960,7 +5960,7 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
       {
         headerName: 'שרטוט',
         field: 'structure_drawing_url',
-        width: 56,
+        width: 84,
         pinned: 'right',
         sortable: false,
         filter: false,
@@ -5994,7 +5994,7 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
       {
         field: 'asset_id',
         headerName: 'זיהוי נכס',
-        width: 110,
+        width: 165,
         pinned: 'right',
         editable: false,
         cellStyle: {
@@ -6023,19 +6023,19 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
       {
         field: 'payer_id',
         headerName: 'זיהוי משלם',
-        width: 120,
+        width: 180,
         editable: false,
       },
       {
         field: 'measurement_date',
         headerName: 'תאריך מדידה',
-        width: 120,
+        width: 180,
         editable: false,
         valueFormatter: (p) => formatDateToDDMMYYYY(p.value) || '',
       },
       {
         headerName: 'סוג נכס',
-        width: 130,
+        width: 195,
         editable: false,
         valueGetter: (p) => {
           const row = p.data as any;
@@ -6044,7 +6044,7 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
       },
       {
         headerName: 'שטח כולל',
-        width: 120,
+        width: 180,
         editable: false,
         valueGetter: (p) => {
           const row = p.data as any;
@@ -6060,25 +6060,25 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
       {
         field: 'apartment_number',
         headerName: 'מספר דירה',
-        width: 100,
+        width: 150,
         editable: false,
       },
       {
         field: 'apartment_floor',
         headerName: 'קומה',
-        width: 80,
+        width: 120,
         editable: false,
       },
       {
         field: 'number_of_parking_units',
         headerName: 'יחידות חניה',
-        width: 110,
+        width: 165,
         editable: false,
       },
       {
         field: 'comment',
         headerName: 'הערה',
-        width: 180,
+        width: 270,
         editable: false,
       },
     ];

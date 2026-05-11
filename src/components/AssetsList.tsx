@@ -6232,7 +6232,7 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
               </button>
             )}
             {/* Export to automation button - follows export condition (measured but not exported) */}
-            {!isErrorFixingMode && (() => {
+            {!isReadOnly && !isErrorFixingMode && (() => {
               const hasUnsavedChanges = dirtyAssets.size > 0 || newAssets.size > 0 || deletedAssets.size > 0;
               const distributionPending = building?.need_business_distribution === true || building?.need_residence_distribution === true;
               const sendDisabled = loading || exporting || exportToAutomationCount === 0 || hasUnsavedChanges || distributionPending;

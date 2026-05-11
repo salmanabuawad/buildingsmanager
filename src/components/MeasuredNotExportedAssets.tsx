@@ -1199,6 +1199,7 @@ export const MeasuredNotExportedAssets = ({ onSelectAsset, onOpenAssetsTab }: Me
             <Download className="h-5 w-5" />
             <span>ייצא ל-Excel</span>
           </button>
+          {!isReadOnly && (
           <button
             type="button"
             onClick={handleExportToAutomation}
@@ -1213,6 +1214,7 @@ export const MeasuredNotExportedAssets = ({ onSelectAsset, onOpenAssetsTab }: Me
             )}
             <span>שליחת נתונים לעירייה{selectedExportCount > 0 ? ` (${selectedExportCount})` : ''}</span>
           </button>
+          )}
         </div>
       </div>
 

@@ -2978,8 +2978,7 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
                 message={hasValidationError ? allErrorMessages : (hasTaxRegionError ? t('invalidTaxRegion') : '')}
               />
             )}
-            {!isReadOnly && (
-              <button
+            <button
                 onClick={() => handleDeleteBuilding(building.building_number)}
                 className={`p-1 transition-colors hover:scale-110 relative inline-flex ${
                   markedForDeletion
@@ -2995,7 +2994,6 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
                   </span>
                 )}
               </button>
-            )}
           </div>
         );
       }
@@ -3004,7 +3002,6 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
       field: 'building_number',
       headerName: 'מזהה מבנה',
       editable: (params: any) => {
-        if (isReadOnly) return false;
         if (!params || !params.data) return false;
         const building = params.data as Building;
         if (!building) return false;
@@ -3112,7 +3109,7 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
         }
         return getAreaDescriptionForTaxRegion(params.value);
       },
-      editable: !isReadOnly,
+      editable: true,
       cellRenderer: (params: any) => {
         const building = params.data as Building;
         if (!building) return '';
@@ -3161,7 +3158,6 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
       field: 'residence_shared_area',
       headerName: 'שטח משותף מגורים',
       editable: (params: any) => {
-        if (isReadOnly) return false;
         if (!params || !params.data) return false;
         const building = params.data as Building;
         const isNew = isNewBuilding(building);
@@ -3275,7 +3271,6 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
       field: 'area_for_control',
       headerName: 'שטח לבקרה',
       editable: (params) => {
-        if (isReadOnly) return false;
         if (!params || !params.data) return false;
         const building = params.data as Building;
         if (!building) return false;
@@ -3306,7 +3301,6 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
       field: 'shared_parking_area',
       headerName: 'שטח חניה משותף',
       editable: (params: any) => {
-        if (isReadOnly) return false;
         if (!params || !params.data) return false;
         const building = params.data as Building;
         const buildingKey = getBuildingKey(building);
@@ -3342,7 +3336,6 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
       field: 'number_of_parking_units',
       headerName: 'מספר יחידות חניה',
       editable: (params: any) => {
-        if (isReadOnly) return false;
         if (!params || !params.data) return false;
         const building = params.data as Building;
         const buildingKey = getBuildingKey(building);
@@ -3390,14 +3383,12 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
               type="checkbox"
               checked={params.value === true}
               disabled={markedForDeletion}
-              style={isReadOnly ? { pointerEvents: 'none' } : undefined}
               onChange={(e) => {
-                if (isReadOnly) return;
                 const newValue = e.target.checked ? true : false;
                 params.node.setDataValue('elevator', newValue);
                 handleCheckboxChange(building, 'elevator', newValue);
               }}
-              className={`w-3.5 h-3.5 ${markedForDeletion ? 'opacity-50 cursor-not-allowed' : isReadOnly ? 'cursor-default' : 'cursor-pointer'}`}
+              className={`w-3.5 h-3.5 ${markedForDeletion ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
             />
           </div>
         );
@@ -3432,14 +3423,12 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
               type="checkbox"
               checked={isChecked}
               disabled={markedForDeletion}
-              style={isReadOnly ? { pointerEvents: 'none' } : undefined}
               onChange={(e) => {
-                if (isReadOnly) return;
                 const newValue = e.target.checked ? true : false;
                 params.node.setDataValue('single_double_family', newValue);
                 handleCheckboxChange(building, 'single_double_family', newValue);
               }}
-              className={`w-3.5 h-3.5 ${markedForDeletion ? 'opacity-50 cursor-not-allowed' : isReadOnly ? 'cursor-default' : 'cursor-pointer'}`}
+              className={`w-3.5 h-3.5 ${markedForDeletion ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
             />
           </div>
         );
@@ -3466,14 +3455,12 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
               type="checkbox"
               checked={isChecked}
               disabled={markedForDeletion}
-              style={isReadOnly ? { pointerEvents: 'none' } : undefined}
               onChange={(e) => {
-                if (isReadOnly) return;
                 const newValue = e.target.checked ? true : false;
                 params.node.setDataValue('condo', newValue);
                 handleCheckboxChange(building, 'condo', newValue);
               }}
-              className={`w-3.5 h-3.5 ${markedForDeletion ? 'opacity-50 cursor-not-allowed' : isReadOnly ? 'cursor-default' : 'cursor-pointer'}`}
+              className={`w-3.5 h-3.5 ${markedForDeletion ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
             />
           </div>
         );
@@ -3500,14 +3487,12 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
               type="checkbox"
               checked={isChecked}
               disabled={markedForDeletion}
-              style={isReadOnly ? { pointerEvents: 'none' } : undefined}
               onChange={(e) => {
-                if (isReadOnly) return;
                 const newValue = e.target.checked;
                 params.node.setDataValue('townhouses', newValue);
                 handleCheckboxChange(building, 'townhouses', newValue);
               }}
-              className={`w-3.5 h-3.5 ${markedForDeletion ? 'opacity-50 cursor-not-allowed' : isReadOnly ? 'cursor-default' : 'cursor-pointer'}`}
+              className={`w-3.5 h-3.5 ${markedForDeletion ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
             />
           </div>
         );
@@ -3521,7 +3506,7 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
     {
       field: 'address',
       headerName: 'כתובת',
-      editable: !isReadOnly,
+      editable: true,
       valueGetter: (params: any) => {
         // Return the street code from the data object
         const value = params.data?.address ?? null;
@@ -3583,7 +3568,7 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
     {
       field: 'gosh',
       headerName: 'גוש',
-      editable: !isReadOnly,
+      editable: true,
       valueParser: (params: any) => {
         if (!params) return null;
         const newValue = params.newValue;
@@ -3606,7 +3591,7 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
     {
       field: 'helka',
       headerName: 'חלקה',
-      editable: !isReadOnly,
+      editable: true,
       valueParser: (params: any) => {
         if (!params) return null;
         const newValue = params.newValue;
@@ -3629,7 +3614,7 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
     {
       field: 'building_number_in_street',
       headerName: 'מספר בניין',
-      editable: !isReadOnly,
+      editable: true,
       valueParser: (params: any) => {
         if (!params) return null;
         const newValue = params.newValue;
@@ -3652,7 +3637,7 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
     {
       field: 'note',
       headerName: 'הערות',
-      editable: !isReadOnly,
+      editable: true,
       valueGetter: (params: any) => {
         // Return the note from the data object
         return params.data?.note ?? null;
@@ -3772,7 +3757,6 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
         </div>
       )}
       <div className="flex flex-col flex-1 min-h-0 w-full px-2 sm:px-4 md:px-6 py-1.5 sm:py-2">
-        {!isReadOnly && (
         <div className="page-header mb-1.5 rounded-md px-2 py-1.5 flex-shrink-0 w-full">
           <div className="relative flex items-center gap-1.5 flex-wrap w-full">
             <div className="page-header-icon shrink-0">
@@ -3782,7 +3766,6 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
             <span className="page-header-badge">סה"כ מבנים: {filteredBuildings.length}</span>
           </div>
         </div>
-        )}
 
         <div className="mb-1.5 flex flex-wrap items-center gap-2 sm:gap-3 flex-shrink-0">
           <div className="relative w-full sm:w-auto sm:min-w-[14rem] sm:max-w-[20rem]">
@@ -3798,17 +3781,14 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
           <div className="action-bar flex-1 min-w-0 py-1 px-2">
             <div className="flex flex-col sm:flex-row justify-end gap-1.5 sm:gap-2">
               <div className="flex gap-1.5">
-                {!isReadOnly && (
-                  <button
-                    type="button"
-                    onClick={addEmptyBuildingRow}
-                    className="btn btn-action btn-primary"
-                  >
-                    <Plus className="h-5 w-5" />
-                    <span>הוסף מבנה</span>
-                  </button>
-                )}
-                {!isReadOnly && (
+                <button
+                  type="button"
+                  onClick={addEmptyBuildingRow}
+                  className="btn btn-action btn-primary"
+                >
+                  <Plus className="h-5 w-5" />
+                  <span>הוסף מבנה</span>
+                </button>
                 <button
                   type="button"
                   onClick={handleValidateAll}
@@ -3817,7 +3797,6 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
                   <CheckCircle2 className="h-5 w-5" />
                   <span>אמת הכל</span>
                 </button>
-                )}
                 <button
                   type="button"
                   onClick={handleExportBuildingsToExcel}
@@ -3829,31 +3808,30 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
                   <span>ייצא ל-Excel</span>
                 </button>
               </div>
-              {!isReadOnly && (
-                <div className="flex gap-1.5">
-                  <button
-                    type="button"
-                    onClick={handleCancelAll}
-                    className="btn btn-action btn-cancel"
-                  >
-                    <X className="h-5 w-5" />
-                    <span>{t('cancel')}</span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={handleSaveAll}
-                    disabled={isSaving || totalChanges === 0}
-                    className="btn btn-action btn-primary"
-                  >
-                    {isSaving ? (
-                      <Loader2 className="h-5 w-5 animate-spin" />
-                    ) : (
-                      <Save className="h-5 w-5" />
-                    )}
-                    <span>{loading ? t('saving') : `${t('saveAll')}${totalChanges > 0 ? ` (${totalChanges})` : ''}`}</span>
-                  </button>
-                </div>
-              )}
+              <div className="flex gap-1.5">
+                <button
+                  type="button"
+                  onClick={handleCancelAll}
+                  className="btn btn-action btn-cancel"
+                >
+                  <X className="h-5 w-5" />
+                  <span>{t('cancel')}</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={handleSaveAll}
+                  disabled={isSaving || totalChanges === 0 || isReadOnly}
+                  className="btn btn-action btn-primary disabled:opacity-50 disabled:cursor-not-allowed"
+                  title={isReadOnly ? 'שמירה אינה זמינה במצב משתמש' : undefined}
+                >
+                  {isSaving ? (
+                    <Loader2 className="h-5 w-5 animate-spin" />
+                  ) : (
+                    <Save className="h-5 w-5" />
+                  )}
+                  <span>{loading ? t('saving') : `${t('saveAll')}${totalChanges > 0 ? ` (${totalChanges})` : ''}`}</span>
+                </button>
+              </div>
             </div>
           </div>
         </div>

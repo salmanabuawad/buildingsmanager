@@ -543,7 +543,6 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
   // until the user either saves or cancels — during that window every cell is
   // locked so stray edits can't be silently mixed into the distribution save.
   const isFieldEditable = useCallback((params: any, _fieldName: string): boolean => {
-    if (isReadOnly) return false;
     if (pendingDistribution !== null) return false;
     if (!params || !params.data) return false;
     const asset = params.data as Asset;
@@ -4890,7 +4889,6 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
           type="checkbox"
           checked={isChecked}
           onChange={(e) => {
-            if (isReadOnly) return;
             const newValue = e.target.checked ? true : false;
 
             if (isNewAsset) {
@@ -4928,8 +4926,7 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
               });
             }
           }}
-          style={isReadOnly ? { pointerEvents: 'none' } : undefined}
-          className={`w-4 h-4 text-theme-tab-active rounded focus:ring-2 focus:ring-theme-action-accent ${isReadOnly ? 'cursor-default' : 'cursor-pointer'}`}
+          className="w-4 h-4 text-theme-tab-active rounded focus:ring-2 focus:ring-theme-action-accent cursor-pointer"
         />
       </div>
     );
@@ -5239,7 +5236,7 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
         
         return (
           <div className="flex items-center justify-center gap-1 h-full">
-            {!isErrorFixingMode && !isNew && taxRegion && !isReadOnly && (
+            {!isErrorFixingMode && !isNew && taxRegion && (
               <label
                 className="flex items-center justify-center p-1 text-theme-tab-active hover:text-theme-tab-active-hover transition-colors hover:scale-110 cursor-pointer"
                 title={t('upload') || 'העלה קובץ'}
@@ -5974,12 +5971,10 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
     if (!isReadOnly) return configuredColumnDefs;
     return configuredColumnDefs
       .filter(col => {
-        const colId = (col as any).colId ?? col.field ?? '';
-        if (colId === 'actions') return false;
         return !READONLY_HIDDEN_FIELDS.has(col.field ?? '');
       })
       .map(col => {
-        const base = { ...col, editable: false };
+        const base = { ...col };
         if (col.field === 'main_asset_type') return { ...base, headerName: 'סוג נכס', headerTooltip: 'סוג נכס' };
         if (col.field === 'asset_size') return {
           ...base,
@@ -6169,7 +6164,7 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
           {/* All Action Buttons in One Row */}
           <div className="flex flex-wrap items-center gap-2 justify-end">
             {/* Hide add button if building has more than one tax region and no specific taxRegion is selected, or in error fixing mode */}
-            {!isReadOnly && !isErrorFixingMode && (() => {
+            {!isErrorFixingMode && (() => {
               const hasMultipleTaxRegions = building?.tax_region && building.tax_region.includes(',');
               // If a specific taxRegion is selected (we're in a tax region tab), show buttons
               // If no taxRegion but building has multiple regions, hide buttons
@@ -6203,7 +6198,6 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
                 </button>
               );
             })()}
-            {!isReadOnly && (
             <button
               type="button"
               onClick={handleBatchValidateBuildingAssets}
@@ -6213,7 +6207,6 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
               <CheckCircle2 className="h-5 w-5" />
               <span>{selectedAssets.size > 0 ? `אמת נבחרים (${selectedAssets.size})` : 'אמת הכל'}</span>
             </button>
-            )}
             {!isErrorFixingMode && (
               <>
                 <input
@@ -6239,7 +6232,7 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
               </button>
             )}
             {/* Export to automation button - follows export condition (measured but not exported) */}
-            {!isReadOnly && !isErrorFixingMode && (() => {
+            {!isErrorFixingMode && (() => {
               const hasUnsavedChanges = dirtyAssets.size > 0 || newAssets.size > 0 || deletedAssets.size > 0;
               const distributionPending = building?.need_business_distribution === true || building?.need_residence_distribution === true;
               const sendDisabled = loading || exporting || exportToAutomationCount === 0 || hasUnsavedChanges || distributionPending;
@@ -6264,7 +6257,7 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
               );
             })()}
             {/* Statistics button - visible in business and residence tabs (not in multi-tax tabs) */}
-            {!isReadOnly && !isErrorFixingMode && !isMultiTaxRegion && (
+            {!isErrorFixingMode && !isMultiTaxRegion && (
               <button
                 type="button"
                 onClick={() => setShowAssetStatisticsModal(true)}
@@ -6277,7 +6270,7 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
               </button>
             )}
             {/* Change tax region button - only show in "all assets" tab (when taxRegion is not set) and not in error fixing mode */}
-            {!isReadOnly && !isErrorFixingMode && !taxRegion && building && availableTaxRegions.length > 1 && (
+            {!isErrorFixingMode && !taxRegion && building && availableTaxRegions.length > 1 && (
               <button
                 type="button"
                 onClick={() => setChangeTaxRegionModalOpen(true)}
@@ -6290,7 +6283,7 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
               </button>
             )}
             {/* Distribute shared area button - always visible in residence tabs, enabled when flag is on (blinking alert), hidden in error fixing mode */}
-            {!isReadOnly && !isErrorFixingMode && building && isResidentTaxRegion && (building.residence_shared_area != null || building.need_residence_distribution === true) && (
+            {!isErrorFixingMode && building && isResidentTaxRegion && (building.residence_shared_area != null || building.need_residence_distribution === true) && (
               <button
                 type="button"
                 onClick={async () => {
@@ -6328,7 +6321,7 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
               </button>
             )}
             {/* Distribute business shared area button - always visible in business tabs, enabled when flag is on (blinking alert), hidden in error fixing mode */}
-            {!isReadOnly && !isErrorFixingMode && building && taxRegion && !isMultiTaxRegion && !isResidentTaxRegion && (building.business_shared_area != null || building.need_business_distribution === true) && (
+            {!isErrorFixingMode && building && taxRegion && !isMultiTaxRegion && !isResidentTaxRegion && (building.business_shared_area != null || building.need_business_distribution === true) && (
               <button
                 type="button"
                 onClick={async () => {
@@ -6388,7 +6381,7 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
               
               return (
                 <>
-                  {!isReadOnly && !isErrorFixingMode && shouldShowTransferButton && (
+                  {!isErrorFixingMode && shouldShowTransferButton && (
                     <button
                       type="button"
                       onClick={async () => {
@@ -6417,40 +6410,38 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
                       <span>{isDistributeValidating ? 'מאמת...' : `העברת שטחים ${selectedAssets.size > 0 ? `(${selectedAssets.size})` : ''}`}</span>
                     </button>
                   )}
-                  {!isReadOnly && (
-                    <>
-                      <button
-                        type="button"
-                        onClick={handleCancelAll}
-                        disabled={loading || totalChanges === 0}
-                        className="btn btn-action btn-cancel"
-                      >
-                        <X className="h-5 w-5" />
-                        <span>ביטול</span>
-                      </button>
-                      {/* Save button: enabled when there are changes, validation runs before save */}
-                      <button
-                        type="button"
-                        onClick={handleSaveAll}
-                        disabled={isSaving || loading || totalChanges === 0}
-                        className="btn btn-action btn-primary disabled:opacity-50 disabled:cursor-not-allowed"
-                        title={totalChanges === 0 ? 'אין שינויים לשמירה' : undefined}
-                      >
-                        {isSaving || loading ? (
-                          <Loader2 className="h-5 w-5 animate-spin" />
-                        ) : (
-                          <Save className="h-5 w-5" />
-                        )}
-                        <span>{isSaving || loading ? 'שומר...' : `שמור הכל${totalChanges > 0 ? ` (${totalChanges})` : ''}`}</span>
-                      </button>
-                    </>
-                  )}
+                  <>
+                    <button
+                      type="button"
+                      onClick={handleCancelAll}
+                      disabled={loading || totalChanges === 0}
+                      className="btn btn-action btn-cancel"
+                    >
+                      <X className="h-5 w-5" />
+                      <span>ביטול</span>
+                    </button>
+                    {/* Save button: enabled when there are changes, validation runs before save */}
+                    <button
+                      type="button"
+                      onClick={handleSaveAll}
+                      disabled={isSaving || loading || totalChanges === 0 || isReadOnly}
+                      className="btn btn-action btn-primary disabled:opacity-50 disabled:cursor-not-allowed"
+                      title={isReadOnly ? 'שמירה אינה זמינה במצב משתמש' : totalChanges === 0 ? 'אין שינויים לשמירה' : undefined}
+                    >
+                      {isSaving || loading ? (
+                        <Loader2 className="h-5 w-5 animate-spin" />
+                      ) : (
+                        <Save className="h-5 w-5" />
+                      )}
+                      <span>{isSaving || loading ? 'שומר...' : `שמור הכל${totalChanges > 0 ? ` (${totalChanges})` : ''}`}</span>
+                    </button>
+                  </>
                 </>
               );
             })()}
           </div>
-          {/* Invalid-only filter — persistent, below buttons — hidden for user role */}
-          {!isReadOnly && (
+          {/* Invalid-only filter — persistent, below buttons */}
+          {(
           <div className="flex justify-start mt-1.5">
             <label className={`flex items-center gap-1.5 select-none text-sm font-medium border rounded px-2 py-1 transition-colors ${
               validationErrors.size > 0
@@ -6562,8 +6553,8 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
                 </button>
               </div>
             )}
-            {/* Distribution alert — inline between toolbar and grid — hidden in user mode */}
-            {!isReadOnly && building && (() => {
+            {/* Distribution alert — inline between toolbar and grid */}
+            {building && (() => {
               const needsRes = isResidentTaxRegion && building.need_residence_distribution === true;
               const needsBiz = building.need_business_distribution === true &&
                 !isResidentTaxRegion &&

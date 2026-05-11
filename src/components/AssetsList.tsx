@@ -6256,8 +6256,8 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
                 </button>
               );
             })()}
-            {/* Statistics button - visible in business and residence tabs (not in multi-tax tabs) */}
-            {!isErrorFixingMode && !isMultiTaxRegion && (
+            {/* Statistics button - visible in business and residence tabs (not in multi-tax tabs), hidden in user mode */}
+            {!isReadOnly && !isErrorFixingMode && !isMultiTaxRegion && (
               <button
                 type="button"
                 onClick={() => setShowAssetStatisticsModal(true)}

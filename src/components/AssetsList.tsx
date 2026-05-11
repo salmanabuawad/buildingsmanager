@@ -6536,7 +6536,7 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
         {activeTab === 'assets' && (
           <div className="flex-1 min-h-0 flex flex-col bg-white rounded-b-xl shadow-lg hover:shadow-xl transition-shadow duration-200 overflow-hidden border-2 border-theme-action-accent w-full">
             {/* Draft recovery banner */}
-            {pendingRecovery && (
+            {pendingRecovery && !isReadOnly && (
               <div className="flex items-center gap-3 px-4 py-3 bg-amber-50 border-b-2 border-amber-300 text-sm">
                 <span className="text-amber-700 font-semibold flex-1">
                   ⚠️ נמצאו שינויים שלא נשמרו מהפעם הקודמת

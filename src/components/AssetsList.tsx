@@ -6164,7 +6164,7 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
           {/* All Action Buttons in One Row */}
           <div className="flex flex-wrap items-center gap-2 justify-end">
             {/* Hide add button if building has more than one tax region and no specific taxRegion is selected, or in error fixing mode */}
-            {!isErrorFixingMode && (() => {
+            {!isReadOnly && !isErrorFixingMode && (() => {
               const hasMultipleTaxRegions = building?.tax_region && building.tax_region.includes(',');
               // If a specific taxRegion is selected (we're in a tax region tab), show buttons
               // If no taxRegion but building has multiple regions, hide buttons

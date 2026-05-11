@@ -5981,7 +5981,27 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
       .map(col => {
         const base = { ...col, editable: false };
         if (col.field === 'main_asset_type') return { ...base, headerName: 'סוג נכס', headerTooltip: 'סוג נכס' };
-        if (col.field === 'asset_size') return { ...base, headerName: 'גודל כללי', headerTooltip: 'גודל כללי' };
+        if (col.field === 'asset_size') return {
+          ...base,
+          headerName: 'גודל כללי',
+          headerTooltip: 'גודל כללי',
+          valueGetter: (p: any) => {
+            const row = p.data;
+            if (!row) return null;
+            const total = (Number(row.asset_size) || 0)
+              + (Number(row.business_distribution_area) || 0)
+              + (Number(row.shared_parking_area) || 0);
+            return total > 0 ? total : null;
+          },
+          valueFormatter: (p: any) => {
+            const val = p.value;
+            if (val === null || val === undefined) return '';
+            const num = Number(val);
+            return isNaN(num) || num === 0 ? '' : num.toFixed(2);
+          },
+          tooltipValueGetter: (p: any) => buildTotalAreaTooltip(p.data),
+          cellStyle: { textAlign: 'right', cursor: 'help' },
+        };
         return base;
       });
   }, [isReadOnly, configuredColumnDefs, READONLY_HIDDEN_FIELDS]);

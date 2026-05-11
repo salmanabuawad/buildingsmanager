@@ -5083,7 +5083,7 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
                 title={!taxRegion && hasMultipleTaxRegions ? "בחר לשינוי אזור מס" : "בחר להעברת שטחים"}
               />
             )}
-            {!isErrorFixingMode && !isNew && taxRegion && !isMultiTaxRegion && (
+            {!isReadOnly && !isErrorFixingMode && !isNew && taxRegion && !isMultiTaxRegion && (
               sourceAssetId === assetId ? (
                 <button
                   onClick={(e) => {
@@ -6256,8 +6256,8 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
                 </button>
               );
             })()}
-            {/* Statistics button - visible in business and residence tabs (not in multi-tax tabs), hidden in user mode */}
-            {!isReadOnly && !isErrorFixingMode && !isMultiTaxRegion && (
+            {/* Statistics button - visible in business and residence tabs (not in multi-tax tabs) */}
+            {!isErrorFixingMode && !isMultiTaxRegion && (
               <button
                 type="button"
                 onClick={() => setShowAssetStatisticsModal(true)}

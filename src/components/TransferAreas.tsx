@@ -13,6 +13,7 @@ import { processColumnHeader } from '../lib/gridHeaderUtils';
 import { exportToExcel } from '../lib/excelExport';
 import { useFieldConfig } from '../lib/useFieldConfig';
 import { useUIConfig } from '../contexts/UIConfigContext';
+import { useUserRole } from '../contexts/UserRoleContext';
 import ExcelLikeFilter from './grid/ExcelLikeFilter';
 
 interface TransferAreasProps {
@@ -31,6 +32,7 @@ export interface TransferAreasRef {
 export const TransferAreas = forwardRef<TransferAreasRef, TransferAreasProps>(({ buildingNumber, taxRegion, selectedAssetIds, onCloseTab, onOpenAssetsTab, onCloseAllTabsExceptEssential }, ref) => {
   const { t } = useTranslation();
   const { shouldValidateOnBlur } = useUIConfig();
+  const { isReadOnly } = useUserRole();
   const [assets, setAssets] = useState<Asset[]>([]);
   const [building, setBuilding] = useState<Building | null>(null);
   const [assetTypes, setAssetTypes] = useState<AssetType[]>([]);
@@ -2174,9 +2176,9 @@ export const TransferAreas = forwardRef<TransferAreasRef, TransferAreasProps>(({
         </button>
         <button
           onClick={handleOpenSaveAsNewMeasurementModal}
-          disabled={loading || !hasChanges}
+          disabled={loading || !hasChanges || isReadOnly}
           className="btn btn-action btn-primary disabled:opacity-50 disabled:cursor-not-allowed"
-          title={!hasChanges ? 'אין שינויים לשמירה' : 'שמור כמדידות חדשות (הרשומות הישנות יעברו להיסטוריה)'}
+          title={isReadOnly ? 'שמירה אינה זמינה במצב משתמש' : !hasChanges ? 'אין שינויים לשמירה' : 'שמור כמדידות חדשות (הרשומות הישנות יעברו להיסטוריה)'}
         >
           {loading ? (
             <Loader2 className="h-5 w-5 animate-spin" />

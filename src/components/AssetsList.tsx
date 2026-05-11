@@ -5236,7 +5236,7 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
         
         return (
           <div className="flex items-center justify-center gap-1 h-full">
-            {!isErrorFixingMode && !isNew && taxRegion && (
+            {!isReadOnly && !isErrorFixingMode && !isNew && taxRegion && (
               <label
                 className="flex items-center justify-center p-1 text-theme-tab-active hover:text-theme-tab-active-hover transition-colors hover:scale-110 cursor-pointer"
                 title={t('upload') || 'העלה קובץ'}

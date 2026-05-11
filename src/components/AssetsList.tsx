@@ -4953,11 +4953,27 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
       }
       
       try {
-        // Fetch distribution history count
+        // Fetch distribution history count (filter out no-op records same as DistributionHistoryModal)
         const actionType = isResidentTaxRegion ? 'residence_distribution' : 'business_distribution';
         const distributionHistory = await api.distributionAudit.getByBuilding(buildingNumber, actionType);
-        setDistributionHistoryCount(distributionHistory.length);
-        
+        const meaningfulDistribution = distributionHistory.filter(record => {
+          if (!record.before_data) return true;
+          const beforeAssets: any[] = record.before_data?.assets ?? [];
+          const afterAssets: any[] = record.after_data?.assets ?? [];
+          if (beforeAssets.length !== afterAssets.length) return true;
+          if (beforeAssets.length === 0) return false;
+          const compareFields = ['main_asset_type','asset_size','sub_asset_type_1','sub_asset_size_1','sub_asset_type_2','sub_asset_size_2','sub_asset_type_3','sub_asset_size_3','sub_asset_type_4','sub_asset_size_4','sub_asset_type_5','sub_asset_size_5','sub_asset_type_6','sub_asset_size_6','business_distribution_area','shared_parking_area','number_of_parking_units'];
+          const beforeMap = new Map(beforeAssets.map((a: any) => [a.asset_id, a]));
+          const afterMap = new Map(afterAssets.map((a: any) => [a.asset_id, a]));
+          const allIds = Array.from(new Set([...beforeMap.keys(), ...afterMap.keys()]));
+          return allIds.some(id => {
+            const b = beforeMap.get(id), a = afterMap.get(id);
+            if (!b || !a) return true;
+            return compareFields.some(f => (b as any)[f] !== (a as any)[f]);
+          });
+        });
+        setDistributionHistoryCount(meaningfulDistribution.length);
+
         // Fetch transfer history count (only for business)
         if (!isResidentTaxRegion) {
           const transferHistory = await api.distributionAudit.getByBuilding(buildingNumber, 'transfer');

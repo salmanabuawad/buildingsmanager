@@ -2798,10 +2798,10 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
               <input
                 type="checkbox"
                 checked={isChecked}
-                disabled
                 readOnly
                 onChange={() => {}}
-                className="w-4 h-4 opacity-70 cursor-not-allowed"
+                style={{ pointerEvents: 'none' }}
+                className="w-4 h-4 cursor-default"
               />
             )}
           </div>

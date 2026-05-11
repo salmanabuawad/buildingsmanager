@@ -4889,7 +4889,6 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
         <input
           type="checkbox"
           checked={isChecked}
-          disabled={isReadOnly}
           onChange={(e) => {
             if (isReadOnly) return;
             const newValue = e.target.checked ? true : false;
@@ -4929,7 +4928,8 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
               });
             }
           }}
-          className={`w-4 h-4 text-theme-tab-active rounded focus:ring-2 focus:ring-theme-action-accent ${isReadOnly ? 'cursor-not-allowed opacity-70' : 'cursor-pointer'}`}
+          style={isReadOnly ? { pointerEvents: 'none' } : undefined}
+          className={`w-4 h-4 text-theme-tab-active rounded focus:ring-2 focus:ring-theme-action-accent ${isReadOnly ? 'cursor-default' : 'cursor-pointer'}`}
         />
       </div>
     );

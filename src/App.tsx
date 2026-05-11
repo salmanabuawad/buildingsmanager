@@ -1935,7 +1935,7 @@ function App() {
         <div className="bg-app-tabs-bg border-b border-app-input-border">
           <div className="px-2 sm:px-4 py-1.5">
             <div className="flex flex-row-reverse items-center justify-end gap-1 overflow-x-auto scrollbar-hide min-h-[40px]">
-              {[...tabs].reverse().map((tab) => (
+              {[...tabs].reverse().filter(tab => !(isReadOnly && tab.type === 'measurement-progress-dashboard')).map((tab) => (
                 <div
                   key={tab.id}
                   className={`flex items-center gap-2 px-4 py-2 border-b-2 transition-all duration-200 cursor-pointer group touch-manipulation flex-shrink-0 -mb-px ${

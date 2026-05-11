@@ -3389,13 +3389,14 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
             <input
               type="checkbox"
               checked={params.value === true}
-              disabled={markedForDeletion}
+              disabled={markedForDeletion || isReadOnly}
               onChange={(e) => {
+                if (isReadOnly) return;
                 const newValue = e.target.checked ? true : false;
                 params.node.setDataValue('elevator', newValue);
                 handleCheckboxChange(building, 'elevator', newValue);
               }}
-              className={`w-3.5 h-3.5 ${markedForDeletion ? ' opacity-50' : 'cursor-pointer'}`}
+              className={`w-3.5 h-3.5 ${markedForDeletion || isReadOnly ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
             />
           </div>
         );
@@ -3429,13 +3430,14 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
             <input
               type="checkbox"
               checked={isChecked}
-              disabled={markedForDeletion}
+              disabled={markedForDeletion || isReadOnly}
               onChange={(e) => {
+                if (isReadOnly) return;
                 const newValue = e.target.checked ? true : false;
                 params.node.setDataValue('single_double_family', newValue);
                 handleCheckboxChange(building, 'single_double_family', newValue);
               }}
-              className={`w-3.5 h-3.5 ${markedForDeletion ? ' opacity-50' : 'cursor-pointer'}`}
+              className={`w-3.5 h-3.5 ${markedForDeletion || isReadOnly ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
             />
           </div>
         );
@@ -3461,13 +3463,14 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
             <input
               type="checkbox"
               checked={isChecked}
-              disabled={markedForDeletion}
+              disabled={markedForDeletion || isReadOnly}
               onChange={(e) => {
+                if (isReadOnly) return;
                 const newValue = e.target.checked ? true : false;
                 params.node.setDataValue('condo', newValue);
                 handleCheckboxChange(building, 'condo', newValue);
               }}
-              className={`w-3.5 h-3.5 ${markedForDeletion ? ' opacity-50' : 'cursor-pointer'}`}
+              className={`w-3.5 h-3.5 ${markedForDeletion || isReadOnly ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
             />
           </div>
         );
@@ -3493,13 +3496,14 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
             <input
               type="checkbox"
               checked={isChecked}
-              disabled={markedForDeletion}
+              disabled={markedForDeletion || isReadOnly}
               onChange={(e) => {
+                if (isReadOnly) return;
                 const newValue = e.target.checked;
                 params.node.setDataValue('townhouses', newValue);
                 handleCheckboxChange(building, 'townhouses', newValue);
               }}
-              className={`w-3.5 h-3.5 ${markedForDeletion ? ' opacity-50' : 'cursor-pointer'}`}
+              className={`w-3.5 h-3.5 ${markedForDeletion || isReadOnly ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
             />
           </div>
         );

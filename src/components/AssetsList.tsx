@@ -4889,9 +4889,11 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
         <input
           type="checkbox"
           checked={isChecked}
+          disabled={isReadOnly}
           onChange={(e) => {
+            if (isReadOnly) return;
             const newValue = e.target.checked ? true : false;
-            
+
             if (isNewAsset) {
               // Track the change in dirtyAssets for new assets
               setDirtyAssets(prev => {
@@ -4909,15 +4911,15 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
                 return next;
               });
             }
-            
+
             // Update grid cell data directly
             params.node.setDataValue('penthouse', newValue);
-            
+
             // Update assets state
-            setAssets(prev => prev.map(a => 
+            setAssets(prev => prev.map(a =>
               String(a.asset_id) === assetIdStr ? { ...a, penthouse: newValue } : a
             ));
-            
+
             // Refresh only this specific cell
             if (gridRef.current) {
               gridRef.current.api.refreshCells({
@@ -4927,7 +4929,7 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
               });
             }
           }}
-          className="w-4 h-4 text-theme-tab-active rounded focus:ring-2 focus:ring-theme-action-accent cursor-pointer"
+          className={`w-4 h-4 text-theme-tab-active rounded focus:ring-2 focus:ring-theme-action-accent ${isReadOnly ? 'cursor-not-allowed opacity-70' : 'cursor-pointer'}`}
         />
       </div>
     );

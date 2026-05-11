@@ -80,6 +80,17 @@ class _UserRow:
         self.role = "user"  # default; role comes from JWT, not DB
 
 
+def require_admin(credentials: HTTPAuthorizationCredentials = Depends(security)):
+    """Require valid JWT with role='admin'. Raises 403 for non-admin users. No DB lookup."""
+    payload = decode_token(credentials.credentials)
+    if payload.get("role", "user") != "admin":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="הפעולה מותרת למנהלים בלבד",
+        )
+    return payload
+
+
 def get_current_user(
     credentials: HTTPAuthorizationCredentials = Depends(security),
     db: Session = Depends(get_db)

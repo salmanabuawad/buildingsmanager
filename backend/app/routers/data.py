@@ -9,7 +9,8 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy.orm import Session
 from sqlalchemy import text
 from app.database import get_db
-from app.auth import decode_token
+from app.auth import decode_token, require_admin as _require_admin
+from app.auth import _parse_uid
 from app.utils import serialize_value as _serialize
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from app.services.workflow_service import update_building_total_area
@@ -204,7 +205,7 @@ def get_table(
 async def insert_table(
     request: Request,
     table: str,
-    _payload: dict = Depends(require_jwt),
+    _payload: dict = Depends(_require_admin),
     db: Session = Depends(get_db),
 ):
     if table not in ALLOWED_TABLES:
@@ -244,7 +245,7 @@ async def insert_table(
 async def upsert_table(
     request: Request,
     table: str,
-    _payload: dict = Depends(require_jwt),
+    _payload: dict = Depends(_require_admin),
     db: Session = Depends(get_db),
 ):
     if table not in ALLOWED_TABLES:
@@ -329,6 +330,15 @@ async def patch_table(
     if table not in ALLOWED_TABLES:
         raise HTTPException(status_code=404, detail="Not Found")
     q = dict(request.query_params)
+    # Authorization: admin can patch anything; non-admin can only patch their own users row
+    role = _payload.get("role", "user")
+    if role != "admin":
+        if table != "users":
+            raise HTTPException(status_code=403, detail="הפעולה מותרת למנהלים בלבד")
+        requester_uid = _parse_uid(_payload.get("sub"))
+        filter_uid = _parse_uid(str(q.get("user_id", "")))
+        if requester_uid is None or filter_uid != requester_uid:
+            raise HTTPException(status_code=403, detail="ניתן לעדכן פרופיל אישי בלבד")
     columns = _get_columns(db, table)
     if not columns:
         raise HTTPException(status_code=500, detail="Table not found")
@@ -339,6 +349,9 @@ async def patch_table(
     body = await request.json()
     if not body:
         raise HTTPException(status_code=400, detail="PATCH requires a JSON body")
+    # Non-admin users may not escalate their own role or change sensitive fields
+    if role != "admin" and table == "users":
+        body = {k: v for k, v in body.items() if k not in ("user_role", "active", "password_hash", "user_id")}
     set_clauses = []
     set_params: dict = dict(where_params)
     for key, value in body.items():
@@ -360,7 +373,7 @@ async def patch_table(
 
 @router.post("/migrate/asset-files-to-null")
 def migrate_asset_files_to_null(
-    _payload: dict = Depends(require_jwt),
+    _payload: dict = Depends(_require_admin),
     db: Session = Depends(get_db),
 ):
     """One-time migration: mark active asset files as NULL measurement_date.
@@ -390,7 +403,7 @@ def migrate_asset_files_to_null(
 def delete_table(
     request: Request,
     table: str,
-    _payload: dict = Depends(require_jwt),
+    _payload: dict = Depends(_require_admin),
     db: Session = Depends(get_db),
 ):
     if table not in ALLOWED_TABLES:

@@ -4,7 +4,7 @@ from typing import List
 from app.database import get_db
 from app.models import AssetType
 from app.schemas import AssetTypeBase, AssetTypeResponse
-from app.auth import get_current_user, require_jwt
+from app.auth import get_current_user, require_jwt, require_admin
 from app.services.workflow_service import (
     update_asset_type_with_distribution_reset,
     bulk_update_asset_types_with_distribution_reset,
@@ -57,7 +57,7 @@ def create_asset_type(
 @router.post("/update-with-distribution-reset")
 def update_with_distribution_reset(
     body: dict = Body(...),
-    _payload: dict = Depends(require_jwt),
+    _payload: dict = Depends(require_admin),
     db: Session = Depends(get_db),
 ):
     asset_type_id = body.get("p_id")
@@ -87,7 +87,7 @@ def update_with_distribution_reset(
 @router.post("/bulk-distribution-reset")
 def bulk_distribution_reset(
     body: dict = Body(...),
-    _payload: dict = Depends(require_jwt),
+    _payload: dict = Depends(require_admin),
     db: Session = Depends(get_db),
 ):
     items = body.get("p_asset_types_data") or []

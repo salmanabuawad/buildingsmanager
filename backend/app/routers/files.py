@@ -10,7 +10,7 @@ from sqlalchemy import text
 from fastapi.responses import FileResponse
 from app.database import get_db
 from app.utils import row_to_dict as _row_to_dict
-from app.auth import require_jwt, _parse_uid
+from app.auth import require_jwt, require_admin, _parse_uid
 from app.config import settings
 import uuid
 
@@ -84,7 +84,7 @@ async def upload_file(
     measurement_date: str = None,
     path: str | None = Query(default=None, description="Optional storage-relative path."),
     db: Session = Depends(get_db),
-    payload: dict = Depends(require_jwt),
+    payload: dict = Depends(require_admin),
 ):
     uid = _parse_uid(payload.get("sub"))
 
@@ -148,7 +148,7 @@ def get_asset_files(
 def delete_file(
     file_id: int,
     db: Session = Depends(get_db),
-    payload: dict = Depends(require_jwt),
+    payload: dict = Depends(require_admin),
 ):
     row = db.execute(
         text("SELECT * FROM asset_files WHERE id = :fid"), {"fid": file_id}

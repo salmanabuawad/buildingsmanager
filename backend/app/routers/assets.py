@@ -6,7 +6,7 @@ from typing import List, Optional, Any
 from app.database import get_db
 from app.models import Asset
 from app.schemas import AssetCreate, AssetUpdate, AssetResponse
-from app.auth import get_current_user, require_jwt
+from app.auth import get_current_user, require_jwt, require_admin
 from app.utils import serialize_value as _ser
 from app.services.workflow_service import (
     copy_asset_to_history,
@@ -106,7 +106,7 @@ def get_assets_by_ids(
 
 @router.post("/mark-exported")
 def mark_exported_route(
-    _payload: dict = Depends(require_jwt),
+    _payload: dict = Depends(require_admin),
     db: Session = Depends(get_db),
 ):
     """Mark all measured-but-not-exported assets as exported. Calls asset_service.mark_exported logic."""
@@ -137,7 +137,7 @@ def mark_exported_route(
 @router.post("/mark-exported-by-ids")
 def mark_exported_by_ids(
     body: dict = Body(...),
-    _payload: dict = Depends(require_jwt),
+    _payload: dict = Depends(require_admin),
     db: Session = Depends(get_db),
 ):
     """Mark assets as exported. Body: { \"asset_ids\": [id1, id2, ...] } (business asset_id). Sets exported_to_automation=true and export_to_automation_at=DD/MM/YYYY."""
@@ -176,7 +176,7 @@ def mark_exported_by_ids(
 
 @router.post("/reset-export-to-automation")
 def reset_export_to_automation(
-    _payload: dict = Depends(require_jwt),
+    _payload: dict = Depends(require_admin),
     db: Session = Depends(get_db),
 ):
     """Reset exported_to_automation for assets with the latest export_to_automation_at. Returns count and next latest date."""
@@ -245,7 +245,7 @@ def assets_with_history(
 @router.post("/copy-to-history")
 def asset_copy_to_history(
     body: dict = Body(...),
-    _payload: dict = Depends(require_jwt),
+    _payload: dict = Depends(require_admin),
     db: Session = Depends(get_db),
 ):
     asset_id = body.get("p_asset_id")
@@ -266,7 +266,7 @@ def asset_copy_to_history(
 @router.post("/save-bulk-transactional")
 def asset_save_bulk_transactional(
     body: dict = Body(...),
-    _payload: dict = Depends(require_jwt),
+    _payload: dict = Depends(require_admin),
     db: Session = Depends(get_db),
 ):
     try:
@@ -291,7 +291,7 @@ def asset_save_bulk_transactional(
 @router.post("/delete-transactional")
 def asset_delete_transactional(
     body: dict = Body(...),
-    _payload: dict = Depends(require_jwt),
+    _payload: dict = Depends(require_admin),
     db: Session = Depends(get_db),
 ):
     asset_id = body.get("p_asset_id")
@@ -317,7 +317,7 @@ def asset_delete_transactional(
 @router.post("/delete-bulk-transactional")
 def asset_delete_bulk_transactional(
     body: dict = Body(...),
-    _payload: dict = Depends(require_jwt),
+    _payload: dict = Depends(require_admin),
     db: Session = Depends(get_db),
 ):
     raw_ids = body.get("p_asset_ids") or []

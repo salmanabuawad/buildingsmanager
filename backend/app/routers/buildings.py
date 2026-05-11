@@ -3,7 +3,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import text
 from sqlalchemy.exc import IntegrityError
 from typing import Any
-from app.auth import require_jwt
+from app.auth import require_jwt, require_admin
 from app.database import get_db
 from app.services.workflow_service import (
     update_buildings_with_distribution_flags,
@@ -18,7 +18,7 @@ router = APIRouter()
 @router.post("/create")
 def create_building_raw(
     body: dict = Body(...),
-    _payload: dict = Depends(require_jwt),
+    _payload: dict = Depends(require_admin),
     db: Session = Depends(get_db),
 ):
     columns = _get_columns(db, "buildings")
@@ -52,7 +52,7 @@ def create_building_raw(
 @router.post("/create-bulk")
 def create_buildings_bulk(
     body: dict = Body(...),
-    _payload: dict = Depends(require_jwt),
+    _payload: dict = Depends(require_admin),
     db: Session = Depends(get_db),
 ):
     rows_input: list[dict[str, Any]] = body.get("rows") or []
@@ -123,7 +123,7 @@ def _delete_building_cascade(building_number: int, db: Session) -> dict:
 @router.delete("/by-number/{building_number}")
 def delete_building_with_related(
     building_number: int,
-    _payload: dict = Depends(require_jwt),
+    _payload: dict = Depends(require_admin),
     db: Session = Depends(get_db),
 ):
     """Frontend-facing delete that returns deleted_assets_count."""
@@ -133,7 +133,7 @@ def delete_building_with_related(
 @router.delete("/{building_number}")
 def delete_building_by_number(
     building_number: int,
-    _payload: dict = Depends(require_jwt),
+    _payload: dict = Depends(require_admin),
     db: Session = Depends(get_db),
 ):
     return _delete_building_cascade(building_number, db)
@@ -142,7 +142,7 @@ def delete_building_by_number(
 @router.post("/bulk-distribution-flags")
 def bulk_distribution_flags(
     body: dict = Body(...),
-    _payload: dict = Depends(require_jwt),
+    _payload: dict = Depends(require_admin),
     db: Session = Depends(get_db),
 ):
     items = body.get("p_buildings_data") or []
@@ -164,7 +164,7 @@ def bulk_distribution_flags(
 @router.post("/update-total-area")
 def recalculate_total_area(
     body: dict = Body(...),
-    _payload: dict = Depends(require_jwt),
+    _payload: dict = Depends(require_admin),
     db: Session = Depends(get_db),
 ):
     building_number = body.get("p_building_number")

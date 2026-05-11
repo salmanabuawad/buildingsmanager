@@ -3,7 +3,7 @@ from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.orm import Session
 from sqlalchemy import text
 from app.database import get_db
-from app.auth import get_password_hash, decode_token
+from app.auth import get_password_hash, decode_token, _parse_uid
 
 router = APIRouter()
 _bearer = HTTPBearer()
@@ -19,6 +19,8 @@ def create_user_internal(
     _payload: dict = Depends(_require_jwt),
     db: Session = Depends(get_db),
 ):
+    if _payload.get("role", "user") != "admin":
+        raise HTTPException(status_code=403, detail="הפעולה מותרת למנהלים בלבד")
     """Create a new user with hashed password. Accepts p_user_name, p_user_email, p_password, p_user_role, full_name, phone."""
     user_name = (body.get("p_user_name") or "").strip()
     user_email = (body.get("p_user_email") or "").strip()
@@ -79,6 +81,12 @@ def set_password(
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="user_id is required")
     if not new_password:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="password is required")
+    # Allow admins to change any password; non-admins can only change their own
+    role = _payload.get("role", "user")
+    if role != "admin":
+        requester_uid = _parse_uid(_payload.get("sub"))
+        if requester_uid is None or int(user_id) != requester_uid:
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="ניתן לשנות סיסמה אישית בלבד")
 
     password_hash = get_password_hash(new_password)
     result = db.execute(

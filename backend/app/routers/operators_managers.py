@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, Body
 from sqlalchemy.orm import Session
 from sqlalchemy import text
 from app.database import get_db
-from app.routers.data import require_jwt
+from app.auth import require_admin as require_jwt
 
 router = APIRouter()
 

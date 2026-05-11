@@ -2744,23 +2744,23 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
         const isEditable = params.data.is_latest === true;
         return (
           <div className="flex items-center justify-center h-full">
-            {isEditable ? (
+            {isEditable && !isReadOnly ? (
               <input
                 type="checkbox"
                 checked={isChecked}
                 onChange={(e) => {
                   e.stopPropagation(); // Prevent event bubbling
                   const newValue = e.target.checked ? true : false;
-                  
+
                   // Only allow editing for latest records
                   if (params.data.is_latest !== true) {
                     return;
                   }
-                  
+
                   // Update the data directly in the node (this doesn't trigger onCellValueChanged)
                   params.data.penthouse = newValue;
                   params.node.setDataValue('penthouse', newValue);
-                  
+
                   // Manually track the change in dirtyAssets
                   const assetId = params.data.asset_id;
                   setDirtyAssets(prev => {
@@ -2769,7 +2769,7 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
                     newMap.set(assetId, { ...existing, penthouse: newValue });
                     return newMap;
                   });
-                  
+
                   // Clear any validation errors for this field
                   setValidationErrors(prev => {
                     const newMap = new Map(prev);
@@ -2782,20 +2782,27 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
                     }
                     return newMap;
                   });
-                  
+
                   // Refresh only this specific cell
                   if (params.api && params.node) {
-                    params.api.refreshCells({ 
-                      rowNodes: [params.node], 
-                      columns: ['penthouse'], 
-                      force: true 
+                    params.api.refreshCells({
+                      rowNodes: [params.node],
+                      columns: ['penthouse'],
+                      force: true
                     });
                   }
                 }}
                 className="w-4 h-4 text-theme-tab-active rounded focus:ring-2 focus:ring-theme-action-accent cursor-pointer"
               />
             ) : (
-              <span className="text-gray-600">{isChecked ? '✓' : ''}</span>
+              <input
+                type="checkbox"
+                checked={isChecked}
+                disabled
+                readOnly
+                onChange={() => {}}
+                className="w-4 h-4 opacity-70 cursor-not-allowed"
+              />
             )}
           </div>
         );

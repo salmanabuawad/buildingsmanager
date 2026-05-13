@@ -185,12 +185,15 @@ async def _update_building_total_area(conn, building_number: int) -> None:
         "SELECT residence_shared_area, business_shared_area, shared_parking_area FROM buildings WHERE building_number = $1",
         building_number,
     )
-    total_area = (
-        net_area
-        + float(building["residence_shared_area"] or 0)
-        + float(building["business_shared_area"] or 0)
-        + float(building["shared_parking_area"] or 0)
-    )
+    # net_area is "net of shared" — after a distribute-save the per-asset
+    # asset_size column carries the distributed shared amounts, so we back
+    # them out at the building level (mirrors workflow_service.update_building_total_area).
+    residence_shared = float(building["residence_shared_area"] or 0)
+    business_shared = float(building["business_shared_area"] or 0)
+    parking_shared = float(building["shared_parking_area"] or 0)
+    net_area = net_area - residence_shared - business_shared - parking_shared
+
+    total_area = net_area + residence_shared + business_shared + parking_shared
 
     await conn.execute(
         "UPDATE buildings SET total_building_area = $1, net_area = $2 WHERE building_number = $3",

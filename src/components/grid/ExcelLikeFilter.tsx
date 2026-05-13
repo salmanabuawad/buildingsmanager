@@ -98,16 +98,20 @@ const ExcelLikeFilter = ({
     },
   });
 
-  // Sync pending state when model changes from outside (e.g. setModel / reset)
+  // Sync pending state when model changes from outside (e.g. setModel / reset).
+  // IMPORTANT: depend only on `model` — including `collectAllValues` here caused
+  // pending to reset on every render where AG Grid handed back a new `getValue`
+  // or `api` reference, wiping mid-selection state and leaving the (בחר הכל)
+  // checkbox stuck in the checked state. afterGuiAttached already refreshes
+  // `allValues` when the popup opens, so we don't need to refresh it here.
   useEffect(() => {
-    const fresh = collectAllValues();
-    setAllValues(fresh);
     if (model) {
       setPending(new Set(model.values));
     } else {
-      setPending(new Set(fresh));
+      setPending(new Set(collectAllValues()));
     }
-  }, [model, collectAllValues]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [model]);
 
   // ── derived ────────────────────────────────────────────────────────────────
   const visible = search

@@ -2492,10 +2492,9 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
               if (totalUnits > 0) updates.number_of_parking_units = totalUnits;
               if (totalArea > 0) updates.shared_parking_area = totalArea;
               if (Object.keys(updates).length > 0) {
-                await api
-                  .from('buildings')
-                  .update(updates)
-                  .eq('building_number', buildingNum);
+                await api.buildings.updateBulk([
+                  { building_number: buildingNum, updates: updates as any }
+                ]);
               }
             }
           } catch (parkingError) {
@@ -2541,45 +2540,11 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
         return !successfullySavedAssetIds.has(normalizedAssetId);
       }));
 
-      // Log audit entry for import file action
-      if (successCount > 0) {
-        try {
-          const assetIds = insertedAssetsResult?.map(a => a.asset_id).filter((id): id is number => typeof id === 'number') || [];
-          const buildingNumbers = [...new Set(validAssets.map(a => {
-            const bn = typeof a.building_number === 'string' ? parseInt(a.building_number, 10) : a.building_number;
-            return !isNaN(bn) ? bn : null;
-          }).filter((bn): bn is number => bn !== null))];
-          
-          if (assetIds.length > 0) {
-            await api.auditLog.logBulkAssetAction(
-              assetIds,
-              'import_file',
-              undefined,
-              { assets: insertedAssetsResult },
-              `Imported ${successCount} assets from file${saveAsNew ? ' as new measurements' : ''}`
-            );
-          }
-          
-          // Also log building actions if buildings were created
-          for (const buildingNum of buildingNumbers) {
-            try {
-              const building = await api.buildings.getOne(buildingNum);
-              await api.auditLog.logBuildingAction(
-                buildingNum,
-                'import_file',
-                undefined,
-                { building, assets: insertedAssetsResult?.filter(a => a.building_number === buildingNum) },
-                `Building created/updated during file import`
-              );
-            } catch (err) {
-              // Skip if building doesn't exist or other error
-            }
-          }
-        } catch (auditError) {
-          console.warn('Failed to log audit entry for file import:', auditError);
-          // Don't block the operation if audit logging fails
-        }
-      }
+      // Audit logging for the imported assets is performed server-side by
+      // save_assets_bulk_transactional (called above via the bulk save).
+      // Client-side calls to api.auditLog.logBulkAssetAction / logBuildingAction
+      // were removed — those methods do not exist on the current api surface
+      // and were silently failing in production.
 
       setSaveResult({
         successful: successCount,

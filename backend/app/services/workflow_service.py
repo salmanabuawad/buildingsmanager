@@ -810,41 +810,39 @@ def update_building_total_area(db: Session, building_number: int) -> dict[str, A
     """
     Recompute net_area and total_building_area for a building.
 
-    net_area:            SUM(asset_size) excluding non_accountable, use_shared_area,
-                         use_for_parking_shared_area types. For complex assets (type 199),
-                         sub-asset sizes belonging to shared-area types (e.g. residence
-                         distribution) are subtracted so they are not double-counted.
+    net_area:            SUM(asset_size) excluding only non_accountable_for_total_area
+                         types. Assets flagged use_shared_area or
+                         use_for_parking_shared_area are included in net_area (see
+                         commit history for the rationale — previous behavior excluded
+                         them, but those exclusions were removed by request).
     total_building_area: net_area + residence_shared_area + business_shared_area
                          + shared_parking_area (from building table)
     """
-    # Collect all asset type names that are non-accountable (any exclusion flag)
+    # Collect asset type names flagged non-accountable for total area.
+    # Previously this also included use_shared_area / use_for_parking_shared_area
+    # — those exclusions were removed.
     excluded_type_rows = db.execute(
         text("""
             SELECT name FROM asset_types
             WHERE non_accountable_for_total_area = true
-               OR use_shared_area = true
-               OR use_for_parking_shared_area = true
         """)
     ).fetchall()
     non_accountable_type_names = {str(r[0]).strip() for r in excluded_type_rows if r[0]}
 
-    # Fetch all assets for this building with their type flags and sub-asset fields
+    # Fetch all assets for this building (no asset_types join — we resolve
+    # accountability via the non_accountable_type_names set built above, which
+    # avoids the LIMIT-1 non-determinism on types with multiple variants).
     rows = db.execute(
         text("""
-            SELECT a.asset_size,
+            SELECT a.main_asset_type,
+                   a.asset_size,
                    a.sub_asset_type_1, a.sub_asset_size_1,
                    a.sub_asset_type_2, a.sub_asset_size_2,
                    a.sub_asset_type_3, a.sub_asset_size_3,
                    a.sub_asset_type_4, a.sub_asset_size_4,
                    a.sub_asset_type_5, a.sub_asset_size_5,
-                   a.sub_asset_type_6, a.sub_asset_size_6,
-                   at.non_accountable_for_total_area,
-                   at.use_shared_area, at.use_for_parking_shared_area
+                   a.sub_asset_type_6, a.sub_asset_size_6
             FROM assets a
-            LEFT JOIN LATERAL (
-                SELECT non_accountable_for_total_area, use_shared_area, use_for_parking_shared_area
-                FROM asset_types WHERE name = a.main_asset_type LIMIT 1
-            ) at ON true
             WHERE a.building_number = :bn
         """),
         {"bn": building_number},
@@ -852,18 +850,15 @@ def update_building_total_area(db: Session, building_number: int) -> dict[str, A
 
     net_area = 0.0
     for row in rows:
-        # Main asset_size: include only if main type is accountable
-        parking = str(row["use_for_parking_shared_area"] or "").lower()
-        main_accountable = (
-            not row["non_accountable_for_total_area"]
-            and not row["use_shared_area"]
-            and parking not in ("true", "t", "1")
-        )
-        if main_accountable:
+        # Main asset_size: include unless main type is non_accountable_for_total_area.
+        # The use_shared_area / use_for_parking_shared_area exclusions were removed.
+        main_type = row.get("main_asset_type")
+        main_type_name = str(main_type).strip() if main_type is not None else ""
+        if main_type_name not in non_accountable_type_names:
             net_area += float(row["asset_size"] or 0)
 
         # Each sub-type is checked independently — accountable sub-types count
-        # even if the main type is non-accountable (e.g. type 199 container)
+        # even if the main type is non-accountable (e.g. type 199 container).
         for i in range(1, 7):
             sub_type = row.get(f"sub_asset_type_{i}")
             sub_size = row.get(f"sub_asset_size_{i}")

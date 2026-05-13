@@ -128,9 +128,13 @@ async def _update_building_total_area(conn, building_number: int) -> None:
     """Recompute total_building_area and net_area from assets.
 
     Each element is checked independently:
-    - Main asset_size counts if main type is accountable (not non_accountable, not use_shared_area, not parking)
-    - Each sub_asset_size_N counts if that sub-type has non_accountable_for_total_area = false
+    - Main asset_size counts unless main type has non_accountable_for_total_area = true
+    - Each sub_asset_size_N counts unless that sub-type has non_accountable_for_total_area = true
     Even if main type is non-accountable (e.g. type 199 container), accountable sub-types still count.
+
+    Note: the previous behavior also excluded use_shared_area and
+    use_for_parking_shared_area types from net_area. Those exclusions were
+    removed by request — only non_accountable_for_total_area excludes now.
 
     total_building_area: net_area + residence_shared_area + business_shared_area + shared_parking_area (from building)
     """
@@ -146,50 +150,36 @@ async def _update_building_total_area(conn, building_number: int) -> None:
         building_number,
     )
 
-    # Cache: type_name -> flags dict
-    type_cache: dict = {}
-
-    async def get_type_flags(type_name: str) -> dict:
-        if type_name not in type_cache:
-            row = await conn.fetchrow(
-                """SELECT non_accountable_for_total_area, use_shared_area, use_for_parking_shared_area
-                   FROM asset_types WHERE name = $1 LIMIT 1""",
-                type_name,
-            )
-            type_cache[type_name] = dict(row) if row else {}
-        return type_cache[type_name]
+    # Build the non-accountable set once from asset_types. Using bool_or
+    # protects against the case where a type name has multiple rows (per
+    # tax_region etc.) and only some carry the non_accountable flag.
+    nonacc_rows = await conn.fetch(
+        """SELECT name, bool_or(non_accountable_for_total_area) AS nonacc
+           FROM asset_types
+           GROUP BY name"""
+    )
+    non_accountable_type_names: set[str] = {
+        str(r["name"]).strip() for r in nonacc_rows if r["nonacc"] and r["name"]
+    }
 
     net_area = 0.0
 
     for asset in assets:
         main_type = asset["main_asset_type"]
-        flags = await get_type_flags(main_type) if main_type else {}
+        main_type_name = str(main_type).strip() if main_type is not None else ""
 
-        # Main asset_size: include only if main type is accountable
-        parking = str(flags.get("use_for_parking_shared_area") or "").lower()
-        main_accountable = (
-            not flags.get("non_accountable_for_total_area")
-            and not flags.get("use_shared_area")
-            and parking not in ("true", "t", "1")
-        )
-        if main_accountable:
+        # Main asset_size: include unless main type is in the non-accountable set.
+        # An empty/missing main type is treated as accountable, matching prior behavior.
+        if main_type_name not in non_accountable_type_names:
             net_area += float(asset["asset_size"] or 0)
 
-        # Each sub-type is checked independently — accountable sub-types always count
-        # even if main type is non-accountable (e.g. type 199 container)
+        # Each sub-type is checked independently — accountable sub-types count
+        # even if main type is non-accountable (e.g. type 199 container).
         for i in range(1, 7):
             sub_type = asset[f"sub_asset_type_{i}"]
             sub_size = asset[f"sub_asset_size_{i}"]
-            if sub_type:
-                sub_flags = await get_type_flags(str(sub_type))
-                sub_parking = str(sub_flags.get("use_for_parking_shared_area") or "").lower()
-                sub_accountable = (
-                    not sub_flags.get("non_accountable_for_total_area")
-                    and not sub_flags.get("use_shared_area")
-                    and sub_parking not in ("true", "t", "1")
-                )
-                if sub_accountable:
-                    net_area += float(sub_size or 0)
+            if sub_type and str(sub_type).strip() not in non_accountable_type_names:
+                net_area += float(sub_size or 0)
 
     building = await conn.fetchrow(
         "SELECT residence_shared_area, business_shared_area, shared_parking_area FROM buildings WHERE building_number = $1",

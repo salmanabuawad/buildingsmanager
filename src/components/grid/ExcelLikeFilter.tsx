@@ -156,6 +156,19 @@ const ExcelLikeFilter = ({
     hidePopupRef.current?.();
   };
 
+  // Typing in the search box clears all checkboxes — the user is starting a
+  // fresh selection from the filtered subset. Clears on the transition from
+  // empty → non-empty so repeated keystrokes don't re-clear what the user
+  // has just (re-)checked.
+  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const next = e.target.value;
+    if (next && !search) {
+      setPending(new Set());
+      onUiChange();
+    }
+    setSearch(next);
+  };
+
   // ── render ─────────────────────────────────────────────────────────────────
   return (
     <div style={styles.container} dir="rtl">
@@ -165,7 +178,7 @@ const ExcelLikeFilter = ({
           type="text"
           placeholder="חיפוש..."
           value={search}
-          onChange={(e) => setSearch(e.target.value)}
+          onChange={handleSearchChange}
           style={styles.searchInput}
           autoFocus
         />

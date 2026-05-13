@@ -1956,17 +1956,32 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
       // Fetch asset types if not already loaded (needed to detect business assets)
       const typesForImport = assetTypes.length > 0 ? assetTypes : await api.assetTypes.getAll();
 
-      // Fetch each building's overload_ratio for business asset area split on import
+      // Fetch each building's overload_ratio (for business reversal) and
+      // shared_parking_area + number_of_parking_units (for parking reversal).
       const buildingOverloadRatioMap = new Map<number, number | null>();
+      const buildingSharedParkingMap = new Map<number, { area: number; units: number }>();
       for (const buildingNum of uniqueBuildingNumbers) {
         try {
           const building = await api.buildings.getOne(buildingNum);
           const ratio = building?.overload_ratio;
           buildingOverloadRatioMap.set(buildingNum, ratio != null ? ratio : null);
+          const area = building?.shared_parking_area != null ? Number(building.shared_parking_area) : 0;
+          const units = building?.number_of_parking_units != null ? Number(building.number_of_parking_units) : 0;
+          buildingSharedParkingMap.set(buildingNum, { area: isNaN(area) ? 0 : area, units: isNaN(units) ? 0 : units });
         } catch {
           buildingOverloadRatioMap.set(buildingNum, null);
+          buildingSharedParkingMap.set(buildingNum, { area: 0, units: 0 });
         }
       }
+
+      // Helper: asset_types lookup for parking-flag check (defined once outside the map).
+      const isParkingTypeName = (typeName: string | null | undefined): boolean => {
+        if (!typeName) return false;
+        const t = String(typeName).trim();
+        if (!t) return false;
+        const at = typesForImport.find((tt) => String(tt.name).trim() === t);
+        return at?.use_for_parking_shared_area === true;
+      };
 
       // Prepare all valid assets for bulk insert.
       // On import with distribution: compute scaled sizes and building business_shared_area only; do NOT set asset business_distribution_area.
@@ -2047,6 +2062,72 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
           buildingDistributionSumMap.set(buildingNum, (buildingDistributionSumMap.get(buildingNum) || 0) + businessDistributionArea);
         }
 
+        // Parking reversal — only when the file is an automation export. Mirrors
+        // exportAutomationService.getExportAssetSize (which adds shared_parking_area
+        // to the main asset_size column) and applySharedAreasToRow (which adds it
+        // to a sub-column). On round-trip we back the same amounts out.
+        //
+        // Forward distribution (AssetsList.tsx:4099-4101):
+        //   unitArea = building.shared_parking_area / building.number_of_parking_units
+        //   asset.shared_parking_area = unitArea * asset.number_of_parking_units
+        // Reverse: same formula, then subtract from main + parking sub-col.
+        let sharedParkingForAsset = 0;
+        if (importFromAutomation) {
+          const parkInfo = !isNaN(buildingNum) ? buildingSharedParkingMap.get(buildingNum) : undefined;
+          const parkingPoolArea = parkInfo?.area ?? 0;
+          const buildingParkingUnits = parkInfo?.units ?? 0;
+          const assetParkingUnits = Number(asset.number_of_parking_units) || 0;
+          const mainIsParking = isParkingTypeName(asset.main_asset_type);
+          let parkingSubIndex = 0;
+          for (let i = 1; i <= 6; i++) {
+            if (isParkingTypeName((asset as any)[`sub_asset_type_${i}`])) {
+              parkingSubIndex = i;
+              break;
+            }
+          }
+          const isAssetParkingFlagged = mainIsParking || parkingSubIndex > 0;
+
+          if (
+            isAssetParkingFlagged &&
+            assetParkingUnits > 0 &&
+            parkingPoolArea > 0 &&
+            buildingParkingUnits > 0
+          ) {
+            const xParking = parkingPoolArea * (assetParkingUnits / buildingParkingUnits);
+            sharedParkingForAsset = xParking;
+
+            // Reverse the col 6 inflation
+            assetSize -= xParking;
+
+            // Reverse the sub-col inflation (mirror applySharedAreasToRow placement)
+            const subTypeAt = (i: number) => String((asset as any)[`sub_asset_type_${i}`] ?? '').trim();
+            const adjustSub = (i: number, delta: number) => {
+              if (i === 1) subAssetSize1 += delta;
+              else if (i === 2) subAssetSize2 += delta;
+              else if (i === 3) subAssetSize3 += delta;
+              else if (i === 4) subAssetSize4 += delta;
+              else if (i === 5) subAssetSize5 += delta;
+              else if (i === 6) subAssetSize6 += delta;
+            };
+
+            if (mainIsParking && subTypeAt(1)) {
+              // Export added shared_parking to sub_size_1 when main is parking-typed
+              adjustSub(1, -xParking);
+            } else if (parkingSubIndex > 0) {
+              // Export added shared_parking to the parking-flagged sub-col
+              adjustSub(parkingSubIndex, -xParking);
+            } else {
+              // Fallback: export added to last non-empty sub-type when units > 0
+              for (let i = 6; i >= 1; i--) {
+                if (subTypeAt(i)) {
+                  adjustSub(i, -xParking);
+                  break;
+                }
+              }
+            }
+          }
+        }
+
         const assetData: Partial<Asset> = {
           building_number: asset.building_number!,
           payer_id: asset.payer_id || null,
@@ -2076,7 +2157,12 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
           discount_date_from: asset.discount_date_from || null,
           discount_date_to: asset.discount_date_to || null,
           comment: asset.comment || null,
-          shared_parking_area: asset.shared_parking_area != null ? asset.shared_parking_area : null,
+          shared_parking_area:
+            sharedParkingForAsset > 0
+              ? sharedParkingForAsset
+              : asset.shared_parking_area != null
+                ? asset.shared_parking_area
+                : null,
           number_of_parking_units: asset.number_of_parking_units != null ? asset.number_of_parking_units : null,
           // If file is from automation, mark as coming from automation.
           // Any later edit in the app will flip this back to false via DB trigger.

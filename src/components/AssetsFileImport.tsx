@@ -284,14 +284,36 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
         'number_of_parking_units': 'מספר יחידות חניה'
       };
 
-      // Match headers by exact name only (case-insensitive, trimmed)
+      // Aliases for the automation-export sheet headers (exportAutomationService.ts:32).
+      // The export uses slightly different Hebrew names than the regular importer
+      // template; mapping both lets us round-trip the automation file back through
+      // import after asset deletion without any extra UI step.
+      const exportAliases: Record<string, string> = {
+        'מזהה משלם': 'זיהוי משלם',
+        'מזהה נכס': 'זיהוי נכס',
+        'סוג נכס ראשי': 'סוג נכס',
+        'גודל נכס ראשי': 'גודל נכס',
+        'סוג נכס משנה 1': 'נכס משנה 1',
+        'סוג נכס משנה 2': 'נכס משנה 2',
+        'סוג נכס משנה 3': 'נכס משנה 3',
+        'סוג נכס משנה 4': 'נכס משנה 4',
+        'סוג נכס משנה 5': 'נכס משנה 5',
+        'סוג נכס משנה 6': 'נכס משנה 6',
+      };
+
+      // Match headers by exact name (case-insensitive, trimmed), accepting
+      // either the template name or the automation-export alias.
       originalHeaders.forEach((header, index) => {
         if (!header) return;
         const headerTrimmed = header.trim();
+        const headerLower = headerTrimmed.toLowerCase();
 
-        // Check for exact match against known headers
         for (const [fieldName, exactHeaderName] of Object.entries(exactHeaders)) {
-          if (headerTrimmed.toLowerCase() === exactHeaderName.toLowerCase()) {
+          const aliasName = exportAliases[exactHeaderName];
+          if (
+            headerLower === exactHeaderName.toLowerCase() ||
+            (aliasName && headerLower === aliasName.toLowerCase())
+          ) {
             headerMap[fieldName] = index;
             break;
           }
@@ -2502,14 +2524,20 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
           }
         }
 
-        // When overload_ratio > 0, set building business_shared_area from computed distribution sum (assets do not store business_distribution_area on import)
+        // When overload_ratio > 0, set building business_shared_area from computed
+        // distribution sum (assets do not store business_distribution_area on import)
+        // and clear need_business_distribution — the per-asset reversal already
+        // applied the business shares, so the building is consistent end-to-end.
         for (const buildingNum of affectedBuildingNumbers) {
           const overloadRatioPct = buildingOverloadRatioMap.get(buildingNum);
           if (overloadRatioPct != null && overloadRatioPct > 0) {
             const sumDistributionArea = buildingDistributionSumMap.get(buildingNum) || 0;
             if (sumDistributionArea > 0) {
               try {
-                await api.buildings.update(buildingNum, { business_shared_area: sumDistributionArea });
+                await api.buildings.update(buildingNum, {
+                  business_shared_area: sumDistributionArea,
+                  need_business_distribution: false,
+                });
               } catch (sharedAreaError) {
                 console.warn(`Failed to update business_shared_area for building ${buildingNum} after import:`, sharedAreaError);
               }

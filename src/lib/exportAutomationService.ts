@@ -54,6 +54,10 @@ export const MAIN_SHEET_HEADERS: string[] = [
   'שנת כספים',
   'תאריך גביה',
   'יום ערך',
+  // Trailing columns used for round-trip re-import after asset deletion.
+  // The downstream billing system ignores unknown columns past col 24.
+  'מזהה מבנה',
+  'מספר יחידות חניה',
 ];
 
 export const UPDATE_SHEET_HEADERS: string[] = [
@@ -81,6 +85,8 @@ export const MAIN_SHEET_COL_WIDTHS = [
   { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 },
   { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 },
   { wch: 10 }, { wch: 12 }, { wch: 12 }, { wch: 12 }, { wch: 15 }, { wch: 15 },
+  // Round-trip columns: building_number, number_of_parking_units
+  { wch: 14 }, { wch: 14 },
 ];
 
 export const UPDATE_SHEET_COL_WIDTHS = [
@@ -201,7 +207,7 @@ export function applySharedAreasToRow(asset: any, row: any[], assetTypes: AssetT
   return result;
 }
 
-/** Build the 24-column main sheet row for a single asset. */
+/** Build the main sheet row for a single asset (24 billing columns + 2 round-trip columns). */
 export function buildMainSheetRow(asset: any, assetTypes: AssetType[]): any[] {
   const baseRow = [
     asset.payer_id || '',
@@ -228,6 +234,10 @@ export function buildMainSheetRow(asset: any, assetTypes: AssetType[]): any[] {
     '',
     '',
     '',
+    // Round-trip columns (cols 25-26): used only when re-importing the file
+    // to reconstruct assets after deletion. Ignored by the billing system.
+    asset.building_number != null ? String(asset.building_number) : '',
+    asset.number_of_parking_units != null ? asset.number_of_parking_units : '',
   ];
   return applySharedAreasToRow(asset, baseRow, assetTypes);
 }

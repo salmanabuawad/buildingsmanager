@@ -2620,14 +2620,15 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
       }
 
       // Set building.business_shared_area from the per-asset business share
-      // we just stored. Runs UNCONDITIONALLY for importFromAutomation imports
-      // (not gated on insertedAssetsResult.length) so it fires even if some
-      // upstream branch left insertedAssetsResult null/empty. Sources from
-      // the DB so we don't depend on the in-memory map built during the
-      // synchronous map(). Formula matches AssetsList.tsx:4083:
-      //   per-asset x = h * (sub_asset_size_1 if hasSubs else asset_size)
-      //   sum across accountable business assets
-      //   business_shared_area = sum
+      // we just stored. DIAGNOSTIC: blocking alert to confirm the block fires.
+      console.log('[automation-postimport] reached block', {
+        importFromAutomation,
+        uniqueBuildingNumbersSize: uniqueBuildingNumbers.size,
+        uniqueBuildingNumbers: Array.from(uniqueBuildingNumbers),
+      });
+      alert(
+        `[DEBUG] post-import block reached. importFromAutomation=${importFromAutomation}, buildings=${Array.from(uniqueBuildingNumbers).join(',') || 'none'}`
+      );
       if (importFromAutomation && uniqueBuildingNumbers.size > 0) {
         const sharedAreaDiag: string[] = [];
         for (const buildingNum of uniqueBuildingNumbers) {

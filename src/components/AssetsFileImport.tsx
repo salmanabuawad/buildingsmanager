@@ -2617,44 +2617,71 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
           }
         }
 
-        // When overload_ratio > 0, set building business_shared_area from computed
-        // distribution sum (assets do not store business_distribution_area on import)
-        // and clear need_business_distribution — the per-asset reversal already
-        // applied the business shares, so the building is consistent end-to-end.
+        // Set building.business_shared_area from the per-asset business share
+        // we just stored. Computed FROM THE DB after the insert so we don't
+        // depend on the in-memory map that was built during the synchronous
+        // map() — if anything in that map silently returned 0, we still get
+        // the right total here. Formula matches AssetsList.tsx:4083:
+        //   per-asset x = h * (sub_asset_size_1 if hasSubs else asset_size)
+        //   sum across accountable business assets
+        //   business_shared_area = sum
         const sharedAreaDiag: string[] = [];
-        for (const buildingNum of affectedBuildingNumbers) {
-          const overloadRatioPct = buildingOverloadRatioMap.get(buildingNum);
-          const sumDistributionArea = buildingDistributionSumMap.get(buildingNum) || 0;
-          if (overloadRatioPct != null && overloadRatioPct > 0 && sumDistributionArea > 0) {
+        if (importFromAutomation) {
+          for (const buildingNum of affectedBuildingNumbers) {
             try {
-              await api.buildings.update(buildingNum, {
-                business_shared_area: sumDistributionArea,
-                need_business_distribution: false,
-              });
-              sharedAreaDiag.push(`${buildingNum}: עודכן ל-${sumDistributionArea.toFixed(2)}`);
+              const raw = buildingOverloadRatioMap.get(buildingNum);
+              const overloadRatioPct = raw == null ? NaN : Number(raw);
+              if (!isFinite(overloadRatioPct) || overloadRatioPct <= 0) {
+                sharedAreaDiag.push(
+                  `${buildingNum}: לא עודכן (אחוז העמסה=${raw ?? 'null'})`
+                );
+                continue;
+              }
+              const h = overloadRatioPct / 100;
+              const { data: rows } = await api
+                .from('assets')
+                .select('main_asset_type,sub_asset_type_1,sub_asset_size_1,asset_size')
+                .eq('building_number', buildingNum);
+              let sum = 0;
+              let included = 0;
+              let skippedNotBusiness = 0;
+              for (const a of rows || []) {
+                const subType1 = a.sub_asset_type_1 ? String(a.sub_asset_type_1).trim() : '';
+                const hasSubs = subType1 !== '';
+                const lookupName = hasSubs ? subType1 : String(a.main_asset_type ?? '').trim();
+                const contribType = findAssetTypeByName(lookupName);
+                if (!contribType) continue;
+                if (contribType.business_residence !== 'עסקים') { skippedNotBusiness++; continue; }
+                if (contribType.non_accountable_for_distribution === true) continue;
+                const contribSize = Number(hasSubs ? a.sub_asset_size_1 : a.asset_size) || 0;
+                if (contribSize <= 0) continue;
+                sum += h * contribSize;
+                included++;
+              }
+              if (sum > 0) {
+                await api.buildings.update(buildingNum, {
+                  business_shared_area: sum,
+                  need_business_distribution: false,
+                });
+                sharedAreaDiag.push(`${buildingNum}: עודכן ל-${sum.toFixed(2)} (${included} נכסים, h=${overloadRatioPct})`);
+              } else {
+                sharedAreaDiag.push(
+                  `${buildingNum}: לא עודכן (h=${overloadRatioPct}, נכסים נכללו=${included}, לא עסקים=${skippedNotBusiness}, שורות=${rows?.length || 0})`
+                );
+              }
             } catch (sharedAreaError: any) {
               const msg = sharedAreaError?.message || String(sharedAreaError);
               console.warn(`Failed to update business_shared_area for building ${buildingNum} after import:`, sharedAreaError);
               sharedAreaDiag.push(`${buildingNum}: עדכון נכשל (${msg})`);
             }
-          } else if (importFromAutomation) {
-            // Diagnostic for the user: explain why business_shared_area is not being touched.
-            // Includes per-asset gate counters so we can see which condition failed.
-            const counters =
-              `סה"כ=${reversalDiag.total}, סוג לא נמצא=${reversalDiag.contribTypeNotFound}, ` +
-              `לא עסקים=${reversalDiag.notBusiness}, לא בר-חלוקה=${reversalDiag.notAccountable}, ` +
-              `h=0:${reversalDiag.hZero}, y=0:${reversalDiag.yZero}, חושב=${reversalDiag.applied}`;
-            sharedAreaDiag.push(
-              `${buildingNum}: לא עודכן (אחוז העמסה=${overloadRatioPct ?? 'null'}, סכום=${sumDistributionArea.toFixed(2)}) — נכסים: ${counters}`
-            );
           }
-        }
-        if (importFromAutomation && sharedAreaDiag.length > 0) {
-          setToast({
-            message: `שטח משותף עסקים — ${sharedAreaDiag.join(' | ')}`,
-            type: sharedAreaDiag.some(d => d.includes('נכשל') || d.includes('לא עודכן')) ? 'error' : 'success',
-          });
-          setTimeout(() => setToast(null), 30000);
+          if (sharedAreaDiag.length > 0) {
+            setToast({
+              message: `שטח משותף עסקים — ${sharedAreaDiag.join(' | ')}`,
+              type: sharedAreaDiag.some(d => d.includes('נכשל') || d.includes('לא עודכן')) ? 'error' : 'success',
+            });
+            setTimeout(() => setToast(null), 30000);
+          }
         }
       }
 

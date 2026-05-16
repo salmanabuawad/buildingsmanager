@@ -585,13 +585,7 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
         return; // Don't create if validation fails
       }
 
-      // DIAGNOSTIC: show what's being sent + what comes back
-      console.log('[create-building] sending', buildingData);
-      alert(`[DEBUG] sending to create:\noverload_ratio=${buildingData.overload_ratio}\nbuilding_number=${buildingData.building_number}\nshared_parking_area=${buildingData.shared_parking_area}\nnumber_of_parking_units=${buildingData.number_of_parking_units}`);
-
       const createdBuilding = await api.buildings.create(buildingData);
-      console.log('[create-building] response', createdBuilding);
-      alert(`[DEBUG] create response:\noverload_ratio=${(createdBuilding as any)?.overload_ratio}\nbuilding_number=${(createdBuilding as any)?.building_number}`);
       
       // Reload buildings list
       const [bldgs, allAssets] = await Promise.all([
@@ -1985,24 +1979,13 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
       for (const buildingNum of uniqueBuildingNumbers) {
         try {
           const building = await api.buildings.getOne(buildingNum);
-          // DIAGNOSTIC: log the entire building object returned to see all keys + values.
-          console.log('[automation-postimport] getOne result for', buildingNum, building);
-          if (importFromAutomation) {
-            alert(
-              `[DEBUG] getOne(${buildingNum}):\noverload_ratio=${(building as any)?.overload_ratio}\n` +
-              `business_shared_area=${(building as any)?.business_shared_area}\n` +
-              `keys=${Object.keys(building || {}).join(',')}`
-            );
-          }
           const ratio = building?.overload_ratio;
           buildingOverloadRatioMap.set(buildingNum, ratio != null ? ratio : null);
           const area = building?.shared_parking_area != null ? Number(building.shared_parking_area) : 0;
           const units = building?.number_of_parking_units != null ? Number(building.number_of_parking_units) : 0;
           buildingSharedParkingMap.set(buildingNum, { area: isNaN(area) ? 0 : area, units: isNaN(units) ? 0 : units });
         } catch (err) {
-          if (importFromAutomation) {
-            alert(`[DEBUG] getOne(${buildingNum}) THREW: ${err}`);
-          }
+          console.warn(`[handleSave] getOne(${buildingNum}) failed:`, err);
           buildingOverloadRatioMap.set(buildingNum, null);
           buildingSharedParkingMap.set(buildingNum, { area: 0, units: 0 });
         }
@@ -2638,13 +2621,14 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
       }
 
       // Set building.business_shared_area from the per-asset business share
-      // we just stored. DIAGNOSTIC alerts to trace execution.
-      console.log('[automation-postimport] reached block', {
-        importFromAutomation,
-        uniqueBuildingNumbersSize: uniqueBuildingNumbers.size,
-        uniqueBuildingNumbers: Array.from(uniqueBuildingNumbers),
-        buildingOverloadRatioMap: Array.from(buildingOverloadRatioMap.entries()),
-      });
+      // we just stored. Runs UNCONDITIONALLY for importFromAutomation imports
+      // (not gated on insertedAssetsResult.length) so it fires even if some
+      // upstream branch left insertedAssetsResult null/empty. Sources from
+      // the DB so we don't depend on the in-memory map built during the
+      // synchronous map(). Formula matches AssetsList.tsx:4083:
+      //   per-asset x = h * (sub_asset_size_1 if hasSubs else asset_size)
+      //   sum across accountable business assets
+      //   business_shared_area = sum
       if (importFromAutomation && uniqueBuildingNumbers.size > 0) {
         const sharedAreaDiag: string[] = [];
         for (const buildingNum of uniqueBuildingNumbers) {
@@ -2695,11 +2679,8 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
             sharedAreaDiag.push(`${buildingNum}: עדכון נכשל (${msg})`);
           }
         }
-        const finalMessage = `שטח משותף עסקים — ${sharedAreaDiag.length ? sharedAreaDiag.join(' | ') : 'אין מבנים לעדכון'}`;
-        console.log('[automation-postimport] finished', { sharedAreaDiag });
-        alert(`[DEBUG] post-import finished:\n${finalMessage}`);
         setToast({
-          message: finalMessage,
+          message: `שטח משותף עסקים — ${sharedAreaDiag.length ? sharedAreaDiag.join(' | ') : 'אין מבנים לעדכון'}`,
           type: sharedAreaDiag.some(d => d.includes('נכשל') || d.includes('לא עודכן')) ? 'error' : 'success',
         });
         setTimeout(() => setToast(null), 30000);

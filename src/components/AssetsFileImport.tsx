@@ -584,8 +584,14 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
         setIsCreatingBuilding(false);
         return; // Don't create if validation fails
       }
-      
+
+      // DIAGNOSTIC: show what's being sent + what comes back
+      console.log('[create-building] sending', buildingData);
+      alert(`[DEBUG] sending to create:\noverload_ratio=${buildingData.overload_ratio}\nbuilding_number=${buildingData.building_number}\nshared_parking_area=${buildingData.shared_parking_area}\nnumber_of_parking_units=${buildingData.number_of_parking_units}`);
+
       const createdBuilding = await api.buildings.create(buildingData);
+      console.log('[create-building] response', createdBuilding);
+      alert(`[DEBUG] create response:\noverload_ratio=${(createdBuilding as any)?.overload_ratio}\nbuilding_number=${(createdBuilding as any)?.building_number}`);
       
       // Reload buildings list
       const [bldgs, allAssets] = await Promise.all([

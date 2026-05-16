@@ -480,62 +480,39 @@ export async function runExportToAutomation(config: ExportAutomationConfig): Pro
     }
   }
 
-  if (byOperator.size > 0) {
-    // Per-operator emails
-    for (const [operatorId, operatorAssets] of byOperator) {
-      const operator = operatorsList.find((o: any) => o.id === operatorId);
-      if (!operator?.email || !operator.email.includes('@')) continue;
+  // Per-operator emails. Only assets that carry an operator_id are sent, and
+  // each operator receives only their own assets. Assets without an
+  // operator_id are NOT broadcast — if no asset is assigned to an operator,
+  // no operator email goes out (the previous "send full list to all operators"
+  // fallback was removed by request). Manager emails (filtered by tax_region)
+  // are still sent below regardless.
+  for (const [operatorId, operatorAssets] of byOperator) {
+    const operator = operatorsList.find((o: any) => o.id === operatorId);
+    if (!operator?.email || !operator.email.includes('@')) continue;
 
-      const opRows = operatorAssets.map((asset) => buildMainSheetRow(asset, assetTypes));
-      const opExcelBlob = createExcelBlob({
-        filename: `נכסים_מפעיל_${operatorId}_${dateStr}_${operatorAssets.length}נכסים.xlsx`,
-        sheetName: 'נכסים',
-        data: [MAIN_SHEET_HEADERS, ...opRows],
-        decimalFormatColumnIndices: [5, 7, 9, 11, 13, 15, 17],
-        columnWidths: MAIN_SHEET_COL_WIDTHS,
-      });
-
-      const subj = templateOp
-        ? applyTpl(templateOp.subject, operator.name, operatorAssets.length)
-        : `שליחת נתונים - ${dateStrHe}`;
-      const body = templateOp
-        ? applyTpl(templateOp.body, operator.name, operatorAssets.length)
-        : `שלום ${operator.name},\n\nמצורף קובץ הנתונים.\nתאריך: ${dateStrHe}\n\nבברכה,\nמערכת ניהול נכסים`;
-
-      sendItems.push({
-        to: operator.email,
-        subject: subj,
-        body,
-        attachmentFilename: `נכסים_מפעיל_${operatorId}_${dateStr}_${operatorAssets.length}נכסים.xlsx`,
-        attachmentBlob: opExcelBlob,
-      });
-    }
-  } else {
-    // No operator grouping — send full list to all operators
-    const fullRows = assets.map((asset) => buildMainSheetRow(asset, assetTypes));
-    const fullExcelBlob = createExcelBlob({
-      filename: `נכסים_שליחה_${dateStr}_${assets.length}נכסים.xlsx`,
+    const opRows = operatorAssets.map((asset) => buildMainSheetRow(asset, assetTypes));
+    const opExcelBlob = createExcelBlob({
+      filename: `נכסים_מפעיל_${operatorId}_${dateStr}_${operatorAssets.length}נכסים.xlsx`,
       sheetName: 'נכסים',
-      data: [MAIN_SHEET_HEADERS, ...fullRows],
+      data: [MAIN_SHEET_HEADERS, ...opRows],
       decimalFormatColumnIndices: [5, 7, 9, 11, 13, 15, 17],
       columnWidths: MAIN_SHEET_COL_WIDTHS,
     });
-    for (const operator of operatorsList) {
-      if (!operator?.email || !operator.email.includes('@')) continue;
-      const subj = templateOp
-        ? applyTpl(templateOp.subject, operator.name, assets.length)
-        : `שליחת נתונים - ${dateStrHe}`;
-      const body = templateOp
-        ? applyTpl(templateOp.body, operator.name, assets.length)
-        : `שלום ${operator.name},\n\nמצורף קובץ הנתונים.\nתאריך: ${dateStrHe}\n\nבברכה,\nמערכת ניהול נכסים`;
-      sendItems.push({
-        to: operator.email,
-        subject: subj,
-        body,
-        attachmentFilename: `נכסים_מפעיל_${operator.id}_${dateStr}_${assets.length}נכסים.xlsx`,
-        attachmentBlob: fullExcelBlob,
-      });
-    }
+
+    const subj = templateOp
+      ? applyTpl(templateOp.subject, operator.name, operatorAssets.length)
+      : `שליחת נתונים - ${dateStrHe}`;
+    const body = templateOp
+      ? applyTpl(templateOp.body, operator.name, operatorAssets.length)
+      : `שלום ${operator.name},\n\nמצורף קובץ הנתונים.\nתאריך: ${dateStrHe}\n\nבברכה,\nמערכת ניהול נכסים`;
+
+    sendItems.push({
+      to: operator.email,
+      subject: subj,
+      body,
+      attachmentFilename: `נכסים_מפעיל_${operatorId}_${dateStr}_${operatorAssets.length}נכסים.xlsx`,
+      attachmentBlob: opExcelBlob,
+    });
   }
 
   // Manager emails (filtered by tax_regions)

@@ -4403,8 +4403,6 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
                     )}
                   </div>
 
-                  {/* שטח משותף עסקים hidden when creating building during asset import */}
-                  {false && (
                   <div>
                     <label className="block text-sm font-medium text-slate-700 mb-1">
                       שטח משותף עסקים
@@ -4413,12 +4411,22 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
                       type="number"
                       step="0.01"
                       value={buildingCreateData.business_shared_area || ''}
-                      onChange={(e) => setBuildingCreateData(prev => ({ ...prev, business_shared_area: e.target.value ? parseFloat(e.target.value) : undefined }))}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-theme-action-accent focus:border-transparent"
+                      onChange={async (e) => {
+                        const newData = { ...buildingCreateData, business_shared_area: e.target.value ? parseFloat(e.target.value) : undefined };
+                        setBuildingCreateData(newData);
+                        await validateBuildingData(newData);
+                      }}
+                      className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-theme-action-accent focus:border-transparent ${
+                        buildingValidationErrors.business_shared_area
+                          ? 'border-red-500'
+                          : 'border-gray-300'
+                      }`}
                       disabled={isCreatingBuilding}
                     />
+                    {buildingValidationErrors.business_shared_area && (
+                      <p className="mt-1 text-sm text-red-600">{buildingValidationErrors.business_shared_area}</p>
+                    )}
                   </div>
-                  )}
 
                   <div>
                     <label className="block text-sm font-medium text-slate-700 mb-1">

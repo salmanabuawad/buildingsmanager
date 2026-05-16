@@ -1980,22 +1980,30 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
       // sumDistributionArea ends at 0, and the post-import update to
       // building.business_shared_area is silently skipped. Catch this up front so
       // the user gets a clear message instead of a successful-looking import that
-      // leaves business_shared_area empty.
+      // leaves business_shared_area empty. Coerce to Number first — Postgres
+      // Numeric can arrive as a string via REST, and "21.59" <= 0 is false in
+      // JS but a typo'd comparison against null would still pass; explicit
+      // Number() conversion + isFinite is the safest reading.
       if (importFromAutomation) {
-        const missingRatioBuildings: number[] = [];
+        const missingRatioBuildings: Array<{ buildingNum: number; rawValue: unknown }> = [];
         for (const buildingNum of uniqueBuildingNumbers) {
-          const ratio = buildingOverloadRatioMap.get(buildingNum);
-          if (ratio == null || ratio <= 0) {
-            missingRatioBuildings.push(buildingNum);
+          const raw = buildingOverloadRatioMap.get(buildingNum);
+          const ratio = raw == null ? NaN : Number(raw);
+          if (!isFinite(ratio) || ratio <= 0) {
+            missingRatioBuildings.push({ buildingNum, rawValue: raw });
           }
         }
         if (missingRatioBuildings.length > 0) {
-          const list = missingRatioBuildings.join(', ');
+          const list = missingRatioBuildings
+            .map(({ buildingNum, rawValue }) =>
+              `${buildingNum} (התקבל: ${rawValue === undefined ? 'undefined' : rawValue === null ? 'null' : JSON.stringify(rawValue)})`
+            )
+            .join(', ');
           setToast({
             message: `ייבוא מאוטומציה דורש אחוז העמסה על המבנה (אחרת שטח משותף עסקים לא יחושב). חסר במבנה: ${list}`,
             type: 'error',
           });
-          setTimeout(() => setToast(null), 12000);
+          setTimeout(() => setToast(null), 20000);
           setIsSaving(false);
           return;
         }
@@ -2600,21 +2608,35 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
         // distribution sum (assets do not store business_distribution_area on import)
         // and clear need_business_distribution — the per-asset reversal already
         // applied the business shares, so the building is consistent end-to-end.
+        const sharedAreaDiag: string[] = [];
         for (const buildingNum of affectedBuildingNumbers) {
           const overloadRatioPct = buildingOverloadRatioMap.get(buildingNum);
-          if (overloadRatioPct != null && overloadRatioPct > 0) {
-            const sumDistributionArea = buildingDistributionSumMap.get(buildingNum) || 0;
-            if (sumDistributionArea > 0) {
-              try {
-                await api.buildings.update(buildingNum, {
-                  business_shared_area: sumDistributionArea,
-                  need_business_distribution: false,
-                });
-              } catch (sharedAreaError) {
-                console.warn(`Failed to update business_shared_area for building ${buildingNum} after import:`, sharedAreaError);
-              }
+          const sumDistributionArea = buildingDistributionSumMap.get(buildingNum) || 0;
+          if (overloadRatioPct != null && overloadRatioPct > 0 && sumDistributionArea > 0) {
+            try {
+              await api.buildings.update(buildingNum, {
+                business_shared_area: sumDistributionArea,
+                need_business_distribution: false,
+              });
+              sharedAreaDiag.push(`${buildingNum}: עודכן ל-${sumDistributionArea.toFixed(2)}`);
+            } catch (sharedAreaError: any) {
+              const msg = sharedAreaError?.message || String(sharedAreaError);
+              console.warn(`Failed to update business_shared_area for building ${buildingNum} after import:`, sharedAreaError);
+              sharedAreaDiag.push(`${buildingNum}: עדכון נכשל (${msg})`);
             }
+          } else if (importFromAutomation) {
+            // Diagnostic for the user: explain why business_shared_area is not being touched.
+            sharedAreaDiag.push(
+              `${buildingNum}: לא עודכן (אחוז העמסה=${overloadRatioPct ?? 'null'}, סכום=${sumDistributionArea.toFixed(2)})`
+            );
           }
+        }
+        if (importFromAutomation && sharedAreaDiag.length > 0) {
+          setToast({
+            message: `שטח משותף עסקים — ${sharedAreaDiag.join(' | ')}`,
+            type: sharedAreaDiag.some(d => d.includes('נכשל') || d.includes('לא עודכן')) ? 'error' : 'success',
+          });
+          setTimeout(() => setToast(null), 15000);
         }
       }
 

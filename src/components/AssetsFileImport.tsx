@@ -1985,9 +1985,17 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
           : parseInt(String(asset.building_number), 10);
         const overloadRatioPct = !isNaN(buildingNum) ? buildingOverloadRatioMap.get(buildingNum) ?? null : null;
         const assetType = typesForImport.find(at => at.name === (asset.main_asset_type || ''));
-        const isBusinessAsset = assetType?.business_residence === 'עסקים';
-        // Only apply distribution to assets accountable for distribution (non_accountable_for_distribution !== true)
-        const isAccountableForDistribution = assetType ? (assetType.non_accountable_for_distribution !== true) : false;
+        // The "contribution type" is the one that decides whether business
+        // common was added on export: sub_asset_type_1 when sub-types exist
+        // (export piles common on sub1), main_asset_type otherwise. Mixed
+        // assets (e.g. main=residence + sub1=business) need the sub1 check
+        // here or the reversal is skipped and asset_size stays inflated.
+        const subType1ForType = asset.sub_asset_type_1 ? String(asset.sub_asset_type_1).trim() : '';
+        const hasSubtype1 = subType1ForType !== '';
+        const subAssetType1Lookup = hasSubtype1 ? typesForImport.find(at => at.name === subType1ForType) : undefined;
+        const contribType = hasSubtype1 ? subAssetType1Lookup : assetType;
+        const isBusinessAsset = contribType?.business_residence === 'עסקים';
+        const isAccountableForDistribution = contribType ? (contribType.non_accountable_for_distribution !== true) : false;
         // Automation round-trip inflations applied on export (per-asset, mirrored here):
         //   x_parking = (building.shared_parking_area / building.number_of_parking_units) * asset.number_of_parking_units
         //   x_common  = h * sub_asset_size_1                (has-subs case; h = building.overload_ratio/100)
@@ -2009,18 +2017,12 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
 
         // y = area for distribution: with subtypes, main size is NOT used (it equals sum of subtypes); use only accountable subtype 1 size.
         // With no subtypes, use asset_total_area or asset_size (main size). x = h*y/(1+h).
-        const hasSubtypes = !!(asset.sub_asset_type_1 && String(asset.sub_asset_type_1).trim() !== '');
+        const hasSubtypes = hasSubtype1;
         const fileMainSize = (asset.asset_total_area ?? asset.asset_size) ?? 0;
         let y: number;
-        let isSubtype1Accountable = false;
         if (hasSubtypes) {
-          const subType1 = asset.sub_asset_type_1;
           const subSize1 = asset.sub_asset_size_1 ?? 0;
-          if (subType1 && String(subType1).trim() !== '' && subSize1 > 0) {
-            const subAssetType1 = typesForImport.find(at => at.name === subType1);
-            isSubtype1Accountable = !!(subAssetType1 && subAssetType1.non_accountable_for_distribution !== true);
-          }
-          y = isSubtype1Accountable ? subSize1 : 0;
+          y = isAccountableForDistribution && subSize1 > 0 ? subSize1 : 0;
         } else {
           // Automation round-trip: file.main includes parking; strip it so the
           // overload-ratio inverse formula sees the business-only size base.
@@ -2029,7 +2031,6 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
             : fileMainSize;
         }
         const h = overloadRatioPct != null && overloadRatioPct > 0 ? overloadRatioPct / 100 : 0;
-        const hasAtLeastOneAccountable = !hasSubtypes ? isAccountableForDistribution : isSubtype1Accountable;
         let assetSize: number;
         let businessDistributionArea: number;
         let subAssetSize1: number;
@@ -2038,12 +2039,12 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
         let subAssetSize4: number;
         let subAssetSize5: number;
         let subAssetSize6: number;
-        if (isBusinessAsset && hasAtLeastOneAccountable && h > 0 && y > 0) {
+        if (isBusinessAsset && isAccountableForDistribution && h > 0 && y > 0) {
           const x = (h * y) / (1 + h);
           businessDistributionArea = x;
           const scale = (y - x) / y;  // scale factor for subtype 1 only
           if (hasSubtypes) {
-            subAssetSize1 = isSubtype1Accountable ? (asset.sub_asset_size_1 ?? 0) * scale : (asset.sub_asset_size_1 ?? 0);
+            subAssetSize1 = (asset.sub_asset_size_1 ?? 0) * scale;
             subAssetSize2 = asset.sub_asset_size_2 ?? 0;
             subAssetSize3 = asset.sub_asset_size_3 ?? 0;
             subAssetSize4 = asset.sub_asset_size_4 ?? 0;
@@ -4691,7 +4692,17 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
               </button>
               <button
                 onClick={() => pendingBuildingNumber && handleCreateBuildingAndContinue(pendingBuildingNumber)}
-                disabled={isCreatingBuilding || !pendingBuildingNumber || Object.keys(buildingValidationErrors).length > 0}
+                disabled={
+                  isCreatingBuilding ||
+                  !pendingBuildingNumber ||
+                  Object.keys(buildingValidationErrors).length > 0 ||
+                  (importFromAutomation && !(Number(buildingCreateData.overload_ratio) > 0))
+                }
+                title={
+                  importFromAutomation && !(Number(buildingCreateData.overload_ratio) > 0)
+                    ? 'יש להזין אחוז העמסה לחישוב שטח משותף עסקים'
+                    : ''
+                }
                 className="px-4 py-2 text-sm font-medium text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 transition-colors disabled:opacity-50 flex items-center gap-2"
               >
                 {isCreatingBuilding ? (

@@ -4572,12 +4572,23 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
                     <input
                       type="number"
                       step="0.01"
+                      min="0"
+                      max="999.99"
                       value={buildingCreateData.overload_ratio || ''}
                       onChange={(e) => setBuildingCreateData(prev => ({ ...prev, overload_ratio: e.target.value ? parseFloat(e.target.value) : undefined }))}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-theme-action-accent focus:border-transparent"
+                      className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-theme-action-accent focus:border-transparent ${
+                        buildingCreateData.overload_ratio != null && Number(buildingCreateData.overload_ratio) >= 1000
+                          ? 'border-red-500'
+                          : 'border-gray-300'
+                      }`}
                       disabled={isCreatingBuilding}
-                      placeholder={importFromAutomation ? 'נדרש לחישוב שטח משותף עסקים' : 'לדוגמה: 15.50'}
+                      placeholder={importFromAutomation ? 'נדרש לחישוב שטח משותף עסקים (0–999.99)' : 'לדוגמה: 15.50'}
                     />
+                    {buildingCreateData.overload_ratio != null && Number(buildingCreateData.overload_ratio) >= 1000 && (
+                      <p className="mt-1 text-sm text-red-600">
+                        ערך מקסימלי 999.99. אולי שכחת נקודה עשרונית?
+                      </p>
+                    )}
                   </div>
 
                   <div className="relative">
@@ -4803,12 +4814,15 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
                   isCreatingBuilding ||
                   !pendingBuildingNumber ||
                   Object.keys(buildingValidationErrors).length > 0 ||
-                  (importFromAutomation && !(Number(buildingCreateData.overload_ratio) > 0))
+                  (importFromAutomation && !(Number(buildingCreateData.overload_ratio) > 0)) ||
+                  (buildingCreateData.overload_ratio != null && Number(buildingCreateData.overload_ratio) >= 1000)
                 }
                 title={
-                  importFromAutomation && !(Number(buildingCreateData.overload_ratio) > 0)
-                    ? 'יש להזין אחוז העמסה לחישוב שטח משותף עסקים'
-                    : ''
+                  buildingCreateData.overload_ratio != null && Number(buildingCreateData.overload_ratio) >= 1000
+                    ? 'אחוז העמסה חייב להיות קטן מ-1000'
+                    : importFromAutomation && !(Number(buildingCreateData.overload_ratio) > 0)
+                      ? 'יש להזין אחוז העמסה לחישוב שטח משותף עסקים'
+                      : ''
                 }
                 className="px-4 py-2 text-sm font-medium text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 transition-colors disabled:opacity-50 flex items-center gap-2"
               >

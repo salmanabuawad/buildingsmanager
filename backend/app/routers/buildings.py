@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, Body
 from sqlalchemy.orm import Session
 from sqlalchemy import text
-from sqlalchemy.exc import IntegrityError
+from sqlalchemy.exc import IntegrityError, DataError
 from typing import Any
 from app.auth import require_jwt, require_admin
 from app.database import get_db
@@ -41,6 +41,15 @@ def create_building_raw(
             raise HTTPException(
                 status_code=409,
                 detail=f"מבנה {bn} כבר קיים במערכת",
+            )
+        raise HTTPException(status_code=400, detail=f"שגיאה ביצירת המבנה: {msg}")
+    except DataError as e:
+        db.rollback()
+        msg = str(getattr(e, "orig", e))
+        if "numeric field overflow" in msg.lower() or "out of range" in msg.lower():
+            raise HTTPException(
+                status_code=400,
+                detail=f"ערך מספרי חורג מהטווח המותר: {msg}",
             )
         raise HTTPException(status_code=400, detail=f"שגיאה ביצירת המבנה: {msg}")
     if row is None:

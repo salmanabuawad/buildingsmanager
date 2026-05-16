@@ -1256,7 +1256,9 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
         setAllAssets(allAssets);
       }
 
-      const { api } = await import('../lib/apiClient');
+      // (was: const { api } = await import('../lib/apiClient') — removed because
+      // shadowing the module-level api binding put earlier api.* references
+      // in this function into the TDZ; the outer api works for all uses below.)
 
       // Filter assets that passed validation (no validation errors)
       const validatedSkeletonAssets = importedAssets.filter(asset => {
@@ -2188,9 +2190,12 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
         return assetData;
       });
 
-      // Use bulk insert via API
-      const { api } = await import('../lib/apiClient');
-      
+      // Bulk insert uses the same module-level `api` (the dynamic import that
+      // used to live here shadowed the outer api binding and put EVERY api.*
+      // reference earlier in handleSave into the TDZ, causing the loop that
+      // built buildingOverloadRatioMap to throw ReferenceError 'Cannot access
+      // X before initialization' and silently swallow overload_ratio).
+
       // Check which assets already exist and their building numbers (for both save and save as new)
       const assetIds = assetsToInsert.map(a => a.asset_id).filter(id => id != null);
       

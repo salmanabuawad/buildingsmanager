@@ -1985,12 +1985,24 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
       for (const buildingNum of uniqueBuildingNumbers) {
         try {
           const building = await api.buildings.getOne(buildingNum);
+          // DIAGNOSTIC: log the entire building object returned to see all keys + values.
+          console.log('[automation-postimport] getOne result for', buildingNum, building);
+          if (importFromAutomation) {
+            alert(
+              `[DEBUG] getOne(${buildingNum}):\noverload_ratio=${(building as any)?.overload_ratio}\n` +
+              `business_shared_area=${(building as any)?.business_shared_area}\n` +
+              `keys=${Object.keys(building || {}).join(',')}`
+            );
+          }
           const ratio = building?.overload_ratio;
           buildingOverloadRatioMap.set(buildingNum, ratio != null ? ratio : null);
           const area = building?.shared_parking_area != null ? Number(building.shared_parking_area) : 0;
           const units = building?.number_of_parking_units != null ? Number(building.number_of_parking_units) : 0;
           buildingSharedParkingMap.set(buildingNum, { area: isNaN(area) ? 0 : area, units: isNaN(units) ? 0 : units });
-        } catch {
+        } catch (err) {
+          if (importFromAutomation) {
+            alert(`[DEBUG] getOne(${buildingNum}) THREW: ${err}`);
+          }
           buildingOverloadRatioMap.set(buildingNum, null);
           buildingSharedParkingMap.set(buildingNum, { area: 0, units: 0 });
         }

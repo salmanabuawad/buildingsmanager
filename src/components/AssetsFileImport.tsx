@@ -610,11 +610,26 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
         pendingImportCallback.current();
         pendingImportCallback.current = null;
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error creating building:', error);
-      setErrorModal({ 
-        isOpen: true, 
-        message: error instanceof Error ? error.message : 'שגיאה לא ידועה',
+      // api.buildings.create throws the ApiError shape {message, code, details}
+      // (plain object, not an Error instance) so instanceof Error is false.
+      // Extract message from common shapes; only fall back to the generic
+      // text when nothing usable is present.
+      let message = '';
+      if (typeof error === 'string') {
+        message = error;
+      } else if (error && typeof error === 'object') {
+        message =
+          error.message ||
+          error.detail ||
+          (error.code ? `קוד שגיאה: ${error.code}` : '') ||
+          JSON.stringify(error);
+      }
+      if (!message) message = 'שגיאה לא ידועה';
+      setErrorModal({
+        isOpen: true,
+        message,
         title: 'שגיאה ביצירת מבנה'
       });
     } finally {

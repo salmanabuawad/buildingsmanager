@@ -2141,6 +2141,59 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
           buildingDistributionSumMap.set(buildingNum, (buildingDistributionSumMap.get(buildingNum) || 0) + businessDistributionArea);
         }
 
+        // Sub-column parking reversal — mirrors exportAutomationService.ts
+        // applySharedAreasToRow (lines 174-204). The export pushes the per-asset
+        // parking share into the parking-flagged sub-column (or sub1 when main
+        // itself is parking-typed; or fallback to the last non-empty sub when
+        // parking_units > 0). Without backing it out here, the saved
+        // sub_asset_size_N stays inflated — e.g. asset 8239177045 ends with
+        // sub2=111.21 instead of the original 41.79.
+        if (importFromAutomation && sharedParkingForAsset > 0) {
+          const isParkingType = (typeName: any): boolean => {
+            const at = findAssetTypeByNameIn(typesForImport, typeName);
+            return !!(at as any)?.use_for_parking_shared_area;
+          };
+          const subTypes = [
+            asset.sub_asset_type_1, asset.sub_asset_type_2, asset.sub_asset_type_3,
+            asset.sub_asset_type_4, asset.sub_asset_type_5, asset.sub_asset_type_6,
+          ];
+          const subSizes = [subAssetSize1, subAssetSize2, subAssetSize3, subAssetSize4, subAssetSize5, subAssetSize6];
+          const subTypeAt = (i: number) => {
+            const t = subTypes[i];
+            return t ? String(t).trim() : '';
+          };
+          const mainIsParking = isParkingType(asset.main_asset_type);
+
+          if (mainIsParking && subTypeAt(0)) {
+            subSizes[0] -= sharedParkingForAsset;
+          } else {
+            let foundParking = false;
+            for (let i = 0; i < 6; i++) {
+              const t = subTypeAt(i);
+              if (t && isParkingType(t)) {
+                subSizes[i] -= sharedParkingForAsset;
+                foundParking = true;
+                break;
+              }
+            }
+            if (!foundParking && Number(asset.number_of_parking_units) > 0) {
+              for (let i = 5; i >= 0; i--) {
+                if (subTypeAt(i)) {
+                  subSizes[i] -= sharedParkingForAsset;
+                  break;
+                }
+              }
+            }
+          }
+
+          subAssetSize1 = subSizes[0];
+          subAssetSize2 = subSizes[1];
+          subAssetSize3 = subSizes[2];
+          subAssetSize4 = subSizes[3];
+          subAssetSize5 = subSizes[4];
+          subAssetSize6 = subSizes[5];
+        }
+
         const assetData: Partial<Asset> = {
           building_number: asset.building_number!,
           payer_id: asset.payer_id || null,

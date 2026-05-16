@@ -128,12 +128,6 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
   const [toast, setToast] = useState<{ message: string; type: 'error' | 'success' | 'info' } | null>(null);
   const [importFromAutomation, setImportFromAutomation] = useState(false);
   const [showAutomationQuestion, setShowAutomationQuestion] = useState(false);
-  const [overloadRatioPrompt, setOverloadRatioPrompt] = useState<{
-    buildingNumber: number;
-    value: string;
-    saving: boolean;
-    error?: string;
-  } | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const skeletonFileInputRef = useRef<HTMLInputElement>(null);
   const [showBuildingCreateModal, setShowBuildingCreateModal] = useState(false);
@@ -1978,31 +1972,6 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
         } catch {
           buildingOverloadRatioMap.set(buildingNum, null);
           buildingSharedParkingMap.set(buildingNum, { area: 0, units: 0 });
-        }
-      }
-
-      // Automation round-trip requires overload_ratio on every affected building
-      // for the per-asset business reversal to fire. Without it, h=0, x_common=0,
-      // sumDistributionArea ends at 0, and the post-import update to
-      // building.business_shared_area is silently skipped. When a building lacks
-      // it (common cause: user ran distribute in AssetsList but never saved, so
-      // overload_ratio sits in React state only and the DB row is still null),
-      // prompt the user to enter it and persist directly via api.buildings.update,
-      // then re-run handleSave via the same callback mechanism used for the
-      // missing-building flow.
-      if (importFromAutomation) {
-        const firstMissing = Array.from(uniqueBuildingNumbers).find((buildingNum) => {
-          const raw = buildingOverloadRatioMap.get(buildingNum);
-          const ratio = raw == null ? NaN : Number(raw);
-          return !isFinite(ratio) || ratio <= 0;
-        });
-        if (firstMissing != null) {
-          pendingImportCallback.current = () => {
-            handleSave(saveAsNew, newMeasurementDate);
-          };
-          setOverloadRatioPrompt({ buildingNumber: firstMissing, value: '', saving: false });
-          setIsSaving(false);
-          return;
         }
       }
 
@@ -4333,101 +4302,6 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
                 className="px-6 py-2 bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 text-white rounded-md transition-all duration-200 shadow-sm hover:shadow-md font-medium"
               >
                 אישור
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Missing Overload Ratio Prompt Modal */}
-      {overloadRatioPrompt && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center"
-          style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}
-        >
-          <div
-            className="bg-white rounded-lg shadow-xl max-w-md w-full mx-4 p-6"
-            dir="rtl"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <h3 className="text-lg font-bold text-slate-900 mb-2">אחוז העמסה חסר</h3>
-            <p className="text-sm text-slate-700 mb-4">
-              במבנה {overloadRatioPrompt.buildingNumber} לא הוגדר אחוז העמסה. נדרש לחישוב שטח משותף עסקים בייבוא מאוטומציה.
-            </p>
-            <p className="text-xs text-slate-500 mb-4">
-              לאחר השמירה, הייבוא ימשיך אוטומטית.
-            </p>
-            <label className="block text-sm font-medium text-slate-700 mb-1">
-              אחוז העמסה (%) <span className="text-red-600">*</span>
-            </label>
-            <input
-              type="number"
-              step="0.01"
-              autoFocus
-              value={overloadRatioPrompt.value}
-              onChange={(e) =>
-                setOverloadRatioPrompt((prev) =>
-                  prev ? { ...prev, value: e.target.value, error: undefined } : prev
-                )
-              }
-              disabled={overloadRatioPrompt.saving}
-              placeholder="לדוגמה: 21.59"
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-theme-action-accent focus:border-transparent mb-2"
-            />
-            {overloadRatioPrompt.error && (
-              <p className="text-sm text-red-600 mb-2">{overloadRatioPrompt.error}</p>
-            )}
-            <div className="flex items-center justify-end gap-2 mt-4">
-              <button
-                type="button"
-                onClick={() => {
-                  setOverloadRatioPrompt(null);
-                  pendingImportCallback.current = null;
-                }}
-                disabled={overloadRatioPrompt.saving}
-                className="px-4 py-2 text-sm font-medium text-slate-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50"
-              >
-                ביטול
-              </button>
-              <button
-                type="button"
-                disabled={overloadRatioPrompt.saving || !(Number(overloadRatioPrompt.value) > 0)}
-                onClick={async () => {
-                  const ratio = Number(overloadRatioPrompt.value);
-                  if (!isFinite(ratio) || ratio <= 0) {
-                    setOverloadRatioPrompt((prev) =>
-                      prev ? { ...prev, error: 'יש להזין מספר חיובי' } : prev
-                    );
-                    return;
-                  }
-                  setOverloadRatioPrompt((prev) => (prev ? { ...prev, saving: true, error: undefined } : prev));
-                  try {
-                    await api.buildings.update(overloadRatioPrompt.buildingNumber, {
-                      overload_ratio: ratio,
-                    });
-                    setOverloadRatioPrompt(null);
-                    if (pendingImportCallback.current) {
-                      const cb = pendingImportCallback.current;
-                      pendingImportCallback.current = null;
-                      cb();
-                    }
-                  } catch (err: any) {
-                    const msg = err?.message || String(err);
-                    setOverloadRatioPrompt((prev) =>
-                      prev ? { ...prev, saving: false, error: `שמירה נכשלה: ${msg}` } : prev
-                    );
-                  }
-                }}
-                className="px-4 py-2 text-sm font-medium text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 transition-colors disabled:opacity-50 flex items-center gap-2"
-              >
-                {overloadRatioPrompt.saving ? (
-                  <>
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                    שומר...
-                  </>
-                ) : (
-                  'שמור והמשך'
-                )}
               </button>
             </div>
           </div>

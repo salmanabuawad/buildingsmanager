@@ -1975,6 +1975,32 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
         }
       }
 
+      // Automation round-trip requires overload_ratio on every affected building
+      // for the per-asset business reversal to fire. Without it, h=0, x_common=0,
+      // sumDistributionArea ends at 0, and the post-import update to
+      // building.business_shared_area is silently skipped. Catch this up front so
+      // the user gets a clear message instead of a successful-looking import that
+      // leaves business_shared_area empty.
+      if (importFromAutomation) {
+        const missingRatioBuildings: number[] = [];
+        for (const buildingNum of uniqueBuildingNumbers) {
+          const ratio = buildingOverloadRatioMap.get(buildingNum);
+          if (ratio == null || ratio <= 0) {
+            missingRatioBuildings.push(buildingNum);
+          }
+        }
+        if (missingRatioBuildings.length > 0) {
+          const list = missingRatioBuildings.join(', ');
+          setToast({
+            message: `ייבוא מאוטומציה דורש אחוז העמסה על המבנה (אחרת שטח משותף עסקים לא יחושב). חסר במבנה: ${list}`,
+            type: 'error',
+          });
+          setTimeout(() => setToast(null), 12000);
+          setIsSaving(false);
+          return;
+        }
+      }
+
       // Prepare all valid assets for bulk insert.
       // On import with distribution: compute scaled sizes and building business_shared_area only; do NOT set asset business_distribution_area.
       // import_order preserves Excel row order across batches: batchBase * 10000 + index.

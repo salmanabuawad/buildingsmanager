@@ -4363,23 +4363,28 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
 
                   <div>
                     <label className="block text-sm font-medium text-slate-700 mb-1">
-                      שטח משותף עסקים
+                      שטח משותף עסקים{importFromAutomation && <span className="text-slate-500 text-xs"> (יחושב מהיבוא)</span>}
                     </label>
                     <input
                       type="number"
                       step="0.01"
                       value={buildingCreateData.business_shared_area || ''}
                       onChange={async (e) => {
+                        if (importFromAutomation) return;
                         const newData = { ...buildingCreateData, business_shared_area: e.target.value ? parseFloat(e.target.value) : undefined };
                         setBuildingCreateData(newData);
                         await validateBuildingData(newData);
                       }}
+                      readOnly={importFromAutomation}
                       className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-theme-action-accent focus:border-transparent ${
+                        importFromAutomation ? 'bg-gray-100 text-gray-600' : ''
+                      } ${
                         buildingValidationErrors.business_shared_area
                           ? 'border-red-500'
                           : 'border-gray-300'
                       }`}
                       disabled={isCreatingBuilding}
+                      placeholder={importFromAutomation ? 'יחושב מנתוני הייבוא לאחר היצירה' : ''}
                     />
                     {buildingValidationErrors.business_shared_area && (
                       <p className="mt-1 text-sm text-red-600">{buildingValidationErrors.business_shared_area}</p>
@@ -4445,7 +4450,7 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
 
                   <div>
                     <label className="block text-sm font-medium text-slate-700 mb-1">
-                      אחוז העמסה (%)
+                      אחוז העמסה (%){importFromAutomation && <span className="text-red-600"> *</span>}
                     </label>
                     <input
                       type="number"
@@ -4454,7 +4459,7 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
                       onChange={(e) => setBuildingCreateData(prev => ({ ...prev, overload_ratio: e.target.value ? parseFloat(e.target.value) : undefined }))}
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-theme-action-accent focus:border-transparent"
                       disabled={isCreatingBuilding}
-                      placeholder="לדוגמה: 15.50"
+                      placeholder={importFromAutomation ? 'נדרש לחישוב שטח משותף עסקים' : 'לדוגמה: 15.50'}
                     />
                   </div>
 

@@ -2161,7 +2161,12 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
           sub_asset_size_5: subAssetSize5,
           sub_asset_type_6: asset.sub_asset_type_6 || null,
           sub_asset_size_6: subAssetSize6,
-          business_distribution_area: 0,  // Do not update asset shared business area on import
+          // Per-asset business common (x = h * sub1 or h * asset_size). Set
+          // from the computed reversal value so the saved row mirrors the
+          // pre-export state — matches the original 'מקורי' file layout where
+          // גודל שטח משותף is populated per asset. For template imports where
+          // no reversal fires, this stays 0 (the else branch above sets it).
+          business_distribution_area: businessDistributionArea,
           apartment_number: asset.apartment_number || null,
           apartment_floor: asset.apartment_floor || null,
           storage_number: asset.storage_number || null,

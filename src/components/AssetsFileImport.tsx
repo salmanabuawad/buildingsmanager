@@ -2620,15 +2620,13 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
       }
 
       // Set building.business_shared_area from the per-asset business share
-      // we just stored. DIAGNOSTIC: blocking alert to confirm the block fires.
+      // we just stored. DIAGNOSTIC alerts to trace execution.
       console.log('[automation-postimport] reached block', {
         importFromAutomation,
         uniqueBuildingNumbersSize: uniqueBuildingNumbers.size,
         uniqueBuildingNumbers: Array.from(uniqueBuildingNumbers),
+        buildingOverloadRatioMap: Array.from(buildingOverloadRatioMap.entries()),
       });
-      alert(
-        `[DEBUG] post-import block reached. importFromAutomation=${importFromAutomation}, buildings=${Array.from(uniqueBuildingNumbers).join(',') || 'none'}`
-      );
       if (importFromAutomation && uniqueBuildingNumbers.size > 0) {
         const sharedAreaDiag: string[] = [];
         for (const buildingNum of uniqueBuildingNumbers) {
@@ -2679,8 +2677,11 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
             sharedAreaDiag.push(`${buildingNum}: עדכון נכשל (${msg})`);
           }
         }
+        const finalMessage = `שטח משותף עסקים — ${sharedAreaDiag.length ? sharedAreaDiag.join(' | ') : 'אין מבנים לעדכון'}`;
+        console.log('[automation-postimport] finished', { sharedAreaDiag });
+        alert(`[DEBUG] post-import finished:\n${finalMessage}`);
         setToast({
-          message: `שטח משותף עסקים — ${sharedAreaDiag.length ? sharedAreaDiag.join(' | ') : 'אין מבנים לעדכון'}`,
+          message: finalMessage,
           type: sharedAreaDiag.some(d => d.includes('נכשל') || d.includes('לא עודכן')) ? 'error' : 'success',
         });
         setTimeout(() => setToast(null), 30000);

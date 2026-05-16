@@ -1974,15 +1974,6 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
         }
       }
 
-      // Helper: asset_types lookup for parking-flag check (defined once outside the map).
-      const isParkingTypeName = (typeName: string | null | undefined): boolean => {
-        if (!typeName) return false;
-        const t = String(typeName).trim();
-        if (!t) return false;
-        const at = typesForImport.find((tt) => String(tt.name).trim() === t);
-        return at?.use_for_parking_shared_area === true;
-      };
-
       // Prepare all valid assets for bulk insert.
       // On import with distribution: compute scaled sizes and building business_shared_area only; do NOT set asset business_distribution_area.
       // import_order preserves Excel row order across batches: batchBase * 10000 + index.
@@ -1997,9 +1988,29 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
         const isBusinessAsset = assetType?.business_residence === 'עסקים';
         // Only apply distribution to assets accountable for distribution (non_accountable_for_distribution !== true)
         const isAccountableForDistribution = assetType ? (assetType.non_accountable_for_distribution !== true) : false;
+        // Automation round-trip inflations applied on export (per-asset, mirrored here):
+        //   x_parking = (building.shared_parking_area / building.number_of_parking_units) * asset.number_of_parking_units
+        //   x_common  = h * sub_asset_size_1                (has-subs case; h = building.overload_ratio/100)
+        //             | h * asset_size                       (no-subs business case)
+        //   file.main = asset_size + x_common + x_parking
+        //   file.sub1 = sub_asset_size_1 + x_common          (only when sub1 is accountable; sub2-6 untouched)
+        // Compute x_parking first so x_common derivation in the no-subs case can use
+        // (file.main - x_parking) as the size base.
+        let sharedParkingForAsset = 0;
+        if (importFromAutomation) {
+          const parkInfo = !isNaN(buildingNum) ? buildingSharedParkingMap.get(buildingNum) : undefined;
+          const parkingPoolArea = parkInfo?.area ?? 0;
+          const buildingParkingUnits = parkInfo?.units ?? 0;
+          const assetParkingUnits = Number(asset.number_of_parking_units) || 0;
+          if (assetParkingUnits > 0 && parkingPoolArea > 0 && buildingParkingUnits > 0) {
+            sharedParkingForAsset = parkingPoolArea * (assetParkingUnits / buildingParkingUnits);
+          }
+        }
+
         // y = area for distribution: with subtypes, main size is NOT used (it equals sum of subtypes); use only accountable subtype 1 size.
         // With no subtypes, use asset_total_area or asset_size (main size). x = h*y/(1+h).
         const hasSubtypes = !!(asset.sub_asset_type_1 && String(asset.sub_asset_type_1).trim() !== '');
+        const fileMainSize = (asset.asset_total_area ?? asset.asset_size) ?? 0;
         let y: number;
         let isSubtype1Accountable = false;
         if (hasSubtypes) {
@@ -2011,7 +2022,11 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
           }
           y = isSubtype1Accountable ? subSize1 : 0;
         } else {
-          y = (asset.asset_total_area ?? asset.asset_size) ?? 0;
+          // Automation round-trip: file.main includes parking; strip it so the
+          // overload-ratio inverse formula sees the business-only size base.
+          y = importFromAutomation
+            ? Math.max(0, fileMainSize - sharedParkingForAsset)
+            : fileMainSize;
         }
         const h = overloadRatioPct != null && overloadRatioPct > 0 ? overloadRatioPct / 100 : 0;
         const hasAtLeastOneAccountable = !hasSubtypes ? isAccountableForDistribution : isSubtype1Accountable;
@@ -2034,9 +2049,14 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
             subAssetSize4 = asset.sub_asset_size_4 ?? 0;
             subAssetSize5 = asset.sub_asset_size_5 ?? 0;
             subAssetSize6 = asset.sub_asset_size_6 ?? 0;
-            assetSize = subAssetSize1 + subAssetSize2 + subAssetSize3 + subAssetSize4 + subAssetSize5 + subAssetSize6;  // main = sum of all subtypes
+            // Automation round-trip: asset_size = file.main - x_common - x_parking.
+            // Template imports: main col represents sum of subtypes.
+            assetSize = importFromAutomation
+              ? fileMainSize - x - sharedParkingForAsset
+              : subAssetSize1 + subAssetSize2 + subAssetSize3 + subAssetSize4 + subAssetSize5 + subAssetSize6;
           } else {
-            assetSize = (asset.asset_total_area ?? asset.asset_size ?? 0) - x;
+            // y already excludes parking when importFromAutomation, so y - x = asset_size.
+            assetSize = y - x;
             subAssetSize1 = asset.sub_asset_size_1 || 0;
             subAssetSize2 = asset.sub_asset_size_2 || 0;
             subAssetSize3 = asset.sub_asset_size_3 || 0;
@@ -2052,80 +2072,18 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
           subAssetSize4 = asset.sub_asset_size_4 || 0;
           subAssetSize5 = asset.sub_asset_size_5 || 0;
           subAssetSize6 = asset.sub_asset_size_6 || 0;
-          assetSize = hasSubtypes
-            ? subAssetSize1 + subAssetSize2 + subAssetSize3 + subAssetSize4 + subAssetSize5 + subAssetSize6
-            : ((asset.asset_total_area ?? asset.asset_size) ?? 0);
+          // Automation round-trip: strip parking only (no business common to reverse).
+          // Template imports keep the legacy "main = sum of subs when hasSubtypes" shape.
+          assetSize = importFromAutomation
+            ? fileMainSize - sharedParkingForAsset
+            : hasSubtypes
+              ? subAssetSize1 + subAssetSize2 + subAssetSize3 + subAssetSize4 + subAssetSize5 + subAssetSize6
+              : fileMainSize;
         }
 
         // Accumulate distribution area for building update (do not store on asset)
         if (businessDistributionArea > 0 && !isNaN(buildingNum)) {
           buildingDistributionSumMap.set(buildingNum, (buildingDistributionSumMap.get(buildingNum) || 0) + businessDistributionArea);
-        }
-
-        // Parking reversal — only when the file is an automation export. Mirrors
-        // exportAutomationService.getExportAssetSize (which adds shared_parking_area
-        // to the main asset_size column) and applySharedAreasToRow (which adds it
-        // to a sub-column). On round-trip we back the same amounts out.
-        //
-        // Forward distribution (AssetsList.tsx:4099-4101):
-        //   unitArea = building.shared_parking_area / building.number_of_parking_units
-        //   asset.shared_parking_area = unitArea * asset.number_of_parking_units
-        // Reverse: same formula, then subtract from main + parking sub-col.
-        let sharedParkingForAsset = 0;
-        if (importFromAutomation) {
-          const parkInfo = !isNaN(buildingNum) ? buildingSharedParkingMap.get(buildingNum) : undefined;
-          const parkingPoolArea = parkInfo?.area ?? 0;
-          const buildingParkingUnits = parkInfo?.units ?? 0;
-          const assetParkingUnits = Number(asset.number_of_parking_units) || 0;
-          const mainIsParking = isParkingTypeName(asset.main_asset_type);
-          let parkingSubIndex = 0;
-          for (let i = 1; i <= 6; i++) {
-            if (isParkingTypeName((asset as any)[`sub_asset_type_${i}`])) {
-              parkingSubIndex = i;
-              break;
-            }
-          }
-          const isAssetParkingFlagged = mainIsParking || parkingSubIndex > 0;
-
-          if (
-            isAssetParkingFlagged &&
-            assetParkingUnits > 0 &&
-            parkingPoolArea > 0 &&
-            buildingParkingUnits > 0
-          ) {
-            const xParking = parkingPoolArea * (assetParkingUnits / buildingParkingUnits);
-            sharedParkingForAsset = xParking;
-
-            // Reverse the col 6 inflation
-            assetSize -= xParking;
-
-            // Reverse the sub-col inflation (mirror applySharedAreasToRow placement)
-            const subTypeAt = (i: number) => String((asset as any)[`sub_asset_type_${i}`] ?? '').trim();
-            const adjustSub = (i: number, delta: number) => {
-              if (i === 1) subAssetSize1 += delta;
-              else if (i === 2) subAssetSize2 += delta;
-              else if (i === 3) subAssetSize3 += delta;
-              else if (i === 4) subAssetSize4 += delta;
-              else if (i === 5) subAssetSize5 += delta;
-              else if (i === 6) subAssetSize6 += delta;
-            };
-
-            if (mainIsParking && subTypeAt(1)) {
-              // Export added shared_parking to sub_size_1 when main is parking-typed
-              adjustSub(1, -xParking);
-            } else if (parkingSubIndex > 0) {
-              // Export added shared_parking to the parking-flagged sub-col
-              adjustSub(parkingSubIndex, -xParking);
-            } else {
-              // Fallback: export added to last non-empty sub-type when units > 0
-              for (let i = 6; i >= 1; i--) {
-                if (subTypeAt(i)) {
-                  adjustSub(i, -xParking);
-                  break;
-                }
-              }
-            }
-          }
         }
 
         const assetData: Partial<Asset> = {

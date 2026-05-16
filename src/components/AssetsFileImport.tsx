@@ -3641,6 +3641,15 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
                 <span>הורד תבנית CSV</span>
               </button>
             </div>
+            <label className="flex items-center gap-2 text-sm font-medium text-slate-700 bg-white border border-slate-300 rounded-lg px-3 py-2 w-fit cursor-pointer">
+              <input
+                type="checkbox"
+                checked={importFromAutomation}
+                onChange={(e) => setImportFromAutomation(e.target.checked)}
+                className="w-4 h-4 text-theme-tab-active rounded focus:ring-2 focus:ring-theme-action-accent cursor-pointer"
+              />
+              הנתונים מאוטומציה (יבוא הפוך)
+            </label>
             <p className="text-xs text-theme-tab-active">
               ייבוא מלא עם כל השדות. הקובץ חייב לכלול את כל העמודות הנדרשות לפי התבנית.
             </p>

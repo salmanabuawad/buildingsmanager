@@ -58,6 +58,17 @@ interface AssetsFileImportProps {
   mode?: 'regular' | 'skeleton';
 }
 
+// Module-level helper to avoid creating a closure that the bundler can
+// hoist into a TDZ-trap inside handleSave. Excel parses numeric cells
+// like '299' as the number 299, while asset_types.name is TEXT in DB,
+// so we compare as trimmed strings on both sides.
+function findAssetTypeByNameIn(typesList: any[], raw: unknown): any | undefined {
+  if (raw == null || raw === '') return undefined;
+  const s = String(raw).trim();
+  if (!s) return undefined;
+  return typesList.find((at) => String((at as any)?.name ?? '').trim() === s);
+}
+
 export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
   const { t } = useTranslation();
   const { validationRules, loading: validationContextLoading, refreshRules } = useValidationRules();
@@ -2007,20 +2018,12 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
         yZero: 0,
         applied: 0,
       };
-      // Defensive lookup — Excel may parse numeric cell '299' as the number 299
-      // while asset_types.name is always TEXT in DB. Compare as trimmed strings.
-      const findAssetTypeByName = (raw: unknown) => {
-        if (raw == null || raw === '') return undefined;
-        const s = String(raw).trim();
-        if (!s) return undefined;
-        return typesForImport.find((at) => String((at as any)?.name ?? '').trim() === s);
-      };
       let assetsToInsert: Partial<Asset>[] = validAssets.map((asset, importOrderIndex) => {
         const buildingNum = typeof asset.building_number === 'number'
           ? asset.building_number
           : parseInt(String(asset.building_number), 10);
         const overloadRatioPct = !isNaN(buildingNum) ? buildingOverloadRatioMap.get(buildingNum) ?? null : null;
-        const assetType = findAssetTypeByName(asset.main_asset_type);
+        const assetType = findAssetTypeByNameIn(typesForImport, asset.main_asset_type);
         // The "contribution type" is the one that decides whether business
         // common was added on export: sub_asset_type_1 when sub-types exist
         // (export piles common on sub1), main_asset_type otherwise. Mixed
@@ -2028,7 +2031,7 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
         // here or the reversal is skipped and asset_size stays inflated.
         const subType1ForType = asset.sub_asset_type_1 ? String(asset.sub_asset_type_1).trim() : '';
         const hasSubtype1 = subType1ForType !== '';
-        const subAssetType1Lookup = hasSubtype1 ? findAssetTypeByName(subType1ForType) : undefined;
+        const subAssetType1Lookup = hasSubtype1 ? findAssetTypeByNameIn(typesForImport, subType1ForType) : undefined;
         const contribType = hasSubtype1 ? subAssetType1Lookup : assetType;
         const isBusinessAsset = contribType?.business_residence === 'עסקים';
         const isAccountableForDistribution = contribType ? (contribType.non_accountable_for_distribution !== true) : false;
@@ -2653,7 +2656,7 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
               const subType1 = a.sub_asset_type_1 ? String(a.sub_asset_type_1).trim() : '';
               const hasSubs = subType1 !== '';
               const lookupName = hasSubs ? subType1 : String(a.main_asset_type ?? '').trim();
-              const contribType = findAssetTypeByName(lookupName);
+              const contribType = findAssetTypeByNameIn(typesForImport, lookupName);
               if (!contribType) continue;
               if (contribType.business_residence !== 'עסקים') { skippedNotBusiness++; continue; }
               if (contribType.non_accountable_for_distribution === true) continue;

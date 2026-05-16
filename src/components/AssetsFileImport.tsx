@@ -127,6 +127,7 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
   const [validationCompleted, setValidationCompleted] = useState(false);
   const [toast, setToast] = useState<{ message: string; type: 'error' | 'success' | 'info' } | null>(null);
   const [importFromAutomation, setImportFromAutomation] = useState(false);
+  const [showAutomationQuestion, setShowAutomationQuestion] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const skeletonFileInputRef = useRef<HTMLInputElement>(null);
   const [showBuildingCreateModal, setShowBuildingCreateModal] = useState(false);
@@ -3606,7 +3607,7 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
               />
               <button
                 type="button"
-                onClick={() => fileInputRef.current?.click()}
+                onClick={() => setShowAutomationQuestion(true)}
                 disabled={isParsing}
                 className="flex items-center justify-center gap-2 px-4 py-2.5 bg-theme-tab-active text-white rounded-lg hover:bg-theme-tab-active-hover transition-colors disabled:opacity-50 text-sm font-medium"
               >
@@ -3642,15 +3643,6 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
                 <span>הורד תבנית CSV</span>
               </button>
             </div>
-            <label className="flex items-center gap-2 text-sm font-medium text-slate-700 bg-white border border-slate-300 rounded-lg px-3 py-2 w-fit cursor-pointer">
-              <input
-                type="checkbox"
-                checked={importFromAutomation}
-                onChange={(e) => setImportFromAutomation(e.target.checked)}
-                className="w-4 h-4 text-theme-tab-active rounded focus:ring-2 focus:ring-theme-action-accent cursor-pointer"
-              />
-              הנתונים מאוטומציה (יבוא הפוך)
-            </label>
             <p className="text-xs text-theme-tab-active">
               ייבוא מלא עם כל השדות. הקובץ חייב לכלול את כל העמודות הנדרשות לפי התבנית.
             </p>
@@ -3749,15 +3741,13 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
                 נכסים מיובאים ({importedAssets.length})
               </h2>
               {mode === 'regular' && (
-                <label className="flex items-center gap-2 text-sm font-medium text-slate-700 bg-slate-50 border border-slate-200 rounded-lg px-3 py-2">
-                  <input
-                    type="checkbox"
-                    checked={importFromAutomation}
-                    onChange={(e) => setImportFromAutomation(e.target.checked)}
-                    className="w-4 h-4 text-theme-tab-active rounded focus:ring-2 focus:ring-theme-action-accent cursor-pointer"
-                  />
-                  הנתונים מאוטומציה
-                </label>
+                <div className={`flex items-center gap-2 text-sm font-medium rounded-lg px-3 py-2 border ${
+                  importFromAutomation
+                    ? 'bg-indigo-50 border-indigo-200 text-indigo-900'
+                    : 'bg-slate-50 border-slate-200 text-slate-700'
+                }`}>
+                  <span>{importFromAutomation ? 'מקור: אוטומציה' : 'מקור: קובץ רגיל'}</span>
+                </div>
               )}
               <div className="flex flex-wrap gap-2 w-full sm:w-auto">
                 <button
@@ -4261,6 +4251,57 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
                 className="px-6 py-2 bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 text-white rounded-md transition-all duration-200 shadow-sm hover:shadow-md font-medium"
               >
                 אישור
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Automation Source Question Modal */}
+      {showAutomationQuestion && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center"
+          style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}
+          onClick={() => setShowAutomationQuestion(false)}
+        >
+          <div
+            className="bg-white rounded-lg shadow-xl max-w-md w-full mx-4 p-6"
+            onClick={(e) => e.stopPropagation()}
+            dir="rtl"
+          >
+            <h3 className="text-lg font-bold text-slate-900 mb-2">מקור הקובץ</h3>
+            <p className="text-sm text-slate-700 mb-5">
+              האם הקובץ שאתה עומד לייבא הוא קובץ שהתקבל ממערכת האוטומציה (יבוא הפוך)?
+            </p>
+            <div className="flex flex-col gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setImportFromAutomation(true);
+                  setShowAutomationQuestion(false);
+                  setTimeout(() => fileInputRef.current?.click(), 0);
+                }}
+                className="w-full px-4 py-2.5 text-sm font-medium text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 transition-colors text-right"
+              >
+                כן — הקובץ מאוטומציה (יבוא הפוך)
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setImportFromAutomation(false);
+                  setShowAutomationQuestion(false);
+                  setTimeout(() => fileInputRef.current?.click(), 0);
+                }}
+                className="w-full px-4 py-2.5 text-sm font-medium text-slate-700 bg-white border border-slate-300 rounded-lg hover:bg-slate-50 transition-colors text-right"
+              >
+                לא — קובץ רגיל (תבנית הייבוא)
+              </button>
+              <button
+                type="button"
+                onClick={() => setShowAutomationQuestion(false)}
+                className="w-full px-4 py-2 text-sm font-medium text-slate-500 hover:text-slate-700 transition-colors text-right"
+              >
+                ביטול
               </button>
             </div>
           </div>

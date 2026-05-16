@@ -2011,12 +2011,31 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
       // import_order preserves Excel row order across batches: batchBase * 10000 + index.
       const buildingDistributionSumMap = new Map<number, number>();
       const importBatchBase = Date.now() * 10000;
+      // Diagnostic counters: count which gate condition fails per asset so we can
+      // surface the cause in a toast if business_shared_area ends up untouched.
+      const reversalDiag = {
+        total: 0,
+        contribTypeNotFound: 0,
+        notBusiness: 0,
+        notAccountable: 0,
+        hZero: 0,
+        yZero: 0,
+        applied: 0,
+      };
+      // Defensive lookup — Excel may parse numeric cell '299' as the number 299
+      // while asset_types.name is always TEXT in DB. Compare as trimmed strings.
+      const findAssetTypeByName = (raw: unknown) => {
+        if (raw == null || raw === '') return undefined;
+        const s = String(raw).trim();
+        if (!s) return undefined;
+        return typesForImport.find((at) => String((at as any)?.name ?? '').trim() === s);
+      };
       let assetsToInsert: Partial<Asset>[] = validAssets.map((asset, importOrderIndex) => {
         const buildingNum = typeof asset.building_number === 'number'
           ? asset.building_number
           : parseInt(String(asset.building_number), 10);
         const overloadRatioPct = !isNaN(buildingNum) ? buildingOverloadRatioMap.get(buildingNum) ?? null : null;
-        const assetType = typesForImport.find(at => at.name === (asset.main_asset_type || ''));
+        const assetType = findAssetTypeByName(asset.main_asset_type);
         // The "contribution type" is the one that decides whether business
         // common was added on export: sub_asset_type_1 when sub-types exist
         // (export piles common on sub1), main_asset_type otherwise. Mixed
@@ -2024,10 +2043,14 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
         // here or the reversal is skipped and asset_size stays inflated.
         const subType1ForType = asset.sub_asset_type_1 ? String(asset.sub_asset_type_1).trim() : '';
         const hasSubtype1 = subType1ForType !== '';
-        const subAssetType1Lookup = hasSubtype1 ? typesForImport.find(at => at.name === subType1ForType) : undefined;
+        const subAssetType1Lookup = hasSubtype1 ? findAssetTypeByName(subType1ForType) : undefined;
         const contribType = hasSubtype1 ? subAssetType1Lookup : assetType;
         const isBusinessAsset = contribType?.business_residence === 'עסקים';
         const isAccountableForDistribution = contribType ? (contribType.non_accountable_for_distribution !== true) : false;
+        reversalDiag.total++;
+        if (!contribType) reversalDiag.contribTypeNotFound++;
+        else if (!isBusinessAsset) reversalDiag.notBusiness++;
+        else if (!isAccountableForDistribution) reversalDiag.notAccountable++;
         // Automation round-trip inflations applied on export (per-asset, mirrored here):
         //   x_parking = (building.shared_parking_area / building.number_of_parking_units) * asset.number_of_parking_units
         //   x_common  = h * sub_asset_size_1                (has-subs case; h = building.overload_ratio/100)
@@ -2062,7 +2085,15 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
             ? Math.max(0, fileMainSize - sharedParkingForAsset)
             : fileMainSize;
         }
-        const h = overloadRatioPct != null && overloadRatioPct > 0 ? overloadRatioPct / 100 : 0;
+        // Coerce overloadRatioPct via Number() — Postgres Numeric arrives as
+        // a string via REST, and although JS auto-coerces in `>` and `/`,
+        // explicit conversion is safer and matches what the upfront check did.
+        const overloadRatioNum = overloadRatioPct == null ? NaN : Number(overloadRatioPct);
+        const h = isFinite(overloadRatioNum) && overloadRatioNum > 0 ? overloadRatioNum / 100 : 0;
+        if (isBusinessAsset && isAccountableForDistribution) {
+          if (h <= 0) reversalDiag.hZero++;
+          else if (y <= 0) reversalDiag.yZero++;
+        }
         let assetSize: number;
         let businessDistributionArea: number;
         let subAssetSize1: number;
@@ -2074,6 +2105,7 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
         if (isBusinessAsset && isAccountableForDistribution && h > 0 && y > 0) {
           const x = (h * y) / (1 + h);
           businessDistributionArea = x;
+          if (x > 0) reversalDiag.applied++;
           const scale = (y - x) / y;  // scale factor for subtype 1 only
           if (hasSubtypes) {
             subAssetSize1 = (asset.sub_asset_size_1 ?? 0) * scale;
@@ -2623,8 +2655,13 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
             }
           } else if (importFromAutomation) {
             // Diagnostic for the user: explain why business_shared_area is not being touched.
+            // Includes per-asset gate counters so we can see which condition failed.
+            const counters =
+              `סה"כ=${reversalDiag.total}, סוג לא נמצא=${reversalDiag.contribTypeNotFound}, ` +
+              `לא עסקים=${reversalDiag.notBusiness}, לא בר-חלוקה=${reversalDiag.notAccountable}, ` +
+              `h=0:${reversalDiag.hZero}, y=0:${reversalDiag.yZero}, חושב=${reversalDiag.applied}`;
             sharedAreaDiag.push(
-              `${buildingNum}: לא עודכן (אחוז העמסה=${overloadRatioPct ?? 'null'}, סכום=${sumDistributionArea.toFixed(2)})`
+              `${buildingNum}: לא עודכן (אחוז העמסה=${overloadRatioPct ?? 'null'}, סכום=${sumDistributionArea.toFixed(2)}) — נכסים: ${counters}`
             );
           }
         }
@@ -2633,7 +2670,7 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
             message: `שטח משותף עסקים — ${sharedAreaDiag.join(' | ')}`,
             type: sharedAreaDiag.some(d => d.includes('נכשל') || d.includes('לא עודכן')) ? 'error' : 'success',
           });
-          setTimeout(() => setToast(null), 15000);
+          setTimeout(() => setToast(null), 30000);
         }
       }
 

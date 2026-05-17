@@ -191,6 +191,7 @@ class AssetFile(Base):
     asset_id         = Column(BigInteger, ForeignKey("assets.asset_id"), nullable=False, index=True)
     file_url         = Column(Text, nullable=False)
     file_name        = Column(Text)
+    file_description = Column(Text)
     file_size        = Column(BigInteger)
     file_type        = Column(Text)
     uploaded_at      = Column(DateTime(timezone=True), server_default=func.now())

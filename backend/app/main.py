@@ -16,6 +16,7 @@ def run_migrations():
         "ALTER TABLE buildings ADD COLUMN IF NOT EXISTS asset_count integer",
         "ALTER TABLE buildings ADD COLUMN IF NOT EXISTS shared_parking_area numeric",
         "ALTER TABLE buildings ADD COLUMN IF NOT EXISTS number_of_parking_units integer",
+        "ALTER TABLE asset_files ADD COLUMN IF NOT EXISTS file_description text",
     ]
     try:
         with engine.connect() as conn:

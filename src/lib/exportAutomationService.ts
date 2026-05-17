@@ -371,7 +371,10 @@ export async function runExportToAutomation(config: ExportAutomationConfig): Pro
     }
 
     // ── 4c. Asset files ─────────────────────────────────────────────────────
-    const fileListData: any[][] = [['מזהה נכס', 'מזהה משלם', 'שם קובץ']];
+    // file_name is the sanitized {asset_id}_{N}.{ext} name produced on upload;
+    // file_description carries the original Hebrew/spaces name the user uploaded
+    // so the automation operator still sees what each file actually is.
+    const fileListData: any[][] = [['מזהה נכס', 'מזהה משלם', 'שם קובץ', 'תיאור קובץ']];
 
     // Collect download tasks for this tax region
     const downloadTasks: Array<{
@@ -395,8 +398,9 @@ export async function runExportToAutomation(config: ExportAutomationConfig): Pro
           const u = (file.file_url as string).replace(/\\/g, '/');
           fileName = u.split('/').pop()?.split('?')[0] ?? '';
         }
+        const fileDescription = (file as any).file_description || file.file_name || '';
 
-        fileListData.push([assetId, payerId, fileName]);
+        fileListData.push([assetId, payerId, fileName, fileDescription]);
 
         const filePath = resolveFilePath(assetId, file);
         if (filePath) {
@@ -426,7 +430,12 @@ export async function runExportToAutomation(config: ExportAutomationConfig): Pro
       );
       for (const r of results) {
         if (r) {
-          const zipFilePath = `${taxRegion}/${r.task.assetId}_${r.task.fileName}`;
+          // file_name is already {asset_id}_{N}.{ext}, unique across the building,
+          // so no need to re-prefix the asset_id here. Legacy rows whose file_name
+          // is still the original Hebrew name keep the prefix for uniqueness.
+          const alreadyAssetPrefixed = new RegExp(`^${r.task.assetId}_`).test(r.task.fileName);
+          const zipName = alreadyAssetPrefixed ? r.task.fileName : `${r.task.assetId}_${r.task.fileName}`;
+          const zipFilePath = `${taxRegion}/${zipName}`;
           zipFiles.push({ filename: zipFilePath, data: r.data });
         }
       }
@@ -439,7 +448,7 @@ export async function runExportToAutomation(config: ExportAutomationConfig): Pro
         filename: fileListFilename,
         sheetName: 'רשימת קבצים',
         data: fileListData,
-        columnWidths: [{ wch: 15 }, { wch: 15 }, { wch: 30 }],
+        columnWidths: [{ wch: 15 }, { wch: 15 }, { wch: 22 }, { wch: 40 }],
       });
       zipFiles.push({ filename: `${taxRegion}/${fileListFilename}`, data: fileListBlob });
     }

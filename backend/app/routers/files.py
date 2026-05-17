@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import mimetypes
 import os
+import re
 from pathlib import Path
 
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, status, Query
@@ -13,6 +14,40 @@ from app.utils import row_to_dict as _row_to_dict
 from app.auth import require_jwt, require_admin, _parse_uid
 from app.config import settings
 import uuid
+
+
+def _next_sequential_filename(db: Session, asset_id: int, original_name: str) -> tuple[str, str]:
+    """
+    Generate the next per-asset sequential filename: {asset_id}_{N}.{ext}
+    where N is max(existing N) + 1 over rows in asset_files for this asset.
+    The .ext is preserved from the original filename (lowercased). Hebrew /
+    space / punctuation in the original name is dropped from the new
+    filename — the automation system can't handle those characters — and
+    the original filename is returned separately so the caller can store
+    it as file_description for display in the UI and export.
+    """
+    ext = ""
+    if original_name and "." in original_name:
+        ext = "." + original_name.rsplit(".", 1)[1].lower()
+    pattern = re.compile(rf"^{re.escape(str(asset_id))}_(\d+)(\.|$)")
+    existing = db.execute(
+        text("SELECT file_name FROM asset_files WHERE asset_id = :aid"),
+        {"aid": asset_id},
+    ).fetchall()
+    max_n = 0
+    for row in existing:
+        name = (row[0] or "").strip()
+        m = pattern.match(name)
+        if not m:
+            continue
+        try:
+            n = int(m.group(1))
+            if n > max_n:
+                max_n = n
+        except (ValueError, TypeError):
+            pass
+    next_n = max_n + 1
+    return f"{asset_id}_{next_n}{ext}", original_name or ""
 
 router = APIRouter()
 
@@ -88,16 +123,17 @@ async def upload_file(
 ):
     uid = _parse_uid(payload.get("sub"))
 
-    # Generate unique file name
-    file_extension = file.filename.split('.')[-1] if '.' in file.filename else ''
-    unique_filename = f"{uuid.uuid4()}.{file_extension}"
-    # Store under the structure-drawings-like layout by default so the existing frontend extraction works.
+    # Rename to {asset_id}_{N}.{ext} so the automation system gets a clean
+    # ASCII filename (Hebrew chars / spaces in the original break automation
+    # downstream). Keep the original filename as file_description so the UI
+    # can still show what the user uploaded.
+    sanitized_filename, original_filename = _next_sequential_filename(db, asset_id, file.filename or "")
     if path:
         safe_rel = _extract_structure_drawings_rel_path(path)
         safe_rel_dir = safe_rel.rsplit("/", 1)[0] if "/" in safe_rel else str(asset_id)
-        rel_path = f"{safe_rel_dir}/{unique_filename}"
+        rel_path = f"{safe_rel_dir}/{sanitized_filename}"
     else:
-        rel_path = f"{asset_id}/{unique_filename}"
+        rel_path = f"{asset_id}/{sanitized_filename}"
     full_path = Path(getattr(settings, "ASSET_FILES_STORAGE_PATH", settings.FILES_BASE_PATH)) / rel_path
     full_path.parent.mkdir(parents=True, exist_ok=True)
 
@@ -109,13 +145,14 @@ async def upload_file(
         # DB schema: file_url (not file_path), uploaded_by is text, measurement_date is text
         row = db.execute(
             text("""
-                INSERT INTO asset_files (asset_id, file_name, file_url, file_type, file_size, measurement_date, uploaded_by)
-                VALUES (:asset_id, :file_name, :file_url, :file_type, :file_size, :measurement_date, :uploaded_by)
+                INSERT INTO asset_files (asset_id, file_name, file_description, file_url, file_type, file_size, measurement_date, uploaded_by)
+                VALUES (:asset_id, :file_name, :file_description, :file_url, :file_type, :file_size, :measurement_date, :uploaded_by)
                 RETURNING *
             """),
             {
                 "asset_id": asset_id,
-                "file_name": file.filename,
+                "file_name": sanitized_filename,
+                "file_description": original_filename,
                 "file_url": rel_path,
                 "file_type": file.content_type,
                 "file_size": len(file_content),

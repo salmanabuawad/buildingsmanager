@@ -148,8 +148,13 @@ export function AssetFilesModal({ isOpen, onClose, assetId, measurementDate, onF
   const getFileViewUrl = (file: AssetFile): string =>
     toBackendFileUrl(file.file_url, (file as { file_path?: string }).file_path) || file.file_url?.trim() || '';
 
-  /** Use file_name from record; when missing derive from file_url (ref: origin). */
+  /** Prefer the original Hebrew/user-facing name (file_description) for display.
+   *  file_name is the sanitized {asset_id}_{N}.{ext} storage name which is
+   *  ASCII-safe for automation but not friendly to the user. Fall back to
+   *  file_name, then derive from file_url as a last resort. */
   const getDisplayFileName = (file: AssetFile): string => {
+    const desc = (file as any).file_description?.trim?.();
+    if (desc) return desc;
     const name = file.file_name?.trim();
     if (name) return name;
     const url = file.file_url || '';

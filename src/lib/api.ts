@@ -500,7 +500,10 @@ export interface AssetFile {
   file_url?: string;
   /** Storage path (backend model); use to build download URL when file_url missing. */
   file_path?: string;
+  /** Sanitized storage name: {asset_id}_{N}.{ext} (ASCII-safe for automation). */
   file_name?: string;
+  /** Original filename the user uploaded (Hebrew/spaces allowed); used for display + automation file-list "תיאור קובץ" column. */
+  file_description?: string;
   file_size?: number;
   file_type?: string;
   uploaded_at: string;

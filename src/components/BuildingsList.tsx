@@ -17,6 +17,7 @@ import { useFillHandle } from '../lib/useFillHandle';
 import { exportToExcel, createExcelBlob } from '../lib/excelExport';
 import { createAndDownloadZip } from '../lib/zipExport';
 import { formatDateToDDMMYYYY } from '../lib/dateUtils';
+import { formatNumberMaxTwoDecimals } from '../lib/numberUtils';
 import { useUserRole } from '../contexts/UserRoleContext';
 import { useUIConfig } from '../contexts/UIConfigContext';
 import { Toast } from './Toast';
@@ -3178,7 +3179,7 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
         if (isNew && (params.value === null || params.value === undefined)) {
           return '';
         }
-        const value = params.value && params.value !== 0 ? params.value.toLocaleString() : '';
+        const value = formatNumberMaxTwoDecimals(params.value);
         return value;
       },
       cellStyle: (params) => getCellStyle(params, 'residence_shared_area')
@@ -3207,7 +3208,7 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
         if (isNew && (params.value === null || params.value === undefined)) {
           return '';
         }
-        const value = params.value && params.value !== 0 ? params.value.toLocaleString() : '';
+        const value = formatNumberMaxTwoDecimals(params.value);
         return value;
       },
       cellStyle: (params) => getCellStyle(params, 'business_shared_area')
@@ -3219,7 +3220,7 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
       cellRenderer: (params: any) => {
         const building = params.data as Building;
         if (!building) return '';
-        const value = params.value != null && params.value !== 0 ? params.value.toLocaleString() : '';
+        const value = formatNumberMaxTwoDecimals(params.value);
         return value;
       },
       cellStyle: (params) => ({ textAlign: 'right' as const })
@@ -3250,7 +3251,7 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
       cellRenderer: (params: any) => {
         const building = params.data as Building;
         if (!building) return '0';
-        const value = params.value && params.value !== 0 ? params.value.toLocaleString() : '';
+        const value = formatNumberMaxTwoDecimals(params.value);
         return value;
       },
       cellStyle: (params) => {
@@ -3292,7 +3293,7 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
         if (isNew && (params.value === null || params.value === undefined)) {
           return '';
         }
-        const value = params.value && params.value !== 0 ? params.value.toLocaleString() : '';
+        const value = formatNumberMaxTwoDecimals(params.value);
         return value;
       },
       cellStyle: (params) => getCellStyle(params, 'area_for_control')
@@ -3327,8 +3328,7 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
         if (isNew && (params.value === null || params.value === undefined)) {
           return '';
         }
-        const value = params.value != null && params.value !== 0 ? String(params.value).replace(/\B(?=(\d{3})+(?!\d))/g, ',') : '';
-        return value;
+        return formatNumberMaxTwoDecimals(params.value);
       },
       cellStyle: (params) => getCellStyle(params, 'shared_parking_area')
     },

@@ -2729,10 +2729,22 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
               included++;
             }
             if (sum > 0) {
+              // Two-step update: the backend's update_buildings_with_distribution_flags
+              // forces need_business_distribution=true whenever business_shared_area
+              // changes (workflow_service.py:181-186), overriding our `false`. So we
+              // first apply the area change, then a separate call sets the flag
+              // back to false — without business_shared_area in that payload the
+              // auto-flag override doesn't fire.
               await api.buildings.update(buildingNum, {
                 business_shared_area: sum,
-                need_business_distribution: false,
               });
+              try {
+                await api.buildings.update(buildingNum, {
+                  need_business_distribution: false,
+                });
+              } catch (flagErr) {
+                console.warn(`Failed to clear need_business_distribution for building ${buildingNum}:`, flagErr);
+              }
               sharedAreaDiag.push(`${buildingNum}: עודכן ל-${sum.toFixed(2)} (${included} נכסים, h=${overloadRatioPct})`);
             } else {
               sharedAreaDiag.push(

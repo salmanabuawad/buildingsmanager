@@ -25,15 +25,21 @@ const NUMERIC_FORMAT = '0.00';
 
 /**
  * Apply number format 0.00 only to numeric cells in the given column indices (e.g. size columns).
+ * When columnIndices is undefined or empty NOTHING is formatted — callers that don't
+ * specify size columns (e.g. the עדכון_פרטי_נכס sheet whose values are all integers)
+ * should keep Excel's default integer-aware formatting. The previous version of this
+ * function treated a missing list as "format every numeric cell", which made integer
+ * fields render as 100.00 / 200.00 in those exports.
  */
 function applyNumericFormat(worksheet: XLSX.WorkSheet, columnIndices?: number[]): void {
+  if (!columnIndices || columnIndices.length === 0) return;
   const ref = worksheet['!ref'];
   if (!ref) return;
-  const set = columnIndices != null && columnIndices.length > 0 ? new Set(columnIndices) : null;
+  const set = new Set(columnIndices);
   const range = XLSX.utils.decode_range(ref);
   for (let R = range.s.r; R <= range.e.r; ++R) {
     for (let C = range.s.c; C <= range.e.c; ++C) {
-      if (set != null && !set.has(C)) continue;
+      if (!set.has(C)) continue;
       const addr = XLSX.utils.encode_cell({ r: R, c: C });
       const cell = worksheet[addr];
       if (cell && cell.t === 'n' && typeof cell.v === 'number') {

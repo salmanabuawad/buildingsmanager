@@ -14,8 +14,13 @@ PG_USER="bmuser"
 PG_PASS="BmLocal2026!"
 BACKEND_PORT=8000
 SECRET_KEY="LanSecret$(date +%s%N | sha256sum | head -c 32)"
-UPLOADS_DIR="$APP_DIR/uploads"
-FILES_DIR="$APP_DIR/asset_files_storage"
+# Asset/upload storage lives on the big /DATA volume — /home is only ~448M
+# on this box, far too small for uploaded blobs. The running .env on the
+# LAN server already uses these paths; this keeps the setup script
+# consistent with reality so a re-run doesn't move storage back to /home.
+DATA_ROOT="/DATA/buildingsmanager"
+UPLOADS_DIR="$DATA_ROOT/uploads"
+FILES_DIR="$DATA_ROOT/asset_files_storage"
 
 echo "=============================="
 echo "  Buildings Manager LAN Setup"
@@ -45,8 +50,13 @@ fi
 
 # ── Directories ───────────────────────────────────────────────────────────────
 echo "[DIR] Creating app directories..."
-mkdir -p "$APP_DIR/backend" "$UPLOADS_DIR" "$FILES_DIR" "$WEB_ROOT"
+if [ ! -d "/DATA" ]; then
+  echo "[DIR] ERROR: /DATA does not exist. Mount the data volume before running this script." >&2
+  exit 1
+fi
+mkdir -p "$APP_DIR/backend" "$DATA_ROOT" "$UPLOADS_DIR" "$FILES_DIR" "$WEB_ROOT"
 chown -R "$APP_USER:$APP_USER" "$APP_DIR"
+chown -R "$APP_USER:$APP_USER" "$DATA_ROOT"
 chown -R nginx:nginx "$WEB_ROOT" 2>/dev/null || chown -R "$APP_USER:$APP_USER" "$WEB_ROOT"
 
 # ── Python venv + deps ────────────────────────────────────────────────────────

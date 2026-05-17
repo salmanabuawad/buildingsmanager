@@ -876,15 +876,21 @@ def update_building_total_area(db: Session, building_number: int) -> dict[str, A
     if building_row is None:
         raise ValueError(f"Building {building_number} not found")
 
-    # net_area is "net of shared" — after a distribute-save the per-asset
-    # asset_size column carries the distributed shared amounts, so we back
-    # them out at the building level. Subtracting yields a net_area that
-    # represents the original (pre-distribution) asset area, and the total
-    # below adds the three shared building columns back exactly once.
+    # asset_size in the current data model is RAW (not inflated with the
+    # asset's share of building-level shared areas — distribute writes
+    # business_distribution_area + shared_parking_area as SEPARATE per-asset
+    # columns, never mutates asset_size). The previous code subtracted the
+    # building shared totals from net_area to "back out" distributed amounts
+    # that were never there, producing a net_area that was too low by the
+    # shared totals and a total_building_area that equalled raw sum instead
+    # of "raw sum + building-level shared".
+    #
+    # Current formula:
+    #   net_area  = sum of accountable asset physical areas (no subtraction)
+    #   total_building_area = net_area + residence + business + parking
     residence_shared = float(building_row["residence_shared_area"] or 0)
     business_shared = float(building_row["business_shared_area"] or 0)
     parking_shared = float(building_row["shared_parking_area"] or 0)
-    net_area = net_area - residence_shared - business_shared - parking_shared
 
     total_area = (
         net_area

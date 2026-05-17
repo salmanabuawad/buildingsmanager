@@ -62,11 +62,24 @@ interface AssetsFileImportProps {
 // hoist into a TDZ-trap inside handleSave. Excel parses numeric cells
 // like '299' as the number 299, while asset_types.name is TEXT in DB,
 // so we compare as trimmed strings on both sides.
-function findAssetTypeByNameIn(typesList: any[], raw: unknown): any | undefined {
+//
+// asset_types has one row per (name, tax_region) and business_residence /
+// non_accountable_for_distribution can legitimately differ across regions.
+// When taxRegion is given we filter on it strictly — the asset's region
+// is the source of truth for "is this row business" — and only fall back
+// to a region-less name match when no row exists for the asset's region.
+// The fallback keeps the import resilient to typos / missing seed rows
+// rather than silently treating the asset as non-business.
+function findAssetTypeByNameIn(typesList: any[], raw: unknown, taxRegion?: unknown): any | undefined {
   if (raw == null || raw === '') return undefined;
   const s = String(raw).trim();
   if (!s) return undefined;
-  return typesList.find((at) => String((at as any)?.name ?? '').trim() === s);
+  const tr = taxRegion == null || taxRegion === '' ? '' : String(taxRegion).trim();
+  const byName = typesList.filter((at) => String((at as any)?.name ?? '').trim() === s);
+  if (byName.length === 0) return undefined;
+  if (!tr) return byName[0];
+  const exact = byName.find((at) => String((at as any)?.tax_region ?? '').trim() === tr);
+  return exact ?? byName[0];
 }
 
 export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
@@ -2025,10 +2038,13 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
           ? asset.building_number
           : parseInt(String(asset.building_number), 10);
         const overloadRatioPct = !isNaN(buildingNum) ? buildingOverloadRatioMap.get(buildingNum) ?? null : null;
-        const assetType = findAssetTypeByNameIn(typesForImport, asset.main_asset_type);
+        // tax_region scopes the asset_types lookup — the same type code can
+        // map to different business_residence values in different regions.
+        const assetTaxRegion = asset.tax_region;
+        const assetType = findAssetTypeByNameIn(typesForImport, asset.main_asset_type, assetTaxRegion);
         const subType1ForType = asset.sub_asset_type_1 ? String(asset.sub_asset_type_1).trim() : '';
         const hasSubtype1 = subType1ForType !== '';
-        const subAssetType1Lookup = hasSubtype1 ? findAssetTypeByNameIn(typesForImport, subType1ForType) : undefined;
+        const subAssetType1Lookup = hasSubtype1 ? findAssetTypeByNameIn(typesForImport, subType1ForType, assetTaxRegion) : undefined;
         // Automation re-import: the export piles business common onto sub1
         // regardless of main type, so the "is this row business" check has
         // to consider sub1's type for mixed-use assets (main=residence +
@@ -2159,7 +2175,7 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
         // sub2=111.21 instead of the original 41.79.
         if (importFromAutomation && sharedParkingForAsset > 0) {
           const isParkingType = (typeName: any): boolean => {
-            const at = findAssetTypeByNameIn(typesForImport, typeName);
+            const at = findAssetTypeByNameIn(typesForImport, typeName, assetTaxRegion);
             return !!(at as any)?.use_for_parking_shared_area;
           };
           const subTypes = [
@@ -2719,7 +2735,7 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
             const h = overloadRatioPct / 100;
             const { data: rows } = await api
               .from('assets')
-              .select('main_asset_type,sub_asset_type_1,sub_asset_size_1,asset_size')
+              .select('main_asset_type,sub_asset_type_1,sub_asset_size_1,asset_size,tax_region')
               .eq('building_number', buildingNum);
             let sum = 0;
             let included = 0;
@@ -2728,7 +2744,7 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
               const subType1 = a.sub_asset_type_1 ? String(a.sub_asset_type_1).trim() : '';
               const hasSubs = subType1 !== '';
               const lookupName = hasSubs ? subType1 : String(a.main_asset_type ?? '').trim();
-              const contribType = findAssetTypeByNameIn(typesForImport, lookupName);
+              const contribType = findAssetTypeByNameIn(typesForImport, lookupName, a.tax_region);
               if (!contribType) continue;
               if (contribType.business_residence !== 'עסקים') { skippedNotBusiness++; continue; }
               if (contribType.non_accountable_for_distribution === true) continue;

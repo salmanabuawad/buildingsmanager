@@ -64,22 +64,21 @@ interface AssetsFileImportProps {
 // so we compare as trimmed strings on both sides.
 //
 // asset_types has one row per (name, tax_region) and business_residence /
-// non_accountable_for_distribution can legitimately differ across regions.
-// When taxRegion is given we filter on it strictly — the asset's region
-// is the source of truth for "is this row business" — and only fall back
-// to a region-less name match when no row exists for the asset's region.
-// The fallback keeps the import resilient to typos / missing seed rows
-// rather than silently treating the asset as non-business.
-function findAssetTypeByNameIn(typesList: any[], raw: unknown, taxRegion?: unknown): any | undefined {
+// non_accountable_for_distribution differ across regions. The asset's
+// tax_region is the source of truth — match strictly on (name, tax_region).
+// If no row exists for that region we return undefined, which downstream
+// treats as non-business / non-accountable (no fallback to a wrong region).
+function findAssetTypeByNameIn(typesList: any[], raw: unknown, taxRegion: unknown): any | undefined {
   if (raw == null || raw === '') return undefined;
+  if (taxRegion == null || taxRegion === '') return undefined;
   const s = String(raw).trim();
-  if (!s) return undefined;
-  const tr = taxRegion == null || taxRegion === '' ? '' : String(taxRegion).trim();
-  const byName = typesList.filter((at) => String((at as any)?.name ?? '').trim() === s);
-  if (byName.length === 0) return undefined;
-  if (!tr) return byName[0];
-  const exact = byName.find((at) => String((at as any)?.tax_region ?? '').trim() === tr);
-  return exact ?? byName[0];
+  const tr = String(taxRegion).trim();
+  if (!s || !tr) return undefined;
+  return typesList.find(
+    (at) =>
+      String((at as any)?.name ?? '').trim() === s &&
+      String((at as any)?.tax_region ?? '').trim() === tr,
+  );
 }
 
 export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {

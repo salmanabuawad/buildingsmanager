@@ -17,7 +17,7 @@ import { compressFile } from '../lib/fileCompression';
 import { formatDateToDDMMYYYY } from '../lib/dateUtils';
 import { getAssetTypes, isComplexAssetType, getDefaultComplexTypeName } from '../lib/validation';
 import { runExportToAutomation } from '../lib/exportAutomationService';
-import { numericValueParser, numericValueParserInt } from '../lib/numberUtils';
+import { numericValueParser, numericValueParserInt, formatNumberMaxTwoDecimals } from '../lib/numberUtils';
 import { useGridPreferences } from '../lib/useGridPreferences';
 import { useFieldConfig } from '../lib/useFieldConfig';
 import { useFieldConfigVersion } from '../contexts/FieldConfigContext';
@@ -4732,7 +4732,7 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
         const total = Number(d.asset_size) || 0;
         return total || null;
       },
-      valueFormatter: (params) => params.value ? params.value.toLocaleString() : '',
+      valueFormatter: (params) => formatNumberMaxTwoDecimals(params.value),
       cellStyle: (params: any) => getCellStyle(params)
     },
     {
@@ -4744,7 +4744,7 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
     {
       field: 'sub_asset_size_1',
       headerName: t('subAssetSize1'),
-      valueFormatter: (params) => params.value ? params.value.toLocaleString() : '',
+      valueFormatter: (params) => formatNumberMaxTwoDecimals(params.value),
       cellStyle: (params: any) => getCellStyle(params)
     },
     {
@@ -4756,7 +4756,7 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
     {
       field: 'sub_asset_size_2',
       headerName: t('subAssetSize2'),
-      valueFormatter: (params) => params.value ? params.value.toLocaleString() : '',
+      valueFormatter: (params) => formatNumberMaxTwoDecimals(params.value),
       cellStyle: (params: any) => getCellStyle(params)
     },
     {
@@ -5601,12 +5601,7 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
         const total = Number(d.asset_size) || 0;
         return total || null;
       },
-      valueFormatter: (params) => {
-        const val = params.value;
-        if (val === null || val === undefined || val === '' || val === 0) return '';
-        const num = typeof val === 'number' ? val : parseFloat(val);
-        return isNaN(num) || num === 0 ? '' : num.toFixed(2);
-      },
+      valueFormatter: (params) => formatNumberMaxTwoDecimals(params.value),
       tooltipValueGetter: (p) => buildTotalAreaTooltip(p.data),
       headerClass: 'ag-right-aligned-header',
       cellStyle: (params: any) => {
@@ -5634,12 +5629,7 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
       },
       type: 'numericColumn',
       valueParser: (params) => numericValueParser(params),
-      valueFormatter: (params) => {
-        const val = params.value;
-        if (val === null || val === undefined || val === '' || val === 0) return '';
-        const num = typeof val === 'number' ? val : parseFloat(val);
-        return isNaN(num) || num === 0 ? '' : num.toFixed(2);
-      },
+      valueFormatter: (params) => formatNumberMaxTwoDecimals(params.value),
       headerClass: 'ag-right-aligned-header',
       cellStyle: (params: any) => getCellStyle(params)
     },
@@ -5663,12 +5653,7 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
       },
       type: 'numericColumn',
       valueParser: (params) => numericValueParser(params),
-      valueFormatter: (params) => {
-        const val = params.value;
-        if (val === null || val === undefined || val === '' || val === 0) return '';
-        const num = typeof val === 'number' ? val : parseFloat(val);
-        return isNaN(num) || num === 0 ? '' : num.toFixed(2);
-      },
+      valueFormatter: (params) => formatNumberMaxTwoDecimals(params.value),
       headerClass: 'ag-right-aligned-header',
       cellStyle: (params: any) => getCellStyle(params)
     },
@@ -5692,12 +5677,7 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
       },
       type: 'numericColumn',
       valueParser: (params) => numericValueParser(params),
-      valueFormatter: (params) => {
-        const val = params.value;
-        if (val === null || val === undefined || val === '' || val === 0) return '';
-        const num = typeof val === 'number' ? val : parseFloat(val);
-        return isNaN(num) || num === 0 ? '' : num.toFixed(2);
-      },
+      valueFormatter: (params) => formatNumberMaxTwoDecimals(params.value),
       headerClass: 'ag-right-aligned-header',
       cellStyle: (params: any) => getCellStyle(params)
     },
@@ -5721,12 +5701,7 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
       },
       type: 'numericColumn',
       valueParser: (params) => numericValueParser(params),
-      valueFormatter: (params) => {
-        const val = params.value;
-        if (val === null || val === undefined || val === '' || val === 0) return '';
-        const num = typeof val === 'number' ? val : parseFloat(val);
-        return isNaN(num) || num === 0 ? '' : num.toFixed(2);
-      },
+      valueFormatter: (params) => formatNumberMaxTwoDecimals(params.value),
       headerClass: 'ag-right-aligned-header',
       cellStyle: (params: any) => getCellStyle(params)
     },
@@ -5750,12 +5725,7 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
       },
       type: 'numericColumn',
       valueParser: (params) => numericValueParser(params),
-      valueFormatter: (params) => {
-        const val = params.value;
-        if (val === null || val === undefined || val === '' || val === 0) return '';
-        const num = typeof val === 'number' ? val : parseFloat(val);
-        return isNaN(num) || num === 0 ? '' : num.toFixed(2);
-      },
+      valueFormatter: (params) => formatNumberMaxTwoDecimals(params.value),
       headerClass: 'ag-right-aligned-header',
       cellStyle: (params: any) => getCellStyle(params)
     },
@@ -5779,12 +5749,7 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
       },
       type: 'numericColumn',
       valueParser: (params) => numericValueParser(params),
-      valueFormatter: (params) => {
-        const val = params.value;
-        if (val === null || val === undefined || val === '' || val === 0) return '';
-        const num = typeof val === 'number' ? val : parseFloat(val);
-        return isNaN(num) || num === 0 ? '' : num.toFixed(2);
-      },
+      valueFormatter: (params) => formatNumberMaxTwoDecimals(params.value),
       headerClass: 'ag-right-aligned-header',
       cellStyle: (params: any) => getCellStyle(params)
     },
@@ -5834,13 +5799,7 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
       },
       editable: false,
       type: 'numericColumn',
-      valueFormatter: (params) => {
-        if (isResidentTaxRegion) return '';
-        const val = params.value;
-        if (val === null || val === undefined || val === '' || val === 0) return '';
-        const num = typeof val === 'number' ? val : parseFloat(val);
-        return isNaN(num) || num === 0 ? '' : num.toFixed(2);
-      },
+      valueFormatter: (params) => isResidentTaxRegion ? '' : formatNumberMaxTwoDecimals(params.value),
       valueParser: (params) => {
         if (!params) return null;
         const newValue = params.newValue;
@@ -5886,12 +5845,7 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
       headerName: 'גודל שטח משותף',
       editable: false, // Always readonly - only updated through distribution functions
       type: 'numericColumn',
-      valueFormatter: (params) => {
-        const val = params.value;
-        if (val === null || val === undefined || val === '' || val === 0) return '';
-        const num = typeof val === 'number' ? val : parseFloat(val);
-        return isNaN(num) || num === 0 ? '' : num.toFixed(2);
-      },
+      valueFormatter: (params) => formatNumberMaxTwoDecimals(params.value),
       headerClass: 'ag-right-aligned-header',
       cellStyle: (params: any) => getCellStyle(params),
       hide: isResidentTaxRegion // Hide for residence assets (business_distribution_area is only for business distribution)
@@ -5919,12 +5873,7 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
         const total = size + dist + parking;
         return total > 0 ? total : '';
       },
-      valueFormatter: (params) => {
-        const val = params.value;
-        if (val === null || val === undefined || val === '' || val === 0) return '';
-        const num = typeof val === 'number' ? val : parseFloat(val);
-        return isNaN(num) || num === 0 ? '' : num.toFixed(2);
-      },
+      valueFormatter: (params) => formatNumberMaxTwoDecimals(params.value),
       headerClass: 'ag-right-aligned-header',
       cellStyle: (params: any) => getCellStyle(params),
       hide: isResidentTaxRegion // Hide for residence assets (business_total_area is only for business assets)
@@ -6004,12 +5953,7 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
               + (Number(row.shared_parking_area) || 0);
             return total > 0 ? total : null;
           },
-          valueFormatter: (p: any) => {
-            const val = p.value;
-            if (val === null || val === undefined) return '';
-            const num = Number(val);
-            return isNaN(num) || num === 0 ? '' : num.toFixed(2);
-          },
+          valueFormatter: (p: any) => formatNumberMaxTwoDecimals(p.value),
           tooltipValueGetter: (p: any) => buildTotalAreaTooltip(p.data),
           cellStyle: { textAlign: 'right', cursor: 'help' },
         };

@@ -30,6 +30,25 @@ export function formatNumberToTwoDecimals(
 }
 
 /**
+ * Formats a number with AT MOST 2 decimal places — trailing zeros are
+ * dropped, so 100 displays as "100" (not "100.00") and 144.81034 displays
+ * as "144.81". Use for grid cells where the underlying value can be a
+ * long-decimal float (e.g. distributed amounts) but the UI should be
+ * compact.
+ *
+ * Returns '' for null / undefined / empty string / NaN / 0 (matching the
+ * existing AssetsList behaviour where 0 is hidden in the grid).
+ */
+export function formatNumberMaxTwoDecimals(
+  value: number | string | null | undefined
+): string {
+  if (value === null || value === undefined || value === '') return '';
+  const num = typeof value === 'number' ? value : parseFloat(String(value));
+  if (isNaN(num) || num === 0) return '';
+  return num.toLocaleString(undefined, { maximumFractionDigits: 2 });
+}
+
+/**
  * Use as valueParser for numeric AG Grid columns (float).
  * When the user clears the cell, returns 0 instead of null.
  * Otherwise parses with Number() and returns the value, or 0 if invalid.

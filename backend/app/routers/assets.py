@@ -104,6 +104,38 @@ def get_assets_by_ids(
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@router.post("/search-by-range")
+def search_by_range_route(
+    body: dict = Body(...),
+    _payload: dict = Depends(require_jwt),
+    db: Session = Depends(get_db),
+):
+    """Return assets whose asset_id is between from_id and to_id (inclusive). Body: { "from_id": int, "to_id": int }."""
+    raw_from = body.get("from_id")
+    raw_to = body.get("to_id")
+    try:
+        fid = int(raw_from)
+        tid = int(raw_to)
+    except (TypeError, ValueError):
+        return []
+    try:
+        result = db.execute(
+            text(
+                "SELECT * FROM assets "
+                "WHERE asset_id::bigint >= :fid AND asset_id::bigint <= :tid "
+                "ORDER BY asset_id::bigint"
+            ),
+            {"fid": fid, "tid": tid},
+        )
+        rows = result.fetchall()
+        if not rows:
+            return []
+        keys = list(rows[0]._mapping.keys())
+        return [_serialize_asset_row(r, keys) for r in rows]
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @router.post("/mark-exported")
 def mark_exported_route(
     _payload: dict = Depends(require_admin),

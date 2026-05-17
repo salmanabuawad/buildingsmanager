@@ -2026,17 +2026,26 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
           : parseInt(String(asset.building_number), 10);
         const overloadRatioPct = !isNaN(buildingNum) ? buildingOverloadRatioMap.get(buildingNum) ?? null : null;
         const assetType = findAssetTypeByNameIn(typesForImport, asset.main_asset_type);
-        // The "contribution type" is the one that decides whether business
-        // common was added on export: sub_asset_type_1 when sub-types exist
-        // (export piles common on sub1), main_asset_type otherwise. Mixed
-        // assets (e.g. main=residence + sub1=business) need the sub1 check
-        // here or the reversal is skipped and asset_size stays inflated.
         const subType1ForType = asset.sub_asset_type_1 ? String(asset.sub_asset_type_1).trim() : '';
         const hasSubtype1 = subType1ForType !== '';
         const subAssetType1Lookup = hasSubtype1 ? findAssetTypeByNameIn(typesForImport, subType1ForType) : undefined;
-        const contribType = hasSubtype1 ? subAssetType1Lookup : assetType;
+        // Automation re-import: the export piles business common onto sub1
+        // regardless of main type, so the "is this row business" check has
+        // to consider sub1's type for mixed-use assets (main=residence +
+        // sub1=business). Template imports keep the legacy main_type gate
+        // — that matches the AssetsList distribute action exactly.
+        const contribType = importFromAutomation
+          ? (hasSubtype1 ? subAssetType1Lookup : assetType)
+          : assetType;
         const isBusinessAsset = contribType?.business_residence === 'עסקים';
-        const isAccountableForDistribution = contribType ? (contribType.non_accountable_for_distribution !== true) : false;
+        // Template-import accountability also has to consider the
+        // contributing area: when hasSubtypes the legacy code checked sub1's
+        // non_accountable flag; otherwise it checked main's. Preserve that.
+        const isAccountableForDistribution = importFromAutomation
+          ? (contribType ? (contribType.non_accountable_for_distribution !== true) : false)
+          : (hasSubtype1
+              ? (subAssetType1Lookup ? (subAssetType1Lookup.non_accountable_for_distribution !== true) : false)
+              : (assetType ? (assetType.non_accountable_for_distribution !== true) : false));
         reversalDiag.total++;
         if (!contribType) reversalDiag.contribTypeNotFound++;
         else if (!isBusinessAsset) reversalDiag.notBusiness++;
@@ -2214,12 +2223,12 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
           sub_asset_size_5: subAssetSize5,
           sub_asset_type_6: asset.sub_asset_type_6 || null,
           sub_asset_size_6: subAssetSize6,
-          // Per-asset business common (x = h * sub1 or h * asset_size). Set
-          // from the computed reversal value so the saved row mirrors the
-          // pre-export state — matches the original 'מקורי' file layout where
-          // גודל שטח משותף is populated per asset. For template imports where
-          // no reversal fires, this stays 0 (the else branch above sets it).
-          business_distribution_area: businessDistributionArea,
+          // Automation re-import: persist the computed per-asset business
+          // common (x = h * sub1 or h * asset_size) so the saved row mirrors
+          // the pre-export 'מקורי' state where גודל שטח משותף is populated.
+          // Template imports keep the legacy 0 — distribute action is the
+          // canonical way to set this field on a fresh import.
+          business_distribution_area: importFromAutomation ? businessDistributionArea : 0,
           apartment_number: asset.apartment_number || null,
           apartment_floor: asset.apartment_floor || null,
           storage_number: asset.storage_number || null,

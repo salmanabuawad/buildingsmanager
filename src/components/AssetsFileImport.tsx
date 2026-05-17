@@ -2769,6 +2769,17 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
               } catch (flagErr) {
                 console.warn(`Failed to clear need_business_distribution for building ${buildingNum}:`, flagErr);
               }
+              // Re-run the building total-area recompute. The earlier
+              // buildingsUpdateTotalArea call (a few sections above, line ~2589)
+              // ran BEFORE business_shared_area was set on the building, so its
+              // net_area / total_building_area subtraction omitted business
+              // shared. Now that business_shared_area is correct on the row,
+              // recompute so the saved net_area & total_building_area match.
+              try {
+                await buildingsUpdateTotalArea(buildingNum);
+              } catch (recalcErr) {
+                console.warn(`Failed to re-recompute total area for building ${buildingNum}:`, recalcErr);
+              }
               sharedAreaDiag.push(`${buildingNum}: עודכן ל-${sum.toFixed(2)} (${included} נכסים, h=${overloadRatioPct})`);
             } else {
               sharedAreaDiag.push(

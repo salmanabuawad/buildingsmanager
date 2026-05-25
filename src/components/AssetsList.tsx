@@ -3959,19 +3959,35 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
         }
       }
 
-      // Denominator for overload_ratio: sum of (main size if no subtypes) + sum of (first subtype size for assets with subtypes)
+      // Contributing area for the business distribution base.
+      //   • No subtypes  → the asset's own asset_size (main type is already
+      //     business + accountable via the businessAssets filter above).
+      //   • Has subtypes → sum of EVERY subtype that is accountable for
+      //     distribution (non_accountable_for_distribution !== true). Subtypes
+      //     flagged non-accountable for distribution are excluded.
+      // (Previously only the FIRST subtype counted, which understated the base
+      //  for complex assets and inflated overload_ratio.)
+      const computeContribSize = (a: any, changes: any): number => {
+        const hasSubtypes = !!(a?.sub_asset_type_1 && String(a.sub_asset_type_1).trim() !== '');
+        if (!hasSubtypes) {
+          return changes?.asset_size !== undefined ? (Number(changes.asset_size) || 0) : (Number(a?.asset_size) || 0);
+        }
+        let sum = 0;
+        for (let i = 1; i <= 6; i++) {
+          const subType = a?.[`sub_asset_type_${i}`];
+          if (subType && String(subType).trim() !== '' && !isAssetTypeNotAccountableForDistribution(subType)) {
+            const v = changes?.[`sub_asset_size_${i}`] !== undefined ? changes[`sub_asset_size_${i}`] : a?.[`sub_asset_size_${i}`];
+            sum += Number(v) || 0;
+          }
+        }
+        return sum;
+      };
+
+      // Denominator for overload_ratio: sum of contributing area across business assets.
       let totalForDistribution = 0;
       for (const asset of businessAssets) {
-        const assetId = String(asset.asset_id);
-        const existingChanges = dirtyAssets.get(assetId) || {};
-        const hasSubtypes = !!(asset.sub_asset_type_1 && String(asset.sub_asset_type_1).trim() !== '');
-        let contribSize: number;
-        if (hasSubtypes) {
-          contribSize = existingChanges.sub_asset_size_1 !== undefined ? existingChanges.sub_asset_size_1 : (asset.sub_asset_size_1 ?? 0);
-        } else {
-          contribSize = existingChanges.asset_size !== undefined ? existingChanges.asset_size : (asset.asset_size ?? 0);
-        }
-        totalForDistribution += contribSize;
+        const existingChanges = dirtyAssets.get(String(asset.asset_id)) || {};
+        totalForDistribution += computeContribSize(asset, existingChanges);
       }
 
       // If shared area is 0 or null, we're clearing business distribution (parking-only distribution may still run)
@@ -4073,11 +4089,8 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
         // Prepare changes object
         const changes: Partial<Asset> = { ...existingChanges };
 
-        // Contributing size: main size if no subtypes, else first subtype size (same as denominator)
-        const hasSubtypes = !!(currentAsset?.sub_asset_type_1 && String(currentAsset.sub_asset_type_1).trim() !== '');
-        const contribSize = hasSubtypes
-          ? (existingChanges.sub_asset_size_1 !== undefined ? existingChanges.sub_asset_size_1 : (currentAsset?.sub_asset_size_1 ?? 0))
-          : (existingChanges.asset_size !== undefined ? existingChanges.asset_size : (currentAsset?.asset_size ?? 0));
+        // Contributing size: same accountable-subtype sum used for the denominator.
+        const contribSize = computeContribSize(currentAsset, existingChanges);
 
         // Calculate new distribution area: proportional to contrib size
         const newDistributionArea = overloadRatio * contribSize;

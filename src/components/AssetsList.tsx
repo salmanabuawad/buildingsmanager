@@ -534,6 +534,30 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
     return false;
   }, [assetTypes]);
 
+  // Contributing area for the business shared-area distribution base.
+  // Shared by the distribute step AND the save step so the building's
+  // overload_ratio always matches the per-asset split:
+  //   • no subtypes  → asset_size
+  //   • has subtypes → Σ sub_asset_size_i for subtypes that are accountable
+  //     for distribution (non_accountable_for_distribution !== true)
+  // `changes` lets the distribute step honour unsaved edits; pass {} when the
+  // asset object already carries final values (e.g. assetsToSave at save time).
+  const computeContribSize = useCallback((a: any, changes: any): number => {
+    const hasSubtypes = !!(a?.sub_asset_type_1 && String(a.sub_asset_type_1).trim() !== '');
+    if (!hasSubtypes) {
+      return changes?.asset_size !== undefined ? (Number(changes.asset_size) || 0) : (Number(a?.asset_size) || 0);
+    }
+    let sum = 0;
+    for (let i = 1; i <= 6; i++) {
+      const subType = a?.[`sub_asset_type_${i}`];
+      if (subType && String(subType).trim() !== '' && !isAssetTypeNotAccountableForDistribution(subType)) {
+        const v = changes?.[`sub_asset_size_${i}`] !== undefined ? changes[`sub_asset_size_${i}`] : a?.[`sub_asset_size_${i}`];
+        sum += Number(v) || 0;
+      }
+    }
+    return sum;
+  }, [isAssetTypeNotAccountableForDistribution]);
+
   // Helper function to check if a field should be editable.
   // non_accountable_for_total_area is a building-area accounting flag only
   // (used by update_building_total_area to exclude these assets from
@@ -2638,16 +2662,18 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
             if (!isClearing && assetsToSave.length > 0 && assetTypes?.length) {
               for (const a of assetsToSave) {
                 const at = assetTypes.find((t: any) => String(t.name) === String(a.main_asset_type));
+                // Only accountable business assets contribute — same filter the
+                // distribute step uses, so the saved ratio matches the split.
                 if (at?.business_residence !== 'עסקים') continue;
-                const hasSubtypes = !!(a.sub_asset_type_1 && String(a.sub_asset_type_1).trim() !== '');
-                totalForDist += hasSubtypes ? (Number(a.sub_asset_size_1) || 0) : (Number(a.asset_size) || 0);
+                if (isAssetTypeNotAccountableForDistribution(a.main_asset_type)) continue;
+                totalForDist += computeContribSize(a, {});
               }
             }
             computedOverloadRatioForSave = isClearing
               ? 0
               : totalForDist > 0
                 ? (building.business_shared_area / totalForDist) * 100
-                : null; // totalForDist=0 despite non-clearing: can't recompute here, fall back to building.overload_ratio
+                : null; // totalForDist=0 despite non-clearing: fall back to building.overload_ratio
           }
 
           if (distributionType === 'residence' && building?.residence_shared_area) {
@@ -2711,15 +2737,18 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
                 // Hoist overloadRatioToSave so it is accessible after the if/else block
                 let overloadRatioToSave: number | null | undefined = undefined;
                 if (effectiveDistributionType === 'business') {
-                  // Always use building.overload_ratio which is set directly by the distribution
-                  // algorithm (the correct value). Do NOT recompute from assetsToSave here —
-                  // that loop includes non-accountable business assets in its denominator while
-                  // the distribution algorithm excludes them, producing a wrong (lower) ratio.
+                  // Persist the ratio recomputed from the assets we just saved
+                  // (business_shared_area ÷ Σ accountable contribSize), so the
+                  // building's overload_ratio always matches the per-asset split
+                  // regardless of React-state timing. The earlier recompute now
+                  // excludes non-accountable assets (same filter as the distribute
+                  // step), so it is the authoritative value. Fall back to
+                  // building.overload_ratio only if it couldn't be computed.
                   const businessIsClearing = building.business_shared_area == null || building.business_shared_area <= 0;
                   overloadRatioToSave = businessIsClearing
                     ? 0
                     : building.business_shared_area != null
-                      ? (building.overload_ratio ?? null)
+                      ? (computedOverloadRatioForSave ?? building.overload_ratio ?? null)
                       : undefined; // null business_shared_area → don't touch overload_ratio
                   const buildingUpdatePayload: Partial<typeof building> = { need_business_distribution: false };
                   if (overloadRatioToSave != null) buildingUpdatePayload.overload_ratio = overloadRatioToSave as number;
@@ -3959,31 +3988,8 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
         }
       }
 
-      // Contributing area for the business distribution base.
-      //   • No subtypes  → the asset's own asset_size (main type is already
-      //     business + accountable via the businessAssets filter above).
-      //   • Has subtypes → sum of EVERY subtype that is accountable for
-      //     distribution (non_accountable_for_distribution !== true). Subtypes
-      //     flagged non-accountable for distribution are excluded.
-      // (Previously only the FIRST subtype counted, which understated the base
-      //  for complex assets and inflated overload_ratio.)
-      const computeContribSize = (a: any, changes: any): number => {
-        const hasSubtypes = !!(a?.sub_asset_type_1 && String(a.sub_asset_type_1).trim() !== '');
-        if (!hasSubtypes) {
-          return changes?.asset_size !== undefined ? (Number(changes.asset_size) || 0) : (Number(a?.asset_size) || 0);
-        }
-        let sum = 0;
-        for (let i = 1; i <= 6; i++) {
-          const subType = a?.[`sub_asset_type_${i}`];
-          if (subType && String(subType).trim() !== '' && !isAssetTypeNotAccountableForDistribution(subType)) {
-            const v = changes?.[`sub_asset_size_${i}`] !== undefined ? changes[`sub_asset_size_${i}`] : a?.[`sub_asset_size_${i}`];
-            sum += Number(v) || 0;
-          }
-        }
-        return sum;
-      };
-
-      // Denominator for overload_ratio: sum of contributing area across business assets.
+      // Denominator for overload_ratio: sum of contributing area
+      // (shared computeContribSize helper) across business assets.
       let totalForDistribution = 0;
       for (const asset of businessAssets) {
         const existingChanges = dirtyAssets.get(String(asset.asset_id)) || {};

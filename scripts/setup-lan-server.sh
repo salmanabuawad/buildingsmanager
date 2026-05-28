@@ -100,6 +100,23 @@ server {
         root /var/www/buildingsmanager;
     }
 
+    # Always revalidate HTML so a new deploy is picked up without a manual
+    # cache reload. Vite emits content-hashed asset filenames that change per
+    # build; the unhashed index.html references them and must never be stale-
+    # cached (otherwise a kept-open tab keeps running old JS after a deploy).
+    location = / {
+        add_header Cache-Control "no-cache, must-revalidate" always;
+        try_files /index.html =404;
+    }
+    location = /index.html {
+        add_header Cache-Control "no-cache, must-revalidate" always;
+    }
+
+    # Hashed bundle assets are content-immutable — cache them aggressively.
+    location /assets/ {
+        add_header Cache-Control "public, max-age=31536000, immutable" always;
+    }
+
     # Serve static frontend assets
     location / {
         try_files $uri $uri/ /index.html;

@@ -2674,6 +2674,24 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
               : totalForDist > 0
                 ? (building.business_shared_area / totalForDist) * 100
                 : null; // totalForDist=0 despite non-clearing: fall back to building.overload_ratio
+
+            // Enforce Σ business_distribution_area = business_shared_area at save
+            // time by rewriting each accountable business asset's share with the
+            // same overloadRatio and contribSize used for the ratio recompute.
+            // This makes the save authoritative: per-asset shares and the
+            // building's overload_ratio always reconcile, regardless of what the
+            // distribute step staged or any React-state timing. The export (which
+            // reads business_distribution_area from the DB) then matches the
+            // building's business_shared_area exactly.
+            if (computedOverloadRatioForSave != null && !isClearing && totalForDist > 0) {
+              const h = computedOverloadRatioForSave / 100;
+              for (const a of assetsToSave) {
+                const at = assetTypes.find((t: any) => String(t.name) === String(a.main_asset_type));
+                if (at?.business_residence !== 'עסקים') continue;
+                if (isAssetTypeNotAccountableForDistribution(a.main_asset_type)) continue;
+                a.business_distribution_area = h * computeContribSize(a, {});
+              }
+            }
           }
 
           if (distributionType === 'residence' && building?.residence_shared_area) {

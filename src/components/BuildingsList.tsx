@@ -507,6 +507,85 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
   const [newBuildings, setNewBuildings] = useState<Set<string | number>>(new Set());
   const [exportToAutomationCount, setExportToAutomationCount] = useState<number>(0);
 
+  // ── "סיכום שטחים שמשתתפים בפיזור" column ─────────────────────────────────────
+  // Per-building sum of contribSize over accountable business assets — the
+  // denominator of overload_ratio. Same definition as AssetsList's
+  // handleDistributeSharedArea: for each business+accountable asset,
+  // contribSize = Σ accountable subtypes when subtyped, else asset_size.
+  const [distAssetsList, setDistAssetsList] = useState<any[]>([]);
+  const [distAssetTypesList, setDistAssetTypesList] = useState<any[]>([]);
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const [a, t] = await Promise.all([
+          api.assets.getAll(),
+          api.assetTypes.getAll(),
+        ]);
+        if (cancelled) return;
+        setDistAssetsList(Array.isArray(a) ? a : []);
+        setDistAssetTypesList(Array.isArray(t) ? t : []);
+      } catch (err) {
+        // Non-fatal — column will show empty until data loads on a later mount.
+        console.warn('[BuildingsList] failed to load data for distribution-base column:', err);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, []);
+
+  const distributionBaseByBuilding = useMemo<Map<number, number>>(() => {
+    const map = new Map<number, number>();
+    if (distAssetsList.length === 0 || distAssetTypesList.length === 0) return map;
+
+    // Lookup map name → asset_types row, defensively preferring a row with a
+    // valid business_residence ('עסקים' / 'מגורים') so junk rows (e.g.
+    // business_residence='false') can't shadow the real one.
+    const typeByName = new Map<string, any>();
+    const isValidBR = (br: any) => {
+      const s = String(br ?? '').trim();
+      return s === 'עסקים' || s === 'מגורים';
+    };
+    for (const at of distAssetTypesList) {
+      const k = String((at as any).name ?? '').trim();
+      if (!k) continue;
+      const existing = typeByName.get(k);
+      if (!existing || (!isValidBR((existing as any).business_residence) && isValidBR((at as any).business_residence))) {
+        typeByName.set(k, at);
+      }
+    }
+
+    const isAcct = (typeName: any): boolean => {
+      const at = typeByName.get(String(typeName ?? '').trim());
+      return !!at && (at as any).non_accountable_for_distribution !== true;
+    };
+    const isBusinessAcct = (typeName: any): boolean => {
+      const at = typeByName.get(String(typeName ?? '').trim());
+      if (!at) return false;
+      if ((at as any).non_accountable_for_distribution === true) return false;
+      return String((at as any).business_residence ?? '').trim() === 'עסקים';
+    };
+
+    for (const a of distAssetsList) {
+      const bn = Number((a as any).building_number);
+      if (!bn || isNaN(bn)) continue;
+      if (!isBusinessAcct((a as any).main_asset_type)) continue;
+      const hasSubtypes = !!((a as any).sub_asset_type_1 && String((a as any).sub_asset_type_1).trim() !== '');
+      let contribSize = 0;
+      if (hasSubtypes) {
+        for (let i = 1; i <= 6; i++) {
+          const sub = (a as any)[`sub_asset_type_${i}`];
+          if (sub && String(sub).trim() !== '' && isAcct(sub)) {
+            contribSize += Number((a as any)[`sub_asset_size_${i}`]) || 0;
+          }
+        }
+      } else {
+        contribSize = Number((a as any).asset_size) || 0;
+      }
+      map.set(bn, (map.get(bn) || 0) + contribSize);
+    }
+    return map;
+  }, [distAssetsList, distAssetTypesList]);
+
   // Any change invalidates the last validation snapshot (user must re-validate).
   useEffect(() => {
     const hasChanges = dirtyBuildings.size > 0 || buildingsToDelete.size > 0 || newBuildings.size > 0;
@@ -3156,6 +3235,33 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
       cellStyle: (params) => getCellStyle(params, 'overload_ratio')
     },
     {
+      // Virtual column (no DB field): per-building Σ contribSize over
+      // accountable business assets — the denominator of overload_ratio.
+      // Lets you see at a glance which buildings' distribution base looks
+      // right vs surprising. Values come from distributionBaseByBuilding.
+      colId: 'business_distribution_base',
+      headerName: 'סיכום שטחים שמשתתפים בפיזור',
+      editable: false,
+      sortable: true,
+      filter: 'agNumberColumnFilter',
+      valueGetter: (params: any) => {
+        const b = params?.data as Building | undefined;
+        if (!b) return null;
+        const bn = Number(b.building_number);
+        if (!bn || isNaN(bn)) return null;
+        const v = distributionBaseByBuilding.get(bn);
+        return v == null ? null : v;
+      },
+      valueFormatter: (params: any) => {
+        if (params.value == null) return '';
+        return formatNumberMaxTwoDecimals(params.value);
+      },
+      cellRenderer: (params: any) => {
+        if (params.value == null) return '';
+        return formatNumberMaxTwoDecimals(params.value);
+      },
+    },
+    {
       field: 'residence_shared_area',
       headerName: 'שטח משותף מגורים',
       editable: (params: any) => {
@@ -3686,7 +3792,7 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
       }
       return colDef;
     });
-  }, [onSelectBuilding, handleDeleteBuilding, buildingsToDelete, t, invalidTaxRegions, validationErrors, dirtyBuildings, newBuildings, isNewBuilding, getBuildingKey, handleCheckboxChange, addressList, hasBuildingBusiness, isReadOnly]);
+  }, [onSelectBuilding, handleDeleteBuilding, buildingsToDelete, t, invalidTaxRegions, validationErrors, dirtyBuildings, newBuildings, isNewBuilding, getBuildingKey, handleCheckboxChange, addressList, hasBuildingBusiness, isReadOnly, distributionBaseByBuilding]);
 
   // Apply field configurations to column definitions (ref_only pattern: rely on columnDefs prop only)
   const configVersion = useFieldConfigVersion();

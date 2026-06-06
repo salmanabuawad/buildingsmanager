@@ -465,8 +465,7 @@ export async function runExportToAutomation(config: ExportAutomationConfig): Pro
     to: string;
     subject: string;
     body: string;
-    attachmentFilename: string;
-    attachmentBlob: Blob;
+    attachments: Array<{ filename: string; content: Blob; contentType?: string }>;
   }> = [];
 
   // Group by operator
@@ -490,12 +489,30 @@ export async function runExportToAutomation(config: ExportAutomationConfig): Pro
     if (!operator?.email || !operator.email.includes('@')) continue;
 
     const opRows = operatorAssets.map((asset) => buildMainSheetRow(asset, assetTypes));
+    const opMainFilename = `נכסים_מפעיל_${operatorId}_${dateStr}_${operatorAssets.length}נכסים.xlsx`;
     const opExcelBlob = createExcelBlob({
-      filename: `נכסים_מפעיל_${operatorId}_${dateStr}_${operatorAssets.length}נכסים.xlsx`,
+      filename: opMainFilename,
       sheetName: 'נכסים',
       data: [MAIN_SHEET_HEADERS, ...opRows],
       decimalFormatColumnIndices: [5, 7, 9, 11, 13, 15, 17],
       columnWidths: MAIN_SHEET_COL_WIDTHS,
+    });
+
+    // Operator also receives the property-details update sheet (same fields as
+    // the main export's "עדכון פרטי נכס" sheet) — NOT the asset-files list.
+    const opUpdateRows = operatorAssets.map((asset) => {
+      const bn =
+        typeof asset.building_number === 'string'
+          ? parseInt(asset.building_number, 10)
+          : Number(asset.building_number);
+      return buildUpdateSheetRow(asset, buildingsMap.get(bn));
+    });
+    const opUpdateFilename = `עדכון_פרטי_נכס_מפעיל_${operatorId}_${dateStr}.xlsx`;
+    const opUpdateBlob = createExcelBlob({
+      filename: opUpdateFilename,
+      sheetName: 'עדכון פרטי נכס',
+      data: [UPDATE_SHEET_HEADERS, ...opUpdateRows],
+      columnWidths: UPDATE_SHEET_COL_WIDTHS,
     });
 
     const subj = templateOp
@@ -503,14 +520,24 @@ export async function runExportToAutomation(config: ExportAutomationConfig): Pro
       : `שליחת נתונים - ${dateStrHe}`;
     const body = templateOp
       ? applyTpl(templateOp.body, operator.name, operatorAssets.length)
-      : `שלום ${operator.name},\n\nמצורף קובץ הנתונים.\nתאריך: ${dateStrHe}\n\nבברכה,\nמערכת ניהול נכסים`;
+      : `שלום ${operator.name},\n\nמצורפים קבצי הנתונים ועדכון פרטי הנכס.\nתאריך: ${dateStrHe}\n\nבברכה,\nמערכת ניהול נכסים`;
 
     sendItems.push({
       to: operator.email,
       subject: subj,
       body,
-      attachmentFilename: `נכסים_מפעיל_${operatorId}_${dateStr}_${operatorAssets.length}נכסים.xlsx`,
-      attachmentBlob: opExcelBlob,
+      attachments: [
+        {
+          filename: opMainFilename,
+          content: opExcelBlob,
+          contentType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        },
+        {
+          filename: opUpdateFilename,
+          content: opUpdateBlob,
+          contentType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        },
+      ],
     });
   }
 
@@ -539,12 +566,30 @@ export async function runExportToAutomation(config: ExportAutomationConfig): Pro
     if (managerAssets.length === 0) continue;
 
     const mgrRows = managerAssets.map((asset) => buildMainSheetRow(asset, assetTypes));
+    const mgrMainFilename = `נכסים_מנהל_${manager.id}_${dateStr}_${managerAssets.length}נכסים.xlsx`;
     const mgrExcelBlob = createExcelBlob({
-      filename: `נכסים_מנהל_${manager.id}_${dateStr}_${managerAssets.length}נכסים.xlsx`,
+      filename: mgrMainFilename,
       sheetName: 'נכסים',
       data: [MAIN_SHEET_HEADERS, ...mgrRows],
       decimalFormatColumnIndices: [5, 7, 9, 11, 13, 15, 17],
       columnWidths: MAIN_SHEET_COL_WIDTHS,
+    });
+
+    // Manager also receives the property-details update sheet — symmetric with
+    // the operator email, NOT the asset-files list.
+    const mgrUpdateRows = managerAssets.map((asset) => {
+      const bn =
+        typeof asset.building_number === 'string'
+          ? parseInt(asset.building_number, 10)
+          : Number(asset.building_number);
+      return buildUpdateSheetRow(asset, buildingsMap.get(bn));
+    });
+    const mgrUpdateFilename = `עדכון_פרטי_נכס_מנהל_${manager.id}_${dateStr}.xlsx`;
+    const mgrUpdateBlob = createExcelBlob({
+      filename: mgrUpdateFilename,
+      sheetName: 'עדכון פרטי נכס',
+      data: [UPDATE_SHEET_HEADERS, ...mgrUpdateRows],
+      columnWidths: UPDATE_SHEET_COL_WIDTHS,
     });
 
     const subj = templateMgr
@@ -552,14 +597,24 @@ export async function runExportToAutomation(config: ExportAutomationConfig): Pro
       : `שליחת נתונים - ${dateStrHe}`;
     const body = templateMgr
       ? applyTpl(templateMgr.body, manager.name, managerAssets.length)
-      : `שלום ${manager.name},\n\nמצורף קובץ הנתונים.\nתאריך: ${dateStrHe}\n\nבברכה,\nמערכת ניהול נכסים`;
+      : `שלום ${manager.name},\n\nמצורפים קבצי הנתונים ועדכון פרטי הנכס.\nתאריך: ${dateStrHe}\n\nבברכה,\nמערכת ניהול נכסים`;
 
     sendItems.push({
       to: manager.email,
       subject: subj,
       body,
-      attachmentFilename: `נכסים_מנהל_${manager.id}_${dateStr}_${managerAssets.length}נכסים.xlsx`,
-      attachmentBlob: mgrExcelBlob,
+      attachments: [
+        {
+          filename: mgrMainFilename,
+          content: mgrExcelBlob,
+          contentType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        },
+        {
+          filename: mgrUpdateFilename,
+          content: mgrUpdateBlob,
+          contentType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        },
+      ],
     });
   }
 

@@ -212,8 +212,7 @@ class EmailService {
       to: string;
       subject: string;
       body: string;
-      attachmentFilename: string;
-      attachmentBlob: Blob;
+      attachments: EmailAttachment[];
     }>,
     options: { concurrency?: number; onProgress?: (sent: number, total: number) => void } = {}
   ): Promise<{ sentCount: number; lastError?: string }> {
@@ -233,11 +232,9 @@ class EmailService {
             to: [item.to],
             subject: item.subject,
             body: item.body,
-            attachments: [{
-              filename: (item.attachmentFilename && item.attachmentFilename.trim()) || 'נכסים.xlsx',
-              content: item.attachmentBlob,
-              contentType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-            }],
+            attachments: item.attachments && item.attachments.length > 0
+              ? item.attachments
+              : [{ filename: 'נכסים.xlsx', content: new Blob(), contentType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }],
           })
         )
       );

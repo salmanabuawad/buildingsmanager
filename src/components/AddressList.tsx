@@ -189,6 +189,9 @@ export function AddressListComponent() {
       setDirtyAddresses(new Map());
       setDeletedAddresses(new Set());
       await fetchAddresses();
+      // Notify other screens (BuildingsList etc.) so they re-fetch the address list
+      // and reflect the updated street_description without a full page reload.
+      window.dispatchEvent(new CustomEvent('addressListUpdated'));
       
       if (gridRef.current) {
         gridRef.current.api.refreshCells({ force: true });
@@ -235,6 +238,7 @@ export function AddressListComponent() {
       setNewStreetCode('');
       setNewStreetDescription('');
       await fetchAddresses(false);
+      window.dispatchEvent(new CustomEvent('addressListUpdated'));
     } catch (err: any) {
       const msg = err?.message || err?.detail || (typeof err === 'string' ? err : 'שגיאה לא ידועה');
       showMessage('error', `שגיאה בהוספת רחוב: ${msg}`);

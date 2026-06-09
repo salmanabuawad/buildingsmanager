@@ -811,6 +811,12 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
     loadAddressList();
     // Fetch export count
     fetchExportToAutomationCount();
+
+    // Re-fetch addresses when the streets screen reports changes so the
+    // building rows reflect updated street_description without a full reload.
+    const handleAddressListUpdated = () => { loadAddressList(); };
+    window.addEventListener('addressListUpdated', handleAddressListUpdated);
+    return () => window.removeEventListener('addressListUpdated', handleAddressListUpdated);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 

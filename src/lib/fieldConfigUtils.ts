@@ -121,6 +121,24 @@ export function applyFieldConfigToColumn(
   const multiplier = options?.isLargeFont ? 1.65 * 1.55 : 1.65;
   const width = Math.round(baseWidth * multiplier);
   
+  // Static styles injected by the field config (alignment + padding).
+  const fieldConfigStyles: Record<string, any> = {
+    textAlign: 'right',
+    paddingLeft: `${fieldConfig.padding}px`,
+    paddingRight: `${fieldConfig.padding}px`,
+  };
+  // Preserve dynamic cellStyle when the column defined it as a function.
+  // The previous spread `{ ...colDef.cellStyle }` silently discarded the
+  // function (functions have no enumerable own properties), which is why
+  // dirty-row highlighting stopped working once a column had a field config.
+  const composedCellStyle: any =
+    typeof colDef.cellStyle === 'function'
+      ? (params: any) => {
+          const dynamic = (colDef.cellStyle as (p: any) => any)(params) || {};
+          return { ...dynamic, ...fieldConfigStyles };
+        }
+      : { ...(colDef.cellStyle || {}), ...fieldConfigStyles };
+
   const result: any = {
     ...colDef,
     width: width,
@@ -129,12 +147,7 @@ export function applyFieldConfigToColumn(
     resizable: false, // Disable manual resizing
     // Use hebrew_name from field config if available, otherwise keep existing headerName
     headerName: fieldConfig.hebrew_name || colDef.headerName,
-    cellStyle: {
-      ...colDef.cellStyle,
-      textAlign: 'right', // Ensure all columns are right-aligned
-      paddingLeft: `${fieldConfig.padding}px`,
-      paddingRight: `${fieldConfig.padding}px`,
-    },
+    cellStyle: composedCellStyle,
   };
 
   // Apply pinning if configured

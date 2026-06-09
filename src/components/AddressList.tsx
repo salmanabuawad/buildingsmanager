@@ -843,6 +843,7 @@ export function AddressListComponent() {
               suppressScrollOnNewData: true,
               enableCellTextSelection: false, // Disable text selection to prevent selection rectangle
               suppressAnimationFrame: false, // Use animation frame for smoother updates
+              singleClickEdit: true, // Single click opens the editor for editable cells (street_code / street_description)
             }}
             rowSelection={{
               mode: 'singleRow',

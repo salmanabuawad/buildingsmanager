@@ -207,8 +207,13 @@ export function AddressListComponent() {
   // API, then reloads the addresses to pick up the new row.
   async function handleCreateStreet() {
     const codeNum = parseInt(newStreetCode, 10);
-    if (!newStreetCode.trim() || isNaN(codeNum) || codeNum <= 0) {
-      showMessage('error', 'סמל רחוב חייב להיות מספר חיובי');
+    if (!newStreetCode.trim() || isNaN(codeNum) || codeNum < 0) {
+      showMessage('error', 'סמל רחוב חייב להיות מספר בין 0 ל-9999');
+      return;
+    }
+    // Mirror the DB CHECK constraint: street_code BETWEEN 0 AND 9999.
+    if (codeNum > 9999) {
+      showMessage('error', `סמל רחוב חייב להיות בטווח 0–9999 (הוזן ${codeNum})`);
       return;
     }
     if (!newStreetDescription.trim()) {
@@ -1018,9 +1023,11 @@ export function AddressListComponent() {
               <h2 className="text-xl font-bold mb-4">הוסף רחוב חדש</h2>
               <div className="space-y-3">
                 <div>
-                  <label className="block text-sm font-medium mb-1">סמל רחוב</label>
+                  <label className="block text-sm font-medium mb-1">סמל רחוב <span className="text-gray-500 font-normal">(0–9999)</span></label>
                   <input
                     type="number"
+                    min={0}
+                    max={9999}
                     value={newStreetCode}
                     onChange={(e) => setNewStreetCode(e.target.value)}
                     onKeyDown={(e) => { if (e.key === 'Enter') handleCreateStreet(); }}

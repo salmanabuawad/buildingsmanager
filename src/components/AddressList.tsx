@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useMemo, useCallback, startTransition } from 'react';
 import { useTranslation } from 'react-i18next';
 import { AddressList, api } from '../lib/api';
-import { Upload, Save, X, Loader2, MapPin, Download } from 'lucide-react';
+import { Upload, Save, X, Loader2, MapPin, Download, Plus } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { AgGridReact } from 'ag-grid-react';
 import { ColDef } from 'ag-grid-community';
@@ -21,6 +21,11 @@ export function AddressListComponent() {
   const [message, setMessage] = useState<{ type: 'success' | 'error' | 'info'; text: string; errors?: string[]; persistent?: boolean } | null>(null);
   const [dirtyAddresses, setDirtyAddresses] = useState<Map<number, Partial<AddressList>>>(new Map());
   const [deletedAddresses, setDeletedAddresses] = useState<Set<number>>(new Set());
+  // Add-street dialog state (UI to create a single street without going via file import)
+  const [isAddOpen, setIsAddOpen] = useState(false);
+  const [newStreetCode, setNewStreetCode] = useState('');
+  const [newStreetDescription, setNewStreetDescription] = useState('');
+  const [isCreatingStreet, setIsCreatingStreet] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const gridRef = useRef<AgGridReact<AddressList>>(null);
   
@@ -194,6 +199,42 @@ export function AddressListComponent() {
       showMessage('error', 'שגיאה בשמירת השינויים');
     } finally {
       setIsSaving(false);
+    }
+  }
+
+  // Create a single street directly (no file import). Validates the inputs,
+  // checks for duplicate street_code in the loaded list, calls the create
+  // API, then reloads the addresses to pick up the new row.
+  async function handleCreateStreet() {
+    const codeNum = parseInt(newStreetCode, 10);
+    if (!newStreetCode.trim() || isNaN(codeNum) || codeNum <= 0) {
+      showMessage('error', 'סמל רחוב חייב להיות מספר חיובי');
+      return;
+    }
+    if (!newStreetDescription.trim()) {
+      showMessage('error', 'יש להזין שם רחוב');
+      return;
+    }
+    if (addresses.some(a => Number(a.street_code) === codeNum)) {
+      showMessage('error', `רחוב עם סמל ${codeNum} כבר קיים`);
+      return;
+    }
+    setIsCreatingStreet(true);
+    try {
+      await api.addressList.create({
+        street_code: codeNum,
+        street_description: newStreetDescription.trim(),
+      });
+      showMessage('success', `הרחוב ${codeNum} נוסף בהצלחה`);
+      setIsAddOpen(false);
+      setNewStreetCode('');
+      setNewStreetDescription('');
+      await fetchAddresses(false);
+    } catch (err: any) {
+      const msg = err?.message || err?.detail || (typeof err === 'string' ? err : 'שגיאה לא ידועה');
+      showMessage('error', `שגיאה בהוספת רחוב: ${msg}`);
+    } finally {
+      setIsCreatingStreet(false);
     }
   }
 
@@ -706,6 +747,15 @@ export function AddressListComponent() {
         <div className="action-bar flex-1 min-w-0 py-1 px-2">
           <div className="flex flex-wrap justify-end gap-1.5">
             <button
+              onClick={() => { setNewStreetCode(''); setNewStreetDescription(''); setIsAddOpen(true); }}
+              disabled={isSaving || isCreatingStreet}
+              className="btn btn-action btn-primary disabled:opacity-50 disabled:cursor-not-allowed"
+              title="הוסף רחוב חדש"
+            >
+              <Plus className="h-5 w-5" />
+              <span>הוסף רחוב</span>
+            </button>
+            <button
               onClick={handleCancelAll}
               disabled={isSaving || (dirtyAddresses.size === 0 && deletedAddresses.size === 0)}
               className="btn btn-action btn-cancel disabled:opacity-50 disabled:cursor-not-allowed"
@@ -954,6 +1004,68 @@ export function AddressListComponent() {
           />
           </div>
         </div>
+
+        {isAddOpen && (
+          <div
+            className="fixed inset-0 bg-black/50 flex items-center justify-center z-50"
+            onClick={() => { if (!isCreatingStreet) setIsAddOpen(false); }}
+          >
+            <div
+              className="bg-white rounded-xl shadow-2xl p-6 w-[420px] max-w-[90vw]"
+              onClick={(e) => e.stopPropagation()}
+              dir="rtl"
+            >
+              <h2 className="text-xl font-bold mb-4">הוסף רחוב חדש</h2>
+              <div className="space-y-3">
+                <div>
+                  <label className="block text-sm font-medium mb-1">סמל רחוב</label>
+                  <input
+                    type="number"
+                    value={newStreetCode}
+                    onChange={(e) => setNewStreetCode(e.target.value)}
+                    onKeyDown={(e) => { if (e.key === 'Enter') handleCreateStreet(); }}
+                    autoFocus
+                    disabled={isCreatingStreet}
+                    className="w-full border rounded px-3 py-2 text-right"
+                    placeholder="לדוגמה: 1234"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium mb-1">שם רחוב</label>
+                  <input
+                    type="text"
+                    value={newStreetDescription}
+                    onChange={(e) => setNewStreetDescription(e.target.value)}
+                    onKeyDown={(e) => { if (e.key === 'Enter') handleCreateStreet(); }}
+                    disabled={isCreatingStreet}
+                    className="w-full border rounded px-3 py-2 text-right"
+                    placeholder="לדוגמה: רחוב הרצל"
+                  />
+                </div>
+              </div>
+              <div className="flex justify-end gap-2 mt-5">
+                <button
+                  type="button"
+                  onClick={() => setIsAddOpen(false)}
+                  disabled={isCreatingStreet}
+                  className="btn btn-action btn-cancel disabled:opacity-50"
+                >
+                  <X className="h-5 w-5" />
+                  <span>ביטול</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={handleCreateStreet}
+                  disabled={isCreatingStreet}
+                  className="btn btn-action btn-primary disabled:opacity-50"
+                >
+                  {isCreatingStreet ? <Loader2 className="h-5 w-5 animate-spin" /> : <Save className="h-5 w-5" />}
+                  <span>{isCreatingStreet ? 'שומר...' : 'שמור'}</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
     </div>
   );
 }

@@ -257,6 +257,29 @@ def reset_export_to_automation(
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@router.post("/reset-export-to-automation/by-building/{building_number}")
+def reset_export_to_automation_by_building(
+    building_number: int,
+    _payload: dict = Depends(require_admin),
+    db: Session = Depends(get_db),
+):
+    """Reset exported_to_automation for every exported asset in a single building. Admin only."""
+    try:
+        result = db.execute(
+            text(
+                "UPDATE assets SET exported_to_automation = false, export_to_automation_at = NULL "
+                "WHERE building_number = :bn AND exported_to_automation = true"
+            ),
+            {"bn": building_number},
+        )
+        count = result.rowcount
+        db.commit()
+        return {"success": True, "count": count}
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @router.post("/with-history")
 def assets_with_history(
     body: dict = Body(...),

@@ -6,7 +6,7 @@ import { assetValidators } from '../lib/validation';
 import { AssetValidationHandler } from '../lib/assetValidationHandler';
 import { AgGridReact } from 'ag-grid-react';
 import { ColDef, ICellEditorParams } from 'ag-grid-community';
-import { Building as BuildingIcon, AlertCircle, ChevronDown, ChevronRight, Loader2, Save, X, Plus, Trash2, Check, CheckCircle2, Download, MoveLeft, Upload, FileSpreadsheet, History, Share2, MapPin, MessageSquare, FileText, BarChart3, Copy } from 'lucide-react';
+import { Building as BuildingIcon, AlertCircle, ChevronDown, ChevronRight, Loader2, Save, X, Plus, Trash2, Check, CheckCircle2, Download, MoveLeft, Upload, FileSpreadsheet, History, Share2, MapPin, MessageSquare, FileText, BarChart3, Copy, RotateCcw } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { ValidationResultModal, BatchValidationResults, ValidationProgress } from './ValidationResultModal';
 import { DistributionHistoryModal } from './DistributionHistoryModal';
@@ -347,7 +347,7 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
   const { buildingNumber, taxRegion, onSelectAsset, onOpenTransferAreas, onOpenNewAsset, selectedAssetIds, onOpenAssetsTab, onCloseTabAndOpenMultiTax, onCloseTab, isErrorFixingMode = false, onDistributionAlert } = props;
   const { t } = useTranslation();
   const { validationRules } = useValidationRules(); // Get validation rules from context
-  const { isReadOnly } = useUserRole();
+  const { isReadOnly, isAdmin } = useUserRole();
   const { shouldValidateBeforeSave, shouldValidateOnBlur } = useUIConfig();
   const [assets, setAssets] = useState<Asset[]>([]);
   const [building, setBuilding] = useState<Building | null>(null);
@@ -430,6 +430,7 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
   const [showAssetStatisticsModal, setShowAssetStatisticsModal] = useState(false);
   const [sourceAssetId, setSourceAssetId] = useState<string | null>(null);
   const [exportToAutomationCount, setExportToAutomationCount] = useState<number>(0);
+  const [resettingExport, setResettingExport] = useState<boolean>(false);
 
   // Original-format file import
   const originalImportInputRef = useRef<HTMLInputElement>(null);
@@ -907,6 +908,43 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
       document.body.style.cursor = '';
     }
   }, [buildingNumber, building, assetTypes, validationTaxRegion, shouldValidateBeforeSave, fetchExportToAutomationCount, fetchData]);
+
+  // Admin-only: reset every exported asset in this building back to "not sent to automation".
+  const handleResetExportToAutomationForBuilding = useCallback(async () => {
+    if (!buildingNumber) return;
+    const exportedCount = assets.filter(a => (a as any).exported_to_automation === true).length;
+    if (exportedCount === 0) {
+      setToast({ message: 'אין נכסים מסומנים כשנשלחו לעירייה במבנה זה', type: 'info' });
+      setTimeout(() => setToast(null), 4000);
+      return;
+    }
+    const ok = window.confirm(
+      `אפס סימן "נשלח לעירייה" עבור ${exportedCount} נכסים במבנה ${buildingNumber}?\n\n` +
+      `הנכסים יוחזרו למצב "נמדדו ולא נשלחו" וניתן יהיה לשלוח אותם מחדש.\n` +
+      `פעולה זו אינה הפיכה.`
+    );
+    if (!ok) return;
+    setResettingExport(true);
+    try {
+      const result = await api.assets.resetExportToAutomationByBuilding(buildingNumber);
+      if (!result.success) {
+        setToast({ message: `שגיאה באיפוס: ${result.error || 'שגיאה לא ידועה'}`, type: 'error' });
+        setTimeout(() => setToast(null), 6000);
+        return;
+      }
+      setToast({ message: `אופסו ${result.count} נכסים. כעת ניתן לשלוח אותם מחדש.`, type: 'success' });
+      setTimeout(() => setToast(null), 6000);
+      await fetchData(false);
+      await fetchExportToAutomationCount();
+      window.dispatchEvent(new CustomEvent('resetExportToAutomationSuccess'));
+    } catch (err: any) {
+      console.error('[AssetsList] reset export by building failed:', err);
+      setToast({ message: err?.message || 'שגיאה באיפוס שליחה לעירייה', type: 'error' });
+      setTimeout(() => setToast(null), 6000);
+    } finally {
+      setResettingExport(false);
+    }
+  }, [buildingNumber, assets, fetchData, fetchExportToAutomationCount]);
 
   useEffect(() => {
     fetchData();
@@ -6250,6 +6288,24 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
                 >
                   {exporting ? <Loader2 className="h-5 w-5 animate-spin" /> : <Upload className="h-5 w-5" />}
                   <span>שליחת נתונים לעירייה{exportToAutomationCount > 0 ? ` (${exportToAutomationCount})` : ''}</span>
+                </button>
+              );
+            })()}
+            {/* Admin-only: reset 'sent to automation' for every exported asset in this building */}
+            {isAdmin && !isErrorFixingMode && (() => {
+              const exportedCount = assets.filter(a => (a as any).exported_to_automation === true).length;
+              return (
+                <button
+                  type="button"
+                  onClick={handleResetExportToAutomationForBuilding}
+                  disabled={resettingExport || exportedCount === 0}
+                  className="btn btn-action btn-danger disabled:opacity-50 disabled:cursor-not-allowed"
+                  title={exportedCount > 0
+                    ? `אפס סימן 'נשלח לעירייה' עבור ${exportedCount} נכסים במבנה זה`
+                    : 'אין נכסים שנשלחו לעירייה במבנה זה'}
+                >
+                  {resettingExport ? <Loader2 className="h-5 w-5 animate-spin" /> : <RotateCcw className="h-5 w-5" />}
+                  <span>איפוס שליחה לעירייה{exportedCount > 0 ? ` (${exportedCount})` : ''}</span>
                 </button>
               );
             })()}

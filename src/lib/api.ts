@@ -18,6 +18,7 @@ import {
   assetsMarkExportedByIds,
   assetsMeasuredNotExported,
   assetsResetExportToAutomation,
+  assetsResetExportToAutomationByBuilding,
   assetTypesUpdateWithDistributionReset,
   assetTypesBulkDistributionReset,
   changeLogHistory,
@@ -2657,6 +2658,22 @@ export const api = {
         };
       } catch (error: any) {
         console.error('[api.assets.resetExportToAutomation] Unexpected error:', error);
+        return { success: false, count: 0, error: error.message || 'Unknown error' };
+      }
+    },
+    resetExportToAutomationByBuilding: async (buildingNumber: number): Promise<{ success: boolean; count: number; error?: string }> => {
+      try {
+        const { data, error } = await assetsResetExportToAutomationByBuilding(buildingNumber);
+        if (error) {
+          return { success: false, count: 0, error: error.message };
+        }
+        const result = data as { success?: boolean; count?: number } | null;
+        return {
+          success: result?.success !== false,
+          count: result?.count ?? 0,
+        };
+      } catch (error: any) {
+        console.error('[api.assets.resetExportToAutomationByBuilding] Unexpected error:', error);
         return { success: false, count: 0, error: error.message || 'Unknown error' };
       }
     },

@@ -140,6 +140,14 @@ export async function assetsResetExportToAutomation() {
   );
 }
 
+/** Reset every exported asset in a single building (admin only). */
+export async function assetsResetExportToAutomationByBuilding(buildingNumber: number) {
+  return rest<{ success: boolean; count: number }>(
+    'POST',
+    `/assets/reset-export-to-automation/by-building/${buildingNumber}`
+  );
+}
+
 export async function assetsSearchByRange(payload: Record<string, unknown>) {
   return rest<unknown>('POST', '/assets/search-by-range', payload);
 }

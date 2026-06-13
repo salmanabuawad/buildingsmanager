@@ -431,6 +431,7 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
   const [sourceAssetId, setSourceAssetId] = useState<string | null>(null);
   const [exportToAutomationCount, setExportToAutomationCount] = useState<number>(0);
   const [resettingExport, setResettingExport] = useState<boolean>(false);
+  const [showResetExportModal, setShowResetExportModal] = useState<boolean>(false);
 
   // Original-format file import
   const originalImportInputRef = useRef<HTMLInputElement>(null);
@@ -910,20 +911,9 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
   }, [buildingNumber, building, assetTypes, validationTaxRegion, shouldValidateBeforeSave, fetchExportToAutomationCount, fetchData]);
 
   // Admin-only: reset every exported asset in this building back to "not sent to automation".
-  const handleResetExportToAutomationForBuilding = useCallback(async () => {
+  // The toolbar button opens a confirmation modal; this runs only after confirm.
+  const handleConfirmResetExportToAutomationForBuilding = useCallback(async () => {
     if (!buildingNumber) return;
-    const exportedCount = assets.filter(a => (a as any).exported_to_automation === true).length;
-    if (exportedCount === 0) {
-      setToast({ message: 'אין נכסים מסומנים כשנשלחו לעירייה במבנה זה', type: 'info' });
-      setTimeout(() => setToast(null), 4000);
-      return;
-    }
-    const ok = window.confirm(
-      `אפס סימן "נשלח לעירייה" עבור ${exportedCount} נכסים במבנה ${buildingNumber}?\n\n` +
-      `הנכסים יוחזרו למצב "נמדדו ולא נשלחו" וניתן יהיה לשלוח אותם מחדש.\n` +
-      `פעולה זו אינה הפיכה.`
-    );
-    if (!ok) return;
     setResettingExport(true);
     try {
       const result = await api.assets.resetExportToAutomationByBuilding(buildingNumber);
@@ -943,8 +933,9 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
       setTimeout(() => setToast(null), 6000);
     } finally {
       setResettingExport(false);
+      setShowResetExportModal(false);
     }
-  }, [buildingNumber, assets, fetchData, fetchExportToAutomationCount]);
+  }, [buildingNumber, fetchData, fetchExportToAutomationCount]);
 
   useEffect(() => {
     fetchData();
@@ -6297,7 +6288,7 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
               return (
                 <button
                   type="button"
-                  onClick={handleResetExportToAutomationForBuilding}
+                  onClick={() => setShowResetExportModal(true)}
                   disabled={resettingExport || exportedCount === 0}
                   className="btn btn-action btn-danger disabled:opacity-50 disabled:cursor-not-allowed"
                   title={exportedCount > 0
@@ -6774,6 +6765,60 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
           </>
         )}
       </div>
+
+      {/* Reset Send to Automation Confirmation Modal (admin only) */}
+      {showResetExportModal && (() => {
+        const exportedCount = assets.filter(a => (a as any).exported_to_automation === true).length;
+        const closeModal = () => { if (!resettingExport) setShowResetExportModal(false); };
+        return (
+          <div
+            className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
+            dir="rtl"
+            onClick={closeModal}
+          >
+            <div
+              className="bg-white rounded-lg shadow-xl p-6 max-w-md w-full mx-4"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex items-center gap-3 mb-4">
+                <AlertCircle className="h-6 w-6 text-red-600 flex-shrink-0" />
+                <h3 className="text-lg font-bold text-slate-900">
+                  איפוס שליחה לעירייה — מבנה {buildingNumber}
+                </h3>
+              </div>
+              <p className="text-slate-600 mb-2">
+                האם לאפס את סימן "נשלח לעירייה" עבור <span className="font-semibold">{exportedCount}</span> נכסים במבנה זה?
+              </p>
+              <p className="text-slate-500 text-sm mb-6">
+                הנכסים יוחזרו למצב "נמדדו ולא נשלחו" וניתן יהיה לשלוח אותם מחדש. הפעולה אינה הפיכה.
+              </p>
+              <div className="flex justify-end gap-3">
+                <button
+                  onClick={closeModal}
+                  disabled={resettingExport}
+                  className="px-4 py-2 text-sm font-medium text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  ביטול
+                </button>
+                <button
+                  onClick={handleConfirmResetExportToAutomationForBuilding}
+                  disabled={resettingExport || exportedCount === 0}
+                  className="px-4 py-2 text-sm font-medium text-white bg-red-600 hover:bg-red-700 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                >
+                  {resettingExport ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      מאפס...
+                    </>
+                  ) : (
+                    'אפס'
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
 
       <ValidationResultModal
         isOpen={showBatchValidationModal}

@@ -365,6 +365,23 @@ input[type="number"] {
   background: #f5f7f9 !important;
   border-color: #b8c2cc !important;
 }
+/* theme_1: action-bar destructive button — white bg with red text/border to flag intent */
+.action-bar .btn-danger {
+  background: #ffffff !important;
+  color: #B02A37 !important;
+  border: 1px solid #E5A0A5 !important;
+  box-shadow: none !important;
+}
+.action-bar .btn-danger:hover:not(:disabled) {
+  background: #fdf3f4 !important;
+  border-color: #d97982 !important;
+}
+.action-bar .btn-danger:disabled {
+  background: #eef1f4 !important;
+  color: #6C757D !important;
+  border-color: #dde2e6 !important;
+  opacity: 0.7 !important;
+}
 
 /* theme_1: Secondary ghost buttons */
 .btn-secondary-ghost {

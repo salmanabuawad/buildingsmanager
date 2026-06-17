@@ -28,6 +28,36 @@ IMMUTABLE_ASSET_COLUMNS = {
     "created_at",
 }
 
+# Fields that, when changed on an already-exported asset, mean the city's record
+# is now stale — so the asset must be re-queued for automation. Mirrors the
+# port of the legacy `reset_export_flags_on_change` trigger.
+_EXPORT_RESET_FIELDS = {
+    "payer_id", "main_asset_type", "asset_size", "measurement_date",
+    "sub_asset_type_1", "sub_asset_size_1",
+    "sub_asset_type_2", "sub_asset_size_2",
+    "sub_asset_type_3", "sub_asset_size_3",
+    "sub_asset_type_4", "sub_asset_size_4",
+    "sub_asset_type_5", "sub_asset_size_5",
+    "sub_asset_type_6", "sub_asset_size_6",
+}
+
+
+def _should_reset_export_flags(old_row: RowMapping, new_payload: dict[str, Any]) -> bool:
+    for field in _EXPORT_RESET_FIELDS:
+        if field not in new_payload:
+            continue
+        old_val = old_row.get(field)
+        new_val = new_payload[field]
+        if old_val == new_val:
+            continue
+        try:
+            if float(str(old_val if old_val is not None else 0)) != float(str(new_val if new_val is not None else 0)):
+                return True
+        except (TypeError, ValueError):
+            if str(old_val) != str(new_val):
+                return True
+    return False
+
 
 def _get_columns(db: Session, table: str) -> set[str]:
     rows = db.execute(
@@ -532,6 +562,18 @@ def save_assets_bulk_transactional(
             old_building_number = existing_row.get("building_number")
             old_main_asset_type = existing_row.get("main_asset_type")
             copy_asset_to_history(db, asset_id)
+
+            # If the asset was already exported and any measurement-relevant
+            # field is changing, re-queue it for automation (the city's record
+            # is now stale). Mirrors the legacy reset_export_flags_on_change.
+            if (
+                existing_row.get("exported_to_automation") is True
+                and _should_reset_export_flags(existing_row, payload)
+            ):
+                if "exported_to_automation" in asset_columns:
+                    payload["exported_to_automation"] = False
+                if "export_to_automation_at" in asset_columns:
+                    payload["export_to_automation_at"] = None
 
             sql, params = _build_update_sql(
                 table="assets",

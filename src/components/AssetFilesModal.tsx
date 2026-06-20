@@ -11,18 +11,12 @@ interface AssetFilesModalProps {
   isOpen: boolean;
   onClose: () => void;
   assetId: number;
-  measurementDate?: string | null; // If provided, show only files for this measurement; if null, show shared files; if undefined, show all files
-  // When opening for the live (is_latest=true) record, pass the asset's current
-  // measurement_date here instead of using measurementDate. The modal then
-  // shows files whose measurement_date IS NULL (legacy unanchored) OR matches
-  // this date — and crucially HIDES files belonging to previous measurements,
-  // so a fresh measurement starts with an empty drawings list.
-  activeFilterDate?: string;
+  measurementDate?: string | null; // null → live drawings (NULL-anchored); a date → that history snapshot; undefined → every file for this asset
   onFilesDeleted?: (assetId: number, hasFiles: boolean) => void;
   isUploading?: boolean; // Whether a file is currently being uploaded
 }
 
-export function AssetFilesModal({ isOpen, onClose, assetId, measurementDate, activeFilterDate, onFilesDeleted, isUploading = false }: AssetFilesModalProps) {
+export function AssetFilesModal({ isOpen, onClose, assetId, measurementDate, onFilesDeleted, isUploading = false }: AssetFilesModalProps) {
   const { isReadOnly } = useUserRole();
   const [files, setFiles] = useState<AssetFile[]>([]);
   const [loading, setLoading] = useState(false);
@@ -42,24 +36,13 @@ export function AssetFilesModal({ isOpen, onClose, assetId, measurementDate, act
       setViewingFile(null);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isOpen, assetId, measurementDate, activeFilterDate]);
-
-  // When activeFilterDate is set (live record view), include only NULL-date
-  // files (legacy/unanchored) plus files stamped with the current measurement
-  // date — old measurements' files are excluded.
-  const loadFiles = async (): Promise<AssetFile[]> => {
-    if (activeFilterDate !== undefined && measurementDate === undefined) {
-      const all = await api.assets.files.getAll(assetId);
-      return (all || []).filter(f => !f.measurement_date || f.measurement_date === activeFilterDate);
-    }
-    return await api.assets.files.getAll(assetId, measurementDate);
-  };
+  }, [isOpen, assetId, measurementDate]);
 
   const fetchFiles = async () => {
     if (!assetId) return;
     setLoading(true);
     try {
-      const assetFiles = await loadFiles();
+      const assetFiles = await api.assets.files.getAll(assetId, measurementDate);
       const byName = [...(assetFiles || [])].sort((a, b) =>
         getDisplayFileName(a).localeCompare(getDisplayFileName(b), undefined, { numeric: true })
       );
@@ -109,8 +92,8 @@ export function AssetFilesModal({ isOpen, onClose, assetId, measurementDate, act
         
         // Notify parent if callback is provided - check files after fetch
         if (onFilesDeleted) {
-          // Re-fetch using the same active-vs-historical predicate as fetchFiles
-          const updatedFiles = await loadFiles();
+          // Re-fetch to get updated file count
+          const updatedFiles = await api.assets.files.getAll(assetId, measurementDate);
           onFilesDeleted(assetId, updatedFiles.length > 0);
         }
       } else {

@@ -4677,9 +4677,12 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
 
       setUploadProgress({ assetId, progress: 40, fileName: file.name });
 
-      // Preserve content-type and pass measurement_date so backend inserts the correct DB record
-      const asset = assets.find(a => a.asset_id === assetId);
-      const measurementDate = asset?.measurement_date || null;
+      // Upload as a NULL-anchored ("live") drawing. Live drawings stay tied to
+      // the asset until save-as-new fires claimForMeasurement, which moves them
+      // to the historical record by stamping the old measurement_date. Stamping
+      // here would break that contract: a later measurement_date edit (without
+      // save-as-new) would orphan the drawing from its live record.
+      const measurementDate: null = null;
       const uploadOptions: { contentType?: string; upsert: boolean; measurementDate?: string | null; originalFileName?: string } = { upsert: false, measurementDate, originalFileName: file.name };
       if (compressedFile.type) {
         uploadOptions.contentType = compressedFile.type;

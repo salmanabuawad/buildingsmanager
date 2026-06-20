@@ -21,6 +21,7 @@ import { formatNumberMaxTwoDecimals } from '../lib/numberUtils';
 import { useUserRole } from '../contexts/UserRoleContext';
 import { useUIConfig } from '../contexts/UIConfigContext';
 import { Toast } from './Toast';
+import ExcelLikeFilter from './grid/ExcelLikeFilter';
 
 // Validation tooltip icon component that uses fixed positioning to avoid overflow clipping
 const ValidationTooltipIcon = ({ message }: { message: string }) => {
@@ -416,6 +417,7 @@ const BUILDINGS_GRID_DEFAULT_COL_DEF = {
   headerClass: 'buildings-list-header',
   headerStyle: { fontSize: '11px', textAlign: 'right' as const, fontWeight: 'normal', WebkitFontSmoothing: 'antialiased', MozOsxFontSmoothing: 'grayscale' },
   minWidth: 40,
+  filter: ExcelLikeFilter,
 };
 
 const BUILDINGS_GRID_OPTIONS = {
@@ -585,6 +587,34 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
     }
     return map;
   }, [distAssetsList, distAssetTypesList]);
+
+  // ── "תאריך מדידה אחרון" column ───────────────────────────────────────────
+  // Per-building MAX(measurement_date) across this building's assets. Dates
+  // are stored as DD/MM/YYYY text; parse to YYYY-MM-DD for safe comparison.
+  const lastMeasurementByBuilding = useMemo<Map<number, string>>(() => {
+    const map = new Map<number, string>();
+    if (distAssetsList.length === 0) return map;
+    const toSortable = (s: any): string | null => {
+      const str = String(s ?? '').trim();
+      const m = /^(\d{2})\/(\d{2})\/(\d{4})$/.exec(str);
+      if (!m) return null;
+      return `${m[3]}-${m[2]}-${m[1]}`;
+    };
+    const bestSortable = new Map<number, string>();
+    for (const a of distAssetsList) {
+      const bn = Number((a as any).building_number);
+      if (!bn || isNaN(bn)) continue;
+      const sortable = toSortable((a as any).measurement_date);
+      if (!sortable) continue;
+      const prev = bestSortable.get(bn);
+      if (!prev || sortable > prev) {
+        bestSortable.set(bn, sortable);
+        const [y, mo, d] = sortable.split('-');
+        map.set(bn, `${d}/${mo}/${y}`);
+      }
+    }
+    return map;
+  }, [distAssetsList]);
 
   // Any change invalidates the last validation snapshot (user must re-validate).
   useEffect(() => {
@@ -3268,6 +3298,22 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
       },
     },
     {
+      // Virtual column (no DB field): per-building MAX(measurement_date) across
+      // assets — surfaces when the building was last measured.
+      colId: 'last_measurement_date',
+      field: 'last_measurement_date',
+      headerName: 'תאריך מדידה אחרון',
+      editable: false,
+      sortable: true,
+      valueGetter: (params: any) => {
+        const b = params?.data as Building | undefined;
+        if (!b) return null;
+        const bn = Number(b.building_number);
+        if (!bn || isNaN(bn)) return null;
+        return lastMeasurementByBuilding.get(bn) ?? null;
+      },
+    },
+    {
       field: 'residence_shared_area',
       headerName: 'שטח משותף מגורים',
       editable: (params: any) => {
@@ -3798,7 +3844,7 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
       }
       return colDef;
     });
-  }, [onSelectBuilding, handleDeleteBuilding, buildingsToDelete, t, invalidTaxRegions, validationErrors, dirtyBuildings, newBuildings, isNewBuilding, getBuildingKey, handleCheckboxChange, addressList, hasBuildingBusiness, isReadOnly, distributionBaseByBuilding]);
+  }, [onSelectBuilding, handleDeleteBuilding, buildingsToDelete, t, invalidTaxRegions, validationErrors, dirtyBuildings, newBuildings, isNewBuilding, getBuildingKey, handleCheckboxChange, addressList, hasBuildingBusiness, isReadOnly, distributionBaseByBuilding, lastMeasurementByBuilding]);
 
   // Apply field configurations to column definitions (ref_only pattern: rely on columnDefs prop only)
   const configVersion = useFieldConfigVersion();

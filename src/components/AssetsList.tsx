@@ -3589,37 +3589,39 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
         }
       }
 
-      // Find the first matching shared area asset type (use same one for all)
-      // Prefer the tax region from the current tab, otherwise use the first available
-      let sharedAreaAssetType = null;
-      if (taxRegion) {
-        // Try to find one matching the current tab's tax region first
-        sharedAreaAssetType = currentAssetTypes.find(at => 
-          at.tax_region === taxRegion && 
-          at.use_shared_area === true
-        );
-      }
-      // If not found, try any tax region from the assets
-      if (!sharedAreaAssetType && uniqueTaxRegions.size > 0) {
-        for (const tr of uniqueTaxRegions) {
-          sharedAreaAssetType = currentAssetTypes.find(at => 
-            at.tax_region === tr && 
-            at.use_shared_area === true
-          );
-          if (sharedAreaAssetType) break;
+      // Build the per-tax-region shared-area type map. Rule: for each
+      // residence asset, the shared area subtype it receives is the unique
+      // asset_types row where business_residence='מגורים', use_shared_area=true,
+      // and tax_region matches the asset. On production this resolves to
+      // tax_region 10→251, 20→253, 30→255.
+      // allSharedAreaTypeNames also covers subtypes we may need to strip on
+      // repeat distributions — including a type that was placed there by a
+      // previous (globally-picked) distribution before this per-tax-region
+      // logic landed.
+      const residenceSharedByTaxRegion = new Map<string, AssetType>();
+      const allSharedAreaTypeNames = new Set<string>();
+      for (const at of currentAssetTypes) {
+        if (String(at.business_residence ?? '').trim() !== 'מגורים') continue;
+        if (at.use_shared_area !== true) continue;
+        const trKey = String(at.tax_region ?? '').trim();
+        if (!trKey) continue;
+        // First writer wins per (tax_region) — if the DB still has residue
+        // duplicates, this keeps the deterministic pick predictable.
+        if (!residenceSharedByTaxRegion.has(trKey)) {
+          residenceSharedByTaxRegion.set(trKey, at);
         }
-      }
-      // If still not found, find any asset type with use_shared_area = true
-      if (!sharedAreaAssetType) {
-        sharedAreaAssetType = currentAssetTypes.find(at => at.use_shared_area === true);
+        allSharedAreaTypeNames.add(String(at.name).trim());
       }
 
-      if (!sharedAreaAssetType && !isClearing) {
+      // Guard: with no residence shared type at all and we're not clearing,
+      // there's nothing meaningful to distribute into.
+      if (residenceSharedByTaxRegion.size === 0 && !isClearing) {
         const taxRegionList = Array.from(uniqueTaxRegions).join(', ') || taxRegion || 'לא ידוע';
-        throw new Error(`לא נמצא סוג נכס עם סימון "שימוש בשטח משותף" עבור אזורי המס: ${taxRegionList}. יש לוודא שקיים סוג נכס עם use_shared_area=true.`);
+        throw new Error(`לא נמצא סוג נכס מגורים עם סימון "שימוש בשטח משותף" עבור אזורי המס: ${taxRegionList}. יש לוודא שקיים סוג נכס עם use_shared_area=true.`);
       }
 
-      // Now distribute to accountable residential assets using the same asset type for all
+      // Now distribute to accountable residential assets — the shared type is
+      // resolved per-asset from the map above.
       for (const asset of residentialAssets) {
         const assetId = String(asset.asset_id);
         const existingChanges = updatedDirtyAssets.get(assetId) || {};
@@ -3630,33 +3632,37 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
         const changes: Partial<Asset> = { ...existingChanges };
 
         // Get current values (use existing changes if available, otherwise use current asset)
-        const currentMainType = changes.main_asset_type !== undefined 
-          ? changes.main_asset_type 
+        const currentMainType = changes.main_asset_type !== undefined
+          ? changes.main_asset_type
           : currentAsset.main_asset_type;
 
         const isMainType199 = isComplexAssetType(String(currentMainType).trim());
 
+        // Per-asset shared-area type resolved from the map by this asset's
+        // tax_region. undefined means the asset's tax_region has no residence
+        // shared type configured — for clearing that's fine (we still strip any
+        // stale shared subtypes below); for adding we skip and count as a miss.
+        const assetTaxRegionKey = String(currentAsset.tax_region ?? '').trim();
+        const sharedAreaAssetType = residenceSharedByTaxRegion.get(assetTaxRegionKey);
+
         if (isClearing) {
-          // Clearing distribution: delete ALL occurrences of the shared area subtype and move back types
-          if (!isMainType199 || !sharedAreaAssetType) {
-            // Skip assets that aren't type 199 or don't have the shared area type defined
+          // Clearing distribution: strip every shared-area subtype (regardless
+          // of which tax_region owns it — protects against past distributions
+          // that placed the wrong type) and compact.
+          if (!isMainType199) {
+            // Non-complex assets never carry a shared subtype.
             continue;
           }
 
-          // Remove ALL occurrences of the shared area asset type subtype
-          const sharedAreaTypeName = String(sharedAreaAssetType.name).trim();
           let foundAny = false;
-          
           for (let i = 1; i <= 6; i++) {
             const subTypeField = `sub_asset_type_${i}` as keyof Asset;
             const subSizeField = `sub_asset_size_${i}` as keyof Asset;
             const currentSubType = changes[subTypeField] !== undefined
               ? changes[subTypeField]
               : currentAsset[subTypeField];
-            
-            // Check if this subtype matches the shared area asset type
-            if (currentSubType && String(currentSubType).trim() === sharedAreaTypeName) {
-              // Delete this shared area subtype (set to null)
+
+            if (currentSubType && allSharedAreaTypeNames.has(String(currentSubType).trim())) {
               (changes as any)[subTypeField] = null;
               (changes as any)[subSizeField] = null;
               foundAny = true;
@@ -3730,27 +3736,27 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
             changes.asset_size = totalSubSize;
           }
         } else {
-          // Adding distribution: add shared area as subtype
-          // First, remove any existing shared area subtypes (duplicates) and keep only one
+          // Adding distribution: skip assets whose tax_region has no residence
+          // shared-area type configured — the map is authoritative.
+          if (!sharedAreaAssetType) continue;
+
+          // Strip every existing shared-area subtype (any tax_region's type),
+          // so a past distribution that placed the wrong type gets cleaned up
+          // before we insert the correct one for this asset's tax_region.
           let existingSharedAreaIndex = -1;
-          const sharedAreaTypeName = String(sharedAreaAssetType.name).trim();
-          
-          // Remove all existing shared area subtypes (duplicates)
+
           for (let i = 1; i <= 6; i++) {
             const subTypeField = `sub_asset_type_${i}` as keyof Asset;
             const subSizeField = `sub_asset_size_${i}` as keyof Asset;
-            
+
             const currentSubType = changes[subTypeField] !== undefined
               ? changes[subTypeField]
               : currentAsset[subTypeField];
-            
-            // Check if this subtype matches the shared area asset type
-            if (currentSubType && String(currentSubType).trim() === sharedAreaTypeName) {
-              // Remember the first index found (we'll use this position for the new one)
+
+            if (currentSubType && allSharedAreaTypeNames.has(String(currentSubType).trim())) {
               if (existingSharedAreaIndex === -1) {
                 existingSharedAreaIndex = i;
               }
-              // Remove all shared area subtypes (we'll add a single one below)
               (changes as any)[subTypeField] = null;
               (changes as any)[subSizeField] = null;
             }

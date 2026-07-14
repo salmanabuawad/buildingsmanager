@@ -10,6 +10,18 @@
  */
 
 import * as XLSX from 'xlsx';
+// xlsx-js-style is a drop-in fork of xlsx whose writer honours cell.s
+// (fill/font/border/etc). The community xlsx build silently drops styles on
+// write, so anything that needs coloured rows MUST go through this build.
+import * as XLSXStyle from 'xlsx-js-style';
+
+/** Per-cell style applied to every cell of the specified 0-based row indices. */
+export interface RowStyleSpec {
+  /** 0-based row indices (relative to `data`, including the header row at 0). */
+  rowIndices: number[];
+  /** xlsx-js-style cell style (fill/font/border). */
+  style: any;
+}
 
 export interface ExcelExportOptions {
   filename: string;
@@ -18,6 +30,9 @@ export interface ExcelExportOptions {
   columnWidths?: { wch: number }[];
   /** 0-based column indices for size fields that should display with .00 format in Excel */
   decimalFormatColumnIndices?: number[];
+  /** Optional per-row styles. When any rowStyles is supplied the writer switches
+   *  to xlsx-js-style so cell.s survives the write. */
+  rowStyles?: RowStyleSpec[];
 }
 
 /** Number format for size/numeric cells so Excel shows values with .00 (e.g. 5 → 5.00) */
@@ -93,19 +108,45 @@ function sanitizeSpreadsheetCell(value: any): any {
  */
 export function exportToExcel(options: ExcelExportOptions): void {
   try {
-    const { filename, sheetName = 'Sheet1', data, columnWidths } = options;
+    const { filename, sheetName = 'Sheet1', data, columnWidths, rowStyles } = options;
 
     // Validate data
     if (!Array.isArray(data) || data.length === 0) {
       throw new Error('Excel data must be a non-empty array');
     }
 
+    // If styled rows are requested we route through xlsx-js-style; its
+    // aoa_to_sheet/write pair honour cell.s. Otherwise stay on the plain xlsx
+    // build so the AV-friendly output path is unchanged.
+    const useStyled = !!(rowStyles && rowStyles.length > 0);
+    const XLSXImpl: any = useStyled ? XLSXStyle : XLSX;
+
     // Create worksheet from data (sanitize cell values to avoid formula injection / AV suspicion)
     const safeData = data.map(row => (Array.isArray(row) ? row.map(sanitizeSpreadsheetCell) : row)) as any[][];
-    const worksheet = XLSX.utils.aoa_to_sheet(safeData);
+    const worksheet = XLSXImpl.utils.aoa_to_sheet(safeData);
 
     // Format size columns (when specified) as .00
     applyNumericFormat(worksheet, options.decimalFormatColumnIndices);
+
+    // Apply per-row styles when supplied. We touch every column in the row so
+    // the whole line reads as one visual band. Existing cell.z (number format)
+    // is preserved.
+    if (useStyled) {
+      const ref = worksheet['!ref'];
+      if (ref) {
+        const range = XLSXStyle.utils.decode_range(ref);
+        for (const spec of rowStyles!) {
+          for (const R of spec.rowIndices) {
+            if (R < range.s.r || R > range.e.r) continue;
+            for (let C = range.s.c; C <= range.e.c; ++C) {
+              const addr = XLSXStyle.utils.encode_cell({ r: R, c: C });
+              const cell = worksheet[addr] ?? (worksheet[addr] = { t: 's', v: '' });
+              cell.s = { ...(cell.s ?? {}), ...spec.style };
+            }
+          }
+        }
+      }
+    }
 
     // Set column widths if provided
     if (columnWidths && columnWidths.length > 0) {
@@ -113,7 +154,7 @@ export function exportToExcel(options: ExcelExportOptions): void {
     }
 
     // Create workbook
-    const workbook = XLSX.utils.book_new();
+    const workbook = XLSXImpl.utils.book_new();
 
     // Get current date for metadata
     const now = new Date();
@@ -135,7 +176,7 @@ export function exportToExcel(options: ExcelExportOptions): void {
     };
 
     // Add worksheet to workbook
-    XLSX.utils.book_append_sheet(workbook, worksheet, sheetName);
+    XLSXImpl.utils.book_append_sheet(workbook, worksheet, sheetName);
 
     // Write file with explicit options to reduce false positives
     // Using explicit write options ensures standard file format that antivirus software
@@ -149,7 +190,7 @@ export function exportToExcel(options: ExcelExportOptions): void {
     };
 
     // Generate the file as array buffer
-    const fileData = XLSX.write(workbook, writeOptions);
+    const fileData = XLSXImpl.write(workbook, writeOptions);
     
     // Create a Blob with proper MIME type
     const blob = new Blob([fileData], {

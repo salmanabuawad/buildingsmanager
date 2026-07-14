@@ -4473,6 +4473,38 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
         return { ...asset, ...dirtyChanges };
       }).filter(asset => !deletedAssets.has(String(asset.asset_id)));
 
+      // Latest-history-per-asset lookup. getAllAssetsWithHistory returns both
+      // live (is_latest=true) and archived rows for the building; we keep only
+      // the archived ones and pick the row with the largest measurement_date
+      // per asset. Dates arrive as DD/MM/YYYY text — parse to YYYY-MM-DD to
+      // compare lexicographically. Failures degrade to "no history" per row
+      // rather than blowing up the whole export.
+      const latestHistoryByAssetId = new Map<string, Asset>();
+      if (buildingNumber) {
+        try {
+          const withHistory = await api.assets.getAllAssetsWithHistory(buildingNumber);
+          const toSortable = (s: any): string => {
+            const str = String(s ?? '').trim();
+            const m = /^(\d{2})\/(\d{2})\/(\d{4})$/.exec(str);
+            return m ? `${m[3]}-${m[2]}-${m[1]}` : '';
+          };
+          const bestSortable = new Map<string, string>();
+          for (const row of withHistory) {
+            if ((row as any).is_latest === true) continue;
+            const key = String((row as any).asset_id);
+            if (!key || key === 'undefined' || key === 'null') continue;
+            const sortable = toSortable((row as any).measurement_date);
+            const prev = bestSortable.get(key);
+            if (!prev || sortable > prev) {
+              bestSortable.set(key, sortable);
+              latestHistoryByAssetId.set(key, row as Asset);
+            }
+          }
+        } catch (histErr) {
+          console.warn('[AssetsList] failed to load asset history for export:', histErr);
+        }
+      }
+
       // Define headers matching the grid columns
       const headers = [
         'מזהה מבנה',
@@ -4516,8 +4548,8 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
         return trailing ? '-' + trailing[1] : s;
       };
 
-      // Convert assets to rows
-      const rows = assetsToExport.map(asset => [
+      // Render one asset to a row (used for both live and history rows).
+      const renderRow = (asset: any) => [
         asset.building_number || '',
         asset.asset_id || '',
         asset.payer_id || '',
@@ -4549,7 +4581,22 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
         (asset as any).shared_parking_area ?? '',
         (asset as any).number_of_parking_units ?? '',
         asset.comment || ''
-      ]);
+      ];
+
+      // Build the row list interleaving each asset with its latest history row
+      // (when one exists). Track 0-based history row indices so we can colour
+      // them below. Header sits at index 0, so the first asset row is index 1.
+      const rows: any[][] = [];
+      const historyRowIndices: number[] = [];
+      for (const asset of assetsToExport) {
+        rows.push(renderRow(asset));
+        const hist = latestHistoryByAssetId.get(String(asset.asset_id));
+        if (hist) {
+          rows.push(renderRow(hist));
+          // +1 accounts for the header row we prepend below.
+          historyRowIndices.push(rows.length);
+        }
+      }
 
       // Create data array with headers and rows
       const data = [headers, ...rows];
@@ -4561,12 +4608,22 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
 
       // Size columns (0-based): asset_size, sub_asset_size_1..6, business_distribution_area, shared_parking_area
       const sizeColumnIndices = [14, 16, 18, 20, 22, 24, 26, 27, 28];
+      // History rows: pale-yellow band + italic so they stand out from the
+      // live rows above them.
+      const historyRowStyle = historyRowIndices.length > 0 ? [{
+        rowIndices: historyRowIndices,
+        style: {
+          fill: { patternType: 'solid', fgColor: { rgb: 'FFF7D6' } },
+          font: { italic: true, color: { rgb: '5C4A00' } },
+        },
+      }] : undefined;
       // Use improved export function to reduce antivirus false positives
       exportToExcel({
         filename,
         sheetName: 'נכסים',
         data,
         decimalFormatColumnIndices: sizeColumnIndices,
+        rowStyles: historyRowStyle,
         columnWidths: [
           { wch: 12 }, // מזהה מבנה
           { wch: 12 }, // מזהה נכס

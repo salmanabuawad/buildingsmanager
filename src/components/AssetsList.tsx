@@ -3141,6 +3141,7 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
       building_number: buildingNumber,
       asset_id: '',
       payer_id: '',
+      payer_full_name: '',
       main_asset_type: '',
       asset_size: 0,
       sub_asset_type_1: '',
@@ -4510,6 +4511,7 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
         'מזהה מבנה',
         'מזהה נכס',
         'מזהה משלם',
+        'שם משלם',
         'אזור מס',
         'דירת גג',
         'מספר דירה',
@@ -4553,6 +4555,7 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
         asset.building_number || '',
         asset.asset_id || '',
         asset.payer_id || '',
+        asset.payer_full_name || '',
         asset.tax_region || '',
         asset.penthouse || '',
         asset.apartment_number || '',
@@ -4607,7 +4610,8 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
       const filename = `נכסים_מבנה_${buildingNumber}${taxRegion ? `_אזור_${taxRegion}` : ''}_${dateStr}.xlsx`;
 
       // Size columns (0-based): asset_size, sub_asset_size_1..6, business_distribution_area, shared_parking_area
-      const sizeColumnIndices = [14, 16, 18, 20, 22, 24, 26, 27, 28];
+      // Shifted by +1 vs previous version because 'שם משלם' was inserted at col 3.
+      const sizeColumnIndices = [15, 17, 19, 21, 23, 25, 27, 28, 29];
       // History rows: pale-yellow band + italic so they stand out from the
       // live rows above them.
       const historyRowStyle = historyRowIndices.length > 0 ? [{
@@ -4628,6 +4632,7 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
           { wch: 12 }, // מזהה מבנה
           { wch: 12 }, // מזהה נכס
           { wch: 12 }, // מזהה משלם
+          { wch: 20 }, // שם משלם
           { wch: 10 }, // אזור מס
           { wch: 8 },  // דירת גג
           { wch: 8 },  // קומה
@@ -5544,6 +5549,13 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
       field: 'payer_id',
       headerName: t('payerId'),
       editable: (params) => isFieldEditable(params, 'payer_id'),
+      headerClass: 'ag-right-aligned-header',
+      cellStyle: (params: any) => getCellStyle(params)
+    },
+    {
+      field: 'payer_full_name',
+      headerName: t('payerFullName'),
+      editable: (params) => isFieldEditable(params, 'payer_full_name'),
       headerClass: 'ag-right-aligned-header',
       cellStyle: (params: any) => getCellStyle(params)
     },

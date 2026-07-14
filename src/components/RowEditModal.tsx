@@ -206,6 +206,19 @@ export function RowEditModal({ isOpen, onClose, rowData, assetTypes, operators =
               />
             </div>
 
+            {/* Payer Full Name */}
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1">
+                {t('payerFullName')}
+              </label>
+              <input
+                type="text"
+                value={formData.payer_full_name || ''}
+                onChange={(e) => handleFieldChange('payer_full_name', e.target.value)}
+                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-right"
+              />
+            </div>
+
             {/* Tax Region */}
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-1">

@@ -1375,6 +1375,7 @@ export const TransferAreas = forwardRef<TransferAreasRef, TransferAreasProps>(({
       asset_id: assetIdNum, // User-entered asset ID from modal (converted to number)
       building_number: building.building_number,
       payer_id: firstAsset?.payer_id || '',
+      payer_full_name: firstAsset?.payer_full_name || '',
       measurement_date: firstAsset?.measurement_date || dateStr,
       main_asset_type: '999',
       asset_size: assetSize,
@@ -1794,6 +1795,16 @@ export const TransferAreas = forwardRef<TransferAreasRef, TransferAreasProps>(({
       cellStyle: (params: any) => getCellStyle(params, 'payer_id')
     },
     {
+      field: 'payer_full_name',
+      headerName: t('payerFullName'),
+      editable: (params) => {
+        const fieldName = params.colDef?.field || '';
+        return isFieldEditable(params, fieldName);
+      },
+      headerClass: 'ag-right-aligned-header',
+      cellStyle: (params: any) => getCellStyle(params, 'payer_full_name')
+    },
+    {
       field: 'main_asset_type',
       headerName: t('mainAssetType'),
       editable: (params) => {
@@ -2129,7 +2140,7 @@ export const TransferAreas = forwardRef<TransferAreasRef, TransferAreasProps>(({
               return;
             }
             try {
-              const headers = ['מזהה מבנה', 'מזהה נכס', 'מזהה משלם', 'תאריך מדידה', 'סוג נכס ראשי', 'גודל נכס', 'אזור מס', 'הערה'];
+              const headers = ['מזהה מבנה', 'מזהה נכס', 'מזהה משלם', 'שם משלם', 'תאריך מדידה', 'סוג נכס ראשי', 'גודל נכס', 'אזור מס', 'הערה'];
               const rows = assets.map(asset => {
                 const assetId = String(asset.asset_id);
                 const dirtyChanges = dirtyAssets.get(assetId) || {};
@@ -2138,6 +2149,7 @@ export const TransferAreas = forwardRef<TransferAreasRef, TransferAreasProps>(({
                   updatedAsset.building_number || '',
                   updatedAsset.asset_id || '',
                   updatedAsset.payer_id || '',
+                  updatedAsset.payer_full_name || '',
                   updatedAsset.measurement_date || '',
                   updatedAsset.main_asset_type || '',
                   updatedAsset.asset_size || '',
@@ -2152,7 +2164,7 @@ export const TransferAreas = forwardRef<TransferAreasRef, TransferAreasProps>(({
                 filename,
                 sheetName: 'העברת שטחים',
                 data,
-                columnWidths: [{ wch: 12 }, { wch: 12 }, { wch: 12 }, { wch: 12 }, { wch: 15 }, { wch: 12 }, { wch: 10 }, { wch: 30 }]
+                columnWidths: [{ wch: 12 }, { wch: 12 }, { wch: 12 }, { wch: 20 }, { wch: 12 }, { wch: 15 }, { wch: 12 }, { wch: 10 }, { wch: 30 }]
               });
               setToast({ message: `יוצאו ${rows.length} נכסים בהצלחה`, type: 'success' });
             } catch (error) {

@@ -19,6 +19,7 @@ interface AssetRow {
   id: string;
   building_number: number | null;
   payer_id: string;
+  payer_full_name: string;
   asset_id: string;
   measurement_date: string;
   main_asset_type: string;
@@ -142,6 +143,7 @@ export const AssetDataEntry = forwardRef<AssetDataEntryRef, {}>((props, ref) => 
     id: `new_${Date.now()}_${Math.random()}`,
     building_number: null,
     payer_id: '',
+    payer_full_name: '',
     asset_id: '',
     measurement_date: '01/01/1900',
     main_asset_type: '',
@@ -433,6 +435,7 @@ export const AssetDataEntry = forwardRef<AssetDataEntryRef, {}>((props, ref) => 
         assetsToSave.push({
           building_number: row.building_number!,
           payer_id: row.payer_id || null,
+          payer_full_name: row.payer_full_name || null,
           asset_id: row.asset_id,
           measurement_date: measurementDate,
           main_asset_type: row.main_asset_type || undefined,
@@ -461,6 +464,7 @@ export const AssetDataEntry = forwardRef<AssetDataEntryRef, {}>((props, ref) => 
           asset_id: row._dbId,
           building_number: row.building_number!,
           payer_id: row.payer_id || null,
+          payer_full_name: row.payer_full_name || null,
           main_asset_type: row.main_asset_type || null,
           asset_size: row.asset_size || 0,
           sub_asset_type_1: row.sub_asset_type_1 || null,
@@ -695,6 +699,7 @@ export const AssetDataEntry = forwardRef<AssetDataEntryRef, {}>((props, ref) => 
       const newMeasurementData = {
         building_number: row.building_number!,
         payer_id: row.payer_id || undefined,
+        payer_full_name: row.payer_full_name || undefined,
         asset_id: row.asset_id,
         measurement_date: measurementDate,
         main_asset_type: row.main_asset_type,
@@ -730,6 +735,7 @@ export const AssetDataEntry = forwardRef<AssetDataEntryRef, {}>((props, ref) => 
         id: `temp-${Date.now()}`,
         building_number: newMeasurementData.building_number,
         payer_id: newMeasurementData.payer_id || '',
+        payer_full_name: newMeasurementData.payer_full_name || '',
         asset_id: newMeasurementData.asset_id,
         measurement_date: newMeasurementData.measurement_date,
         main_asset_type: newMeasurementData.main_asset_type || '',
@@ -912,6 +918,15 @@ export const AssetDataEntry = forwardRef<AssetDataEntryRef, {}>((props, ref) => 
         return isFieldEditable(params, fieldName);
       },
       cellStyle: (params) => getCellStyle(params, 'payer_id', false)
+    },
+    {
+      field: 'payer_full_name',
+      headerName: t('payerFullName'),
+      editable: (params) => {
+        const fieldName = params.colDef?.field || '';
+        return isFieldEditable(params, fieldName);
+      },
+      cellStyle: (params) => getCellStyle(params, 'payer_full_name', false)
     },
     {
       colId: 'penthouse',
@@ -1523,11 +1538,12 @@ export const AssetDataEntry = forwardRef<AssetDataEntryRef, {}>((props, ref) => 
                     return;
                   }
                   try {
-                    const headers = ['מזהה מבנה', 'מזהה נכס', 'מזהה משלם', 'תאריך מדידה', 'סוג נכס ראשי', 'גודל נכס', 'אזור מס'];
+                    const headers = ['מזהה מבנה', 'מזהה נכס', 'מזהה משלם', 'שם משלם', 'תאריך מדידה', 'סוג נכס ראשי', 'גודל נכס', 'אזור מס'];
                     const rows = rowData.map(row => [
                       row.building_number || '',
                       row.asset_id || '',
                       row.payer_id || '',
+                      row.payer_full_name || '',
                       row.measurement_date || '',
                       row.main_asset_type || '',
                       row.asset_size || '',
@@ -1540,7 +1556,7 @@ export const AssetDataEntry = forwardRef<AssetDataEntryRef, {}>((props, ref) => 
                       filename,
                       sheetName: 'הזנת נתונים',
                       data,
-                      columnWidths: [{ wch: 12 }, { wch: 12 }, { wch: 12 }, { wch: 12 }, { wch: 15 }, { wch: 12 }, { wch: 10 }]
+                      columnWidths: [{ wch: 12 }, { wch: 12 }, { wch: 12 }, { wch: 20 }, { wch: 12 }, { wch: 15 }, { wch: 12 }, { wch: 10 }]
                     });
                     showToast(`יוצאו ${rows.length} שורות בהצלחה`, 'success');
                   } catch (error) {

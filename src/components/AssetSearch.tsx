@@ -139,6 +139,9 @@ export function AssetSearch({ onSelectAsset }: AssetSearchProps) {
                       {t('payerId') || 'Payer ID'}
                     </th>
                     <th className="text-right px-4 py-3 text-sm font-semibold text-slate-700">
+                      {t('payerFullName') || 'Payer Name'}
+                    </th>
+                    <th className="text-right px-4 py-3 text-sm font-semibold text-slate-700">
                       {t('building') || 'Building'}
                     </th>
                     <th className="text-right px-4 py-3 text-sm font-semibold text-slate-700">
@@ -174,6 +177,9 @@ export function AssetSearch({ onSelectAsset }: AssetSearchProps) {
                       </td>
                       <td className="px-4 py-3 text-slate-700">
                         {asset.payer_id}
+                      </td>
+                      <td className="px-4 py-3 text-slate-700">
+                        {asset.payer_full_name || ''}
                       </td>
                       <td className="px-4 py-3 text-slate-700">
                         <div className="flex items-center gap-2">

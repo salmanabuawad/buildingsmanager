@@ -232,6 +232,11 @@ export function UserAssetsView() {
       width: 120,
     },
     {
+      field: 'payer_full_name',
+      headerName: 'שם משלם',
+      width: 160,
+    },
+    {
       field: 'measurement_date',
       headerName: 'תאריך מדידה',
       width: 120,
@@ -300,7 +305,7 @@ export function UserAssetsView() {
   const handleExport = useCallback(() => {
     if (assets.length === 0) return;
     const headers = [
-      'מזהה נכס', 'מזהה משלם', 'תאריך מדידה', 'תיאור שימוש',
+      'מזהה נכס', 'מזהה משלם', 'שם משלם', 'תאריך מדידה', 'תיאור שימוש',
       'שטח נטו', 'שטח עסקים משותף', 'שטח חניה משותף',
       'מספר דירה', 'קומה', 'הערה', 'פרוקים'
     ];
@@ -309,6 +314,7 @@ export function UserAssetsView() {
       return [
         a.asset_id,
         a.payer_id || '',
+        a.payer_full_name || '',
         formatDateToDDMMYYYY(a.measurement_date) || '',
         row.use_nature || a.main_asset_type || '',
         a.asset_size || '',

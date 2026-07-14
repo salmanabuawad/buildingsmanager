@@ -463,6 +463,13 @@ export const MeasuredNotExportedAssets = ({ onSelectAsset, onOpenAssetsTab }: Me
       cellStyle: { textAlign: 'right' }
     },
     {
+      field: 'payer_full_name',
+      headerName: t('payerFullName') || 'שם משלם',
+      editable: false,
+      headerClass: 'ag-right-aligned-header',
+      cellStyle: { textAlign: 'right' }
+    },
+    {
       field: 'tax_region',
       headerName: 'אזור מס',
       headerTooltip: 'אזור מס',

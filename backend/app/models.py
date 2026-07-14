@@ -128,6 +128,7 @@ class Asset(Base):
     asset_id                    = Column(BigInteger, primary_key=True)
     building_number             = Column(BigInteger, ForeignKey("buildings.building_number"), nullable=False, index=True)
     payer_id                    = Column(Text)
+    payer_full_name             = Column(Text)
     measurement_date            = Column(Text, nullable=False, default="01/01/1900")
     main_asset_type             = Column(Text)
     asset_size                  = Column(Numeric)

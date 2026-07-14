@@ -337,6 +337,15 @@ export function AuditDetailsModal({ isOpen, onClose, actionId }: AuditDetailsMod
       cellStyle: { textAlign: 'right' }
     },
     {
+      field: 'payer_full_name',
+      headerName: 'שם משלם',
+      width: 160,
+      sortable: true,
+      filter: true,
+      headerClass: 'ag-right-aligned-header',
+      cellStyle: { textAlign: 'right' }
+    },
+    {
       field: 'measurement_date',
       headerName: 'תאריך מדידה',
       width: 150,

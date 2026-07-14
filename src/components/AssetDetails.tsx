@@ -1053,6 +1053,7 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
         const assetData = sanitizeAssetInput({
           building_number: currentAssetData.building_number,
           payer_id: currentAssetData.payer_id || null,
+          payer_full_name: currentAssetData.payer_full_name || null,
           asset_id: currentAssetData.asset_id,
           measurement_date: currentAssetData.measurement_date,
           operator_id: currentAssetData.operator_id ?? null,
@@ -2270,6 +2271,15 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
       cellStyle: { textAlign: 'right' }
     },
     {
+      field: 'payer_full_name',
+      headerName: 'שם משלם',
+      width: 160,
+      sortable: true,
+      filter: true,
+      headerClass: 'ag-right-aligned-header',
+      cellStyle: { textAlign: 'right' }
+    },
+    {
       field: 'measurement_date',
       headerName: 'תאריך מדידה',
       width: 150,
@@ -2719,6 +2729,15 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
         return isFieldEditable(params, fieldName);
       },
       cellStyle: (params) => getCellStyle(params, 'payer_id'),
+    },
+    {
+      field: 'payer_full_name',
+      headerName: t('payerFullName'),
+      editable: (params) => {
+        const fieldName = params.colDef?.field || '';
+        return isFieldEditable(params, fieldName);
+      },
+      cellStyle: (params) => getCellStyle(params, 'payer_full_name'),
     },
     {
       field: 'tax_region',
@@ -3427,6 +3446,7 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
           building_number: buildingNumber,
           asset_id: '',
           payer_id: '',
+          payer_full_name: '',
           main_asset_type: '',
           asset_size: 0,
           sub_asset_type_1: '',
@@ -3970,11 +3990,12 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
                         return;
                       }
                       try {
-                        const headers = ['מזהה מבנה', 'מזהה נכס', 'מזהה משלם', 'תאריך מדידה', 'סוג נכס ראשי', 'גודל נכס', 'אזור מס'];
+                        const headers = ['מזהה מבנה', 'מזהה נכס', 'מזהה משלם', 'שם משלם', 'תאריך מדידה', 'סוג נכס ראשי', 'גודל נכס', 'אזור מס'];
                         const rows = pinnedTopRowData.map(asset => [
                           asset.building_number || '',
                           asset.asset_id || '',
                           asset.payer_id || '',
+                          asset.payer_full_name || '',
                           formatDateToDDMMYYYY(asset.measurement_date) || '',
                           asset.main_asset_type || '',
                           asset.asset_size || '',
@@ -3987,7 +4008,7 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
                           filename,
                           sheetName: 'מדידה אחרונה',
                           data,
-                          columnWidths: [{ wch: 12 }, { wch: 12 }, { wch: 12 }, { wch: 12 }, { wch: 15 }, { wch: 12 }, { wch: 10 }]
+                          columnWidths: [{ wch: 12 }, { wch: 12 }, { wch: 12 }, { wch: 20 }, { wch: 12 }, { wch: 15 }, { wch: 12 }, { wch: 10 }]
                         });
                         setToast({ message: `יוצאו ${rows.length} מדידות בהצלחה`, type: 'success' });
                       } catch (error) {

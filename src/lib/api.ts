@@ -446,6 +446,7 @@ function normalizeBuildingForUi(row: Record<string, unknown>): Building {
 export interface Asset {
   building_number: number;
   payer_id?: string;
+  payer_full_name?: string;
   asset_id: number; // Primary key (was id field previously)
   measurement_date: string;
   main_asset_type?: string;
@@ -792,6 +793,7 @@ export function sanitizeAssetInput(input: any): any {
   const sanitized: any = {
     building_number: preConverted.building_number != null ? sanitizeInteger(preConverted.building_number) : undefined,
     payer_id: preConverted.payer_id != null && preConverted.payer_id !== '' ? sanitizeText(preConverted.payer_id) : undefined,
+    payer_full_name: preConverted.payer_full_name != null && preConverted.payer_full_name !== '' ? sanitizeText(preConverted.payer_full_name) : undefined,
     asset_id: preConverted.asset_id != null ? sanitizeInteger(preConverted.asset_id) : undefined,
     measurement_date: measurementDate, // Always include measurement_date
     main_asset_type: ('main_asset_type' in preConverted) ? (preConverted.main_asset_type != null && preConverted.main_asset_type !== '' ? sanitizeText(preConverted.main_asset_type) : null) : undefined,

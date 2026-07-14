@@ -29,7 +29,7 @@ _BOOL_FIELDS = {
 
 # ── Fields whose change triggers export-flag reset ────────────────────────
 _EXPORT_RESET_FIELDS = {
-    "payer_id", "main_asset_type", "asset_size", "measurement_date",
+    "payer_id", "payer_full_name", "main_asset_type", "asset_size", "measurement_date",
     "sub_asset_type_1", "sub_asset_size_1",
     "sub_asset_type_2", "sub_asset_size_2",
     "sub_asset_type_3", "sub_asset_size_3",

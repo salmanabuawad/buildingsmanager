@@ -21,6 +21,7 @@ interface ImportAssetRow {
   id: string;
   building_number: number | null;
   payer_id: string;
+  payer_full_name: string;
   asset_id: string;
   measurement_date: string;
   main_asset_type: string;
@@ -277,6 +278,7 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
       const exactHeaders: Record<string, string> = {
         'building_number': 'מזהה מבנה',
         'payer_id': 'מזהה משלם',
+        'payer_full_name': 'שם משלם',
         'asset_id': 'מזהה נכס',
         'measurement_date': 'תאריך מדידה',
         'main_asset_type': 'סוג נכס ראשי',
@@ -399,6 +401,7 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
           id: `import_${i}_${Date.now()}`,
           building_number: null,
           payer_id: '',
+          payer_full_name: '',
           asset_id: '',
           measurement_date: defaultMeasurementDate,
           main_asset_type: '',
@@ -435,6 +438,9 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
         }
         if (headerMap['payer_id'] !== undefined) {
           asset.payer_id = values[headerMap['payer_id']] || '';
+        }
+        if (headerMap['payer_full_name'] !== undefined) {
+          asset.payer_full_name = values[headerMap['payer_full_name']] || '';
         }
         if (headerMap['asset_id'] !== undefined) {
           asset.asset_id = values[headerMap['asset_id']] || '';
@@ -1049,7 +1055,7 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
     }
 
     const errors: string[] = [];
-    let skeletonAssets: Array<{ building_number: number | null; asset_id: string; tax_region?: number; payer_id?: string; apartment_number?: string; apartment_floor?: string }> = [];
+    let skeletonAssets: Array<{ building_number: number | null; asset_id: string; tax_region?: number; payer_id?: string; payer_full_name?: string; apartment_number?: string; apartment_floor?: string }> = [];
 
     try {
       const lines = await parseExcelFile(file);
@@ -1072,6 +1078,7 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
       let assetIdIndex = -1;
       let taxRegionIndex = -1;
       let payerIdIndex = -1;
+      let payerFullNameIndex = -1;
       let apartmentNumberIndex = -1;
       let apartmentFloorIndex = -1;
 
@@ -1079,6 +1086,7 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
       const exactAssetIdHeader = 'מזהה נכס';
       const exactTaxRegionHeader = 'אזור מס';
       const exactPayerIdHeader = 'מזהה משלם';
+      const exactPayerFullNameHeader = 'שם משלם';
       const exactApartmentNumberHeader = 'מספר דירה';
       const exactApartmentFloorHeader = 'מספר קומה';
 
@@ -1095,6 +1103,9 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
         }
         if (headerTrimmed.toLowerCase() === exactPayerIdHeader.toLowerCase()) {
           payerIdIndex = index;
+        }
+        if (headerTrimmed.toLowerCase() === exactPayerFullNameHeader.toLowerCase()) {
+          payerFullNameIndex = index;
         }
         if (headerTrimmed.toLowerCase() === exactApartmentNumberHeader.toLowerCase()) {
           apartmentNumberIndex = index;
@@ -1129,6 +1140,10 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
         const assetId = values[assetIdIndex] ? String(values[assetIdIndex]).trim() : '';
         const taxRegion = values[taxRegionIndex] ? parseInt(String(values[taxRegionIndex]), 10) : null;
         const payerId = values[payerIdIndex] ? String(values[payerIdIndex]).trim() : '';
+        // payer_full_name is optional — only read when the column exists
+        const payerFullName = payerFullNameIndex !== -1 && values[payerFullNameIndex]
+          ? String(values[payerFullNameIndex]).trim()
+          : undefined;
         // apartment_number and apartment_floor are optional — only read when the column exists
         const apartmentNumber = apartmentNumberIndex !== -1 && values[apartmentNumberIndex]
           ? String(values[apartmentNumberIndex]).trim()
@@ -1144,6 +1159,7 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
             asset_id: assetId,
             tax_region: taxRegion,
             payer_id: payerId,
+            payer_full_name: payerFullName || undefined,
             apartment_number: apartmentNumber || undefined,
             apartment_floor: apartmentFloor || undefined
           });
@@ -1180,6 +1196,7 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
         id: `skeleton_${idx}_${Date.now()}`,
         building_number: asset.building_number,
         payer_id: asset.payer_id || '',
+        payer_full_name: asset.payer_full_name || '',
         asset_id: asset.asset_id,
         measurement_date: '',
         main_asset_type: '',
@@ -1426,6 +1443,7 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
       const assetsToInsert: Partial<Asset>[] = validatedSkeletonAssets.map((asset, index) => ({
         building_number: asset.building_number!,
         payer_id: asset.payer_id!,
+        payer_full_name: asset.payer_full_name || null,
         asset_id: asset.asset_id,
         measurement_date: defaultDate,
         main_asset_type: null,
@@ -2221,6 +2239,7 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
         const assetData: Partial<Asset> = {
           building_number: asset.building_number!,
           payer_id: asset.payer_id || null,
+          payer_full_name: asset.payer_full_name || null,
           asset_id: asset.asset_id,
           measurement_date: saveAsNew && newMeasurementDate ? newMeasurementDate : asset.measurement_date,
           main_asset_type: asset.main_asset_type || null,
@@ -3079,6 +3098,15 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
           cellStyle: getCellStyle
         },
         {
+          field: 'payer_full_name',
+          headerName: t('payerFullName'),
+          editable: (params) => {
+            const fieldName = params.colDef?.field || '';
+            return isFieldEditable(params, fieldName);
+          },
+          cellStyle: getCellStyle
+        },
+        {
           field: 'apartment_number',
           headerName: 'מספר דירה',
           editable: (params) => {
@@ -3301,6 +3329,12 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
     {
       field: 'payer_id',
       headerName: t('payerId'),
+      editable: true,
+      cellStyle: getCellStyle
+    },
+    {
+      field: 'payer_full_name',
+      headerName: t('payerFullName'),
       editable: true,
       cellStyle: getCellStyle
     },
@@ -4027,11 +4061,12 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
                       return;
                     }
                     try {
-                      const headers = ['מזהה מבנה', 'מזהה נכס', 'מזהה משלם', 'תאריך מדידה', 'סוג נכס ראשי', 'גודל נכס', 'סה"כ שטח נכס', 'אזור מס'];
+                      const headers = ['מזהה מבנה', 'מזהה נכס', 'מזהה משלם', 'שם משלם', 'תאריך מדידה', 'סוג נכס ראשי', 'גודל נכס', 'סה"כ שטח נכס', 'אזור מס'];
                       const rows = displayedImportedAssets.map(asset => [
                         asset.building_number || '',
                         asset.asset_id || '',
                         asset.payer_id || '',
+                        asset.payer_full_name || '',
                         asset.measurement_date || '',
                         asset.main_asset_type || '',
                         asset.asset_size || '',
@@ -4045,7 +4080,7 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
                         filename,
                         sheetName: mode === 'regular' ? 'ייבוא מלא' : 'ייבוא שלד',
                         data,
-                        columnWidths: [{ wch: 12 }, { wch: 12 }, { wch: 12 }, { wch: 12 }, { wch: 15 }, { wch: 12 }, { wch: 10 }]
+                        columnWidths: [{ wch: 12 }, { wch: 12 }, { wch: 12 }, { wch: 20 }, { wch: 12 }, { wch: 15 }, { wch: 12 }, { wch: 10 }, { wch: 10 }]
                       });
                       setSuccess(`יוצאו ${rows.length} נכסים בהצלחה`);
                       setTimeout(() => setSuccess(null), 3000);
@@ -4279,6 +4314,7 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
                         <option value="building_number">מזהה מבנה</option>
                         <option value="asset_id">מזהה נכס</option>
                         <option value="payer_id">מזהה משלם</option>
+                        <option value="payer_full_name">שם משלם</option>
                         <option value="measurement_date">תאריך מדידה</option>
                         <option value="main_asset_type">סוג נכס ראשי</option>
                         <option value="asset_size">גודל נכס ראשי</option>

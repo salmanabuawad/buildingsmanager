@@ -32,7 +32,7 @@ IMMUTABLE_ASSET_COLUMNS = {
 # is now stale — so the asset must be re-queued for automation. Mirrors the
 # port of the legacy `reset_export_flags_on_change` trigger.
 _EXPORT_RESET_FIELDS = {
-    "payer_id", "main_asset_type", "asset_size", "measurement_date",
+    "payer_id", "payer_full_name", "main_asset_type", "asset_size", "measurement_date",
     "sub_asset_type_1", "sub_asset_size_1",
     "sub_asset_type_2", "sub_asset_size_2",
     "sub_asset_type_3", "sub_asset_size_3",

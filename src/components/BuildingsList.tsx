@@ -2201,6 +2201,7 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
       // Define headers for asset export - matching export_automatiom_sample.xlsx format
       const headers = [
         'זיהוי משלם',
+        'שם משלם',
         'זיהוי נכס',
         'תחילת שינוי',
         'סוף שינוי',
@@ -2331,6 +2332,7 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
         // Convert assets to rows for this tax region
         const rows = regionAssetsForExcel.map(asset => [
           asset.payer_id || '',                                    // זיהוי משלם
+          asset.payer_full_name || '',                             // שם משלם
           asset.asset_id != null ? String(asset.asset_id) : '',   // זיהוי נכס (convert to string)
           formatDateToDDMMYYYY(asset.discount_date_from) || '',  // תחילת שינוי
           formatDateToDDMMYYYY(asset.discount_date_to) || '',    // סוף שינוי
@@ -2365,9 +2367,10 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
           filename: excelFilename,
           sheetName: 'נכסים',
           data,
-          decimalFormatColumnIndices: [5, 7, 9, 11, 13, 15, 17],
+          decimalFormatColumnIndices: [6, 8, 10, 12, 14, 16, 18],
           columnWidths: [
             { wch: 15 }, // זיהוי משלם
+            { wch: 20 }, // שם משלם
             { wch: 15 }, // זיהוי נכס
             { wch: 20 }, // תחילת שינוי
             { wch: 20 }, // סוף שינוי
@@ -2402,13 +2405,14 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
         
         // Prepare file list data for this tax region
         const fileListData: any[][] = [
-          ['מזהה נכס', 'מזהה משלם', 'שם קובץ']
+          ['מזהה נכס', 'מזהה משלם', 'שם משלם', 'שם קובץ']
         ];
-        
+
         // Download and add files for this tax region
         for (const { assetId, asset, files } of regionAssets) {
           const payerId = asset?.payer_id || '';
-          
+          const payerFullName = asset?.payer_full_name || '';
+
           for (const file of files) {
             // Extract file name from URL if file_name is not available
             let fileName = file.file_name;
@@ -2416,11 +2420,12 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
               const urlParts = file.file_url.split('/');
               fileName = urlParts[urlParts.length - 1].split('?')[0];
             }
-            
-            // Add row to file list Excel: asset_id, payer_id, file_name
+
+            // Add row to file list Excel: asset_id, payer_id, payer_full_name, file_name
             fileListData.push([
               assetId,
               payerId,
+              payerFullName,
               fileName || ''
             ]);
             
@@ -2508,7 +2513,7 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
         const operator = operatorsList.find(o => o.id === operatorId);
         if (!operator?.email || !operator.email.includes('@')) continue;
         const opRows = operatorAssets.map(asset => [
-          asset.payer_id || '', asset.asset_id != null ? String(asset.asset_id) : '',
+          asset.payer_id || '', asset.payer_full_name || '', asset.asset_id != null ? String(asset.asset_id) : '',
           formatDateToDDMMYYYY(asset.discount_date_from) || '', formatDateToDDMMYYYY(asset.discount_date_to) || '',
           asset.main_asset_type || '', getExportAssetSize(asset),
           asset.sub_asset_type_1 || '', asset.sub_asset_size_1 || '', asset.sub_asset_type_2 || '', asset.sub_asset_size_2 || '',
@@ -2521,8 +2526,8 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
           filename: `נכסים_מפעיל_${operatorId}_${dateStr}_${operatorAssets.length}נכסים.xlsx`,
           sheetName: 'נכסים',
           data: opData,
-          decimalFormatColumnIndices: [5, 7, 9, 11, 13, 15, 17],
-          columnWidths: [{ wch: 15 }, { wch: 15 }, { wch: 20 }, { wch: 20 }, { wch: 12 }, { wch: 12 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 10 }, { wch: 12 }, { wch: 12 }, { wch: 12 }, { wch: 15 }, { wch: 15 }]
+          decimalFormatColumnIndices: [6, 8, 10, 12, 14, 16, 18],
+          columnWidths: [{ wch: 15 }, { wch: 20 }, { wch: 15 }, { wch: 20 }, { wch: 20 }, { wch: 12 }, { wch: 12 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 10 }, { wch: 12 }, { wch: 12 }, { wch: 12 }, { wch: 15 }, { wch: 15 }]
         });
         const subj = templateOp ? applyTpl(templateOp.subject, operator.name, operatorAssets.length) : `שליחת נתונים - ${dateStrHe}`;
         const body = templateOp ? applyTpl(templateOp.body, operator.name, operatorAssets.length) : `שלום ${operator.name},\n\nמצורף קובץ הנתונים.\nתאריך: ${dateStrHe}\n\nבברכה,\nמערכת ניהול נכסים`;
@@ -2531,7 +2536,7 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
       }
       if (sendItems.length === 0) {
         const fullRows = exportedAssets.map((asset: any) => [
-          asset.payer_id || '', asset.asset_id != null ? String(asset.asset_id) : '',
+          asset.payer_id || '', asset.payer_full_name || '', asset.asset_id != null ? String(asset.asset_id) : '',
           formatDateToDDMMYYYY(asset.discount_date_from) || '', formatDateToDDMMYYYY(asset.discount_date_to) || '',
           asset.main_asset_type || '', getExportAssetSize(asset),
           asset.sub_asset_type_1 || '', asset.sub_asset_size_1 || '', asset.sub_asset_type_2 || '', asset.sub_asset_size_2 || '',
@@ -2543,7 +2548,7 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
           filename: `נכסים_שליחה_${dateStr}_${exportedAssets.length}נכסים.xlsx`,
           sheetName: 'נכסים',
           data: [headers, ...fullRows],
-          columnWidths: [{ wch: 15 }, { wch: 15 }, { wch: 20 }, { wch: 20 }, { wch: 12 }, { wch: 12 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 10 }, { wch: 12 }, { wch: 12 }, { wch: 12 }, { wch: 15 }, { wch: 15 }]
+          columnWidths: [{ wch: 15 }, { wch: 20 }, { wch: 15 }, { wch: 20 }, { wch: 20 }, { wch: 12 }, { wch: 12 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 10 }, { wch: 12 }, { wch: 12 }, { wch: 12 }, { wch: 15 }, { wch: 15 }]
         });
         for (const operator of operatorsList) {
           if (!operator?.email || !operator.email.includes('@')) continue;
@@ -2564,7 +2569,7 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
         });
         if (managerAssets.length === 0) continue;
         const mgrRows = managerAssets.map((asset: any) => [
-          asset.payer_id || '', asset.asset_id != null ? String(asset.asset_id) : '',
+          asset.payer_id || '', asset.payer_full_name || '', asset.asset_id != null ? String(asset.asset_id) : '',
           formatDateToDDMMYYYY(asset.discount_date_from) || '', formatDateToDDMMYYYY(asset.discount_date_to) || '',
           asset.main_asset_type || '', getExportAssetSize(asset),
           asset.sub_asset_type_1 || '', asset.sub_asset_size_1 || '', asset.sub_asset_type_2 || '', asset.sub_asset_size_2 || '',
@@ -2577,8 +2582,8 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
           filename: `נכסים_מנהל_${manager.id}_${dateStr}_${managerAssets.length}נכסים.xlsx`,
           sheetName: 'נכסים',
           data: mgrData,
-          decimalFormatColumnIndices: [5, 7, 9, 11, 13, 15, 17],
-          columnWidths: [{ wch: 15 }, { wch: 15 }, { wch: 20 }, { wch: 20 }, { wch: 12 }, { wch: 12 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 10 }, { wch: 12 }, { wch: 12 }, { wch: 12 }, { wch: 15 }, { wch: 15 }]
+          decimalFormatColumnIndices: [6, 8, 10, 12, 14, 16, 18],
+          columnWidths: [{ wch: 15 }, { wch: 20 }, { wch: 15 }, { wch: 20 }, { wch: 20 }, { wch: 12 }, { wch: 12 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 10 }, { wch: 12 }, { wch: 12 }, { wch: 12 }, { wch: 15 }, { wch: 15 }]
         });
         const subj = templateMgr ? applyTpl(templateMgr.subject, manager.name, managerAssets.length) : `שליחת נתונים - ${dateStrHe}`;
         const body = templateMgr ? applyTpl(templateMgr.body, manager.name, managerAssets.length) : `שלום ${manager.name},\n\nמצורף קובץ הנתונים.\nתאריך: ${dateStrHe}\n\nבברכה,\nמערכת ניהול נכסים`;

@@ -189,6 +189,7 @@ class AssetBase(BaseModel):
     asset_id: int
     building_number: int
     payer_id: Optional[str] = None
+    payer_full_name: Optional[str] = None
     measurement_date: Optional[str] = None
     main_asset_type: Optional[str] = None
     asset_size: Optional[Decimal] = None
@@ -238,6 +239,7 @@ class AssetCreate(AssetBase):
 class AssetUpdate(BaseModel):
     building_number: Optional[int] = None
     payer_id: Optional[str] = None
+    payer_full_name: Optional[str] = None
     measurement_date: Optional[str] = None
     main_asset_type: Optional[str] = None
     asset_size: Optional[Decimal] = None

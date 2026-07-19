@@ -278,7 +278,7 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
       const exactHeaders: Record<string, string> = {
         'building_number': 'מזהה מבנה',
         'payer_id': 'מזהה משלם',
-        'payer_full_name': 'שם משלם',
+        'payer_full_name': 'שם המשלם',
         'asset_id': 'מזהה נכס',
         'measurement_date': 'תאריך מדידה',
         'main_asset_type': 'סוג נכס ראשי',
@@ -1086,7 +1086,7 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
       const exactAssetIdHeader = 'מזהה נכס';
       const exactTaxRegionHeader = 'אזור מס';
       const exactPayerIdHeader = 'מזהה משלם';
-      const exactPayerFullNameHeader = 'שם משלם';
+      const exactPayerFullNameHeader = 'שם המשלם';
       const exactApartmentNumberHeader = 'מספר דירה';
       const exactApartmentFloorHeader = 'מספר קומה';
 
@@ -3725,6 +3725,7 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
     const headers = [
       'מזהה מבנה',
       'מזהה משלם',
+      'שם המשלם',
       'מזהה נכס',
       'סוג נכס ראשי',
       'גודל נכס ראשי',
@@ -4061,7 +4062,7 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
                       return;
                     }
                     try {
-                      const headers = ['מזהה מבנה', 'מזהה נכס', 'מזהה משלם', 'שם משלם', 'תאריך מדידה', 'סוג נכס ראשי', 'גודל נכס', 'סה"כ שטח נכס', 'אזור מס'];
+                      const headers = ['מזהה מבנה', 'מזהה נכס', 'מזהה משלם', 'שם המשלם', 'תאריך מדידה', 'סוג נכס ראשי', 'גודל נכס', 'סה"כ שטח נכס', 'אזור מס'];
                       const rows = displayedImportedAssets.map(asset => [
                         asset.building_number || '',
                         asset.asset_id || '',
@@ -4314,7 +4315,7 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
                         <option value="building_number">מזהה מבנה</option>
                         <option value="asset_id">מזהה נכס</option>
                         <option value="payer_id">מזהה משלם</option>
-                        <option value="payer_full_name">שם משלם</option>
+                        <option value="payer_full_name">שם המשלם</option>
                         <option value="measurement_date">תאריך מדידה</option>
                         <option value="main_asset_type">סוג נכס ראשי</option>
                         <option value="asset_size">גודל נכס ראשי</option>

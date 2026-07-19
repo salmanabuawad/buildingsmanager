@@ -2201,7 +2201,7 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
       // Define headers for asset export - matching export_automatiom_sample.xlsx format
       const headers = [
         'זיהוי משלם',
-        'שם משלם',
+        'שם המשלם',
         'זיהוי נכס',
         'תחילת שינוי',
         'סוף שינוי',
@@ -2332,7 +2332,7 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
         // Convert assets to rows for this tax region
         const rows = regionAssetsForExcel.map(asset => [
           asset.payer_id || '',                                    // זיהוי משלם
-          asset.payer_full_name || '',                             // שם משלם
+          asset.payer_full_name || '',                             // שם המשלם
           asset.asset_id != null ? String(asset.asset_id) : '',   // זיהוי נכס (convert to string)
           formatDateToDDMMYYYY(asset.discount_date_from) || '',  // תחילת שינוי
           formatDateToDDMMYYYY(asset.discount_date_to) || '',    // סוף שינוי
@@ -2370,7 +2370,7 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
           decimalFormatColumnIndices: [6, 8, 10, 12, 14, 16, 18],
           columnWidths: [
             { wch: 15 }, // זיהוי משלם
-            { wch: 20 }, // שם משלם
+            { wch: 20 }, // שם המשלם
             { wch: 15 }, // זיהוי נכס
             { wch: 20 }, // תחילת שינוי
             { wch: 20 }, // סוף שינוי
@@ -2405,7 +2405,7 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
         
         // Prepare file list data for this tax region
         const fileListData: any[][] = [
-          ['מזהה נכס', 'מזהה משלם', 'שם משלם', 'שם קובץ']
+          ['מזהה נכס', 'מזהה משלם', 'שם המשלם', 'שם קובץ']
         ];
 
         // Download and add files for this tax region

@@ -233,7 +233,7 @@ export function UserAssetsView() {
     },
     {
       field: 'payer_full_name',
-      headerName: 'שם משלם',
+      headerName: 'שם המשלם',
       width: 160,
     },
     {
@@ -305,7 +305,7 @@ export function UserAssetsView() {
   const handleExport = useCallback(() => {
     if (assets.length === 0) return;
     const headers = [
-      'מזהה נכס', 'מזהה משלם', 'שם משלם', 'תאריך מדידה', 'תיאור שימוש',
+      'מזהה נכס', 'מזהה משלם', 'שם המשלם', 'תאריך מדידה', 'תיאור שימוש',
       'שטח נטו', 'שטח עסקים משותף', 'שטח חניה משותף',
       'מספר דירה', 'קומה', 'הערה', 'פרוקים'
     ];

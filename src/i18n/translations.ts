@@ -295,7 +295,7 @@ export const translations = {
       taxRegion: 'אזור מיסים',
       assetId: 'זיהוי נכס',
       payerId: 'זיהוי משלם',
-      payerFullName: 'שם משלם',
+      payerFullName: 'שם המשלם',
       mainAsset: 'נכס',
       mainAssetType: 'סוג נכס',
       mainAssetSize: 'גודל נכס',

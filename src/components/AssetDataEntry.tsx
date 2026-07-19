@@ -1538,7 +1538,7 @@ export const AssetDataEntry = forwardRef<AssetDataEntryRef, {}>((props, ref) => 
                     return;
                   }
                   try {
-                    const headers = ['מזהה מבנה', 'מזהה נכס', 'מזהה משלם', 'שם משלם', 'תאריך מדידה', 'סוג נכס ראשי', 'גודל נכס', 'אזור מס'];
+                    const headers = ['מזהה מבנה', 'מזהה נכס', 'מזהה משלם', 'שם המשלם', 'תאריך מדידה', 'סוג נכס ראשי', 'גודל נכס', 'אזור מס'];
                     const rows = rowData.map(row => [
                       row.building_number || '',
                       row.asset_id || '',

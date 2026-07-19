@@ -4474,32 +4474,33 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
         return { ...asset, ...dirtyChanges };
       }).filter(asset => !deletedAssets.has(String(asset.asset_id)));
 
-      // Latest-history-per-asset lookup. getAllAssetsWithHistory returns both
-      // live (is_latest=true) and archived rows for the building; we keep only
-      // the archived ones and pick the row with the largest measurement_date
-      // per asset. Dates arrive as DD/MM/YYYY text — parse to YYYY-MM-DD to
-      // compare lexicographically. Failures degrade to "no history" per row
-      // rather than blowing up the whole export.
-      const latestHistoryByAssetId = new Map<string, Asset>();
+      // Per-asset history lookup. getAllAssetsWithHistory returns both live
+      // (is_latest=true) and archived rows for the building; each history row
+      // now carries the action_type that produced it (from audit.action_type
+      // via LEFT JOIN). We keep the archived rows sorted most-recent-first as
+      // the backend returned them, and drop entries whose action_type is a
+      // distribution/transfer snapshot — those get created on every distribute
+      // pass and would otherwise dominate the export. Failures degrade to
+      // "no history" per row rather than blowing up the whole export.
+      const DISTRIBUTION_ACTION_TYPES = new Set([
+        'business_distribution',
+        'residence_distribution',
+        'distribute_shared',
+        'transfer_area',
+      ]);
+      const historyByAssetId = new Map<string, Asset[]>();
       if (buildingNumber) {
         try {
           const withHistory = await api.assets.getAllAssetsWithHistory(buildingNumber);
-          const toSortable = (s: any): string => {
-            const str = String(s ?? '').trim();
-            const m = /^(\d{2})\/(\d{2})\/(\d{4})$/.exec(str);
-            return m ? `${m[3]}-${m[2]}-${m[1]}` : '';
-          };
-          const bestSortable = new Map<string, string>();
           for (const row of withHistory) {
             if ((row as any).is_latest === true) continue;
+            const actionType = String((row as any).action_type ?? '').trim();
+            if (DISTRIBUTION_ACTION_TYPES.has(actionType)) continue;
             const key = String((row as any).asset_id);
             if (!key || key === 'undefined' || key === 'null') continue;
-            const sortable = toSortable((row as any).measurement_date);
-            const prev = bestSortable.get(key);
-            if (!prev || sortable > prev) {
-              bestSortable.set(key, sortable);
-              latestHistoryByAssetId.set(key, row as Asset);
-            }
+            const bucket = historyByAssetId.get(key);
+            if (bucket) bucket.push(row as Asset);
+            else historyByAssetId.set(key, [row as Asset]);
           }
         } catch (histErr) {
           console.warn('[AssetsList] failed to load asset history for export:', histErr);
@@ -4511,7 +4512,7 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
         'מזהה מבנה',
         'מזהה נכס',
         'מזהה משלם',
-        'שם משלם',
+        'שם המשלם',
         'אזור מס',
         'דירת גג',
         'מספר דירה',
@@ -4586,15 +4587,16 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
         asset.comment || ''
       ];
 
-      // Build the row list interleaving each asset with its latest history row
-      // (when one exists). Track 0-based history row indices so we can colour
-      // them below. Header sits at index 0, so the first asset row is index 1.
+      // Build the row list interleaving each asset with every non-distribution
+      // history row it has (already sorted most-recent-first by the backend).
+      // Track 0-based history row indices so we can colour them below. Header
+      // sits at index 0, so the first asset row is index 1.
       const rows: any[][] = [];
       const historyRowIndices: number[] = [];
       for (const asset of assetsToExport) {
         rows.push(renderRow(asset));
-        const hist = latestHistoryByAssetId.get(String(asset.asset_id));
-        if (hist) {
+        const historyRows = historyByAssetId.get(String(asset.asset_id)) ?? [];
+        for (const hist of historyRows) {
           rows.push(renderRow(hist));
           // +1 accounts for the header row we prepend below.
           historyRowIndices.push(rows.length);
@@ -4610,7 +4612,7 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
       const filename = `נכסים_מבנה_${buildingNumber}${taxRegion ? `_אזור_${taxRegion}` : ''}_${dateStr}.xlsx`;
 
       // Size columns (0-based): asset_size, sub_asset_size_1..6, business_distribution_area, shared_parking_area
-      // Shifted by +1 vs previous version because 'שם משלם' was inserted at col 3.
+      // Shifted by +1 vs previous version because 'שם המשלם' was inserted at col 3.
       const sizeColumnIndices = [15, 17, 19, 21, 23, 25, 27, 28, 29];
       // History rows: pale-yellow band + italic so they stand out from the
       // live rows above them.
@@ -4632,7 +4634,7 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
           { wch: 12 }, // מזהה מבנה
           { wch: 12 }, // מזהה נכס
           { wch: 12 }, // מזהה משלם
-          { wch: 20 }, // שם משלם
+          { wch: 20 }, // שם המשלם
           { wch: 10 }, // אזור מס
           { wch: 8 },  // דירת גג
           { wch: 8 },  // קומה

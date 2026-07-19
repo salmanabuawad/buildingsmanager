@@ -28,6 +28,9 @@ export interface TransformedAsset {
   apartment_floor: number | null;
   storage_number: string | null;
   storage_floor: number | null;
+  /** שם המחזיק from column 4 of the municipality template — flows into
+   *  assets.payer_full_name. */
+  payer_full_name: string | null;
 }
 
 interface RawRow {
@@ -38,6 +41,7 @@ interface RawRow {
   assetId: number | null;
   description: string | null;
   area: number | null;
+  holderName: string | null;
 }
 
 const APARTMENT_TYPE_CODES = new Set(['211', '212', '213', '214', '215']);
@@ -86,10 +90,12 @@ export function transformOriginalImportFile(
         // Row 0 is title, row 1 is headers, data starts at row 2
         const dataRows = raw.slice(2);
 
-        // Parse raw rows and forward-fill asset_id
+        // Parse raw rows and forward-fill fields that only appear on the
+        // asset's first row (asset_id, apartment/storage numbers, holder name).
         let lastAssetId: number | null = null;
         let lastApartmentNumber: string | null = null;
         let lastStorageNumber: string | null = null;
+        let lastHolderName: string | null = null;
 
         const rows: RawRow[] = dataRows.map((r) => {
           const assetIdRaw = toNum(r[5]);
@@ -97,6 +103,7 @@ export function transformOriginalImportFile(
             lastAssetId = assetIdRaw;
             lastApartmentNumber = toStr(r[0]);
             lastStorageNumber = toStr(r[1]);
+            lastHolderName = toStr(r[4]);
           }
           return {
             apartmentNumber: lastApartmentNumber,
@@ -106,6 +113,7 @@ export function transformOriginalImportFile(
             assetId: lastAssetId,
             description: toStr(r[6]),
             area: toNum(r[7]),
+            holderName: lastHolderName,
           };
         }).filter(r => r.assetId !== null);
 
@@ -154,6 +162,7 @@ export function transformOriginalImportFile(
               apartment_floor: apartmentFloor,
               storage_number: first.storageNumber,
               storage_floor: storageFloor,
+              payer_full_name: first.holderName,
             });
           } else {
             // Multi-row asset → main type 199, subtypes from each row
@@ -191,6 +200,7 @@ export function transformOriginalImportFile(
               apartment_floor: apartmentFloor,
               storage_number: first.storageNumber,
               storage_floor: storageFloor,
+              payer_full_name: first.holderName,
             });
           }
         }

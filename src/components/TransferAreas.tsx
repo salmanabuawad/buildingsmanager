@@ -2140,7 +2140,7 @@ export const TransferAreas = forwardRef<TransferAreasRef, TransferAreasProps>(({
               return;
             }
             try {
-              const headers = ['מזהה מבנה', 'מזהה נכס', 'מזהה משלם', 'שם משלם', 'תאריך מדידה', 'סוג נכס ראשי', 'גודל נכס', 'אזור מס', 'הערה'];
+              const headers = ['מזהה מבנה', 'מזהה נכס', 'מזהה משלם', 'שם המשלם', 'תאריך מדידה', 'סוג נכס ראשי', 'גודל נכס', 'אזור מס', 'הערה'];
               const rows = assets.map(asset => {
                 const assetId = String(asset.asset_id);
                 const dirtyChanges = dirtyAssets.get(assetId) || {};

@@ -818,16 +818,26 @@ def get_assets_with_history(db: Session, building_number: int) -> list[dict[str,
     placeholders = ", ".join(f":asset_id_{idx}" for idx in range(len(asset_ids)))
     params = {f"asset_id_{idx}": asset_id for idx, asset_id in enumerate(asset_ids)}
     order_expression = (
-        'COALESCE("history_created_at", "created_at")'
+        'COALESCE(h."history_created_at", h."created_at")'
         if "history_created_at" in history_columns and "created_at" in history_columns
-        else '"history_created_at"'
+        else 'h."history_created_at"'
         if "history_created_at" in history_columns
-        else '"created_at"'
+        else 'h."created_at"'
     )
+    # LEFT JOIN audit so each history row carries the action_type that produced
+    # it. Callers use this to distinguish distribution/transfer snapshots from
+    # regular manual edits (e.g. the export-to-excel history dump excludes
+    # distribution rows). action_id may be NULL for very old history rows —
+    # LEFT JOIN keeps them in the result with action_type=NULL.
+    join_clause = ""
+    if "action_id" in history_columns:
+        join_clause = 'LEFT JOIN "audit" a ON a."id" = h."action_id"'
+    action_type_select = 'a."action_type" AS "action_type"' if join_clause else 'NULL AS "action_type"'
     history_rows = db.execute(
         text(
-            f'SELECT * FROM "assets_history" '
-            f'WHERE "asset_id" IN ({placeholders}) '
+            f'SELECT h.*, {action_type_select} FROM "assets_history" h '
+            f'{join_clause} '
+            f'WHERE h."asset_id" IN ({placeholders}) '
             f"ORDER BY {order_expression} DESC"
         ),
         params,

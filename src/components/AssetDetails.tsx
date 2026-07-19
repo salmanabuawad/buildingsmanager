@@ -2272,7 +2272,7 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
     },
     {
       field: 'payer_full_name',
-      headerName: 'שם משלם',
+      headerName: 'שם המשלם',
       width: 160,
       sortable: true,
       filter: true,
@@ -3990,7 +3990,7 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
                         return;
                       }
                       try {
-                        const headers = ['מזהה מבנה', 'מזהה נכס', 'מזהה משלם', 'שם משלם', 'תאריך מדידה', 'סוג נכס ראשי', 'גודל נכס', 'אזור מס'];
+                        const headers = ['מזהה מבנה', 'מזהה נכס', 'מזהה משלם', 'שם המשלם', 'תאריך מדידה', 'סוג נכס ראשי', 'גודל נכס', 'אזור מס'];
                         const rows = pinnedTopRowData.map(asset => [
                           asset.building_number || '',
                           asset.asset_id || '',

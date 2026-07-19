@@ -31,7 +31,7 @@ export interface ExportAutomationResult {
 
 export const MAIN_SHEET_HEADERS: string[] = [
   'זיהוי משלם',
-  'שם משלם',
+  'שם המשלם',
   'זיהוי נכס',
   'תחילת שינוי',
   'סוף שינוי',
@@ -60,7 +60,7 @@ export const MAIN_SHEET_HEADERS: string[] = [
 export const UPDATE_SHEET_HEADERS: string[] = [
   'זיהוי נכס',
   'זיהוי משלם',
-  'שם משלם',
+  'שם המשלם',
   'מספר בניין',
   'מספר דירה',
   'קומה',
@@ -146,7 +146,7 @@ function getExportAssetSize(asset: any, assetTypes: AssetType[]): number | strin
 export function applySharedAreasToRow(asset: any, row: any[], assetTypes: AssetType[]): any[] {
   const result = [...row];
 
-  // Column positions after שם משלם was inserted at index 1:
+  // Column positions after שם המשלם was inserted at index 1:
   //   0 payer_id, 1 payer_full_name, 2 asset_id, 3 discount_from, 4 discount_to,
   //   5 main_asset_type, 6 asset_size, 7 sub_asset_type_1, 8 sub_asset_size_1, …
   //   sub-type pairs live at (7,8), (9,10), (11,12), (13,14), (15,16), (17,18).
@@ -373,7 +373,7 @@ export async function runExportToAutomation(config: ExportAutomationConfig): Pro
     // file_name is the sanitized {asset_id}_{N}.{ext} name produced on upload;
     // file_description carries the original Hebrew/spaces name the user uploaded
     // so the automation operator still sees what each file actually is.
-    const fileListData: any[][] = [['מזהה נכס', 'מזהה משלם', 'שם משלם', 'שם קובץ', 'תיאור קובץ']];
+    const fileListData: any[][] = [['מזהה נכס', 'מזהה משלם', 'שם המשלם', 'שם קובץ', 'תיאור קובץ']];
 
     // Collect download tasks for this tax region
     const downloadTasks: Array<{

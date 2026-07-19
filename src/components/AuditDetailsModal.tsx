@@ -338,7 +338,7 @@ export function AuditDetailsModal({ isOpen, onClose, actionId }: AuditDetailsMod
     },
     {
       field: 'payer_full_name',
-      headerName: 'שם משלם',
+      headerName: 'שם המשלם',
       width: 160,
       sortable: true,
       filter: true,

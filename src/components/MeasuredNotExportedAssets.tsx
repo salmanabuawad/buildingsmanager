@@ -464,7 +464,7 @@ export const MeasuredNotExportedAssets = ({ onSelectAsset, onOpenAssetsTab }: Me
     },
     {
       field: 'payer_full_name',
-      headerName: t('payerFullName') || 'שם משלם',
+      headerName: t('payerFullName') || 'שם המשלם',
       editable: false,
       headerClass: 'ag-right-aligned-header',
       cellStyle: { textAlign: 'right' }

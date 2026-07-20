@@ -3,7 +3,7 @@
  *
  * Original format (sheet "מגורים"):
  *   Row 0: title (skip)
- *   Row 1: headers — מספר דירה | מספר מחסן | קומה | סוג נכס קיים | שם המחזיק | מספר נכס | תיאור | שטח קיים | סה"כ לחיוב
+ *   Row 1: headers — מספר דירה | מספר מחסן | קומה | סוג נכס קיים | שם המשלם | מספר נכס | תיאור | שטח קיים | סה"כ לחיוב
  *   Data rows: multiple rows per asset (one per sub-type), asset_id only on first row of each group
  *
  * Output: one row per asset_id, matching the import grid format.
@@ -28,7 +28,7 @@ export interface TransformedAsset {
   apartment_floor: number | null;
   storage_number: string | null;
   storage_floor: number | null;
-  /** שם המחזיק from column 4 of the municipality template — flows into
+  /** שם המשלם from column 4 of the municipality template — flows into
    *  assets.payer_full_name. */
   payer_full_name: string | null;
 }
@@ -41,7 +41,7 @@ interface RawRow {
   assetId: number | null;
   description: string | null;
   area: number | null;
-  holderName: string | null;
+  payerFullName: string | null;
 }
 
 const APARTMENT_TYPE_CODES = new Set(['211', '212', '213', '214', '215']);
@@ -91,11 +91,11 @@ export function transformOriginalImportFile(
         const dataRows = raw.slice(2);
 
         // Parse raw rows and forward-fill fields that only appear on the
-        // asset's first row (asset_id, apartment/storage numbers, holder name).
+        // asset's first row (asset_id, apartment/storage numbers, payer name).
         let lastAssetId: number | null = null;
         let lastApartmentNumber: string | null = null;
         let lastStorageNumber: string | null = null;
-        let lastHolderName: string | null = null;
+        let lastPayerFullName: string | null = null;
 
         const rows: RawRow[] = dataRows.map((r) => {
           const assetIdRaw = toNum(r[5]);
@@ -103,7 +103,7 @@ export function transformOriginalImportFile(
             lastAssetId = assetIdRaw;
             lastApartmentNumber = toStr(r[0]);
             lastStorageNumber = toStr(r[1]);
-            lastHolderName = toStr(r[4]);
+            lastPayerFullName = toStr(r[4]);
           }
           return {
             apartmentNumber: lastApartmentNumber,
@@ -113,7 +113,7 @@ export function transformOriginalImportFile(
             assetId: lastAssetId,
             description: toStr(r[6]),
             area: toNum(r[7]),
-            holderName: lastHolderName,
+            payerFullName: lastPayerFullName,
           };
         }).filter(r => r.assetId !== null);
 
@@ -162,7 +162,7 @@ export function transformOriginalImportFile(
               apartment_floor: apartmentFloor,
               storage_number: first.storageNumber,
               storage_floor: storageFloor,
-              payer_full_name: first.holderName,
+              payer_full_name: first.payerFullName,
             });
           } else {
             // Multi-row asset → main type 199, subtypes from each row
@@ -200,7 +200,7 @@ export function transformOriginalImportFile(
               apartment_floor: apartmentFloor,
               storage_number: first.storageNumber,
               storage_floor: storageFloor,
-              payer_full_name: first.holderName,
+              payer_full_name: first.payerFullName,
             });
           }
         }

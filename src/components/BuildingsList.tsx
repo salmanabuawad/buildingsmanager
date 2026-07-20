@@ -2198,10 +2198,11 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
         return;
       }
 
-      // Define headers for asset export - matching export_automatiom_sample.xlsx format
+      // Define headers for asset export - matching export_automatiom_sample.xlsx format.
+      // City-facing 24-column layout — do NOT add payer_full_name here (the
+      // city's parser expects this exact shape).
       const headers = [
         'זיהוי משלם',
-        'שם המשלם',
         'זיהוי נכס',
         'תחילת שינוי',
         'סוף שינוי',
@@ -2332,7 +2333,6 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
         // Convert assets to rows for this tax region
         const rows = regionAssetsForExcel.map(asset => [
           asset.payer_id || '',                                    // זיהוי משלם
-          asset.payer_full_name || '',                             // שם המשלם
           asset.asset_id != null ? String(asset.asset_id) : '',   // זיהוי נכס (convert to string)
           formatDateToDDMMYYYY(asset.discount_date_from) || '',  // תחילת שינוי
           formatDateToDDMMYYYY(asset.discount_date_to) || '',    // סוף שינוי
@@ -2367,10 +2367,9 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
           filename: excelFilename,
           sheetName: 'נכסים',
           data,
-          decimalFormatColumnIndices: [6, 8, 10, 12, 14, 16, 18],
+          decimalFormatColumnIndices: [5, 7, 9, 11, 13, 15, 17],
           columnWidths: [
             { wch: 15 }, // זיהוי משלם
-            { wch: 20 }, // שם המשלם
             { wch: 15 }, // זיהוי נכס
             { wch: 20 }, // תחילת שינוי
             { wch: 20 }, // סוף שינוי
@@ -2513,7 +2512,7 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
         const operator = operatorsList.find(o => o.id === operatorId);
         if (!operator?.email || !operator.email.includes('@')) continue;
         const opRows = operatorAssets.map(asset => [
-          asset.payer_id || '', asset.payer_full_name || '', asset.asset_id != null ? String(asset.asset_id) : '',
+          asset.payer_id || '', asset.asset_id != null ? String(asset.asset_id) : '',
           formatDateToDDMMYYYY(asset.discount_date_from) || '', formatDateToDDMMYYYY(asset.discount_date_to) || '',
           asset.main_asset_type || '', getExportAssetSize(asset),
           asset.sub_asset_type_1 || '', asset.sub_asset_size_1 || '', asset.sub_asset_type_2 || '', asset.sub_asset_size_2 || '',
@@ -2526,8 +2525,8 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
           filename: `נכסים_מפעיל_${operatorId}_${dateStr}_${operatorAssets.length}נכסים.xlsx`,
           sheetName: 'נכסים',
           data: opData,
-          decimalFormatColumnIndices: [6, 8, 10, 12, 14, 16, 18],
-          columnWidths: [{ wch: 15 }, { wch: 20 }, { wch: 15 }, { wch: 20 }, { wch: 20 }, { wch: 12 }, { wch: 12 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 10 }, { wch: 12 }, { wch: 12 }, { wch: 12 }, { wch: 15 }, { wch: 15 }]
+          decimalFormatColumnIndices: [5, 7, 9, 11, 13, 15, 17],
+          columnWidths: [{ wch: 15 }, { wch: 15 }, { wch: 20 }, { wch: 20 }, { wch: 12 }, { wch: 12 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 10 }, { wch: 12 }, { wch: 12 }, { wch: 12 }, { wch: 15 }, { wch: 15 }]
         });
         const subj = templateOp ? applyTpl(templateOp.subject, operator.name, operatorAssets.length) : `שליחת נתונים - ${dateStrHe}`;
         const body = templateOp ? applyTpl(templateOp.body, operator.name, operatorAssets.length) : `שלום ${operator.name},\n\nמצורף קובץ הנתונים.\nתאריך: ${dateStrHe}\n\nבברכה,\nמערכת ניהול נכסים`;
@@ -2536,7 +2535,7 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
       }
       if (sendItems.length === 0) {
         const fullRows = exportedAssets.map((asset: any) => [
-          asset.payer_id || '', asset.payer_full_name || '', asset.asset_id != null ? String(asset.asset_id) : '',
+          asset.payer_id || '', asset.asset_id != null ? String(asset.asset_id) : '',
           formatDateToDDMMYYYY(asset.discount_date_from) || '', formatDateToDDMMYYYY(asset.discount_date_to) || '',
           asset.main_asset_type || '', getExportAssetSize(asset),
           asset.sub_asset_type_1 || '', asset.sub_asset_size_1 || '', asset.sub_asset_type_2 || '', asset.sub_asset_size_2 || '',
@@ -2548,7 +2547,7 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
           filename: `נכסים_שליחה_${dateStr}_${exportedAssets.length}נכסים.xlsx`,
           sheetName: 'נכסים',
           data: [headers, ...fullRows],
-          columnWidths: [{ wch: 15 }, { wch: 20 }, { wch: 15 }, { wch: 20 }, { wch: 20 }, { wch: 12 }, { wch: 12 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 10 }, { wch: 12 }, { wch: 12 }, { wch: 12 }, { wch: 15 }, { wch: 15 }]
+          columnWidths: [{ wch: 15 }, { wch: 15 }, { wch: 20 }, { wch: 20 }, { wch: 12 }, { wch: 12 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 10 }, { wch: 12 }, { wch: 12 }, { wch: 12 }, { wch: 15 }, { wch: 15 }]
         });
         for (const operator of operatorsList) {
           if (!operator?.email || !operator.email.includes('@')) continue;
@@ -2569,7 +2568,7 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
         });
         if (managerAssets.length === 0) continue;
         const mgrRows = managerAssets.map((asset: any) => [
-          asset.payer_id || '', asset.payer_full_name || '', asset.asset_id != null ? String(asset.asset_id) : '',
+          asset.payer_id || '', asset.asset_id != null ? String(asset.asset_id) : '',
           formatDateToDDMMYYYY(asset.discount_date_from) || '', formatDateToDDMMYYYY(asset.discount_date_to) || '',
           asset.main_asset_type || '', getExportAssetSize(asset),
           asset.sub_asset_type_1 || '', asset.sub_asset_size_1 || '', asset.sub_asset_type_2 || '', asset.sub_asset_size_2 || '',
@@ -2582,8 +2581,8 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
           filename: `נכסים_מנהל_${manager.id}_${dateStr}_${managerAssets.length}נכסים.xlsx`,
           sheetName: 'נכסים',
           data: mgrData,
-          decimalFormatColumnIndices: [6, 8, 10, 12, 14, 16, 18],
-          columnWidths: [{ wch: 15 }, { wch: 20 }, { wch: 15 }, { wch: 20 }, { wch: 20 }, { wch: 12 }, { wch: 12 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 10 }, { wch: 12 }, { wch: 12 }, { wch: 12 }, { wch: 15 }, { wch: 15 }]
+          decimalFormatColumnIndices: [5, 7, 9, 11, 13, 15, 17],
+          columnWidths: [{ wch: 15 }, { wch: 15 }, { wch: 20 }, { wch: 20 }, { wch: 12 }, { wch: 12 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 10 }, { wch: 12 }, { wch: 12 }, { wch: 12 }, { wch: 15 }, { wch: 15 }]
         });
         const subj = templateMgr ? applyTpl(templateMgr.subject, manager.name, managerAssets.length) : `שליחת נתונים - ${dateStrHe}`;
         const body = templateMgr ? applyTpl(templateMgr.body, manager.name, managerAssets.length) : `שלום ${manager.name},\n\nמצורף קובץ הנתונים.\nתאריך: ${dateStrHe}\n\nבברכה,\nמערכת ניהול נכסים`;

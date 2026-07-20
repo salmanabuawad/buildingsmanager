@@ -29,9 +29,11 @@ export interface ExportAutomationResult {
 // Constants
 // ─────────────────────────────────────────────────────────────────────────────
 
+// Main automation sheet — city-facing. The city's parser expects this exact
+// 24-column layout; do NOT add payer_full_name here (it stays in the internal
+// UPDATE_SHEET / grids / other exports).
 export const MAIN_SHEET_HEADERS: string[] = [
   'זיהוי משלם',
-  'שם המשלם',
   'זיהוי נכס',
   'תחילת שינוי',
   'סוף שינוי',
@@ -79,7 +81,7 @@ export const UPDATE_SHEET_HEADERS: string[] = [
 ];
 
 export const MAIN_SHEET_COL_WIDTHS = [
-  { wch: 15 }, { wch: 20 }, { wch: 15 }, { wch: 20 }, { wch: 20 }, { wch: 12 }, { wch: 12 },
+  { wch: 15 }, { wch: 15 }, { wch: 20 }, { wch: 20 }, { wch: 12 }, { wch: 12 },
   { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 },
   { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 },
   { wch: 10 }, { wch: 12 }, { wch: 12 }, { wch: 12 }, { wch: 15 }, { wch: 15 },
@@ -146,16 +148,16 @@ function getExportAssetSize(asset: any, assetTypes: AssetType[]): number | strin
 export function applySharedAreasToRow(asset: any, row: any[], assetTypes: AssetType[]): any[] {
   const result = [...row];
 
-  // Column positions after שם המשלם was inserted at index 1:
-  //   0 payer_id, 1 payer_full_name, 2 asset_id, 3 discount_from, 4 discount_to,
-  //   5 main_asset_type, 6 asset_size, 7 sub_asset_type_1, 8 sub_asset_size_1, …
-  //   sub-type pairs live at (7,8), (9,10), (11,12), (13,14), (15,16), (17,18).
+  // MAIN_SHEET_HEADERS is 24 cols (payer_full_name is NOT exported to the city):
+  //   0 payer_id, 1 asset_id, 2 discount_from, 3 discount_to,
+  //   4 main_asset_type, 5 asset_size, 6 sub_asset_type_1, 7 sub_asset_size_1, …
+  //   sub-type pairs live at (6,7), (8,9), (10,11), (12,13), (14,15), (16,17).
 
-  // Add business_distribution_area to sub_asset_size_1 (index 8)
-  // only when sub_asset_type_1 (index 7) is non-empty.
+  // Add business_distribution_area to sub_asset_size_1 (index 7)
+  // only when sub_asset_type_1 (index 6) is non-empty.
   const businessDistributionArea = Number(asset.business_distribution_area) || 0;
-  if (businessDistributionArea > 0 && String(result[7] || '').trim()) {
-    result[8] = (Number(result[8]) || 0) + businessDistributionArea;
+  if (businessDistributionArea > 0 && String(result[6] || '').trim()) {
+    result[7] = (Number(result[7]) || 0) + businessDistributionArea;
   }
 
   // Add shared_parking_area to the parking type column
@@ -172,17 +174,17 @@ export function applySharedAreasToRow(asset: any, row: any[], assetTypes: AssetT
     };
     const isParkingType = (typeName: string) => !!(findType(typeName) as any)?.use_for_parking_shared_area;
 
-    const mainTypeName = String(result[5] || '').trim();
+    const mainTypeName = String(result[4] || '').trim();
     if (mainTypeName && isParkingType(mainTypeName)) {
       // Main type is the parking type — add to sub_asset_size_1 only when sub1 exists
-      if (String(result[7] || '').trim()) {
-        result[8] = (Number(result[8]) || 0) + sharedParkingArea;
+      if (String(result[6] || '').trim()) {
+        result[7] = (Number(result[7]) || 0) + sharedParkingArea;
       }
     } else {
       let foundParking = false;
       for (let i = 0; i < 6; i++) {
-        const typeIdx = 7 + i * 2;
-        const sizeIdx = 8 + i * 2;
+        const typeIdx = 6 + i * 2;
+        const sizeIdx = 7 + i * 2;
         const subtypeName = String(result[typeIdx] || '').trim();
         if (!subtypeName) continue;
         if (isParkingType(subtypeName)) {
@@ -194,8 +196,8 @@ export function applySharedAreasToRow(asset: any, row: any[], assetTypes: AssetT
       // Fallback: flag not set but asset has parking units — add to last non-empty sub-type
       if (!foundParking && Number(asset.number_of_parking_units) > 0) {
         for (let i = 5; i >= 0; i--) {
-          const typeIdx = 7 + i * 2;
-          const sizeIdx = 8 + i * 2;
+          const typeIdx = 6 + i * 2;
+          const sizeIdx = 7 + i * 2;
           if (String(result[typeIdx] || '').trim()) {
             result[sizeIdx] = (Number(result[sizeIdx]) || 0) + sharedParkingArea;
             break;
@@ -212,7 +214,6 @@ export function applySharedAreasToRow(asset: any, row: any[], assetTypes: AssetT
 export function buildMainSheetRow(asset: any, assetTypes: AssetType[]): any[] {
   const baseRow = [
     asset.payer_id || '',
-    asset.payer_full_name || '',
     asset.asset_id != null ? String(asset.asset_id) : '',
     formatDateToDDMMYYYY(asset.discount_date_from) || '',
     formatDateToDDMMYYYY(asset.discount_date_to) || '',
@@ -345,7 +346,7 @@ export async function runExportToAutomation(config: ExportAutomationConfig): Pro
       filename: mainFilename,
       sheetName: 'נכסים',
       data: [MAIN_SHEET_HEADERS, ...mainRows],
-      decimalFormatColumnIndices: [6, 8, 10, 12, 14, 16, 18],
+      decimalFormatColumnIndices: [5, 7, 9, 11, 13, 15, 17],
       columnWidths: MAIN_SHEET_COL_WIDTHS,
     });
     zipFiles.push({ filename: `${taxRegion}/${mainFilename}`, data: mainBlob });
@@ -504,7 +505,7 @@ export async function runExportToAutomation(config: ExportAutomationConfig): Pro
       filename: opMainFilename,
       sheetName: 'נכסים',
       data: [MAIN_SHEET_HEADERS, ...opRows],
-      decimalFormatColumnIndices: [6, 8, 10, 12, 14, 16, 18],
+      decimalFormatColumnIndices: [5, 7, 9, 11, 13, 15, 17],
       columnWidths: MAIN_SHEET_COL_WIDTHS,
     });
 
@@ -581,7 +582,7 @@ export async function runExportToAutomation(config: ExportAutomationConfig): Pro
       filename: mgrMainFilename,
       sheetName: 'נכסים',
       data: [MAIN_SHEET_HEADERS, ...mgrRows],
-      decimalFormatColumnIndices: [6, 8, 10, 12, 14, 16, 18],
+      decimalFormatColumnIndices: [5, 7, 9, 11, 13, 15, 17],
       columnWidths: MAIN_SHEET_COL_WIDTHS,
     });
 

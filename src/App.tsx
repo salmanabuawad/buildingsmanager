@@ -192,6 +192,53 @@ function App() {
     setCheckingAuth(false);
   }, []);
 
+  // One-off admin helper — regenerate the ZIP for the LATEST export batch
+  // (all assets whose export_to_automation_at equals the max), skipping email
+  // sending and skipping the "mark as exported" step. Callable from DevTools:
+  //   await window.__resendLatestBatch()               // full latest batch
+  //   await window.__resendLatestBatch(8254011900)     // scope to one building
+  // Deliberately hidden — no UI surface, no button.
+  useEffect(() => {
+    (window as any).__resendLatestBatch = async (buildingNumber?: number) => {
+      const { api } = await import('./lib/api');
+      const { runExportToAutomation } = await import('./lib/exportAutomationService');
+      // Latest batch = the max export_to_automation_at across exported assets.
+      const list = await api.assets.getAll();
+      const exported = (list as any[]).filter(a => a.exported_to_automation === true && a.export_to_automation_at);
+      if (exported.length === 0) throw new Error('אין נכסים שנשלחו לעירייה');
+      const toSortable = (s: any): string => {
+        const m = /^(\d{2})\/(\d{2})\/(\d{4})$/.exec(String(s ?? '').trim());
+        return m ? `${m[3]}-${m[2]}-${m[1]}` : '';
+      };
+      let latestDate = '';
+      let latestSortable = '';
+      for (const a of exported) {
+        const s = toSortable(a.export_to_automation_at);
+        if (s > latestSortable) { latestSortable = s; latestDate = a.export_to_automation_at; }
+      }
+      let batch = exported.filter(a => a.export_to_automation_at === latestDate);
+      if (buildingNumber != null) {
+        batch = batch.filter(a => Number(a.building_number) === Number(buildingNumber));
+      }
+      if (batch.length === 0) throw new Error('אין נכסים תואמים');
+      // eslint-disable-next-line no-console
+      console.log(`[resendLatestBatch] date=${latestDate} assets=${batch.length}`);
+      const assetTypes = await api.assetTypes.getAll();
+      const result = await runExportToAutomation({
+        assets: batch,
+        assetTypes,
+        onProgress: (m) => console.log('[resendLatestBatch]', m),
+        markAsExported: false,
+        sendEmails: false,
+        zipFilenamePrefix: `שליחת_נתונים_חוזרת_${latestDate.replace(/\//g, '')}`,
+      });
+      // eslint-disable-next-line no-console
+      console.log('[resendLatestBatch] done', result);
+      return result;
+    };
+    return () => { try { delete (window as any).__resendLatestBatch; } catch {} };
+  }, []);
+
   // Show session-expired modal instead of hard redirect on 401
   useEffect(() => {
     const handler = () => setShowSessionExpired(true);

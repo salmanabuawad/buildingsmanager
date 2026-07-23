@@ -15,7 +15,6 @@ export interface ExportAutomationConfig {
   onProgress?: (message: string) => void;
   createUpdateSheet?: boolean;            // default true
   markAsExported?: boolean;               // default true
-  sendEmails?: boolean;                   // default true — set false for re-runs/preview
   zipFilenamePrefix?: string;             // default 'שליחת_נתונים'
 }
 
@@ -279,7 +278,6 @@ export async function runExportToAutomation(config: ExportAutomationConfig): Pro
     onProgress,
     createUpdateSheet = true,
     markAsExported = true,
-    sendEmails = true,
     zipFilenamePrefix = 'שליחת_נתונים',
   } = config;
 
@@ -635,7 +633,7 @@ export async function runExportToAutomation(config: ExportAutomationConfig): Pro
   let sentEmails = 0;
   let emailError: string | undefined;
 
-  if (sendEmails && sendItems.length > 0) {
+  if (sendItems.length > 0) {
     const { emailService } = await import('./emailService');
     const { sentCount, lastError } = await emailService.sendExportEmailsWithProgress(
       sendItems,

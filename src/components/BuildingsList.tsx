@@ -2404,13 +2404,12 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
         
         // Prepare file list data for this tax region
         const fileListData: any[][] = [
-          ['מזהה נכס', 'מזהה משלם', 'שם המשלם', 'שם קובץ']
+          ['מזהה נכס', 'מזהה משלם', 'שם קובץ']
         ];
 
         // Download and add files for this tax region
         for (const { assetId, asset, files } of regionAssets) {
           const payerId = asset?.payer_id || '';
-          const payerFullName = asset?.payer_full_name || '';
 
           for (const file of files) {
             // Extract file name from URL if file_name is not available
@@ -2420,11 +2419,10 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
               fileName = urlParts[urlParts.length - 1].split('?')[0];
             }
 
-            // Add row to file list Excel: asset_id, payer_id, payer_full_name, file_name
+            // Add row to file list Excel: asset_id, payer_id, file_name
             fileListData.push([
               assetId,
               payerId,
-              payerFullName,
               fileName || ''
             ]);
             

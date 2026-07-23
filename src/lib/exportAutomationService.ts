@@ -60,10 +60,12 @@ export const MAIN_SHEET_HEADERS: string[] = [
   'יום ערך',
 ];
 
+// Internal update sheet — mirrors MAIN sheet's 'no שם המשלם' policy. שם המשלם
+// is still surfaced on the grids, the file-list sheet, and the per-page Excel
+// exports — but not on this file that ships alongside the city payload.
 export const UPDATE_SHEET_HEADERS: string[] = [
   'זיהוי נכס',
   'זיהוי משלם',
-  'שם המשלם',
   'מספר בניין',
   'מספר דירה',
   'קומה',
@@ -89,7 +91,7 @@ export const MAIN_SHEET_COL_WIDTHS = [
 ];
 
 export const UPDATE_SHEET_COL_WIDTHS = [
-  { wch: 15 }, { wch: 15 }, { wch: 20 }, { wch: 14 }, { wch: 12 }, { wch: 10 }, { wch: 12 }, { wch: 12 },
+  { wch: 15 }, { wch: 15 }, { wch: 14 }, { wch: 12 }, { wch: 10 }, { wch: 12 }, { wch: 12 },
   { wch: 18 }, { wch: 20 }, { wch: 18 }, { wch: 10 }, { wch: 18 }, { wch: 12 },
   { wch: 11 }, { wch: 11 }, { wch: 18 }, { wch: 12 },
 ];
@@ -247,7 +249,6 @@ export function buildUpdateSheetRow(asset: any, building: Building | undefined):
   return [
     asset.asset_id != null ? String(asset.asset_id) : '',
     asset.payer_id || '',
-    asset.payer_full_name || '',
     asset.building_number != null ? String(asset.building_number) : '',
     asset.apartment_number || '',
     formatFloor(asset.apartment_floor),
@@ -376,7 +377,7 @@ export async function runExportToAutomation(config: ExportAutomationConfig): Pro
     // file_name is the sanitized {asset_id}_{N}.{ext} name produced on upload;
     // file_description carries the original Hebrew/spaces name the user uploaded
     // so the automation operator still sees what each file actually is.
-    const fileListData: any[][] = [['מזהה נכס', 'מזהה משלם', 'שם המשלם', 'שם קובץ', 'תיאור קובץ']];
+    const fileListData: any[][] = [['מזהה נכס', 'מזהה משלם', 'שם קובץ', 'תיאור קובץ']];
 
     // Collect download tasks for this tax region
     const downloadTasks: Array<{
@@ -393,7 +394,6 @@ export async function runExportToAutomation(config: ExportAutomationConfig): Pro
 
       const files = filesByAsset.get(assetId) ?? [];
       const payerId = asset.payer_id || '';
-      const payerFullName = asset.payer_full_name || '';
 
       for (const file of files) {
         let fileName: string = file.file_name || '';
@@ -403,7 +403,7 @@ export async function runExportToAutomation(config: ExportAutomationConfig): Pro
         }
         const fileDescription = (file as any).file_description || file.file_name || '';
 
-        fileListData.push([assetId, payerId, payerFullName, fileName, fileDescription]);
+        fileListData.push([assetId, payerId, fileName, fileDescription]);
 
         const filePath = resolveFilePath(assetId, file);
         if (filePath) {

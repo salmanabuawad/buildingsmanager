@@ -150,19 +150,15 @@ export const TransferAreas = forwardRef<TransferAreasRef, TransferAreasProps>(({
     return isAssetTypeNotAccountable(asset.main_asset_type);
   }, [isAssetTypeNotAccountable]);
 
-  // Helper function to check if a field should be editable
-  // For non-accountable assets, only main_asset_type is editable
-  const isFieldEditable = useCallback((params: any, fieldName: string): boolean => {
+  // In TransferAreas every cell is editable regardless of the row's asset
+  // type. The previous "non_accountable_for_total_area ⇒ only main_asset_type"
+  // rule blocked exactly what operators need to fix during a transfer (main
+  // size, sub-types, sub-sizes on complex/container rows). Save-time
+  // validation catches invariant breaks; nothing here should hard-lock cells.
+  const isFieldEditable = useCallback((params: any, _fieldName: string): boolean => {
     if (!params || !params.data) return false;
-    const asset = params.data as Asset;
-    
-    // For non-accountable assets, only main_asset_type is editable
-    if (isAssetNotAccountable(asset)) {
-      return fieldName === 'main_asset_type';
-    }
-    
-    return true; // All fields are editable by default in TransferAreas
-  }, [isAssetNotAccountable]);
+    return true;
+  }, []);
 
   // Refresh actions column when validationErrors change to update invalid icons
   useEffect(() => {

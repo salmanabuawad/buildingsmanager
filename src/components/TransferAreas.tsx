@@ -511,20 +511,15 @@ export const TransferAreas = forwardRef<TransferAreasRef, TransferAreasProps>(({
       return merged;
     });
 
-    // Calculate current total area (excluding assets with not_accountable = true)
-    // EXCEPT: Type 999 should always be included regardless of the flag
+    // Plain Σ asset_size across every row — same rule as initialTotalArea /
+    // currentTotalArea, so the invariant check compares like-for-like.
+    // Previously this skipped non_accountable_for_total_area rows, which
+    // produced a validation total that mismatched the two other counters
+    // and blocked saves with a bogus "9.44 vs 29.44" message.
     const newTotalArea = updatedAssets.reduce((sum, a) => {
-      // Skip assets where main_asset_type has not_accountable = true
-      // EXCEPT for type 999, which should always be included in transfer area calculations
-      if (a.main_asset_type && a.main_asset_type !== '999' && isAssetTypeNotAccountable(a.main_asset_type)) {
-        return sum;
-      }
-      
-      // Get asset_size - ensure it's a valid number
-      const assetSize = a.asset_size !== undefined && a.asset_size !== null 
+      const assetSize = a.asset_size !== undefined && a.asset_size !== null
         ? (typeof a.asset_size === 'number' ? a.asset_size : parseFloat(String(a.asset_size)))
         : 0;
-      
       return sum + (isNaN(assetSize) ? 0 : assetSize);
     }, 0);
 
@@ -552,7 +547,7 @@ export const TransferAreas = forwardRef<TransferAreasRef, TransferAreasProps>(({
     }
 
     return newValidationErrors;
-  }, [validateAsset, isAssetTypeNotAccountable]);
+  }, [validateAsset]);
 
   const onCellValueChanged = useCallback(async (event: any) => {
     try {
@@ -1473,14 +1468,10 @@ export const TransferAreas = forwardRef<TransferAreasRef, TransferAreasProps>(({
             finalAssetSize = assetSizeNum;
           }
         }
-        
-        // Skip assets where main_asset_type has not_accountable = true
-        // EXCEPT for type 999, which should always be included in transfer area calculations
-        const mainAssetType = (dirtyChanges.main_asset_type || asset.main_asset_type);
-        if (mainAssetType && mainAssetType !== '999' && isAssetTypeNotAccountable(mainAssetType)) {
-          return sum;
-        }
-        
+
+        // No non-accountable skip here — matches initialTotalArea/
+        // currentTotalArea/validateAllAssets so the "add 999" flow's
+        // area-matches check compares like-for-like.
         return sum + finalAssetSize;
       }, 0);
 

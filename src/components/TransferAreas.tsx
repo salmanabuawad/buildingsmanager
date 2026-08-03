@@ -312,20 +312,15 @@ export const TransferAreas = forwardRef<TransferAreasRef, TransferAreasProps>(({
       const finalAssetTypes = cachedAssetTypes.length > 0 ? cachedAssetTypes : await api.assetTypes.getAll();
       setAssetTypes(finalAssetTypes || []);
       
-      // Wait for assetTypes state to be set before calculating initial total area
-      // Calculate initial total area (sum of asset_size, excluding assets with not_accountable = true)
-      // EXCEPT: Type 999 should always be included regardless of the flag
-      const totalArea = fetchedAssets.reduce((sum, asset) => {
-        // Skip assets where main_asset_type has not_accountable = true
-        // EXCEPT for type 999, which should always be included in transfer area calculations
-        if (asset.main_asset_type && asset.main_asset_type !== '999' && finalAssetTypes) {
-          const assetType = finalAssetTypes.find(at => at.name === asset.main_asset_type);
-          if (assetType?.non_accountable_for_total_area === true) {
-            return sum;
-          }
-        }
-        return sum + (asset.asset_size || 0);
-      }, 0);
+      // Initial linked-assets total = plain Σ asset_size across every asset in
+      // the transfer group. Complex/container rows (299/199) hold their real
+      // area in asset_size (sub-types live inside the same row, not as
+      // separate assets), so excluding them was wrong for this screen and
+      // produced a 0 total whenever the group was all complex rows.
+      // finalAssetTypes is intentionally unused — kept in scope in case
+      // future per-type logic needs to reintroduce filtering.
+      void finalAssetTypes;
+      const totalArea = fetchedAssets.reduce((sum, asset) => sum + (asset.asset_size || 0), 0);
       setInitialTotalArea(totalArea);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load assets');
@@ -1202,28 +1197,17 @@ export const TransferAreas = forwardRef<TransferAreasRef, TransferAreasProps>(({
     hasUnsavedChanges: () => hasChanges
   }), [hasChanges]);
 
-  // Calculate current total area (sum of asset_size, excluding assets with not_accountable = true, with dirty changes applied)
+  // Plain Σ asset_size (with dirty overlays) across every row. Complex/
+  // container rows are NOT excluded here — see initialTotalArea for the
+  // rationale; the two must use the same rule so totalAreaChanged stays
+  // meaningful.
   const currentTotalArea = useMemo(() => {
     return assets.reduce((sum, asset) => {
-      // For new assets (temp IDs), check both the asset_id and the tracking ID
-      const assetId = String(asset.asset_id);
-      
-      // Get dirty changes by asset_id (works for both new and existing assets)
-      let dirtyChanges = dirtyAssets.get(assetId) || {};
-      
+      const dirtyChanges = dirtyAssets.get(String(asset.asset_id)) || {};
       const assetWithChanges = { ...asset, ...dirtyChanges };
-      
-      // Skip assets where main_asset_type has not_accountable = true
-      // EXCEPT for type 999, which should always be included in transfer area calculations
-      // Check the updated main_asset_type if it was changed in dirtyChanges
-      const mainAssetType = assetWithChanges.main_asset_type || asset.main_asset_type;
-      if (mainAssetType && mainAssetType !== '999' && isAssetTypeNotAccountable(mainAssetType)) {
-        return sum;
-      }
-      
       return sum + (assetWithChanges.asset_size || 0);
     }, 0);
-  }, [assets, dirtyAssets, isAssetTypeNotAccountable, assetTypes]);
+  }, [assets, dirtyAssets]);
 
   // Check if total area has changed (validation will prevent saving if changed)
   const totalAreaChanged = initialTotalArea !== null && Math.abs(currentTotalArea - initialTotalArea) > 0.01;

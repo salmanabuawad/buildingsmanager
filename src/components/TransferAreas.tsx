@@ -2249,34 +2249,25 @@ export const TransferAreas = forwardRef<TransferAreasRef, TransferAreasProps>(({
         </div>
       </div>
 
-      {/* Total Area — editable target the sum of linked assets must match.
-          Initialized on mount from the fetched building's total; changing it
-          rebalances the missing-size chip and the save-time invariant check. */}
+      {/* Total Area Display - Calculated once and not changeable */}
       <div className="mt-2 flex items-center justify-end gap-4 flex-wrap">
         <div className="flex items-center gap-2">
           <label className="text-sm font-semibold text-slate-700">שטח כולל של הנכסים המקושרים:</label>
           <input
-            type="number"
-            step="0.01"
-            min="0"
-            value={initialTotalArea ?? ''}
-            onChange={(e) => {
-              const v = e.target.value;
-              if (v === '') { setInitialTotalArea(null); return; }
-              const n = Number(v);
-              if (!isNaN(n) && n >= 0) setInitialTotalArea(n);
-            }}
-            className={`px-3 py-2 border rounded-lg text-right font-semibold focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+            type="text"
+            value={displayTotalArea !== null ? displayTotalArea.toLocaleString('he-IL') : ''}
+            readOnly
+            className={`px-3 py-2 border rounded-lg text-right font-semibold ${
               totalAreaChanged
                 ? 'border-red-500 bg-red-50 text-red-700'
-                : 'border-slate-300 bg-white text-slate-700'
+                : 'border-slate-300 bg-slate-50 text-slate-700'
             }`}
             style={{ minWidth: '150px' }}
-            title="יעד השטח הכולל — סכום הנכסים המקושרים חייב להשוות לערך זה"
+            title="שטח כולל מחושב פעם אחת ולא ניתן לשינוי"
           />
           {totalAreaChanged && (
             <span className="text-xs text-red-600 font-medium">
-              (הסכום הנוכחי {currentTotalArea.toLocaleString('he-IL')} — חייב להשוות ליעד {initialTotalArea?.toLocaleString('he-IL')})
+              (השטח הכולל השתנה - חייב להישאר {initialTotalArea?.toLocaleString('he-IL')})
             </span>
           )}
         </div>

@@ -33,6 +33,11 @@ IMMUTABLE_ASSET_COLUMNS = {
 # port of the legacy `reset_export_flags_on_change` trigger.
 _EXPORT_RESET_FIELDS = {
     "payer_id", "payer_full_name", "main_asset_type", "asset_size", "measurement_date",
+    # business_distribution_area + shared_parking_area are folded into the
+    # sub-sizes on the city MAIN sheet via applySharedAreasToRow — so a
+    # shared-area distribution that shifts them silently changes what the
+    # city receives. Adding them here re-queues the asset on the next send.
+    "business_distribution_area", "shared_parking_area",
     "sub_asset_type_1", "sub_asset_size_1",
     "sub_asset_type_2", "sub_asset_size_2",
     "sub_asset_type_3", "sub_asset_size_3",

@@ -4835,6 +4835,35 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
     return !taxRegion || (taxRegion && taxRegion.includes(','));
   }, [taxRegion]);
 
+  // Per-unit parking area shown next to overload ratio in the building
+  // header. Formula: (Σ asset_size of parking-typed assets in this building
+  // + building.shared_parking_area) / building.number_of_parking_units.
+  // Parking-typed = asset_types row with use_for_parking_shared_area=true.
+  // Returns null when the denominator is 0/missing so the badge stays hidden.
+  const parkingUnitSize = useMemo<number | null>(() => {
+    const units = Number(building?.number_of_parking_units ?? 0);
+    if (!units || units <= 0) return null;
+
+    const parkingTypeNames = new Set<string>();
+    for (const at of assetTypes) {
+      if ((at as any).use_for_parking_shared_area === true) {
+        const n = String((at as any).name ?? '').trim();
+        if (n) parkingTypeNames.add(n);
+      }
+    }
+
+    let parkingAssetsArea = 0;
+    for (const a of assets) {
+      const mainType = String((a as any).main_asset_type ?? '').trim();
+      if (mainType && parkingTypeNames.has(mainType)) {
+        parkingAssetsArea += Number((a as any).asset_size) || 0;
+      }
+    }
+
+    const sharedParking = Number(building?.shared_parking_area ?? 0) || 0;
+    return (parkingAssetsArea + sharedParking) / units;
+  }, [assets, assetTypes, building?.shared_parking_area, building?.number_of_parking_units]);
+
   const detailColumnDefs: ColDef<Asset>[] = useMemo(() => {
     const defs: ColDef<Asset>[] = [
     {
@@ -6262,6 +6291,14 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
               )}
               {taxRegion && !isMultiTaxRegion && !isResidentTaxRegion && building?.overload_ratio != null && (
                 <span className="page-header-pill">אחוז העמסה: {building.overload_ratio.toFixed(2)}%</span>
+              )}
+              {taxRegion && !isMultiTaxRegion && !isResidentTaxRegion && parkingUnitSize != null && (
+                <span
+                  className="page-header-pill"
+                  title="גודל ממוצע ליחידת חניה = (סכום גודל נכסי חניה במבנה + שטח חניה משותף) / מספר יחידות חניה"
+                >
+                  גודל יחידת חניה: {parkingUnitSize.toLocaleString('he-IL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                </span>
               )}
             </div>
           </div>

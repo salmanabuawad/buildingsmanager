@@ -2537,18 +2537,26 @@ export const api = {
           return null;
         };
 
-        // Build query
-        let query = api
-          .from('assets')
-          .select('measurement_date, building_number, asset_id, asset_size, exported_to_automation')
-          .not('measurement_date', 'is', null)
-          .neq('measurement_date', '01/01/1900');
-
-        // Fetch all assets first
-        const { data: allAssetsData, error: fetchError } = await query;
-        if (fetchError) throw fetchError;
-        
-        const allAssets = allAssetsData || [];
+        // Paginated fetch — a single .select() caps at DEFAULT_PAGE_SIZE (1000).
+        // The dashboard silently truncated for any building portfolio bigger
+        // than that; totals drifted as row order shifted rows in/out of the
+        // first 1000. fetchAllRows walks every page.
+        const allAssets = await fetchAllRows<{
+          measurement_date: string | null;
+          building_number: number;
+          asset_id: number;
+          asset_size: number | null;
+          exported_to_automation: boolean | null;
+        }>((offset, limit) =>
+          api
+            .from('assets')
+            .select('measurement_date, building_number, asset_id, asset_size, exported_to_automation')
+            .not('measurement_date', 'is', null)
+            .neq('measurement_date', '01/01/1900')
+            .order('asset_id', { ascending: true })
+            .offset(offset)
+            .limit(limit)
+        );
         
         // Apply date filters if provided
         const filteredAssets = allAssets.filter(asset => {

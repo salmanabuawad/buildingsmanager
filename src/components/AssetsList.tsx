@@ -4836,10 +4836,16 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
   }, [taxRegion]);
 
   // Per-unit parking area shown next to overload ratio in the building
-  // header. Formula: (Σ asset_size of parking-typed assets in this building
-  // + building.shared_parking_area) / building.number_of_parking_units.
+  // header. Formula: (Σ parking-typed area across every asset in this
+  // building + building.shared_parking_area) / number_of_parking_units.
+  //
   // Parking-typed = asset_types row with use_for_parking_shared_area=true.
-  // Returns null when the denominator is 0/missing so the badge stays hidden.
+  // Parking usually lives as a SUB-type on a complex/container row (e.g.
+  // main=299, sub_asset_type_2=810), so a main-only check misses it. Walk
+  // every slot per asset: if main is parking, count asset_size; otherwise
+  // iterate sub_asset_type_1..6 and add sub_asset_size_i for parking subs.
+  // This avoids double-counting (asset_size on a complex row already
+  // equals Σ sub sizes).
   const parkingUnitSize = useMemo<number | null>(() => {
     const units = Number(building?.number_of_parking_units ?? 0);
     if (!units || units <= 0) return null;
@@ -4854,9 +4860,17 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
 
     let parkingAssetsArea = 0;
     for (const a of assets) {
-      const mainType = String((a as any).main_asset_type ?? '').trim();
+      const anyA = a as any;
+      const mainType = String(anyA.main_asset_type ?? '').trim();
       if (mainType && parkingTypeNames.has(mainType)) {
-        parkingAssetsArea += Number((a as any).asset_size) || 0;
+        parkingAssetsArea += Number(anyA.asset_size) || 0;
+        continue;
+      }
+      for (let i = 1; i <= 6; i++) {
+        const subType = String(anyA[`sub_asset_type_${i}`] ?? '').trim();
+        if (subType && parkingTypeNames.has(subType)) {
+          parkingAssetsArea += Number(anyA[`sub_asset_size_${i}`]) || 0;
+        }
       }
     }
 

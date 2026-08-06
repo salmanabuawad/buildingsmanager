@@ -2689,20 +2689,29 @@ export const api = {
     },
     getLatestExportDate: async (): Promise<{ success: boolean; date: string | null; error?: string }> => {
       try {
-        // Get all exported assets with their export dates
-        const { data: exportedAssets, error: fetchError } = await api
-          .from('assets')
-          .select('export_to_automation_at')
-          .eq('exported_to_automation', true)
-          .not('export_to_automation_at', 'is', null);
-
-        if (fetchError) {
+        // Paginated — a single .select() caps at DEFAULT_PAGE_SIZE (1000).
+        // The 'exported' subset is currently 990 assets in prod; without
+        // pagination the "latest date" scan silently misses whichever
+        // exported assets fall past position 1000 as soon as it crosses.
+        let exportedAssets: Array<{ export_to_automation_at: string | null }> = [];
+        try {
+          exportedAssets = await fetchAllRows<{ export_to_automation_at: string | null }>((offset, limit) =>
+            api
+              .from('assets')
+              .select('export_to_automation_at')
+              .eq('exported_to_automation', true)
+              .not('export_to_automation_at', 'is', null)
+              .order('asset_id', { ascending: true })
+              .offset(offset)
+              .limit(limit)
+          );
+        } catch (fetchError: any) {
           console.error('[api.assets.getLatestExportDate] Error fetching exported assets:', fetchError);
-          return { success: false, date: null, error: fetchError.message };
+          return { success: false, date: null, error: fetchError?.message ?? 'fetch failed' };
         }
 
         // If no exported assets found, return null date
-        if (!exportedAssets || exportedAssets.length === 0) {
+        if (exportedAssets.length === 0) {
           return { success: true, date: null };
         }
 

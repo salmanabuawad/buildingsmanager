@@ -4850,11 +4850,21 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
     const units = Number(building?.number_of_parking_units ?? 0);
     if (!units || units <= 0) return null;
 
+    // Detect parking types for this display: prefer the explicit flag, but
+    // fall back to a description heuristic ('חניה'/'חניון'). Right now only
+    // one row (811 id=1453) carries the flag, while 810/814/816 are also
+    // parking types by description and clearly belong in this sum. Widening
+    // only affects this badge — applySharedAreasToRow's export logic still
+    // reads the flag directly and is unchanged.
+    const isParkingDescription = (s: string) => /חנ(י(ה|יה|ון))/.test(s);
     const parkingTypeNames = new Set<string>();
     for (const at of assetTypes) {
-      if ((at as any).use_for_parking_shared_area === true) {
-        const n = String((at as any).name ?? '').trim();
-        if (n) parkingTypeNames.add(n);
+      const anyAt = at as any;
+      const name = String(anyAt.name ?? '').trim();
+      if (!name) continue;
+      const desc = String(anyAt.description ?? '').trim();
+      if (anyAt.use_for_parking_shared_area === true || isParkingDescription(desc)) {
+        parkingTypeNames.add(name);
       }
     }
 

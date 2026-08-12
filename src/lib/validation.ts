@@ -1261,11 +1261,16 @@ export async function validateAssetTypeRequiresSize(
   subAssetTypes: (string | undefined)[],
   subAssetSizes: (number | undefined)[]
 ): Promise<ValidationResult> {
-  // Validate that if asset type exists, corresponding size must exist
-  
+  // Validate that if asset type exists, corresponding size must exist.
+  // EXCEPTION: type 990 ("ביטולים/איחודים") is a cancellation/consolidation
+  // marker whose size is legitimately 0 — skip the size-required check when
+  // the type is 990 on either the main slot or a sub-type slot.
+  const CANCELLATION_TYPE = '990';
+
   // Check main asset type
   if (mainAssetType && mainAssetType.trim() !== '') {
-    if (assetSize == null || assetSize === 0) {
+    const mainTypeStr = mainAssetType.trim();
+    if (mainTypeStr !== CANCELLATION_TYPE && (assetSize == null || assetSize === 0)) {
       return {
         valid: false,
         error: 'שטח נכס ראשי נדרש כאשר סוג נכס ראשי מוזן'
@@ -1275,10 +1280,11 @@ export async function validateAssetTypeRequiresSize(
 
   // Check sub asset types
   for (let i = 0; i < subAssetTypes.length; i++) {
-    const hasType = subAssetTypes[i] && subAssetTypes[i]!.trim() !== '';
+    const subTypeStr = subAssetTypes[i]?.trim() ?? '';
+    const hasType = subTypeStr !== '';
     const hasSize = subAssetSizes[i] != null && subAssetSizes[i] !== 0;
 
-    if (hasType && !hasSize) {
+    if (hasType && !hasSize && subTypeStr !== CANCELLATION_TYPE) {
       return {
         valid: false,
         error: `שטח נכס משנה ${i + 1} נדרש כאשר סוג נכס משנה ${i + 1} מוזן`

@@ -458,6 +458,22 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
   const [buildings, setBuildings] = useState<Building[]>([]);
   const [filteredBuildings, setFilteredBuildings] = useState<Building[]>([]);
   const [buildingFilter, setBuildingFilter] = useState<string>('');
+  // Business/Residence checkbox filters — a building is 'business' when any of
+  // its tax_region values maps to an asset_type with business_residence='עסקים',
+  // 'residence' when it maps to 'מגורים'. Both default ON (unchanged behaviour).
+  // Persist per-browser so the operator's last choice sticks across reloads.
+  const [showBusinessBuildings, setShowBusinessBuildings] = useState<boolean>(() => {
+    try { const v = localStorage.getItem('BuildingsList:showBusiness'); return v === null ? true : v === 'true'; } catch { return true; }
+  });
+  const [showResidenceBuildings, setShowResidenceBuildings] = useState<boolean>(() => {
+    try { const v = localStorage.getItem('BuildingsList:showResidence'); return v === null ? true : v === 'true'; } catch { return true; }
+  });
+  useEffect(() => { try { localStorage.setItem('BuildingsList:showBusiness', String(showBusinessBuildings)); } catch { /* ignore */ } }, [showBusinessBuildings]);
+  useEffect(() => { try { localStorage.setItem('BuildingsList:showResidence', String(showResidenceBuildings)); } catch { /* ignore */ } }, [showResidenceBuildings]);
+  // Pulled up from further down in the file — the biz/residence classifier
+  // uses it as a memo dep, and its original declaration site (near useFieldConfig)
+  // was AFTER the memo, which would crash on mount (TDZ on const).
+  const configVersion = useFieldConfigVersion();
   const [loading, setLoading] = useState(true);
   const [exporting, setExporting] = useState(false); // Export to automation in progress - keep content visible
   const [exportProgressMessage, setExportProgressMessage] = useState(''); // Progress text in modal, not toast
@@ -850,17 +866,59 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Filter buildings by building number
-  useEffect(() => {
-    if (buildingFilter === '') {
-      setFilteredBuildings(buildings);
-    } else {
-      const filtered = buildings.filter(b =>
-        b.building_number.toString().includes(buildingFilter)
-      );
-      setFilteredBuildings(filtered);
+  // Map every known tax_region to whether it appears on any business /
+  // residence asset_type. A single region can be both if asset_types has both
+  // classifications registered against it. Rebuilt whenever the asset-types
+  // cache signal changes (proxied via the version bumped by useFieldConfig).
+  const taxRegionKind = useMemo(() => {
+    const map = new Map<number, { biz: boolean; res: boolean }>();
+    const at = getAssetTypes();
+    if (!Array.isArray(at)) return map;
+    for (const t of at) {
+      const raw = (t as any)?.tax_region;
+      const tr = typeof raw === 'string' ? parseInt(raw, 10) : Number(raw);
+      if (!Number.isFinite(tr)) continue;
+      const br = String((t as any)?.business_residence ?? '').trim();
+      const entry = map.get(tr) ?? { biz: false, res: false };
+      if (br === 'עסקים') entry.biz = true;
+      else if (br === 'מגורים') entry.res = true;
+      map.set(tr, entry);
     }
-  }, [buildingFilter, buildings]);
+    return map;
+  }, [configVersion]);
+
+  const buildingIsBusiness = useCallback((b: Building): boolean => {
+    const raw = (b as any).tax_region;
+    if (raw == null || raw === '') return false;
+    const regions = String(raw).split(',').map(s => parseInt(s.trim(), 10)).filter(Number.isFinite);
+    return regions.some(r => taxRegionKind.get(r)?.biz === true);
+  }, [taxRegionKind]);
+
+  const buildingIsResidence = useCallback((b: Building): boolean => {
+    const raw = (b as any).tax_region;
+    if (raw == null || raw === '') return false;
+    const regions = String(raw).split(',').map(s => parseInt(s.trim(), 10)).filter(Number.isFinite);
+    return regions.some(r => taxRegionKind.get(r)?.res === true);
+  }, [taxRegionKind]);
+
+  // Filter buildings by number substring + business/residence classification.
+  // Un-classified buildings (empty tax_region, or a region no asset_type
+  // references) always pass — the checkbox filter is additive, not a hard gate.
+  useEffect(() => {
+    const applyKindFilter = (b: Building): boolean => {
+      if (showBusinessBuildings && showResidenceBuildings) return true;
+      const biz = buildingIsBusiness(b);
+      const res = buildingIsResidence(b);
+      if (!biz && !res) return true; // unclassified stays visible
+      if (showBusinessBuildings && biz) return true;
+      if (showResidenceBuildings && res) return true;
+      return false;
+    };
+    const numberFilter = (b: Building) => (
+      buildingFilter === '' || b.building_number.toString().includes(buildingFilter)
+    );
+    setFilteredBuildings(buildings.filter(b => numberFilter(b) && applyKindFilter(b)));
+  }, [buildingFilter, buildings, showBusinessBuildings, showResidenceBuildings, buildingIsBusiness, buildingIsResidence]);
 
   useEffect(() => {
     if (gridRef.current?.api) {
@@ -3667,6 +3725,16 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
       field: 'address',
       headerName: 'כתובת',
       editable: true,
+      // Filter dropdown lists "<code> - <street_description>" so the operator
+      // can pick a street by name (not by opaque code). Kept as a separate
+      // filterValueGetter — the raw street_code is still what valueGetter
+      // returns for editing/sorting/display, so nothing else shifts.
+      filterValueGetter: (params: any) => {
+        const code = params.data?.address ?? null;
+        if (code == null || code === '') return '(ריק)';
+        const desc = addressList.find(a => Number(a.street_code) === Number(code))?.street_description;
+        return desc ? `${code} - ${desc}` : String(code);
+      },
       valueGetter: (params: any) => {
         // Return the street code from the data object
         const value = params.data?.address ?? null;
@@ -3848,8 +3916,9 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
     });
   }, [onSelectBuilding, handleDeleteBuilding, buildingsToDelete, t, invalidTaxRegions, validationErrors, dirtyBuildings, newBuildings, isNewBuilding, getBuildingKey, handleCheckboxChange, addressList, hasBuildingBusiness, isReadOnly, distributionBaseByBuilding, lastMeasurementByBuilding]);
 
-  // Apply field configurations to column definitions (ref_only pattern: rely on columnDefs prop only)
-  const configVersion = useFieldConfigVersion();
+  // Apply field configurations to column definitions (ref_only pattern: rely on columnDefs prop only).
+  // configVersion is hoisted near the state block so the biz/residence
+  // classifier memo can use it as a dep without hitting a TDZ crash.
   const fontSize = useFontSize();
   const [configuredColumnDefs, fieldConfigLoading] = useFieldConfig(columnDefs, 'buildings-list');
 
@@ -3937,6 +4006,26 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
               className="w-full px-2.5 py-1.5 pr-8 border border-app-input-border rounded-md focus:ring-2 focus:ring-app-accent focus:border-app-accent text-right text-sm bg-white"
             />
             <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 h-3.5 w-3.5 text-slate-400" />
+          </div>
+          <div className="flex items-center gap-3 px-2 py-1 border border-app-input-border rounded-md bg-white">
+            <label className="flex items-center gap-1 text-sm text-slate-700 select-none cursor-pointer" title="הצג מבנים עם אזור מס עסקי">
+              <input
+                type="checkbox"
+                checked={showBusinessBuildings}
+                onChange={(e) => setShowBusinessBuildings(e.target.checked)}
+                className="cursor-pointer"
+              />
+              עסקים
+            </label>
+            <label className="flex items-center gap-1 text-sm text-slate-700 select-none cursor-pointer" title="הצג מבנים עם אזור מס מגורים">
+              <input
+                type="checkbox"
+                checked={showResidenceBuildings}
+                onChange={(e) => setShowResidenceBuildings(e.target.checked)}
+                className="cursor-pointer"
+              />
+              מגורים
+            </label>
           </div>
           <div className="action-bar flex-1 min-w-0 py-1 px-2">
             <div className="flex flex-col sm:flex-row justify-end gap-1.5 sm:gap-2">

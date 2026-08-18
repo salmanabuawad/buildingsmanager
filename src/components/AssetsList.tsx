@@ -432,6 +432,21 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
   const [exportToAutomationCount, setExportToAutomationCount] = useState<number>(0);
   const [resettingExport, setResettingExport] = useState<boolean>(false);
   const [showResetExportModal, setShowResetExportModal] = useState<boolean>(false);
+  // "ייצא ל-Excel" now opens a small confirm modal instead of firing straight
+  // away. The checkbox choice (whether to append the latest history row under
+  // each asset) is sticky — persisted per browser so operators don't have to
+  // reselect on every export.
+  const [exportModalOpen, setExportModalOpen] = useState<boolean>(false);
+  const [exportRunning, setExportRunning] = useState<boolean>(false);
+  const [includeLatestHistoryInExport, setIncludeLatestHistoryInExport] = useState<boolean>(() => {
+    try {
+      const v = localStorage.getItem('AssetsList:includeLatestHistoryInExport');
+      return v === null ? true : v === 'true';
+    } catch { return true; }
+  });
+  useEffect(() => {
+    try { localStorage.setItem('AssetsList:includeLatestHistoryInExport', String(includeLatestHistoryInExport)); } catch { /* ignore */ }
+  }, [includeLatestHistoryInExport]);
 
   // Original-format file import
   const originalImportInputRef = useRef<HTMLInputElement>(null);
@@ -4488,8 +4503,14 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
         'distribute_shared',
         'transfer_area',
       ]);
-      const historyByAssetId = new Map<string, Asset[]>();
-      if (buildingNumber) {
+      // When the sticky "include latest history" flag is off, skip the fetch
+      // and the interleave entirely — the sheet stays live-rows only.
+      // When on, keep only the FIRST non-distribution history entry per
+      // asset (backend already returns history_created_at DESC), i.e. the
+      // most-recent snapshot. Previous behaviour interleaved every non-
+      // distribution history row; the user found that noisy.
+      const historyByAssetId = new Map<string, Asset>();
+      if (includeLatestHistoryInExport && buildingNumber) {
         try {
           const withHistory = await api.assets.getAllAssetsWithHistory(buildingNumber);
           for (const row of withHistory) {
@@ -4498,9 +4519,7 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
             if (DISTRIBUTION_ACTION_TYPES.has(actionType)) continue;
             const key = String((row as any).asset_id);
             if (!key || key === 'undefined' || key === 'null') continue;
-            const bucket = historyByAssetId.get(key);
-            if (bucket) bucket.push(row as Asset);
-            else historyByAssetId.set(key, [row as Asset]);
+            if (!historyByAssetId.has(key)) historyByAssetId.set(key, row as Asset);
           }
         } catch (histErr) {
           console.warn('[AssetsList] failed to load asset history for export:', histErr);
@@ -4587,16 +4606,17 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
         asset.comment || ''
       ];
 
-      // Build the row list interleaving each asset with every non-distribution
-      // history row it has (already sorted most-recent-first by the backend).
-      // Track 0-based history row indices so we can colour them below. Header
-      // sits at index 0, so the first asset row is index 1.
+      // Build the row list interleaving each asset with (at most) one
+      // history row — the most-recent non-distribution snapshot, when the
+      // "כלול היסטוריה אחרונה" flag is on. Track 0-based history row indices
+      // so we can colour them below. Header sits at index 0, so the first
+      // asset row is index 1.
       const rows: any[][] = [];
       const historyRowIndices: number[] = [];
       for (const asset of assetsToExport) {
         rows.push(renderRow(asset));
-        const historyRows = historyByAssetId.get(String(asset.asset_id)) ?? [];
-        for (const hist of historyRows) {
+        const hist = historyByAssetId.get(String(asset.asset_id));
+        if (hist) {
           rows.push(renderRow(hist));
           // +1 accounts for the header row we prepend below.
           historyRowIndices.push(rows.length);
@@ -4670,7 +4690,7 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
       setToast({ message: 'שגיאה בייצוא לקובץ Excel', type: 'error' });
       setTimeout(() => setToast(null), 3000);
     }
-  }, [assets, dirtyAssets, deletedAssets, buildingNumber, taxRegion]);
+  }, [assets, dirtyAssets, deletedAssets, buildingNumber, taxRegion, includeLatestHistoryInExport]);
 
   // Helper function to get cell style for validation errors and read-only indication
   const getCellStyle = useCallback((params: any) => {
@@ -6389,7 +6409,7 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
             {!isErrorFixingMode && (
               <button
                 type="button"
-                onClick={handleExportToExcel}
+                onClick={() => setExportModalOpen(true)}
                 disabled={loading || assets.length === 0}
                 className="btn btn-action btn-export"
                 title="ייצא את כל הנכסים לקובץ Excel"
@@ -6906,6 +6926,77 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
           </>
         )}
       </div>
+
+      {/* Export-to-Excel Options Modal (sticky) */}
+      {exportModalOpen && (() => {
+        const closeModal = () => { if (!exportRunning) setExportModalOpen(false); };
+        const runExport = async () => {
+          setExportRunning(true);
+          try {
+            await handleExportToExcel();
+          } finally {
+            setExportRunning(false);
+            setExportModalOpen(false);
+          }
+        };
+        return (
+          <div
+            className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
+            dir="rtl"
+            onClick={closeModal}
+          >
+            <div
+              className="bg-white rounded-lg shadow-xl p-6 max-w-md w-full mx-4"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex items-center gap-3 mb-4">
+                <FileSpreadsheet className="h-6 w-6 text-theme-tab-active flex-shrink-0" />
+                <h3 className="text-lg font-bold text-slate-900">ייצוא נכסי מבנה ל-Excel</h3>
+              </div>
+              <label className="flex items-start gap-2 mb-6 cursor-pointer select-none">
+                <input
+                  type="checkbox"
+                  checked={includeLatestHistoryInExport}
+                  onChange={(e) => setIncludeLatestHistoryInExport(e.target.checked)}
+                  className="mt-1 cursor-pointer"
+                />
+                <span className="text-slate-700 text-sm">
+                  <span className="font-semibold">כלול רשומת היסטוריה אחרונה</span>
+                  <span className="block text-slate-500 text-xs mt-1">
+                    מוסיף מתחת לכל נכס את השורה האחרונה מהיסטוריית השינויים (ברקע צהוב) — לא כולל שורות פיזור/העברה. הבחירה נשמרת בדפדפן.
+                  </span>
+                </span>
+              </label>
+              <div className="flex justify-end gap-3">
+                <button
+                  onClick={closeModal}
+                  disabled={exportRunning}
+                  className="px-4 py-2 text-sm font-medium text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  ביטול
+                </button>
+                <button
+                  onClick={runExport}
+                  disabled={exportRunning}
+                  className="px-4 py-2 text-sm font-medium text-white bg-theme-tab-active hover:bg-theme-tab-active-hover rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                >
+                  {exportRunning ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      מייצא...
+                    </>
+                  ) : (
+                    <>
+                      <FileSpreadsheet className="h-4 w-4" />
+                      ייצא
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
 
       {/* Reset Send to Automation Confirmation Modal (admin only) */}
       {showResetExportModal && (() => {

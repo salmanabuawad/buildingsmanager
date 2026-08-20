@@ -64,6 +64,52 @@ def _should_reset_export_flags(old_row: RowMapping, new_payload: dict[str, Any])
     return False
 
 
+# Fields whose change on any asset invalidates the building-level distribution
+# state (overload_ratio + per-asset business_distribution_area). Same set the
+# distribution algorithm sums when it builds totalForDistribution, so any
+# edit here means the stored numbers are stale.
+_CONTRIB_FIELDS = {
+    "asset_size", "main_asset_type",
+    "sub_asset_type_1", "sub_asset_size_1",
+    "sub_asset_type_2", "sub_asset_size_2",
+    "sub_asset_type_3", "sub_asset_size_3",
+    "sub_asset_type_4", "sub_asset_size_4",
+    "sub_asset_type_5", "sub_asset_size_5",
+    "sub_asset_type_6", "sub_asset_size_6",
+}
+
+# Action types whose whole purpose IS to write distribution outputs — must
+# NOT trigger the invalidate step, otherwise the distribution would clear
+# itself immediately after running.
+_DISTRIBUTION_ACTIONS_SKIP_INVALIDATE = {
+    "business_distribution",
+    "residence_distribution",
+    "distribute_shared",
+}
+
+
+def _contrib_fields_changed(old_row: RowMapping | None, new_payload: dict[str, Any]) -> bool:
+    """True if any distribution-input field changed. Uses the same numeric-
+    tolerant comparison as _should_reset_export_flags; also treats a brand-new
+    asset (no old_row) as a change."""
+    if old_row is None:
+        return True
+    for field in _CONTRIB_FIELDS:
+        if field not in new_payload:
+            continue
+        old_val = old_row.get(field)
+        new_val = new_payload[field]
+        if old_val == new_val:
+            continue
+        try:
+            if float(str(old_val if old_val is not None else 0)) != float(str(new_val if new_val is not None else 0)):
+                return True
+        except (TypeError, ValueError):
+            if str(old_val) != str(new_val):
+                return True
+    return False
+
+
 def _get_columns(db: Session, table: str) -> set[str]:
     rows = db.execute(
         text(
@@ -541,6 +587,11 @@ def save_assets_bulk_transactional(
                 "assets": [_serialize_row(r) for r in _a_rows],
             }
 
+    # Buildings whose distribution state is now stale because a save touched
+    # a field that feeds contribSize. Populated inside the loop, drained
+    # after — see the invalidate step below.
+    buildings_to_invalidate_distribution: set[int] = set()
+
     for asset_data in assets_data:
         asset_id = asset_data.get("asset_id")
         building_number = asset_data.get("building_number")
@@ -643,8 +694,50 @@ def save_assets_bulk_transactional(
             action_type=action_type,
         )
 
+        # Track buildings whose distribution outputs are now stale. Skip when
+        # this very save IS a distribution — it's the one WRITING the outputs.
+        # Otherwise: if a contribSize-affecting field changed (or the asset is
+        # brand new), the building's overload_ratio + every asset's
+        # business_distribution_area no longer reconcile with current data.
+        if action_type not in _DISTRIBUTION_ACTIONS_SKIP_INVALIDATE and _contrib_fields_changed(existing_row, payload):
+            bn_new = new_row.get("building_number")
+            if bn_new is not None:
+                buildings_to_invalidate_distribution.add(int(bn_new))
+            if old_building_number is not None:
+                buildings_to_invalidate_distribution.add(int(old_building_number))
+
     for building_number in sorted(affected_buildings):
         update_building_total_area(db, building_number)
+
+    # Invalidate stale distribution outputs for every touched building.
+    # Clears the building's overload_ratio and every asset's
+    # business_distribution_area — operators re-run 'פזר שטח משותף עסקים' to
+    # regenerate. Prevents the silent Σ dist ≠ pool drift that led to
+    # wrong-ratio badges + misaligned city exports.
+    #
+    # Any asset whose business_distribution_area we clear here was folded
+    # into the city's MAIN sheet on its last export, so the city's copy is
+    # now stale — flip exported_to_automation back off so it re-queues on
+    # the next send. The CASE guards make the writes idempotent for rows
+    # that were already un-exported.
+    for bn in sorted(buildings_to_invalidate_distribution):
+        db.execute(
+            text('UPDATE "buildings" SET "overload_ratio" = NULL WHERE "building_number" = :bn'),
+            {"bn": bn},
+        )
+        db.execute(
+            text(
+                'UPDATE "assets" '
+                'SET "business_distribution_area" = NULL, '
+                '    "exported_to_automation" = CASE WHEN "exported_to_automation" = true THEN false ELSE "exported_to_automation" END, '
+                '    "export_to_automation_at" = CASE WHEN "exported_to_automation" = true THEN NULL ELSE "export_to_automation_at" END, '
+                '    "updated_at" = now() '
+                'WHERE "building_number" = :bn '
+                '  AND "business_distribution_area" IS NOT NULL '
+                '  AND "business_distribution_area" <> 0'
+            ),
+            {"bn": bn},
+        )
 
     # Clear distribution flag atomically in the same transaction
     if action_type == "business_distribution":

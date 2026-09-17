@@ -6421,7 +6421,16 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
             {/* Export to automation button - follows export condition (measured but not exported) */}
             {!isReadOnly && !isErrorFixingMode && (() => {
               const hasUnsavedChanges = dirtyAssets.size > 0 || newAssets.size > 0 || deletedAssets.size > 0;
-              const distributionPending = building?.need_business_distribution === true || building?.need_residence_distribution === true;
+              // Only block on a "needs distribution" flag when the corresponding side actually
+              // exists on this building. Historical edits (or removed tax regions) can leave
+              // need_*_distribution=true on a building whose side is empty — with no residence
+              // (or business) tab, the "פזר" button never renders and the flag can't be cleared
+              // through the UI, permanently blocking send-to-automation. Guard by shared_area>0.
+              const hasBusinessSide  = (building?.business_shared_area  ?? 0) > 0;
+              const hasResidenceSide = (building?.residence_shared_area ?? 0) > 0;
+              const distributionPending =
+                (building?.need_business_distribution  === true && hasBusinessSide) ||
+                (building?.need_residence_distribution === true && hasResidenceSide);
               const sendDisabled = loading || exporting || exportToAutomationCount === 0 || hasUnsavedChanges || distributionPending;
               const sendTitle = hasUnsavedChanges
                 ? 'יש שינויים לא שמורים — שמור או בטל לפני שליחה לעירייה'
@@ -6760,8 +6769,12 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
             )}
             {/* Distribution alert — inline between toolbar and grid */}
             {building && (() => {
-              const needsRes = isResidentTaxRegion && building.need_residence_distribution === true;
-              const needsBiz = building.need_business_distribution === true &&
+              // Same side-existence guard as distributionPending above: don't blink an
+              // alert for a side the building doesn't actually have.
+              const hasBiz = (building.business_shared_area  ?? 0) > 0;
+              const hasRes = (building.residence_shared_area ?? 0) > 0;
+              const needsRes = isResidentTaxRegion && building.need_residence_distribution === true && hasRes;
+              const needsBiz = building.need_business_distribution === true && hasBiz &&
                 !isResidentTaxRegion &&
                 (taxRegion ? (!isMultiTaxRegion) : true);
               if (!needsRes && !needsBiz) return null;

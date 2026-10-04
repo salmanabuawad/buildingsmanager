@@ -224,19 +224,32 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
     return baseEditable;
   }, [isAssetNotAccountable, isReadOnly]);
 
-  // Get area description for tab based on main asset type
+  // Get area description for tab from the asset's own tax region.
+  // A type name can exist in several regions (e.g. 311 in 40 and 50), so
+  // matching on name alone picks an arbitrary row and can show another
+  // region's label. Prefer (name, region), then any labelled row in the region.
   const areaDescriptionForTab = useMemo(() => {
-    if (!asset?.main_asset_type || !assetTypes || assetTypes.length === 0) {
+    if (!assetTypes || assetTypes.length === 0) {
       return null;
     }
-    
-    // Find the asset type that matches the main_asset_type
-    const matchingAssetType = assetTypes.find(at => 
-      at.name === asset.main_asset_type
-    );
-    
+    const region = displayTaxRegion != null ? parseInt(displayTaxRegion, 10) : NaN;
+
+    if (!isNaN(region)) {
+      const byNameAndRegion = asset?.main_asset_type
+        ? assetTypes.find(at =>
+            at.name === asset.main_asset_type && Number(at.tax_region) === region && at.area_description_for_tab
+          )
+        : undefined;
+      if (byNameAndRegion) return byNameAndRegion.area_description_for_tab;
+
+      const byRegion = assetTypes.find(at => Number(at.tax_region) === region && at.area_description_for_tab);
+      return byRegion?.area_description_for_tab || null;
+    }
+
+    if (!asset?.main_asset_type) return null;
+    const matchingAssetType = assetTypes.find(at => at.name === asset.main_asset_type);
     return matchingAssetType?.area_description_for_tab || null;
-  }, [asset?.main_asset_type, assetTypes]);
+  }, [asset?.main_asset_type, displayTaxRegion, assetTypes]);
 
   const getRowStyle = useCallback((params: any) => {
     // Use asset_id as key since only latest measurement is editable

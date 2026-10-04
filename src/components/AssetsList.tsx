@@ -624,10 +624,24 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
     return sorted.length > 0 ? labels.join(', ') : null;
   }, [taxRegion, assets, getAreaDescriptionForTaxRegion]);
 
+  // A type name can exist in several tax regions (e.g. 311 in 40 and 50, 990
+  // in 10/40/990) with different descriptions and business/residence kinds.
+  // Prefer the row in the asset's own region; fall back to name only.
+  const findAssetType = useCallback((assetTypeName: unknown, taxRegionValue?: unknown): AssetType | undefined => {
+    if (assetTypeName == null || !assetTypes?.length) return undefined;
+    const nameStr = String(assetTypeName).trim();
+    const region = taxRegionValue != null && taxRegionValue !== '' ? Number(taxRegionValue) : NaN;
+    if (!isNaN(region)) {
+      const inRegion = assetTypes.find(at => String(at.name).trim() === nameStr && Number(at.tax_region) === region);
+      if (inRegion) return inRegion;
+    }
+    return assetTypes.find(at => String(at.name).trim() === nameStr);
+  }, [assetTypes]);
+
   // Helper function to generate comprehensive tooltip for asset types
-  const getAssetTypeTooltip = useCallback((assetTypeName: string | null | undefined): string => {
+  const getAssetTypeTooltip = useCallback((assetTypeName: string | null | undefined, taxRegionValue?: unknown): string => {
     if (!assetTypeName) return '';
-    const assetType = assetTypes?.find(at => at.name === assetTypeName);
+    const assetType = findAssetType(assetTypeName, taxRegionValue);
     if (!assetType) return String(assetTypeName);
 
     const parts = [];
@@ -656,15 +670,13 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
     }
 
     return parts.join('\n');
-  }, [assetTypes]);
+  }, [findAssetType]);
 
   // מהות שימוש: description of main_asset_type from asset_types
-  const getMainAssetTypeDescription = useCallback((mainAssetTypeName: string | null | undefined): string => {
-    if (!mainAssetTypeName || !assetTypes?.length) return '';
-    const nameStr = String(mainAssetTypeName).trim();
-    const at = assetTypes.find(t => String(t.name).trim() === nameStr);
-    return at?.description ?? '';
-  }, [assetTypes]);
+  const getMainAssetTypeDescription = useCallback((mainAssetTypeName: string | null | undefined, taxRegionValue?: unknown): string => {
+    if (!mainAssetTypeName) return '';
+    return findAssetType(mainAssetTypeName, taxRegionValue)?.description ?? '';
+  }, [findAssetType]);
 
   // Calculate total changes: new assets count as 1 each, even if edited
   // Edited existing assets (not in newAssets) + new assets + deleted assets
@@ -4918,7 +4930,7 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
     {
       field: 'main_asset_type',
       headerName: t('mainAssetType'),
-      tooltipValueGetter: (params) => getAssetTypeTooltip(params.value),
+      tooltipValueGetter: (params) => getAssetTypeTooltip(params.value, params.data?.tax_region),
       cellStyle: (params: any) => getCellStyle(params)
     },
     {
@@ -4931,7 +4943,7 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
       valueGetter: (params) => {
         const v = params.data?.use_nature;
         if (v != null && v !== '') return v;
-        return getMainAssetTypeDescription(params.data?.main_asset_type);
+        return getMainAssetTypeDescription(params.data?.main_asset_type, params.data?.tax_region);
       },
       cellStyle: (params: any) => getCellStyle(params)
     },
@@ -4950,7 +4962,7 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
     {
       field: 'sub_asset_type_1',
       headerName: t('subAssetType1'),
-      tooltipValueGetter: (params) => getAssetTypeTooltip(params.value),
+      tooltipValueGetter: (params) => getAssetTypeTooltip(params.value, params.data?.tax_region),
       cellStyle: (params: any) => getCellStyle(params)
     },
     {
@@ -4962,7 +4974,7 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
     {
       field: 'sub_asset_type_2',
       headerName: t('subAssetType2'),
-      tooltipValueGetter: (params) => getAssetTypeTooltip(params.value),
+      tooltipValueGetter: (params) => getAssetTypeTooltip(params.value, params.data?.tax_region),
       cellStyle: (params: any) => getCellStyle(params)
     },
     {
@@ -5211,7 +5223,7 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
     const mainType = data.main_asset_type;
     const mainSize = Number(data.asset_size);
     if (mainType && mainSize > 0) {
-      const at = assetTypes.find((t: AssetType) => t.name === mainType);
+      const at = findAssetType(mainType, data.tax_region);
       const desc = fixTypo(at?.description || '');
       lines.push(`נכס: ${fixTypo(mainType)}${desc ? ` — ${desc}` : ''}: ${mainSize.toFixed(2)} מ"ר`);
     }
@@ -5219,7 +5231,7 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
       const t = data[`sub_asset_type_${i}`];
       const s = Number(data[`sub_asset_size_${i}`]);
       if (t && s > 0) {
-        const at = assetTypes.find((a: AssetType) => a.name === t);
+        const at = findAssetType(t, data.tax_region);
         const desc = fixTypo(at?.description || '');
         lines.push(`  ${i}. ${fixTypo(t)}${desc ? ` — ${desc}` : ''}: ${s.toFixed(2)} מ"ר`);
       }
@@ -5229,12 +5241,12 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
     const park = Number(data.shared_parking_area);
     if (park > 0) lines.push(`שטח חניה משותף: ${park.toFixed(2)} מ"ר`);
     return lines.join('\n');
-  }, [assetTypes, fixTypo]);
+  }, [findAssetType, fixTypo]);
 
   const columnDefs: ColDef<Asset>[] = useMemo(() => {
     const isBusinessAssetRow = (params: any) => {
       if (!params?.data?.main_asset_type || !assetTypes?.length) return false;
-      const at = assetTypes.find((t: any) => t.name === params.data.main_asset_type);
+      const at = findAssetType(params.data.main_asset_type, params.data.tax_region);
       return at?.business_residence === 'עסקים';
     };
     const defs: ColDef<Asset>[] = [
@@ -5792,7 +5804,7 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
       ...processColumnHeader(t('mainAssetType')),
       editable: (params) => isFieldEditable(params, 'main_asset_type'),
       valueGetter: (params) => fixTypo((params.data as any)?.main_asset_type || ''),
-      tooltipValueGetter: (params) => getAssetTypeTooltip(params.value),
+      tooltipValueGetter: (params) => getAssetTypeTooltip(params.value, params.data?.tax_region),
       headerClass: 'ag-right-aligned-header',
       cellStyle: (params: any) => getCellStyle(params)
     },
@@ -5803,7 +5815,7 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
       valueGetter: (params) => {
         const v = params.data?.use_nature;
         if (v != null && v !== '') return v;
-        return getMainAssetTypeDescription(params.data?.main_asset_type);
+        return getMainAssetTypeDescription(params.data?.main_asset_type, params.data?.tax_region);
       },
       headerClass: 'ag-right-aligned-header',
       cellStyle: (params: any) => getCellStyle(params)
@@ -5835,7 +5847,7 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
         const fieldName = params.colDef?.field || '';
         return isFieldEditable(params, fieldName);
       },
-      tooltipValueGetter: (params) => getAssetTypeTooltip(params.value),
+      tooltipValueGetter: (params) => getAssetTypeTooltip(params.value, params.data?.tax_region),
       headerClass: 'ag-right-aligned-header',
       cellStyle: (params: any) => getCellStyle(params)
     },
@@ -5859,7 +5871,7 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
         const fieldName = params.colDef?.field || '';
         return isFieldEditable(params, fieldName);
       },
-      tooltipValueGetter: (params) => getAssetTypeTooltip(params.value),
+      tooltipValueGetter: (params) => getAssetTypeTooltip(params.value, params.data?.tax_region),
       headerClass: 'ag-right-aligned-header',
       cellStyle: (params: any) => getCellStyle(params)
     },
@@ -5883,7 +5895,7 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
         const fieldName = params.colDef?.field || '';
         return isFieldEditable(params, fieldName);
       },
-      tooltipValueGetter: (params) => getAssetTypeTooltip(params.value),
+      tooltipValueGetter: (params) => getAssetTypeTooltip(params.value, params.data?.tax_region),
       headerClass: 'ag-right-aligned-header',
       cellStyle: (params: any) => getCellStyle(params)
     },
@@ -5907,7 +5919,7 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
         const fieldName = params.colDef?.field || '';
         return isFieldEditable(params, fieldName);
       },
-      tooltipValueGetter: (params) => getAssetTypeTooltip(params.value),
+      tooltipValueGetter: (params) => getAssetTypeTooltip(params.value, params.data?.tax_region),
       headerClass: 'ag-right-aligned-header',
       cellStyle: (params: any) => getCellStyle(params)
     },
@@ -5931,7 +5943,7 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
         const fieldName = params.colDef?.field || '';
         return isFieldEditable(params, fieldName);
       },
-      tooltipValueGetter: (params) => getAssetTypeTooltip(params.value),
+      tooltipValueGetter: (params) => getAssetTypeTooltip(params.value, params.data?.tax_region),
       headerClass: 'ag-right-aligned-header',
       cellStyle: (params: any) => getCellStyle(params)
     },
@@ -5955,7 +5967,7 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
         const fieldName = params.colDef?.field || '';
         return isFieldEditable(params, fieldName);
       },
-      tooltipValueGetter: (params) => getAssetTypeTooltip(params.value),
+      tooltipValueGetter: (params) => getAssetTypeTooltip(params.value, params.data?.tax_region),
       headerClass: 'ag-right-aligned-header',
       cellStyle: (params: any) => getCellStyle(params)
     },
@@ -6131,7 +6143,7 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
       }
       return colDef;
     });
-  }, [t, onSelectAsset, buildingNumber, assetTypes, newAssets, dirtyAssets, building, taxRegion, selectedAssets, deletedAssets, validationErrors, getCellStyle, isResidentTaxRegion, isMultiTaxRegion, isFieldEditable, isReadOnly, penthouseCellRenderer, assetsWithFiles, sourceAssetId, applySourceValues, operators, buildTotalAreaTooltip]);
+  }, [t, onSelectAsset, buildingNumber, assetTypes, newAssets, dirtyAssets, building, taxRegion, selectedAssets, deletedAssets, validationErrors, getCellStyle, isResidentTaxRegion, isMultiTaxRegion, isFieldEditable, isReadOnly, penthouseCellRenderer, assetsWithFiles, sourceAssetId, applySourceValues, operators, buildTotalAreaTooltip, findAssetType]);
 
   // Apply field configurations to column definitions (ref_only pattern: rely on columnDefs prop only)
   const configVersion = useFieldConfigVersion();

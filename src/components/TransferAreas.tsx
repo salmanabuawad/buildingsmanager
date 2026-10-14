@@ -314,27 +314,18 @@ export const TransferAreas = forwardRef<TransferAreasRef, TransferAreasProps>(({
   // Validate one asset with the SAME asset-type rules as the Assets tab
   // (AssetValidationHandler): required main type, 990 skip, complex/sub-type
   // rules, sub-asset order and size↔type, min/max size per type, 199/299,
-  // parking units for parking types, unique asset id, existing building.
-  // Types are looked up in the combined "asset region + tab region", since a
-  // transfer moves area between the two; the region-membership check is
-  // skipped for the same reason.
+  // parking units for parking types, unique asset id, existing building,
+  // asset region within the building's regions.
+  // Each asset is checked against its OWN tax region, exactly like the Assets
+  // tab — the transfer tab spans several regions, so no single tab region is
+  // forced on its rows. (Checking against "asset region + tab region" let a
+  // type pass on a row of another region — e.g. 999 exists only in region 40.)
   const validateAsset = useCallback(async (asset: Asset): Promise<{ valid: boolean; error?: string }> => {
-    const allTaxRegions = new Set<string>();
-    const assetTaxRegionStr = asset.tax_region != null ? String(asset.tax_region) : '';
-    assetTaxRegionStr.split(',').map(r => r.trim()).filter(r => r).forEach(r => allTaxRegions.add(r));
-    (taxRegion || '').split(',').map(r => r.trim()).filter(r => r).forEach(r => allTaxRegions.add(r));
-    const combinedTaxRegion = Array.from(allTaxRegions).join(',');
-
-    const result = await AssetValidationHandler.validateSingleAsset(
-      { ...asset, tax_region: combinedTaxRegion } as unknown as Asset,
-      {
-        taxRegion: combinedTaxRegion || undefined,
-        cachedData: { assetTypes, building },
-        skipTaxRegionMembershipCheck: true,
-      }
-    );
+    const result = await AssetValidationHandler.validateSingleAsset(asset, {
+      cachedData: { assetTypes, building: building ?? undefined },
+    });
     return result.valid ? { valid: true } : { valid: false, error: result.errors.join('\n') };
-  }, [taxRegion, assetTypes, building]);
+  }, [assetTypes, building]);
 
   // Function to validate all assets
   const validateAllAssets = useCallback(async (allAssets: Asset[], allDirtyAssets: Map<string, Partial<Asset>>, currentInitialTotalArea: number | null): Promise<Map<string, string>> => {
@@ -692,35 +683,28 @@ export const TransferAreas = forwardRef<TransferAreasRef, TransferAreasProps>(({
       const newAssets = newAssetsData.filter(asset => !asset.asset_id);
       const existingAssetsForSave = newAssetsData.filter(asset => asset.asset_id);
 
-      // If validation errors and no assets to save, still close tab and open error fixing tab
-      if (errors.length > 0 && originalAssets.length === 0 && newAssets.length === 0) {
-        setError(errors.slice(0, 5).join('\n') + (errors.length > 5 ? `\n...ועוד ${errors.length - 5}` : ''));
-        // Clear dirty assets and validation errors
-        setDirtyAssets(new Map());
-        setValidationErrors(new Map());
-        
-        // Close transfer tab and open error fixing tab
-        if (onCloseTab && onOpenAssetsTab && errorAssetIds.length > 0) {
-          setTimeout(() => {
-            // Extract the original tax region
-            let originalTaxRegion: string | undefined = undefined;
-            if (taxRegion) {
-              const regions = taxRegion.split(',').map(r => r.trim()).filter(r => r);
-              const notAccountableRegions = new Set<string>();
-              assetTypes.forEach(at => {
-                if (at.non_accountable_for_total_area === true && at.tax_region != null) {
-                  notAccountableRegions.add(String(at.tax_region));
-                }
-              });
-              const originalRegions = regions.filter(r => r !== '990' && !notAccountableRegions.has(r));
-              originalTaxRegion = originalRegions.length > 0 ? originalRegions[0] : undefined;
-            }
-            
-            onCloseTab();
-            // Open error fixing tab with asset IDs that have errors
-            onOpenAssetsTab(buildingNumber, originalTaxRegion || '', errorAssetIds);
-          }, 500);
+      // The transferred area must stay balanced: Σ asset_size over all rows
+      // (with edits applied) must equal the total when the tab was opened.
+      if (initialTotalArea !== null) {
+        const newTotalArea = assets.reduce((sum, a) => {
+          const size = Number({ ...a, ...dirtyAssets.get(String(a.asset_id)) }.asset_size ?? 0);
+          return sum + (isNaN(size) ? 0 : size);
+        }, 0);
+        if (Math.abs(newTotalArea - initialTotalArea) > 0.01) {
+          errors.unshift(`השטח הכולל של הנכסים המקושרים חייב להישאר ${initialTotalArea.toLocaleString('he-IL')}. השטח הכולל הנוכחי הוא ${newTotalArea.toLocaleString('he-IL')}`);
         }
+      }
+
+      // Same as the Assets tab: any validation error blocks the WHOLE save
+      // (a transfer saved half-way would unbalance the areas). Keep the tab
+      // and the edits, and mark the failing rows so they can be fixed here.
+      if (errors.length > 0) {
+        const rowErrors = new Map<string, string>();
+        for (const id of errorAssetIds) {
+          rowErrors.set(id, errors.filter(e => e.startsWith(`נכס ${id}:`)).join('\n'));
+        }
+        setValidationErrors(rowErrors);
+        setError(`לא נשמר דבר — תקן ${errors.length} שגיאות אימות:\n${errors.slice(0, 5).join('\n')}${errors.length > 5 ? `\n...ועוד ${errors.length - 5}` : ''}`);
         setLoading(false);
         return;
       }
@@ -954,7 +938,7 @@ export const TransferAreas = forwardRef<TransferAreasRef, TransferAreasProps>(({
       const assetWithChanges = { ...asset, ...dirtyChanges };
       return sum + (assetWithChanges.asset_size || 0);
     }, 0);
-  }, [assets, dirtyAssets, validateAsset]);
+  }, [assets, dirtyAssets, validateAsset, initialTotalArea]);
 
   // Check if total area has changed (validation will prevent saving if changed)
   const totalAreaChanged = initialTotalArea !== null && Math.abs(currentTotalArea - initialTotalArea) > 0.01;

@@ -520,12 +520,11 @@ export async function applyRule(rule: ValidationRule, value: any, taxRegion?: st
             return fieldValue != null && String(fieldValue) === String(queryValue);
           });
 
-          // Filter by tax_region if provided (may be comma-separated, e.g. the
-          // transfer tab's "asset region + tab region")
+          // Filter by tax_region if provided
           if (taxRegion && taxRegion.trim() !== '') {
-            const taxRegionNums = taxRegion.split(',').map(r => parseInt(r.trim(), 10)).filter(n => !isNaN(n));
-            if (taxRegionNums.length > 0) {
-              matching = matching.filter(at => taxRegionNums.includes(at.tax_region));
+            const taxRegionNum = parseInt(taxRegion.trim());
+            if (!isNaN(taxRegionNum)) {
+              matching = matching.filter(at => at.tax_region === taxRegionNum);
             }
           }
 

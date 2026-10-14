@@ -93,6 +93,12 @@ function App() {
   const [activeTabId, setActiveTabId] = useState(() => {
     return 'measurement-progress-dashboard';
   });
+  // Tabs in the order they were focused (most recent last) — closing the
+  // active tab returns focus to the one used before it.
+  const tabFocusHistory = useRef<string[]>([]);
+  useEffect(() => {
+    tabFocusHistory.current = [...tabFocusHistory.current.filter(id => id !== activeTabId), activeTabId];
+  }, [activeTabId]);
   const [showCreateBuildingModal, setShowCreateBuildingModal] = useState(false);
   const [buildingsMenuOpen, setBuildingsMenuOpen] = useState(false);
   const [assetsMenuOpen, setAssetsMenuOpen] = useState(false);
@@ -1339,15 +1345,15 @@ function App() {
       });
 
       if (activeTabId === tabId) {
-        const remainingTabs = tabs.filter(tab => tab.id !== tabId);
-        if (remainingTabs.length > 0) {
-          // If closing active tab, switch to dashboard if it exists, otherwise to last tab
-          const dashboardTab = remainingTabs.find(t => t.type === 'measurement-progress-dashboard');
-          setActiveTabId(dashboardTab ? dashboardTab.id : remainingTabs[remainingTabs.length - 1].id);
-        } else {
-          setActiveTabId('measurement-progress-dashboard');
-        }
+        const remainingIds = new Set(tabs.filter(tab => tab.id !== tabId).map(tab => tab.id));
+        // Closing the active tab: go back to the previously focused tab that is
+        // still open; else the tab to its left; else the dashboard.
+        const previous = [...tabFocusHistory.current].reverse().find(id => remainingIds.has(id));
+        const closedIndex = tabs.findIndex(tab => tab.id === tabId);
+        const leftNeighbour = closedIndex > 0 ? tabs[closedIndex - 1].id : undefined;
+        setActiveTabId(previous ?? leftNeighbour ?? 'measurement-progress-dashboard');
       }
+      tabFocusHistory.current = tabFocusHistory.current.filter(id => id !== tabId);
     });
   }
 

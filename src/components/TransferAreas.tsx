@@ -132,6 +132,39 @@ export const TransferAreas = forwardRef<TransferAreasRef, TransferAreasProps>(({
     return matchingAssetType?.area_description_for_tab || String(taxRegion);
   }, [assetTypes]);
 
+  // Same asset-type tooltip as the Assets tab. A type name can exist in
+  // several tax regions (e.g. 990 in 10/40/990), so prefer the row in the
+  // asset's own region; fall back to name only.
+  const findAssetType = useCallback((assetTypeName: unknown, taxRegionValue?: unknown): AssetType | undefined => {
+    if (assetTypeName == null || !assetTypes?.length) return undefined;
+    const nameStr = String(assetTypeName).trim();
+    const region = taxRegionValue != null && taxRegionValue !== '' ? Number(taxRegionValue) : NaN;
+    if (!isNaN(region)) {
+      const inRegion = assetTypes.find(at => String(at.name).trim() === nameStr && Number(at.tax_region) === region);
+      if (inRegion) return inRegion;
+    }
+    return assetTypes.find(at => String(at.name).trim() === nameStr);
+  }, [assetTypes]);
+
+  const getAssetTypeTooltip = useCallback((assetTypeName: string | null | undefined, taxRegionValue?: unknown): string => {
+    if (!assetTypeName) return '';
+    const assetType = findAssetType(assetTypeName, taxRegionValue);
+    if (!assetType) return String(assetTypeName);
+
+    const parts: string[] = [];
+    if (assetType.description) parts.push(assetType.description);
+    if (assetType.min_size || assetType.max_size) {
+      parts.push(`טווח שטח: ${assetType.min_size || 0} - ${assetType.max_size || '∞'}`);
+    }
+    const flags: string[] = [];
+    if (assetType.non_accountable_for_total_area) flags.push('לא נספר בשטח מבנה');
+    if (assetType.non_accountable_for_distribution) flags.push('לא נכלל בפיזור');
+    if (assetType.not_accountable_for_statistics) flags.push('לא נכלל בסטטיסטיקה');
+    if (assetType.use_shared_area) flags.push('משמש לפיזור שטח משותף');
+    if (flags.length > 0) parts.push(flags.join(' • '));
+    return parts.join('\n');
+  }, [findAssetType]);
+
   // In TransferAreas every cell is editable regardless of the row's asset
   // type. The previous "non_accountable_for_total_area ⇒ only main_asset_type"
   // rule blocked exactly what operators need to fix during a transfer (main
@@ -1519,7 +1552,8 @@ export const TransferAreas = forwardRef<TransferAreasRef, TransferAreasProps>(({
         return isFieldEditable(params, fieldName);
       },
       headerClass: 'ag-right-aligned-header',
-      cellStyle: (params: any) => getCellStyle(params, 'main_asset_type')
+      cellStyle: (params: any) => getCellStyle(params, 'main_asset_type'),
+      tooltipValueGetter: (params) => getAssetTypeTooltip(params.value, params.data?.tax_region)
     },
     {
       field: 'asset_size',
@@ -1572,7 +1606,8 @@ export const TransferAreas = forwardRef<TransferAreasRef, TransferAreasProps>(({
         return isFieldEditable(params, fieldName);
       },
       headerClass: 'ag-right-aligned-header',
-      cellStyle: (params: any) => getCellStyle(params, 'sub_asset_type_1')
+      cellStyle: (params: any) => getCellStyle(params, 'sub_asset_type_1'),
+      tooltipValueGetter: (params) => getAssetTypeTooltip(params.value, params.data?.tax_region)
     },
     {
       field: 'sub_asset_size_1',
@@ -1599,7 +1634,8 @@ export const TransferAreas = forwardRef<TransferAreasRef, TransferAreasProps>(({
         return isFieldEditable(params, fieldName);
       },
       headerClass: 'ag-right-aligned-header',
-      cellStyle: (params: any) => getCellStyle(params, 'sub_asset_type_2')
+      cellStyle: (params: any) => getCellStyle(params, 'sub_asset_type_2'),
+      tooltipValueGetter: (params) => getAssetTypeTooltip(params.value, params.data?.tax_region)
     },
     {
       field: 'sub_asset_size_2',
@@ -1626,7 +1662,8 @@ export const TransferAreas = forwardRef<TransferAreasRef, TransferAreasProps>(({
         return isFieldEditable(params, fieldName);
       },
       headerClass: 'ag-right-aligned-header',
-      cellStyle: (params: any) => getCellStyle(params, 'sub_asset_type_3')
+      cellStyle: (params: any) => getCellStyle(params, 'sub_asset_type_3'),
+      tooltipValueGetter: (params) => getAssetTypeTooltip(params.value, params.data?.tax_region)
     },
     {
       field: 'sub_asset_size_3',
@@ -1653,7 +1690,8 @@ export const TransferAreas = forwardRef<TransferAreasRef, TransferAreasProps>(({
         return isFieldEditable(params, fieldName);
       },
       headerClass: 'ag-right-aligned-header',
-      cellStyle: (params: any) => getCellStyle(params, 'sub_asset_type_4')
+      cellStyle: (params: any) => getCellStyle(params, 'sub_asset_type_4'),
+      tooltipValueGetter: (params) => getAssetTypeTooltip(params.value, params.data?.tax_region)
     },
     {
       field: 'sub_asset_size_4',
@@ -1680,7 +1718,8 @@ export const TransferAreas = forwardRef<TransferAreasRef, TransferAreasProps>(({
         return isFieldEditable(params, fieldName);
       },
       headerClass: 'ag-right-aligned-header',
-      cellStyle: (params: any) => getCellStyle(params, 'sub_asset_type_5')
+      cellStyle: (params: any) => getCellStyle(params, 'sub_asset_type_5'),
+      tooltipValueGetter: (params) => getAssetTypeTooltip(params.value, params.data?.tax_region)
     },
     {
       field: 'sub_asset_size_5',
@@ -1707,7 +1746,8 @@ export const TransferAreas = forwardRef<TransferAreasRef, TransferAreasProps>(({
         return isFieldEditable(params, fieldName);
       },
       headerClass: 'ag-right-aligned-header',
-      cellStyle: (params: any) => getCellStyle(params, 'sub_asset_type_6')
+      cellStyle: (params: any) => getCellStyle(params, 'sub_asset_type_6'),
+      tooltipValueGetter: (params) => getAssetTypeTooltip(params.value, params.data?.tax_region)
     },
     {
       field: 'sub_asset_size_6',
@@ -1796,7 +1836,7 @@ export const TransferAreas = forwardRef<TransferAreasRef, TransferAreasProps>(({
       }
       return colDef;
     });
-  }, [t, validationErrors, getCellStyle]);
+  }, [t, validationErrors, getCellStyle, getAssetTypeTooltip]);
 
   // Apply field configurations from database
   const [configuredColumnDefs] = useFieldConfig(columnDefs, 'transfer-areas');
@@ -1915,6 +1955,8 @@ export const TransferAreas = forwardRef<TransferAreasRef, TransferAreasProps>(({
             <AgGridReact<Asset>
               ref={gridRef}
               rowData={sortedAssets}
+              tooltipShowDelay={isReadOnly ? 400 : 2000}
+              tooltipHideDelay={isReadOnly ? 999999 : 10000}
               columnDefs={configuredColumnDefs}
               defaultColDef={{
                 resizable: true,

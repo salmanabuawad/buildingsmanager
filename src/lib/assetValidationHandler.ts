@@ -35,6 +35,7 @@ export interface ValidationOptions {
   cachedData?: { assetTypes?: any[]; building?: any; asset?: any }; // Cached data to avoid database queries
   skipParkingSharedAreaCheck?: boolean; // When true, skip the per-asset shared_parking_area vs building check (used during distribution saves)
   skipParkingUnitsCheck?: boolean; // When true, skip the building-level number_of_parking_units sum check (save path already does this check against all assets)
+  skipTaxRegionMembershipCheck?: boolean; // When true, skip "asset tax region within building / tab region" (transfer tab: assets intentionally span the source and target regions)
 }
 
 /**
@@ -47,7 +48,7 @@ export class AssetValidationHandler {
    */
   static async validateSingleAsset(
     asset: Asset,
-    options?: { onProgress?: (progress: AssetValidationProgress) => void; taxRegion?: string; cachedData?: { assetTypes?: any[]; building?: any; asset?: any } }
+    options?: { onProgress?: (progress: AssetValidationProgress) => void; taxRegion?: string; cachedData?: { assetTypes?: any[]; building?: any; asset?: any }; skipTaxRegionMembershipCheck?: boolean }
   ): Promise<AssetValidationResult> {
     const assetIdentifier = `נכס ${asset.asset_id}${asset.building_number ? ` (מבנה ${asset.building_number})` : ''}`;
     
@@ -62,7 +63,7 @@ export class AssetValidationHandler {
       asset: asset
     };
     
-    return await this.validateAssetInternal(asset, assetIdentifier, options?.onProgress, options?.taxRegion, cachedDataWithAsset);
+    return await this.validateAssetInternal(asset, assetIdentifier, options?.onProgress, options?.taxRegion, cachedDataWithAsset, undefined, options?.skipTaxRegionMembershipCheck);
   }
 
   /**
@@ -150,7 +151,8 @@ export class AssetValidationHandler {
           undefined,
           options?.taxRegion,
           cachedDataWithAsset,
-          options?.validationRules
+          options?.validationRules,
+          options?.skipTaxRegionMembershipCheck
         );
       });
 
@@ -488,7 +490,8 @@ export class AssetValidationHandler {
     onProgress?: (progress: AssetValidationProgress) => void,
     taxRegion?: string,
     cachedData?: { assetTypes?: any[]; building?: any; asset?: any },
-    validationRules?: any[]
+    validationRules?: any[],
+    skipTaxRegionMembershipCheck?: boolean
   ): Promise<AssetValidationResult> {
     // Log validation parameters for debugging (disabled to reduce console noise)
     // Uncomment below and adjust frequency if needed for debugging
@@ -740,14 +743,16 @@ export class AssetValidationHandler {
     );
 
     // NEW: Validate that asset.tax_region is within building.tax_region
-    validationNames.push('אימות אזור מס נכס בתוך אזורי מס המבנה');
-    validations.push(
-      this.validateAssetTaxRegionInBuildingTaxRegions(
-        asset,
-        taxRegion,
-        cachedData
-      )
-    );
+    if (!skipTaxRegionMembershipCheck) {
+      validationNames.push('אימות אזור מס נכס בתוך אזורי מס המבנה');
+      validations.push(
+        this.validateAssetTaxRegionInBuildingTaxRegions(
+          asset,
+          taxRegion,
+          cachedData
+        )
+      );
+    }
 
     // Run DB validations sequentially for progress tracking
     const totalSteps = validations.length;

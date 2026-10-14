@@ -2,7 +2,8 @@ import { useEffect, useState, useMemo, useRef, useCallback, forwardRef, useImper
 import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
 import { Asset, Building, AssetType, api } from '../lib/api';
-import { assetValidators, validateAll, inputValidators, isComplexAssetType } from '../lib/validation';
+import { inputValidators } from '../lib/validation';
+import { AssetValidationHandler } from '../lib/assetValidationHandler';
 import { AgGridReact } from 'ag-grid-react';
 import { ColDef } from 'ag-grid-community';
 import { Building as BuildingIcon, Loader2, Save, X, AlertCircle, Copy, CheckCircle2, Download, Plus, MessageSquare } from 'lucide-react';
@@ -130,25 +131,6 @@ export const TransferAreas = forwardRef<TransferAreasRef, TransferAreasProps>(({
     
     return matchingAssetType?.area_description_for_tab || String(taxRegion);
   }, [assetTypes]);
-
-  // Helper function to check if an asset type is non_accountable_for_total_area
-  const isAssetTypeNotAccountable = useCallback((assetTypeName: string | null | undefined): boolean => {
-    if (!assetTypeName || !assetTypes || assetTypes.length === 0) {
-      return false;
-    }
-    
-    // Find asset type by name
-    const assetType = assetTypes.find(at => at.name === assetTypeName);
-    return assetType?.non_accountable_for_total_area === true;
-  }, [assetTypes]);
-
-  // Helper function to check if an asset is not_accountable
-  const isAssetNotAccountable = useCallback((asset: Asset): boolean => {
-    if (!asset || !asset.main_asset_type) {
-      return false;
-    }
-    return isAssetTypeNotAccountable(asset.main_asset_type);
-  }, [isAssetTypeNotAccountable]);
 
   // In TransferAreas every cell is editable regardless of the row's asset
   // type. The previous "non_accountable_for_total_area ⇒ only main_asset_type"
@@ -329,156 +311,30 @@ export const TransferAreas = forwardRef<TransferAreasRef, TransferAreasProps>(({
     }
   }
 
-  // Helper function to validate a single asset
+  // Validate one asset with the SAME asset-type rules as the Assets tab
+  // (AssetValidationHandler): required main type, 990 skip, complex/sub-type
+  // rules, sub-asset order and size↔type, min/max size per type, 199/299,
+  // parking units for parking types, unique asset id, existing building.
+  // Types are looked up in the combined "asset region + tab region", since a
+  // transfer moves area between the two; the region-membership check is
+  // skipped for the same reason.
   const validateAsset = useCallback(async (asset: Asset): Promise<{ valid: boolean; error?: string }> => {
-    // Skip validation if asset is not_accountable
-    if (asset.main_asset_type && isAssetTypeNotAccountable(asset.main_asset_type)) {
-      return { valid: true };
-    }
-
-    // For transfer areas tab: combine asset's tax_region with tab's taxRegion
-    // This allows validation against both the original asset tax region and the transferred tax region
-    let combinedTaxRegion = '';
-    // Parse asset.tax_region - can be number or string (including comma-separated)
-    const assetTaxRegionStr = asset.tax_region != null ? String(asset.tax_region) : '';
-    const assetTaxRegions = assetTaxRegionStr 
-      ? assetTaxRegionStr.split(',').map(r => r.trim()).filter(r => r)
-      : [];
-    const tabTaxRegions = taxRegion ? taxRegion.split(',').map(r => r.trim()).filter(r => r) : [];
-    
-    // Combine tax regions - merge both lists and remove duplicates
     const allTaxRegions = new Set<string>();
-    assetTaxRegions.forEach(tr => allTaxRegions.add(tr));
-    tabTaxRegions.forEach(tr => allTaxRegions.add(tr));
-    
-    combinedTaxRegion = Array.from(allTaxRegions).join(',');
-    
-    // Debug logging
-    if (process.env.NODE_ENV === 'development') {
-    }
+    const assetTaxRegionStr = asset.tax_region != null ? String(asset.tax_region) : '';
+    assetTaxRegionStr.split(',').map(r => r.trim()).filter(r => r).forEach(r => allTaxRegions.add(r));
+    (taxRegion || '').split(',').map(r => r.trim()).filter(r => r).forEach(r => allTaxRegions.add(r));
+    const combinedTaxRegion = Array.from(allTaxRegions).join(',');
 
-    // Create a modified asset object with combined tax region for validation
-    // This ensures validateAssetTypeComplete uses the combined tax regions
-    const assetForValidation = { ...asset, tax_region: combinedTaxRegion };
-
-    const shouldValidateSubAssets = isComplexAssetType(asset.main_asset_type);
-    const validations = [
-      assetValidators.validateBuildingNumber(asset.building_number),
-      assetValidators.validateAssetId(asset.asset_id),
-      assetValidators.validatePayerId(asset.payer_id),
-      assetValidators.validateAssetType(asset.main_asset_type, 'main_asset_type'),
-      assetValidators.validateMainAssetTypeComplete(asset.building_number, asset.main_asset_type, asset.asset_size, assetForValidation, combinedTaxRegion),
-      assetValidators.validateOnlyComplexTypesCanHaveSubAssets(asset.main_asset_type, [
-        asset.sub_asset_type_1,
-        asset.sub_asset_type_2,
-        asset.sub_asset_type_3,
-        asset.sub_asset_type_4,
-        asset.sub_asset_type_5,
-        asset.sub_asset_type_6
-      ]),
-      assetValidators.validateComplexTypesMustHaveSubAssets(asset.main_asset_type, [
-        asset.sub_asset_type_1,
-        asset.sub_asset_type_2,
-        asset.sub_asset_type_3,
-        asset.sub_asset_type_4,
-        asset.sub_asset_type_5,
-        asset.sub_asset_type_6
-      ])
-    ];
-
-    if (shouldValidateSubAssets) {
-      validations.push(
-        assetValidators.validateMinimumSubAssets([
-          asset.sub_asset_type_1,
-          asset.sub_asset_type_2,
-          asset.sub_asset_type_3,
-          asset.sub_asset_type_4,
-          asset.sub_asset_type_5,
-          asset.sub_asset_type_6
-        ])
-      );
-    }
-
-    validations.push(
-      assetValidators.validateAssetTypeRequiresSize(
-        asset.main_asset_type,
-        asset.asset_size,
-        [
-          asset.sub_asset_type_1,
-          asset.sub_asset_type_2,
-          asset.sub_asset_type_3,
-          asset.sub_asset_type_4,
-          asset.sub_asset_type_5,
-          asset.sub_asset_type_6
-        ],
-        [
-          asset.sub_asset_size_1,
-          asset.sub_asset_size_2,
-          asset.sub_asset_size_3,
-          asset.sub_asset_size_4,
-          asset.sub_asset_size_5,
-          asset.sub_asset_size_6
-        ]
-      ),
-      assetValidators.validateSubAssetSizeMatchesMain(
-        asset.asset_size,
-        [
-          asset.sub_asset_type_1,
-          asset.sub_asset_type_2,
-          asset.sub_asset_type_3,
-          asset.sub_asset_type_4,
-          asset.sub_asset_type_5,
-          asset.sub_asset_type_6
-        ],
-        [
-          asset.sub_asset_size_1,
-          asset.sub_asset_size_2,
-          asset.sub_asset_size_3,
-          asset.sub_asset_size_4,
-          asset.sub_asset_size_5,
-          asset.sub_asset_size_6
-        ],
-        asset.main_asset_type
-      ),
-      assetValidators.validateSubAssetsFor199Or299(
-        asset.building_number,
-        asset.main_asset_type,
-        asset.asset_size,
-        [
-          asset.sub_asset_type_1,
-          asset.sub_asset_type_2,
-          asset.sub_asset_type_3,
-          asset.sub_asset_type_4,
-          asset.sub_asset_type_5,
-          asset.sub_asset_type_6
-        ],
-        [
-          asset.sub_asset_size_1,
-          asset.sub_asset_size_2,
-          asset.sub_asset_size_3,
-          asset.sub_asset_size_4,
-          asset.sub_asset_size_5,
-          asset.sub_asset_size_6
-        ],
-        combinedTaxRegion
-      ),
-      assetValidators.validateAssetType(asset.sub_asset_type_1, 'sub_asset_type_1'),
-      assetValidators.validateAssetType(asset.sub_asset_type_2, 'sub_asset_type_2'),
-      assetValidators.validateAssetType(asset.sub_asset_type_3, 'sub_asset_type_3'),
-      assetValidators.validateAssetType(asset.sub_asset_type_4, 'sub_asset_type_4'),
-      assetValidators.validateAssetType(asset.sub_asset_type_5, 'sub_asset_type_5'),
-      assetValidators.validateAssetType(asset.sub_asset_type_6, 'sub_asset_type_6'),
-      assetValidators.validateSubAssetTypeComplete(asset.building_number, asset.sub_asset_type_1, asset.sub_asset_size_1, combinedTaxRegion, undefined, assetForValidation),
-      assetValidators.validateSubAssetTypeComplete(asset.building_number, asset.sub_asset_type_2, asset.sub_asset_size_2, combinedTaxRegion, undefined, assetForValidation),
-      assetValidators.validateSubAssetTypeComplete(asset.building_number, asset.sub_asset_type_3, asset.sub_asset_size_3, combinedTaxRegion, undefined, assetForValidation),
-      assetValidators.validateSubAssetTypeComplete(asset.building_number, asset.sub_asset_type_4, asset.sub_asset_size_4, combinedTaxRegion, undefined, assetForValidation),
-      assetValidators.validateSubAssetTypeComplete(asset.building_number, asset.sub_asset_type_5, asset.sub_asset_size_5, combinedTaxRegion, undefined, assetForValidation),
-      assetValidators.validateSubAssetTypeComplete(asset.building_number, asset.sub_asset_type_6, asset.sub_asset_size_6, combinedTaxRegion, undefined, assetForValidation),
+    const result = await AssetValidationHandler.validateSingleAsset(
+      { ...asset, tax_region: combinedTaxRegion } as unknown as Asset,
+      {
+        taxRegion: combinedTaxRegion || undefined,
+        cachedData: { assetTypes, building },
+        skipTaxRegionMembershipCheck: true,
+      }
     );
-
-    const validation = await validateAll(validations);
-    return validation;
-  }, [taxRegion]);
+    return result.valid ? { valid: true } : { valid: false, error: result.errors.join('\n') };
+  }, [taxRegion, assetTypes, building]);
 
   // Function to validate all assets
   const validateAllAssets = useCallback(async (allAssets: Asset[], allDirtyAssets: Map<string, Partial<Asset>>, currentInitialTotalArea: number | null): Promise<Map<string, string>> => {
@@ -576,6 +432,19 @@ export const TransferAreas = forwardRef<TransferAreasRef, TransferAreasProps>(({
       const existing = updatedDirtyAssets.get(assetId) || {};
       updatedDirtyAssets.set(assetId, { ...existing, [field]: newValue });
 
+      // Same auto-fix as the Assets tab: a main type that is not counted in
+      // distribution cannot keep a business distribution area.
+      if (field === 'main_asset_type' && newValue) {
+        const typeName = String(newValue).trim();
+        const typeNum = parseInt(typeName, 10);
+        const newType = assetTypes.find(at => String(at.name).trim() === typeName)
+          || assetTypes.find(at => !isNaN(typeNum) && parseInt(String(at.name).trim(), 10) === typeNum);
+        const currentArea = { ...originalAsset, ...updatedDirtyAssets.get(assetId) }.business_distribution_area || 0;
+        if (newType?.non_accountable_for_distribution === true && currentArea > 0) {
+          updatedDirtyAssets.set(assetId, { ...updatedDirtyAssets.get(assetId), business_distribution_area: 0 });
+        }
+      }
+
       // Build updated assets array with all dirty changes applied
       const updatedAssets = assets.map(asset => {
         const assetIdStr = String(asset.asset_id);
@@ -630,7 +499,7 @@ export const TransferAreas = forwardRef<TransferAreasRef, TransferAreasProps>(({
     } catch (err) {
       console.error('[TransferAreas] Validation error:', err);
     }
-  }, [assets, dirtyAssets, taxRegion, initialTotalArea, validateAllAssets, shouldValidateOnBlur]);
+  }, [assets, dirtyAssets, assetTypes, initialTotalArea, validateAllAssets, shouldValidateOnBlur]);
 
   // Ensure clearing a cell (e.g. numeric → 0) always triggers dirty when edit stops.
   const onCellEditingStopped = useCallback((event: any) => {
@@ -768,125 +637,8 @@ export const TransferAreas = forwardRef<TransferAreasRef, TransferAreasProps>(({
             ? { ...changes, asset_id: parseInt(assetId, 10) } as Partial<Asset> // New asset: use changes as base
             : { ...originalAsset, ...changes }; // Existing asset: merge with changes
 
-          // For transfer areas tab: combine asset's tax_region with tab's taxRegion
-          // This allows validation against both the original asset tax region and the transferred tax region
-          let combinedTaxRegion = '';
-          // Parse updatedData.tax_region - can be number or string (including comma-separated)
-          const assetTaxRegionStr = updatedData.tax_region != null ? String(updatedData.tax_region) : '';
-          const assetTaxRegions = assetTaxRegionStr 
-            ? assetTaxRegionStr.split(',').map(r => r.trim()).filter(r => r)
-            : [];
-          const tabTaxRegions = taxRegion ? taxRegion.split(',').map(r => r.trim()).filter(r => r) : [];
-          
-          // Combine tax regions - merge both lists and remove duplicates
-          const allTaxRegions = new Set<string>();
-          assetTaxRegions.forEach(tr => allTaxRegions.add(tr));
-          tabTaxRegions.forEach(tr => allTaxRegions.add(tr));
-          
-          combinedTaxRegion = Array.from(allTaxRegions).join(',');
-
-          // Create a modified asset object with combined tax region for validation
-          // This ensures validateAssetTypeComplete uses the combined tax regions
-          const assetForValidation = { ...updatedData, tax_region: combinedTaxRegion };
-
-          // Validate before saving
-          // For new assets, skip asset_id validation (it's a temp ID)
-          const shouldValidateSubAssets = isComplexAssetType(updatedData.main_asset_type);
-          const validations = [
-            assetValidators.validateBuildingNumber(updatedData.building_number),
-            ...(isNewAsset ? [] : [assetValidators.validateAssetId(updatedData.asset_id)]), // Skip asset_id validation for new assets
-            assetValidators.validatePayerId(updatedData.payer_id),
-            assetValidators.validateAssetType(updatedData.main_asset_type, 'main_asset_type'),
-            assetValidators.validateMainAssetTypeComplete(updatedData.building_number, updatedData.main_asset_type, updatedData.asset_size, assetForValidation, combinedTaxRegion),
-            assetValidators.validateOnlyComplexTypesCanHaveSubAssets(updatedData.main_asset_type, [
-              updatedData.sub_asset_type_1,
-              updatedData.sub_asset_type_2,
-              updatedData.sub_asset_type_3,
-              updatedData.sub_asset_type_4,
-              updatedData.sub_asset_type_5,
-              updatedData.sub_asset_type_6
-            ]),
-            assetValidators.validateComplexTypesMustHaveSubAssets(updatedData.main_asset_type, [
-              updatedData.sub_asset_type_1,
-              updatedData.sub_asset_type_2,
-              updatedData.sub_asset_type_3,
-              updatedData.sub_asset_type_4,
-              updatedData.sub_asset_type_5,
-              updatedData.sub_asset_type_6
-            ])
-          ];
-
-          if (shouldValidateSubAssets) {
-            validations.push(
-              assetValidators.validateMinimumSubAssets([
-                updatedData.sub_asset_type_1,
-                updatedData.sub_asset_type_2,
-                updatedData.sub_asset_type_3,
-                updatedData.sub_asset_type_4,
-                updatedData.sub_asset_type_5,
-                updatedData.sub_asset_type_6
-              ])
-            );
-          }
-
-          validations.push(
-            assetValidators.validateSubAssetSizeMatchesMain(
-              updatedData.asset_size,
-              [
-                updatedData.sub_asset_type_1,
-                updatedData.sub_asset_type_2,
-                updatedData.sub_asset_type_3,
-                updatedData.sub_asset_type_4,
-                updatedData.sub_asset_type_5,
-                updatedData.sub_asset_type_6
-              ],
-              [
-                updatedData.sub_asset_size_1,
-                updatedData.sub_asset_size_2,
-                updatedData.sub_asset_size_3,
-                updatedData.sub_asset_size_4,
-                updatedData.sub_asset_size_5,
-                updatedData.sub_asset_size_6
-              ],
-              updatedData.main_asset_type
-            ),
-            assetValidators.validateSubAssetsFor199Or299(
-              updatedData.building_number,
-              updatedData.main_asset_type,
-              updatedData.asset_size,
-              [
-                updatedData.sub_asset_type_1,
-                updatedData.sub_asset_type_2,
-                updatedData.sub_asset_type_3,
-                updatedData.sub_asset_type_4,
-                updatedData.sub_asset_type_5,
-                updatedData.sub_asset_type_6
-              ],
-              [
-                updatedData.sub_asset_size_1,
-                updatedData.sub_asset_size_2,
-                updatedData.sub_asset_size_3,
-                updatedData.sub_asset_size_4,
-                updatedData.sub_asset_size_5,
-                updatedData.sub_asset_size_6
-              ],
-              combinedTaxRegion
-            ),
-            assetValidators.validateAssetType(updatedData.sub_asset_type_1, 'sub_asset_type_1'),
-            assetValidators.validateAssetType(updatedData.sub_asset_type_2, 'sub_asset_type_2'),
-            assetValidators.validateAssetType(updatedData.sub_asset_type_3, 'sub_asset_type_3'),
-            assetValidators.validateAssetType(updatedData.sub_asset_type_4, 'sub_asset_type_4'),
-            assetValidators.validateAssetType(updatedData.sub_asset_type_5, 'sub_asset_type_5'),
-            assetValidators.validateAssetType(updatedData.sub_asset_type_6, 'sub_asset_type_6'),
-            assetValidators.validateSubAssetTypeComplete(updatedData.building_number, updatedData.sub_asset_type_1, updatedData.sub_asset_size_1, combinedTaxRegion, undefined, assetForValidation),
-            assetValidators.validateSubAssetTypeComplete(updatedData.building_number, updatedData.sub_asset_type_2, updatedData.sub_asset_size_2, combinedTaxRegion, undefined, assetForValidation),
-            assetValidators.validateSubAssetTypeComplete(updatedData.building_number, updatedData.sub_asset_type_3, updatedData.sub_asset_size_3, combinedTaxRegion, undefined, assetForValidation),
-            assetValidators.validateSubAssetTypeComplete(updatedData.building_number, updatedData.sub_asset_type_4, updatedData.sub_asset_size_4, combinedTaxRegion, undefined, assetForValidation),
-            assetValidators.validateSubAssetTypeComplete(updatedData.building_number, updatedData.sub_asset_type_5, updatedData.sub_asset_size_5, combinedTaxRegion, undefined, assetForValidation),
-            assetValidators.validateSubAssetTypeComplete(updatedData.building_number, updatedData.sub_asset_type_6, updatedData.sub_asset_size_6, combinedTaxRegion, undefined, assetForValidation),
-          );
-
-          const validation = await validateAll(validations);
+          // Validate before saving — same shared rules as the live validation
+          const validation = await validateAsset(updatedData as Asset);
           if (!validation.valid) {
             const assetIdStr = String(updatedData.asset_id || assetId);
             errors.push(`נכס ${assetIdStr}: ${validation.error}`);
@@ -1202,7 +954,7 @@ export const TransferAreas = forwardRef<TransferAreasRef, TransferAreasProps>(({
       const assetWithChanges = { ...asset, ...dirtyChanges };
       return sum + (assetWithChanges.asset_size || 0);
     }, 0);
-  }, [assets, dirtyAssets]);
+  }, [assets, dirtyAssets, validateAsset]);
 
   // Check if total area has changed (validation will prevent saving if changed)
   const totalAreaChanged = initialTotalArea !== null && Math.abs(currentTotalArea - initialTotalArea) > 0.01;

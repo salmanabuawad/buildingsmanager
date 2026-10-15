@@ -9,6 +9,7 @@ from typing import Any
 from sqlalchemy import text
 from sqlalchemy.engine import RowMapping
 from sqlalchemy.orm import Session
+from app.rounding import round_2
 
 
 IMMUTABLE_BUILDING_COLUMNS = {
@@ -1042,12 +1043,13 @@ def update_building_total_area(db: Session, building_number: int) -> dict[str, A
     business_shared = float(building_row["business_shared_area"] or 0)
     parking_shared = float(building_row["shared_parking_area"] or 0)
 
-    total_area = (
+    total_area = round_2(
         net_area
         + residence_shared
         + business_shared
         + parking_shared
     )
+    net_area = round_2(net_area)
 
     # Keep asset_count in sync with actual row count so the buildings grid
     # reflects new buildings / inserts / deletes immediately.

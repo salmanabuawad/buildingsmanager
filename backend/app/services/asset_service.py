@@ -19,6 +19,7 @@ from typing import Any, Optional
 
 from app.database import get_pool, fetch_all
 from app.auth import parse_user_id
+from app.rounding import round_2
 
 
 # ── Boolean field names that need Hebrew/string normalization ──────────────
@@ -196,7 +197,8 @@ async def _update_building_total_area(conn, building_number: int) -> None:
     parking_shared = float(building["shared_parking_area"] or 0)
     net_area = net_area - residence_shared - business_shared - parking_shared
 
-    total_area = net_area + residence_shared + business_shared + parking_shared
+    total_area = round_2(net_area + residence_shared + business_shared + parking_shared)
+    net_area = round_2(net_area)
 
     await conn.execute(
         "UPDATE buildings SET total_building_area = $1, net_area = $2 WHERE building_number = $3",

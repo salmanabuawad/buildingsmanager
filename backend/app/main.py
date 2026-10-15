@@ -3,6 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.config import settings
 from app.routers import auth, buildings, assets, asset_types, files, audit, email, data, operators_managers, users, change_log
 from app.database import engine
+from app.rounding import RoundDecimalsMiddleware
 from sqlalchemy import text
 
 
@@ -86,6 +87,9 @@ app = FastAPI(
     description="Backend API for AssetFlow - Building and Asset Management System",
     version="1.0.0"
 )
+
+# Round area / ratio fields in write payloads to 2 decimals (see app/rounding.py)
+app.add_middleware(RoundDecimalsMiddleware)
 
 app.add_middleware(
     CORSMiddleware,

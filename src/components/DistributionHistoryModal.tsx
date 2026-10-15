@@ -260,11 +260,11 @@ export function DistributionHistoryModal({
         )}
         
 
-        {/* Content */}
-        <div className="flex-1 overflow-y-auto px-4">
+        {/* Content: date tabs + checkbox stay put, only the table scrolls */}
+        <div className="flex-1 min-h-0 flex flex-col px-4">
           {/* Date Tabs - Always Visible when history exists */}
           {displayHistory.length > 0 && (
-            <div className="flex items-center gap-1 border-b-2 border-gray-300 bg-gradient-to-b from-gray-50 to-gray-100 rounded-t-lg shadow-sm overflow-x-auto mb-4">
+            <div className="flex-shrink-0 flex items-center gap-1 border-b-2 border-gray-300 bg-gradient-to-b from-gray-50 to-gray-100 rounded-t-lg shadow-sm overflow-x-auto mb-4">
               {displayHistory.map((record) => (
                 <button
                   key={record.id}
@@ -312,10 +312,10 @@ export function DistributionHistoryModal({
             <div className="text-center py-12 text-gray-500">אין היסטוריית פיזור עבור מבנה זה</div>
           ) : selectedRecord ? (
             // Record Details View
-            <div className="space-y-4">
-                <div>
+            <div className="flex-1 min-h-0 flex flex-col">
+                <div className="flex-1 min-h-0 flex flex-col">
                 {/* Toggle: show only changed assets (default) or all assets of this record */}
-                <label className="flex items-center gap-2 mb-2 text-sm text-gray-700 cursor-pointer select-none w-fit">
+                <label className="flex-shrink-0 flex items-center gap-2 mb-2 text-sm text-gray-700 cursor-pointer select-none w-fit">
                   <input
                     type="checkbox"
                     checked={showUnchanged}
@@ -324,7 +324,7 @@ export function DistributionHistoryModal({
                   />
                   הצג גם נכסים שלא השתנו
                 </label>
-                <div className="rounded-lg border border-gray-200 overflow-auto" style={{ maxHeight: '600px' }}>
+                <div className="flex-1 min-h-0 rounded-lg border border-gray-200 overflow-auto">
                   <table className="w-full border-collapse text-sm" dir="rtl">
                     <thead className="bg-gray-100 sticky top-0">
                       <tr>

@@ -3272,10 +3272,10 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
     });
   }, [t, assetTypes, isFieldEditable, getCellStyle, structureDrawingCellRenderer, actionsCellRenderer, asset, isBusinessAsset, isBusinessContext, operators]);
 
-  // Apply field configurations to column definitions for main grid — uses same config as assets-list
-  const [configuredColumnDefs] = useFieldConfig(columnDefs, 'assets-list');
+  // Apply field configurations to column definitions for main grid — its own config, editable under 'asset-details-main'
+  const [configuredColumnDefs] = useFieldConfig(columnDefs, 'asset-details-main');
 
-  // Column definitions for history grid — same field config as assets-list, all fields editable
+  // Column definitions for history grid — all fields editable
   const historyColumnDefs: ColDef<Asset>[] = useMemo(() => {
     return columnDefs.map(colDef => {
       if (colDef.colId === 'actions') {
@@ -3298,8 +3298,8 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
     });
   }, [columnDefs, historyActionsCellRenderer]);
 
-  // Apply field configurations to history grid — same grid name = same widths/visibility as assets-list
-  const [configuredHistoryColumnDefs] = useFieldConfig(historyColumnDefs, 'assets-list');
+  // Apply field configurations to history grid — its own config, editable under 'asset-details-history'
+  const [configuredHistoryColumnDefs] = useFieldConfig(historyColumnDefs, 'asset-details-history');
 
   useEffect(() => {
     api.operators.getAll().then(setOperators).catch(() => setOperators([]));

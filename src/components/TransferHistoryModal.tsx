@@ -289,7 +289,7 @@ export function TransferHistoryModal({
         <div className="flex-1 min-h-0 flex flex-col px-4">
           {/* Date Tabs - Always Visible when history exists */}
           {history.length > 0 && (
-            <div className="flex-shrink-0 flex items-center gap-1 border-b-2 border-gray-300 bg-gradient-to-b from-gray-50 to-gray-100 rounded-t-lg shadow-sm overflow-x-auto mb-4">
+            <div className="flex-shrink-0 flex items-center gap-1 border-b-2 border-gray-300 bg-gradient-to-b from-gray-50 to-gray-100 rounded-t-lg shadow-sm overflow-x-auto overflow-y-hidden mb-4">
               {history.map((record) => (
                 <button
                   key={record.id}

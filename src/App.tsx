@@ -615,60 +615,6 @@ function App() {
     });
   }, [activeTabId, handleNavigation]);
 
-  // Function to close all tabs except buildings list and regular assets list tabs (residential and business)
-  const handleCloseAllTabsExceptEssential = useCallback(() => {
-    handleNavigation(() => {
-      setTabs(prevTabs => {
-        // Keep: dashboard, buildings list tabs, and regular assets tabs (not error fixing mode)
-        const dashboardTab = prevTabs.find(t => t.type === 'measurement-progress-dashboard');
-        const essentialTabs = prevTabs.filter(tab => {
-          // Always keep dashboard
-          if (tab.type === 'measurement-progress-dashboard') return true;
-          // Keep buildings list tabs
-          if (tab.type === 'buildings') return true;
-          // Keep assets tabs that are NOT in error fixing mode
-          // Error fixing mode tabs have isErrorFixingMode: true OR selectedAssetIds set (for error fixing)
-          if (tab.type === 'assets' && !tab.isErrorFixingMode && (!tab.selectedAssetIds || tab.selectedAssetIds.length === 0)) {
-            return true;
-          }
-          // Close all other tabs (transfer-areas, asset-details, asset-types, etc.)
-          return false;
-        });
-        
-        // If no essential tabs remain, ensure dashboard and buildings tabs exist
-        if (essentialTabs.length === 0) {
-          const dashboardTab: Tab = { id: 'measurement-progress-dashboard', type: 'measurement-progress-dashboard', label: 'התקדמות פעילות מדידות', refreshKey: Date.now() };
-          const buildingsTab: Tab = { id: 'buildings', type: 'buildings', label: 'מבנים', refreshKey: Date.now() };
-          setActiveTabId('buildings');
-          return [dashboardTab, buildingsTab];
-        }
-        
-        // Ensure dashboard is first and buildings is second
-        const dashboardTabToKeep: Tab = dashboardTab || { id: 'measurement-progress-dashboard', type: 'measurement-progress-dashboard', label: 'התקדמות פעילות מדידות', refreshKey: Date.now() };
-        const buildingsTabInEssential = essentialTabs.find(t => t.type === 'buildings');
-        const buildingsTabToKeep: Tab = buildingsTabInEssential || { id: 'buildings', type: 'buildings', label: 'מבנים', refreshKey: Date.now() };
-        const otherTabs = essentialTabs.filter(t => 
-          t.type !== 'measurement-progress-dashboard' && t.type !== 'buildings'
-        );
-        const orderedTabs = [dashboardTabToKeep, buildingsTabToKeep, ...otherTabs];
-        
-        // Set active tab to the last essential tab (or buildings if available)
-        const lastAssetsTab = otherTabs.filter(t => t.type === 'assets').pop();
-        if (buildingsTabInEssential) {
-          setActiveTabId(buildingsTabInEssential.id);
-        } else if (lastAssetsTab) {
-          setActiveTabId(lastAssetsTab.id);
-        } else if (otherTabs.length > 0) {
-          setActiveTabId(otherTabs[otherTabs.length - 1].id);
-        } else {
-          setActiveTabId('buildings');
-        }
-        
-        return orderedTabs;
-      });
-    });
-  }, [handleNavigation]);
-
   const activeTab = tabs.find(tab => tab.id === activeTabId);
   const isSidebarItemActive = useCallback((tabType: Tab['type'] | Tab['type'][]) => {
     const types = Array.isArray(tabType) ? tabType : [tabType];
@@ -2073,9 +2019,13 @@ function App() {
                 buildingNumber={activeTab.buildingNumber}
                 taxRegion={activeTab.taxRegion}
                 selectedAssetIds={activeTab.selectedAssetIds}
-                onCloseTab={() => handleCloseTab(activeTabId)}
+                onCloseTab={() => {
+                  // Called after a transfer save: refresh buildings/assets tabs with the saved data,
+                  // then close the transfer tab (focus returns to the tab that opened it)
+                  handleDataUpdate();
+                  handleCloseTab(activeTabId);
+                }}
                 onOpenAssetsTab={handleOpenAssetsTab}
-                onCloseAllTabsExceptEssential={handleCloseAllTabsExceptEssential}
               />
             )}
             {activeTab?.type === 'asset-types' && (

@@ -150,9 +150,16 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
     return latestMeasurement ? [latestMeasurement] : [];
   }, [latestMeasurement]);
 
-  // Get history rows (all except the latest) - memoized for performance
+  // Get history rows (all except the latest), newest measurement_date first; rows without a date last
   const historyRows = useMemo(() => {
-    return allMeasurements.filter(m => m.is_latest !== true);
+    return allMeasurements
+      .filter(m => m.is_latest !== true)
+      .sort((a, b) => {
+        const da = a.measurement_date ? String(a.measurement_date) : '';
+        const db = b.measurement_date ? String(b.measurement_date) : '';
+        if (!da || !db) return da ? -1 : db ? 1 : 0;
+        return db.localeCompare(da); // ISO dates compare lexicographically
+      });
   }, [allMeasurements]);
 
   // All history records from assets_history - show all previous states/measurements

@@ -287,17 +287,6 @@ export function TransferHistoryModal({
 
         {/* Content */}
         <div className="flex-1 overflow-y-auto px-4">
-          {/* Toggle: show only changed assets (default) or all assets */}
-          <label className="flex items-center gap-2 mb-2 text-sm text-gray-700 cursor-pointer select-none w-fit">
-            <input
-              type="checkbox"
-              checked={showUnchanged}
-              onChange={(e) => setShowUnchanged(e.target.checked)}
-              className="h-4 w-4 cursor-pointer"
-            />
-            הצג גם נכסים שלא השתנו
-          </label>
-
           {/* Date Tabs - Always Visible when history exists */}
           {history.length > 0 && (
             <div className="flex items-center gap-1 border-b-2 border-gray-300 bg-gradient-to-b from-gray-50 to-gray-100 rounded-t-lg shadow-sm overflow-x-auto mb-4">
@@ -334,6 +323,16 @@ export function TransferHistoryModal({
             {selectedRecord && (
               <div className="space-y-4">
                 <div>
+                {/* Toggle: show only changed assets (default) or all assets of this record */}
+                <label className="flex items-center gap-2 mb-2 text-sm text-gray-700 cursor-pointer select-none w-fit">
+                  <input
+                    type="checkbox"
+                    checked={showUnchanged}
+                    onChange={(e) => setShowUnchanged(e.target.checked)}
+                    className="h-4 w-4 cursor-pointer"
+                  />
+                  הצג גם נכסים שלא השתנו
+                </label>
                 <div className="rounded-lg border border-gray-200 overflow-auto" style={{ maxHeight: '600px' }}>
                   <table className="w-full border-collapse text-sm" dir="rtl">
                     <thead className="bg-gray-100 sticky top-0">

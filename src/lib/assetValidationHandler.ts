@@ -35,6 +35,7 @@ export interface ValidationOptions {
   cachedData?: { assetTypes?: any[]; building?: any; asset?: any }; // Cached data to avoid database queries
   skipParkingSharedAreaCheck?: boolean; // When true, skip the per-asset shared_parking_area vs building check (used during distribution saves)
   skipParkingUnitsCheck?: boolean; // When true, skip the building-level number_of_parking_units sum check (save path already does this check against all assets)
+  allBuildingAssets?: Asset[]; // All current assets of the building, for the parking-units total; loaded from the API when omitted
 }
 
 /**
@@ -191,10 +192,7 @@ export class AssetValidationHandler {
     };
     const parkingEligibleIds = new Set<string | number>();
     let assetsSharedParkingSum = 0;
-    let assetsParkingUnitsSum = 0;
     for (const asset of assetsToValidate) {
-      const u = (asset as any).number_of_parking_units;
-      if (u != null && u !== '') assetsParkingUnitsSum += Number(u) || 0;
       if (!isParkingEligible(asset)) continue;
       parkingEligibleIds.add(asset.asset_id);
       const v = (asset as any).shared_parking_area;
@@ -225,9 +223,31 @@ export class AssetValidationHandler {
       ? Number(building.number_of_parking_units)
       : null;
 
-    // Total number_of_parking_units across ALL assets must equal building.number_of_parking_units
-    // Skipped during save-time validation (only dirty assets are passed; save handler does its own correct full-building check)
-    if (!options?.skipParkingUnitsCheck && buildingParkingUnits != null && !isNaN(buildingParkingUnits) && assetsParkingUnitsSum !== buildingParkingUnits) {
+    // Total number_of_parking_units across ALL assets of the building must equal building.number_of_parking_units.
+    // Callers often pass a subset (one tax-region tab, the measured-not-sent assets, a single asset), so the
+    // total is taken over every current asset of the building, with the validated (possibly unsaved) versions
+    // replacing their stored copies. Skipped during save-time validation (save handler does its own check).
+    const checkParkingUnits = !options?.skipParkingUnitsCheck && buildingParkingUnits != null && !isNaN(buildingParkingUnits);
+    let assetsParkingUnitsSum = 0;
+    if (checkParkingUnits) {
+      let buildingAssets: Asset[] | null = options?.allBuildingAssets ?? null;
+      if (!buildingAssets) {
+        try {
+          const { api } = await import('./api');
+          buildingAssets = await api.assets.getAll(buildingNumber);
+        } catch (error) {
+          console.error('Failed to fetch building assets for parking-units total:', error);
+        }
+      }
+      const byAssetId = new Map<string, Asset>();
+      for (const a of buildingAssets ?? []) byAssetId.set(String(a.asset_id), a);
+      for (const a of assetsToValidate) byAssetId.set(String(a.asset_id), a);
+      for (const a of byAssetId.values()) {
+        const u = (a as any).number_of_parking_units;
+        if (u != null && u !== '') assetsParkingUnitsSum += Number(u) || 0;
+      }
+    }
+    if (checkParkingUnits && assetsParkingUnitsSum !== buildingParkingUnits) {
       const err = `סה"כ יחידות חניה בנכסים (${assetsParkingUnitsSum}) אינו שווה ליחידות חניה במבנה (${buildingParkingUnits})`;
       for (let i = 0; i < results.length; i++) {
         if (parkingEligibleIds.has(assetsToValidate[i].asset_id)) {

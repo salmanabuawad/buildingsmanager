@@ -96,8 +96,16 @@ function App() {
   // Tabs in the order they were focused (most recent last) — closing the
   // active tab returns focus to the one used before it.
   const tabFocusHistory = useRef<string[]>([]);
+  // The tab each tab was opened from (the active tab when it was first focused);
+  // closing a tab returns to its opener when that is still open.
+  const tabOpener = useRef<Record<string, string>>({});
   useEffect(() => {
-    tabFocusHistory.current = [...tabFocusHistory.current.filter(id => id !== activeTabId), activeTabId];
+    const history = tabFocusHistory.current;
+    const lastActive = history[history.length - 1];
+    if (lastActive && lastActive !== activeTabId && !history.includes(activeTabId)) {
+      tabOpener.current[activeTabId] = lastActive;
+    }
+    tabFocusHistory.current = [...history.filter(id => id !== activeTabId), activeTabId];
   }, [activeTabId]);
   const [showCreateBuildingModal, setShowCreateBuildingModal] = useState(false);
   const [buildingsMenuOpen, setBuildingsMenuOpen] = useState(false);
@@ -1346,14 +1354,17 @@ function App() {
 
       if (activeTabId === tabId) {
         const remainingIds = new Set(tabs.filter(tab => tab.id !== tabId).map(tab => tab.id));
-        // Closing the active tab: go back to the previously focused tab that is
-        // still open; else the tab to its left; else the dashboard.
+        // Closing the active tab: go back to the tab that opened it if still open;
+        // else the previously focused open tab; else the tab to its left; else the dashboard.
+        const opener = tabOpener.current[tabId];
+        const openerIfOpen = opener && remainingIds.has(opener) ? opener : undefined;
         const previous = [...tabFocusHistory.current].reverse().find(id => remainingIds.has(id));
         const closedIndex = tabs.findIndex(tab => tab.id === tabId);
         const leftNeighbour = closedIndex > 0 ? tabs[closedIndex - 1].id : undefined;
-        setActiveTabId(previous ?? leftNeighbour ?? 'measurement-progress-dashboard');
+        setActiveTabId(openerIfOpen ?? previous ?? leftNeighbour ?? 'measurement-progress-dashboard');
       }
       tabFocusHistory.current = tabFocusHistory.current.filter(id => id !== tabId);
+      delete tabOpener.current[tabId];
     });
   }
 

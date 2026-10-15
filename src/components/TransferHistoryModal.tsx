@@ -25,6 +25,7 @@ export function TransferHistoryModal({
   const [selectedRecord, setSelectedRecord] = useState<DistributionAudit | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [assetTypes, setAssetTypes] = useState<AssetType[]>([]);
+  const [showUnchanged, setShowUnchanged] = useState(false);
 
   useEffect(() => {
     if (isOpen) {
@@ -212,7 +213,9 @@ export function TransferHistoryModal({
     // Filter to only include assets that have changed
     // For current state records, show all assets from after state
     // For transfer and other operations, show only assets that actually changed (by field comparison)
+    // When unchanged assets are shown too, keep every asset
     const changedAssetIds = allAssetIds.filter(assetId => {
+      if (showUnchanged && !isCurrentState) return true;
       if (isCurrentState) {
         // For current state, show all assets that exist in after state
         return afterMap.has(assetId);
@@ -256,7 +259,7 @@ export function TransferHistoryModal({
     });
     
     return rows;
-  }, [selectedRecord]);
+  }, [selectedRecord, showUnchanged]);
 
   if (!isOpen) return null;
 
@@ -284,6 +287,17 @@ export function TransferHistoryModal({
 
         {/* Content */}
         <div className="flex-1 overflow-y-auto px-4">
+          {/* Toggle: show only changed assets (default) or all assets */}
+          <label className="flex items-center gap-2 mb-2 text-sm text-gray-700 cursor-pointer select-none w-fit">
+            <input
+              type="checkbox"
+              checked={showUnchanged}
+              onChange={(e) => setShowUnchanged(e.target.checked)}
+              className="h-4 w-4 cursor-pointer"
+            />
+            הצג גם נכסים שלא השתנו
+          </label>
+
           {/* Date Tabs - Always Visible when history exists */}
           {history.length > 0 && (
             <div className="flex items-center gap-1 border-b-2 border-gray-300 bg-gradient-to-b from-gray-50 to-gray-100 rounded-t-lg shadow-sm overflow-x-auto mb-4">

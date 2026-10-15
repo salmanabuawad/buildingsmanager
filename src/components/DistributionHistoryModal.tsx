@@ -29,6 +29,7 @@ export function DistributionHistoryModal({
   const [selectedRecord, setSelectedRecord] = useState<DistributionAudit | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [assetTypes, setAssetTypes] = useState<AssetType[]>([]);
+  const [showUnchanged, setShowUnchanged] = useState(false);
 
   useEffect(() => {
     if (isOpen) {
@@ -148,11 +149,18 @@ export function DistributionHistoryModal({
     return true;
   };
 
-  // Filter out records where before and after assets are identical (nothing to show)
+  // Filter out records where before and after assets are identical, unless unchanged are shown too
   const displayHistory = useMemo(
-    () => history.filter((record) => !isBeforeAfterAssetsSame(record)),
-    [history]
+    () => showUnchanged ? history : history.filter((record) => !isBeforeAfterAssetsSame(record)),
+    [history, showUnchanged]
   );
+
+  // Drop the selection if its record is hidden again (unchanged records filtered out)
+  useEffect(() => {
+    if (selectedRecord && !displayHistory.some(r => r.id === selectedRecord.id)) {
+      setSelectedRecord(null);
+    }
+  }, [displayHistory, selectedRecord]);
 
   // Auto-open single record after history loads when only one record has changes
   useEffect(() => {
@@ -204,8 +212,8 @@ export function DistributionHistoryModal({
       ...Array.from(afterMap.keys())
     ])).sort((a, b) => a - b);
     
-    // Filter to only include assets that have changed
-    const changedAssetIds = allAssetIds.filter(assetId => {
+    // Only assets that have changed, unless unchanged assets are shown too
+    const changedAssetIds = showUnchanged ? allAssetIds : allAssetIds.filter(assetId => {
       const beforeAsset = beforeMap.get(assetId);
       const afterAsset = afterMap.get(assetId);
       return hasAssetChanged(beforeAsset, afterAsset);
@@ -233,7 +241,7 @@ export function DistributionHistoryModal({
     });
     
     return rows;
-  }, [selectedRecord]);
+  }, [selectedRecord, showUnchanged]);
 
   if (!isOpen) return null;
 
@@ -261,6 +269,17 @@ export function DistributionHistoryModal({
 
         {/* Content */}
         <div className="flex-1 overflow-y-auto px-4">
+          {/* Toggle: show only changed assets (default) or all assets */}
+          <label className="flex items-center gap-2 mb-2 text-sm text-gray-700 cursor-pointer select-none w-fit">
+            <input
+              type="checkbox"
+              checked={showUnchanged}
+              onChange={(e) => setShowUnchanged(e.target.checked)}
+              className="h-4 w-4 cursor-pointer"
+            />
+            הצג גם נכסים שלא השתנו
+          </label>
+
           {/* Date Tabs - Always Visible when history exists */}
           {displayHistory.length > 0 && (
             <div className="flex items-center gap-1 border-b-2 border-gray-300 bg-gradient-to-b from-gray-50 to-gray-100 rounded-t-lg shadow-sm overflow-x-auto mb-4">

@@ -249,7 +249,8 @@ export const MeasuredNotExportedAssets = ({ onSelectAsset, onOpenAssetsTab }: Me
           {
             mode: 'building',
             validateOnlyLatest: false,
-            cachedData: cachedData
+            cachedData: cachedData,
+            skipParkingUnitsCheck: true // this window does not check the building parking-units total
           }
         );
 
@@ -931,6 +932,7 @@ export const MeasuredNotExportedAssets = ({ onSelectAsset, onOpenAssetsTab }: Me
                 mode: 'building',
                 validateOnlyLatest: false,
                 cachedData: { assetTypes: typesForValidation, building },
+                skipParkingUnitsCheck: true, // this window does not check the building parking-units total
                 onProgress: (progress) => {
                   setExportProgressMessage(`מאמת נכסים... ${progress.current}/${progress.total}`);
                 }

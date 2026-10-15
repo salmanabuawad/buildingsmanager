@@ -340,6 +340,7 @@ export function TransferHistoryModal({
                       <tr>
                         <th className="border border-gray-300 px-2 py-1.5 text-right font-semibold text-xs">{t('assetId')}</th>
                         <th className="border border-gray-300 px-2 py-1.5 text-right font-semibold text-xs">סטטוס</th>
+                        <th className="border border-gray-300 px-2 py-1.5 text-right font-semibold text-xs">גודל שטח משותף</th>
                         <th className="border border-gray-300 px-2 py-1.5 text-right font-semibold text-xs">{t('mainAssetType')}</th>
                         <th className="border border-gray-300 px-2 py-1.5 text-right font-semibold text-xs">{t('mainAssetSize')}</th>
                         <th className="border border-gray-300 px-2 py-1.5 text-right font-semibold text-xs">{t('subAssetType1')}</th>
@@ -371,6 +372,9 @@ export function TransferHistoryModal({
                             <tr key={`${row.asset_id}-after`} style={{ backgroundColor: bgColor }}>
                               {/* Asset ID cell is spanned from before row, so we don't render it here */}
                               <td className="border border-gray-300 px-2 py-1.5 text-right font-semibold">אחרי</td>
+                              <td className={`border border-gray-300 px-2 py-1.5 text-right ${isValueChanged(row.asset_id, 'business_distribution_area') ? 'font-bold italic' : ''}`}>
+                                {asset?.business_distribution_area != null && asset.business_distribution_area !== 0 ? formatNumberToTwoDecimals(asset.business_distribution_area, false) : ''}
+                              </td>
                               <td 
                                 className={`border border-gray-300 px-2 py-1.5 text-right ${isValueChanged(row.asset_id, 'main_asset_type') ? 'font-bold italic' : ''}`}
                                 title={asset?.main_asset_type ? getAssetTypeDescription(asset.main_asset_type) : ''}
@@ -465,6 +469,9 @@ export function TransferHistoryModal({
                                 </button>
                               </td>
                               <td className="border border-gray-300 px-2 py-1.5 text-right font-semibold">אחרי</td>
+                              <td className={`border border-gray-300 px-2 py-1.5 text-right ${isValueChanged(row.asset_id, 'business_distribution_area') ? 'font-bold italic' : ''}`}>
+                                {asset?.business_distribution_area != null && asset.business_distribution_area !== 0 ? formatNumberToTwoDecimals(asset.business_distribution_area, false) : ''}
+                              </td>
                               <td 
                                 className={`border border-gray-300 px-2 py-1.5 text-right ${isValueChanged(row.asset_id, 'main_asset_type') ? 'font-bold italic' : ''}`}
                                 title={asset?.main_asset_type ? getAssetTypeDescription(asset.main_asset_type) : ''}
@@ -562,6 +569,9 @@ export function TransferHistoryModal({
                               </button>
                             </td>
                             <td className="border border-gray-300 px-2 py-1.5 text-right font-semibold">לפני</td>
+                            <td className={`border border-gray-300 px-2 py-1.5 text-right ${isValueChanged(row.asset_id, 'business_distribution_area') ? 'font-bold italic' : ''}`}>
+                              {asset?.business_distribution_area != null && asset.business_distribution_area !== 0 ? formatNumberToTwoDecimals(asset.business_distribution_area, false) : ''}
+                            </td>
                             <td 
                               className={`border border-gray-300 px-2 py-1.5 text-right ${isValueChanged(row.asset_id, 'main_asset_type') ? 'font-bold italic' : ''}`}
                               title={asset?.main_asset_type ? getAssetTypeDescription(asset.main_asset_type) : ''}

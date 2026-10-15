@@ -17,7 +17,7 @@ import { RowEditModal } from './RowEditModal';
 import { AuditLog, Building as BuildingType } from '../lib/api';
 import { usePreferences } from '../contexts/PreferencesContext';
 import { useValidationRules } from '../contexts/ValidationContext';
-import { formatDateToDDMMYYYY, formatDateTimeToDDMMYYYYHHMM } from '../lib/dateUtils';
+import { formatDateToDDMMYYYY, formatDateTimeToDDMMYYYYHHMM, parseDateFromDDMMYYYY } from '../lib/dateUtils';
 import { formatNumberToTwoDecimals, numericValueParserInt } from '../lib/numberUtils';
 import { useGridPreferences } from '../lib/useGridPreferences';
 import { processColumnHeader } from '../lib/gridHeaderUtils';
@@ -155,10 +155,16 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
     return allMeasurements
       .filter(m => m.is_latest !== true)
       .sort((a, b) => {
-        const da = a.measurement_date ? String(a.measurement_date) : '';
-        const db = b.measurement_date ? String(b.measurement_date) : '';
-        if (!da || !db) return da ? -1 : db ? 1 : 0;
-        return db.localeCompare(da); // ISO dates compare lexicographically
+        // measurement_date is stored as DD/MM/YYYY text (some rows ISO YYYY-MM-DD)
+        const toTime = (v: unknown): number | null => {
+          if (!v) return null;
+          const parsed = parseDateFromDDMMYYYY(String(v)) ?? new Date(String(v));
+          return isNaN(parsed.getTime()) ? null : parsed.getTime();
+        };
+        const ta = toTime(a.measurement_date);
+        const tb = toTime(b.measurement_date);
+        if (ta === null || tb === null) return ta !== null ? -1 : tb !== null ? 1 : 0;
+        return tb - ta;
       });
   }, [allMeasurements]);
 

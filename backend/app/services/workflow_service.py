@@ -79,13 +79,16 @@ _CONTRIB_FIELDS = {
     "sub_asset_type_6", "sub_asset_size_6",
 }
 
-# Action types whose whole purpose IS to write distribution outputs — must
-# NOT trigger the invalidate step, otherwise the distribution would clear
-# itself immediately after running.
+# Action types that must NOT trigger the invalidate step (clearing every
+# asset's business_distribution_area and the building's overload_ratio):
+# - distributions WRITE those outputs, so they would clear themselves;
+# - transfers keep the existing shared areas by request (the building is
+#   still flagged for redistribution by _re_flag_distribution_for_asset_change).
 _DISTRIBUTION_ACTIONS_SKIP_INVALIDATE = {
     "business_distribution",
     "residence_distribution",
     "distribute_shared",
+    "transfer_area",
 }
 
 

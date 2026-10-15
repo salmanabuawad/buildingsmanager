@@ -166,7 +166,8 @@ export function TransferHistoryModal({
       'sub_asset_type_4', 'sub_asset_size_4',
       'sub_asset_type_5', 'sub_asset_size_5',
       'sub_asset_type_6', 'sub_asset_size_6',
-      'business_distribution_area' // May change during transfers
+      // Not business_distribution_area: every transfer clears it on all assets of the
+      // building (distribution must be re-run), so it would mark every asset as changed
     ];
     
     for (const field of fieldsToCompare) {
